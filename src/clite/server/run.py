@@ -53,8 +53,8 @@ def serve(host: str = "127.0.0.1", port: int = 0, *, token: str | None = None, o
     sock = bind_socket(host, port)
     bound_port = sock.getsockname()[1]
 
-    server = uvicorn.Server(uvicorn.Config(create_app(token, client_factory=client_factory), log_level="warning",
-                                           access_log=False, lifespan="off"))
+    app = create_app(token, client_factory=client_factory, bind_host=host)
+    server = uvicorn.Server(uvicorn.Config(app, log_level="warning", access_log=False, lifespan="off"))
     print(f"{BACKEND_READY_SENTINEL} port={bound_port}", file=out, flush=True)
     url = dashboard_url(host, bound_port, token)
     if not inherited:

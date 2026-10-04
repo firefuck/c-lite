@@ -9,7 +9,7 @@ import pytest
 from clite.core.config import load_config
 from clite.plugins.hooks import get_hook_bus
 from clite.providers.testing import ScriptedClient, mock_route, text_response
-from clite.tools.approval import check_command, detect_dangerous_command, detect_hardline
+from clite.tools.approval import check_command, detect_dangerous_command, detect_hardline, detect_self_access
 from clite.tools.context import ToolContext
 
 
@@ -167,6 +167,76 @@ def test_approval_hooks_observe_the_exchange():
     assert events == [("ask", "rm -rf build"), ("answer", "once")]
 
 
+# ── the agent's own settings and credentials ────────────────────────────────────────────
+
+
+def test_commands_that_reach_for_the_agents_own_settings_are_flagged(clite_home):
+    for command in (
+        "echo 'approvals: {mode: off}' > ~/.clite/config.yaml",
+        "sed -i s/manual/off/ $HOME/.clite/config.yaml",
+        "cat ${CLITE_HOME}/.env",
+        f"cp {clite_home}/.env /tmp/keys",
+        f"cd {clite_home} && sed -i s/manual/off/ config.yaml",
+        "printf '{}' > ~/.clite/shell-hooks-allowlist.json",
+        "clite config set approvals.mode off",
+        "c-lite hooks approve --yes",
+        "cd /tmp && python3 -m clite plugins enable something",
+        "clite -p work gateway pair approve telegram ABCD2345",
+    ):
+        assert detect_self_access(command) is not None, command
+
+
+def test_ordinary_use_of_similar_names_is_not_flagged(clite_home):
+    for command in (
+        "cat config.yaml",                      # some project's own file, outside the agent's home
+        "cp .env.example .env",
+        "ls ~/.clite/skills",                   # the home, but none of the protected files
+        "cat ~/.clite/config.yaml.bak",
+        "grep -r clite docs/",
+        "pip install clite",
+        "clite --version",
+    ):
+        assert detect_self_access(command) is None, command
+
+
+def test_a_bare_file_name_counts_when_the_command_runs_inside_the_agents_home(clite_home, tmp_path):
+    assert detect_self_access("sed -i s/manual/off/ config.yaml", cwd=str(clite_home)) is not None
+    assert detect_self_access("sed -i s/manual/off/ config.yaml", cwd=str(tmp_path / "project")) is None
+
+
+def test_reaching_for_the_agents_settings_is_asked_about_every_time():
+    """Editing the policy is how a gate gets removed, so that yes is never remembered."""
+    ctx, asked = _ctx("always")
+    assert check_command("clite config set approvals.mode off", ctx).approved is True
+    assert check_command("clite config set approvals.mode off", ctx).approved is True
+    assert len(asked) == 2
+    assert load_config()["command_allowlist"] == []
+
+    # An ordinary pattern approved in the same breath is still remembered.
+    assert check_command("rm -rf build && cat ~/.clite/.env", ctx).approved is True
+    assert load_config()["command_allowlist"] == ["rm_recursive_or_force"]
+    assert check_command("rm -rf dist", ctx).approved is True
+    assert len(asked) == 3
+
+
+def test_reaching_for_the_agents_settings_is_refused_with_no_one_to_ask():
+    ctx, _ = _ctx(None)
+    decision = check_command("echo x >> ~/.clite/.env", ctx)
+    assert decision.approved is False and "own settings" in decision.reason
+
+
+def test_the_terminal_tells_the_gate_where_the_command_runs(clite_home):
+    import json
+
+    from clite.tools.builtin.terminal import terminal_tool
+
+    (clite_home / "config.yaml").write_text("approvals:\n  mode: manual\n")
+    ctx = ToolContext(session_id="s1", task_id="t-home", cwd=str(clite_home))
+    result = json.loads(terminal_tool({"command": "sed -i s/manual/off/ config.yaml"}, ctx))
+    assert result["status"] == "blocked" and "own settings" in result["error"]
+    assert "manual" in (clite_home / "config.yaml").read_text()
+
+
 # ── smart mode: an auxiliary model reviews flagged commands ──────────────────────────────
 
 def _smart_config() -> dict:
@@ -188,6 +258,13 @@ def test_smart_mode_clears_a_false_positive_without_asking():
     prompt = reviewer.last_messages[-1]["content"]
     assert "rm -rf ./build" in prompt and "recursive or forced delete" in prompt
     assert reviewer.calls[0]["tools"] is None  # the reviewer judges; it cannot act
+
+
+def test_smart_mode_never_reviews_a_command_that_reaches_for_the_agents_settings():
+    ctx, asked, reviewer = _smart_ctx("APPROVE", answer="deny")
+    decision = check_command("clite hooks approve --yes", ctx)
+    assert decision.approved is False and decision.choice == "deny"
+    assert asked == ["clite hooks approve --yes"] and reviewer.calls == []
 
 
 def test_smart_mode_refuses_what_the_reviewer_calls_dangerous():

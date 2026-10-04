@@ -15,12 +15,14 @@ from pathlib import Path
 from typing import Any
 
 from clite.core.io import atomic_write_text
+from clite.core.redact import redact
 from clite.tools.context import ToolContext
 from clite.tools.environments import get_environment
-from clite.tools.file_safety import write_denied_reason
+from clite.tools.file_safety import read_denied_reason, write_denied_reason
 from clite.tools.registry import PARALLEL_PATH, PARALLEL_SAFE, registry, tool_error, tool_result
 
 DEFAULT_READ_LIMIT = 500
+REDACTION_NOTE = "Credentials in this text were replaced with [REDACTED]. Do not copy that marker into a patch or a file."
 MAX_LINE_CHARS = 2000
 MAX_SEARCH_FILE_BYTES = 2_000_000
 SKIP_DIRS = frozenset({".git", "node_modules", "__pycache__", ".venv", "venv", ".mypy_cache", ".pytest_cache",
@@ -70,6 +72,11 @@ def read_file_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
         return tool_error(f"File not found: {path}", suggestions=_similar_names(path))
     if path.is_dir():
         return tool_error(f"{path} is a directory. Use search_files(target='files') to list it.")
+    if not path.is_file():
+        return tool_error(f"{path} is not a regular file (a device, pipe or socket) and cannot be read.")
+    denied = read_denied_reason(path)
+    if denied:
+        return tool_error(f"Refused to read {path}: {denied}.")
     if _looks_binary(path):
         return tool_error(f"{path} looks like a binary file ({path.stat().st_size} bytes) and cannot be read as text.")
     try:
@@ -94,7 +101,12 @@ def read_file_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
         selected.append(rendered)
         used += len(rendered) + 1
     last = offset + len(selected) - 1
-    payload: dict[str, Any] = {"content": "\n".join(selected), "path": str(path), "total_lines": len(lines)}
+    # What the model reads goes to the model provider and into the session database.
+    shown = "\n".join(selected)
+    content = redact(shown)
+    payload: dict[str, Any] = {"content": content, "path": str(path), "total_lines": len(lines)}
+    if content != shown:
+        payload["note"] = REDACTION_NOTE
     if last < len(lines):
         payload["truncated"] = True
         payload["next_offset"] = last + 1
@@ -236,7 +248,7 @@ def patch_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
         difflib.unified_diff(content.splitlines(keepends=True), updated.splitlines(keepends=True),
                              fromfile=f"a/{path.name}", tofile=f"b/{path.name}", n=2)
     )
-    return tool_result(path=str(path), replacements=replaced, diff=diff[:8000])
+    return tool_result(path=str(path), replacements=replaced, diff=redact(diff[:8000]))
 
 
 # ── search_files ─────────────────────────────────────────────────────────────────────────
@@ -316,7 +328,7 @@ def search_files_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> s
         if file_glob and not fnmatch.fnmatch(path.name, str(file_glob)):
             continue
         try:
-            if path.stat().st_size > MAX_SEARCH_FILE_BYTES or _looks_binary(path):
+            if path.stat().st_size > MAX_SEARCH_FILE_BYTES or _looks_binary(path) or read_denied_reason(path):
                 continue
             text = path.read_text(encoding="utf-8", errors="replace")
         except OSError:
@@ -325,7 +337,7 @@ def search_files_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> s
         for number, line in enumerate(text.splitlines(), start=1):
             if regex.search(line):
                 hit = True
-                results.append(f"{display(path)}:{number}: {line.strip()[:300]}")
+                results.append(f"{display(path)}:{number}: {redact(line.strip()[:300])}")
                 if len(results) >= limit:
                     break
         files_with_matches += hit

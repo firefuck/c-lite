@@ -255,7 +255,7 @@ Aplikasi **Ink** (React untuk terminal) dengan **nanostores** untuk keadaan.
 | Aktivitas tool | `thinking.tsx` | `tool.start`, `tool.generating`, `tool.complete` |
 | Persetujuan | `prompts.tsx` | Server request `approval` |
 | Klarifikasi, sudo, rahasia | `prompts.tsx`, `maskedPrompt.tsx` | Server request `clarify`, `sudo`, `secret` |
-| Pemilih sesi | `sessionPicker.tsx` | `session.list`, `session.resume` |
+| Pemilih sesi | `activeSessionSwitcher.tsx` | `session.list`, `session.resume` |
 | Slash command | Handler lokal lalu diteruskan | `slash.exec`, `command.dispatch` |
 | Pelengkapan | Hook `useCompletion` | `complete.slash`, `complete.path` |
 | Tema | `theme.ts`, `branding.tsx` | `gateway.ready` membawa data skin |

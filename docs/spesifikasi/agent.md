@@ -169,7 +169,7 @@ Setiap butir dijaga oleh tes di `tests/agent/`.
 - **Fase sebagai fungsi kecil.** Hermes memecah loop ke banyak modul pembantu
   (`agent/conversation_loop.py`, `turn_context.py`, `turn_recovery.py`, dan lain-lain) yang
   saling berbagi state lewat objek agent. Di sini semua variabel giliran ada di `TurnState`
-  dan urutan fase terbaca di `loop.py`.
+  dan urutan fase terbaca di `src/clite/agent/loop.py`.
 - **Tidak ada tabel tool khusus di loop.** Tool tingkat agent (`todo`, `memory`,
   `delegate_task`, `clarify`) adalah tool biasa di registry yang menerima `ctx.agent`.
 - **Kompresi di tempat.** Hermes membuat sesi anak saat kompresi. Di sini id sesi tetap, baris

@@ -96,8 +96,10 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
 
 ## Yang sengaja berbeda dari Hermes
 
-- **Ledger pembatalan.** Setiap `register_*` mencatat cara membatalkannya, jadi bongkar dan
-  muat ulang bersih tanpa memulai ulang proses.
+- **Lebih sedikit titik ekstensi.** `PluginContext` Hermes (`hermes_cli/plugins.py`) punya
+  jauh lebih banyak method `register_*` (halaman dashboard, penyedia autentikasi, bahasa,
+  penyedia gambar dan suara, dan lainnya). Yang sama: ledger pembatalan per plugin, sehingga
+  bongkar dan muat ulang bersih tanpa memulai ulang proses.
 - **Penyedia model bukan plugin biasa.** Direktori `model-providers/` dimuat oleh registry
   provider sendiri, lebih awal dan tanpa gerbang opt-in.
 - **Persetujuan shell hook lewat perintah eksplisit**, bukan prompt saat pertama dipakai, dan

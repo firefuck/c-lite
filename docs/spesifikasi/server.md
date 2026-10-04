@@ -41,8 +41,13 @@ pemeriksaan kesehatan.
 - Satu token untuk semua rute `/api` kecuali health, dibandingkan dalam waktu konstan.
   Diterima sebagai `Authorization: Bearer`, header `X-Clite-Token`, atau parameter `token`
   (WebSocket dari browser tidak bisa mengirim header).
-- WebSocket juga memeriksa `Origin`: halaman dari origin lain ditolak. Klien non-browser tidak
-  mengirim `Origin` dan lolos.
+- WebSocket juga memeriksa `Origin`: hanya origin dashboard sendiri yang lolos, yaitu host dan
+  port yang sama dengan tujuan permintaan (`localhost` dan `127.0.0.1` dianggap sama). Halaman
+  dari port lain, halaman `file://`, dan frame ber-sandbox (`Origin: null`) ditolak. Klien
+  non-browser tidak mengirim `Origin` dan lolos.
+- Server yang terikat ke loopback hanya melayani permintaan `/api` yang ditujukan ke nama
+  loopback (header `Host`). Situs yang namanya dialihkan ke 127.0.0.1 (DNS rebinding) tidak
+  mendapat apa pun, juga dengan token yang benar.
 - URL dashboard membawa token di fragmen (`#token=`), yang tidak pernah dikirim ke server atau
   ditulis ke log. Dashboard memindahkannya dari URL setelah dibaca.
 

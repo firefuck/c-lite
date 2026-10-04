@@ -12,6 +12,13 @@ Order of checks, most absolute first:
    It can clear the command or refuse it; when it is unsure, or fails, the next step decides.
 7. Otherwise the user is asked: once / session / always / deny. With no one to ask (cron, a
    one-shot query) the platform's non-interactive policy decides, and it defaults to deny.
+
+A command that reaches for the agent's own settings or credentials (its ``config.yaml``, its
+``.env``, its own management CLI) is dangerous in a stricter way: steps 5 and 6 do not apply
+to it and the user's yes is never remembered, so each such command is asked about on its own.
+
+This gate is a seat belt, not a sandbox. It reads the text of one command; a script written to
+a file and run in a second step is outside what it can see.
 """
 
 from __future__ import annotations
@@ -22,12 +29,16 @@ import re
 import threading
 import unicodedata
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
+from clite.core.brand import APP_NAME, DISPLAY_NAME, HOME_DIRNAME, HOME_ENV
 from clite.core.config import atomic_config_update
+from clite.core.constants import get_default_root, get_home
 from clite.plugins.hooks import invoke_hook
 from clite.providers.auxiliary import call_auxiliary
 from clite.tools.context import ToolContext
+from clite.tools.file_safety import PROTECTED_NAMES
 
 logger = logging.getLogger("clite.tools.approval")
 
@@ -117,6 +128,53 @@ class ApprovalDecision:
     matches: list[DangerMatch] = field(default_factory=list)
 
 
+# ── the agent's own settings ─────────────────────────────────────────────────────────────
+
+SELF_ACCESS = DangerMatch("agent_settings_access", "reaches for this agent's own settings or credentials")
+# Keys the user is asked about every time: never remembered for the session, never put on the
+# allowlist, never cleared by the smart reviewer. Editing the policy is how a gate gets removed.
+NEVER_REMEMBERED = frozenset({SELF_ACCESS.key})
+
+_PROTECTED_NAME = re.compile(r"(?<![\w.\-])(?:" + "|".join(re.escape(name) for name in PROTECTED_NAMES) + r")(?![\w.\-])")
+# The agent's own command line, used to change what it is allowed to do. Read-only uses are
+# caught as well; the model has tools and slash commands for those.
+_OWN_CLI = re.compile(
+    r"(?:^|[\s;&|(`])(?:" + "|".join(sorted({re.escape(APP_NAME), re.escape(DISPLAY_NAME.lower())}))
+    + rf"|python[\d.]*\s+-m\s+{re.escape(APP_NAME)})\s+(?:(?:-p|--profile)[\s=]+\S+\s+|-\S+\s+)*"
+    r"(?:config|hooks|plugins|setup|gateway|profile|tools|model|skills|cron|sessions)\b"
+)
+
+
+def _home_spellings() -> list[str]:
+    """The ways a command can spell one of this agent's home directories."""
+    spellings = {f"~/{HOME_DIRNAME}", f"$HOME/{HOME_DIRNAME}", f"${{HOME}}/{HOME_DIRNAME}", f"${HOME_ENV}", f"${{{HOME_ENV}}}"}
+    for home in (get_home(), get_default_root()):
+        spellings.update({str(home), str(home.resolve(strict=False))})
+    return sorted(spellings)
+
+
+def _inside_agent_home(cwd: str) -> bool:
+    if not cwd:
+        return False
+    try:
+        directory = Path(cwd).expanduser().resolve(strict=False)
+    except (OSError, RuntimeError):
+        return False
+    return any(directory.is_relative_to(home.resolve(strict=False)) for home in (get_home(), get_default_root()))
+
+
+def detect_self_access(command: str, cwd: str = "") -> DangerMatch | None:
+    """A match when ``command`` reaches for the agent's own settings or credentials: it names
+    one of the protected files by a path into the agent's home (or by bare name while working
+    inside that home), or it runs the agent's own management command."""
+    text = normalize_command(command)
+    if _OWN_CLI.search(text):
+        return SELF_ACCESS
+    if _PROTECTED_NAME.search(text) and (_inside_agent_home(cwd) or any(spelling in text for spelling in _home_spellings())):
+        return SELF_ACCESS
+    return None
+
+
 _SESSION_APPROVED: dict[str, set[str]] = {}
 _LOCK = threading.Lock()
 
@@ -179,8 +237,11 @@ def smart_verdict(command: str, description: str, ctx: ToolContext) -> str:
     return word if word in ("approve", "deny") else "escalate"
 
 
-def check_command(command: str, ctx: ToolContext | None = None) -> ApprovalDecision:
-    """Decide whether ``command`` may run. May block on the user's answer."""
+def check_command(command: str, ctx: ToolContext | None = None, *, cwd: str = "") -> ApprovalDecision:
+    """Decide whether ``command`` may run. May block on the user's answer.
+
+    ``cwd`` is the directory the command will run in, when the caller knows it.
+    """
     ctx = ctx or ToolContext()
     hardline = detect_hardline(command)
     if hardline:
@@ -196,19 +257,23 @@ def check_command(command: str, ctx: ToolContext | None = None) -> ApprovalDecis
         return ApprovalDecision(True, "approvals are off", "auto")
 
     matches = detect_dangerous_command(command)
+    self_access = detect_self_access(command, cwd or ctx.cwd)
+    if self_access is not None:
+        matches.append(self_access)
     if not matches:
         return ApprovalDecision(True, "no dangerous pattern", "auto")
 
     keys = {match.key for match in matches}
+    ask_every_time = bool(keys & NEVER_REMEMBERED)
     session_key = ctx.session_id or "default"
     allowlist = set(ctx.setting("command_allowlist", []) or [])
     with _LOCK:
         approved = set(_SESSION_APPROVED.get(session_key, ()))
-    if keys <= (allowlist | approved):
+    if not ask_every_time and keys <= (allowlist | approved):
         return ApprovalDecision(True, "previously approved", "auto", matches)
 
     description = "; ".join(match.description for match in matches)
-    if mode == "smart":
+    if mode == "smart" and not ask_every_time:
         verdict = smart_verdict(command, description, ctx)
         if verdict == "approve":
             return ApprovalDecision(True, "cleared by the smart-approval model", "smart", matches)
@@ -246,11 +311,12 @@ def check_command(command: str, ctx: ToolContext | None = None) -> ApprovalDecis
 
     if choice == "deny":
         return ApprovalDecision(False, "The user denied this command. Do not retry it; ask what they prefer.", "deny", matches)
+    remembered = keys - NEVER_REMEMBERED
     if choice in ("session", "always"):
         with _LOCK:
-            _SESSION_APPROVED.setdefault(session_key, set()).update(keys)
-    if choice == "always":
-        _remember_always(keys)
+            _SESSION_APPROVED.setdefault(session_key, set()).update(remembered)
+    if choice == "always" and remembered:
+        _remember_always(remembered)
     return ApprovalDecision(True, f"approved ({choice})", choice, matches)
 
 

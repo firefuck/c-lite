@@ -92,8 +92,10 @@ logging, penulisan file atomik, redaksi, dan pemindaian teks yang akan masuk ke 
 - Log ke file, tidak pernah ke stdout. Pada transport stdio, stdout adalah kawat protokol.
 
 **Redaksi dan pemindaian**
-- `redact` mengganti nilai persis setiap rahasia yang dimuat dari `.env`, lalu pola kunci yang
-  dikenal.
+- `secret_names()` adalah daftar variabel yang dikenal sebagai kredensial: setiap nama dari
+  `.env`, setiap nama yang didaftarkan provider atau platform (`register_secret`), dan varian
+  bernomornya (`NAMA_2` sampai `NAMA_9`).
+- `redact` mengganti nilai persis setiap kredensial yang dikenal, lalu pola kunci yang dikenal.
 - `scan_text` sengaja spesifik: positif palsu akan membuang file milik pengguna tanpa suara.
   Yang kena diblokir dengan alasan, tidak dibersihkan lalu dilanjutkan.
 

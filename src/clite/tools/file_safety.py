@@ -1,8 +1,11 @@
-"""Write guard for the file tools.
+"""Path guards for the file tools.
 
 The agent must not be able to edit its own credentials or settings: a prompt-injected page
 that talks the model into ``write_file ~/.clite/.env`` or into adding itself to the command
 allowlist would otherwise escalate without ever touching the terminal approval gate.
+
+Reading is guarded more narrowly: only files whose whole purpose is to hold credentials.
+Whatever the model reads is sent to the model provider and stored in the session database.
 """
 
 from __future__ import annotations
@@ -14,8 +17,12 @@ from clite.core.constants import get_default_root, get_home
 
 _HOME_RELATIVE_DENY = (".ssh", ".gnupg", ".aws", ".kube", ".docker/config.json", ".netrc", ".npmrc", ".pypirc")
 _SYSTEM_PREFIXES = ("/etc", "/boot", "/usr", "/bin", "/sbin", "/lib", "/sys", "/proc", "/dev")
-# shell-hooks-allowlist.json records which shell hooks the user consented to run.
-_PROTECTED_NAMES = (".env", "config.yaml", "auth.json", "shell-hooks-allowlist.json")
+# The subset of PROTECTED_NAMES that holds secrets. config.yaml references secrets by name only.
+_CREDENTIAL_NAMES = (".env", "auth.json")
+# Files in the agent's home that hold its credentials and its policy. config.yaml *is* the
+# approval policy (mode, allowlist, enabled plugins), and shell-hooks-allowlist.json records
+# which shell hooks the user consented to run. The command approval gate guards the same list.
+PROTECTED_NAMES = (".env", "config.yaml", "auth.json", "shell-hooks-allowlist.json")
 
 
 def _resolve(path: str | os.PathLike[str]) -> Path:
@@ -34,7 +41,7 @@ def write_denied_reason(path: str | os.PathLike[str]) -> str | None:
     """Why ``path`` may not be written, or ``None`` when it may."""
     target = _resolve(path)
     for home in {get_home(), get_default_root()}:
-        for name in _PROTECTED_NAMES:
+        for name in PROTECTED_NAMES:
             if target == (home / name).resolve(strict=False):
                 return f"{name} holds this agent's own credentials or settings; the user edits it, not the agent"
     user_home = Path.home()
@@ -45,4 +52,18 @@ def write_denied_reason(path: str | os.PathLike[str]) -> str | None:
         for prefix in _SYSTEM_PREFIXES:
             if _is_within(target, Path(prefix)):
                 return f"{prefix} is a system directory"
+    return None
+
+
+def read_denied_reason(path: str | os.PathLike[str]) -> str | None:
+    """Why ``path`` may not be read by the file tools, or ``None`` when it may."""
+    target = _resolve(path)
+    for home in {get_home(), get_default_root()}:
+        for name in _CREDENTIAL_NAMES:
+            if target == (home / name).resolve(strict=False):
+                return f"{name} holds this agent's credentials"
+    user_home = Path.home()
+    for relative in _HOME_RELATIVE_DENY:
+        if _is_within(target, user_home / relative):
+            return f"~/{relative} holds credentials"
     return None

@@ -70,17 +70,32 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
    kebijakan non-interaktif yang memutuskan; defaultnya tolak.
 - Perintah dinormalkan dulu (escape ANSI, byte NUL, huruf lebar penuh) sebelum dicocokkan.
 - Callback persetujuan yang rusak atau jawaban tak dikenal berarti tolak.
+- **Perintah yang menjangkau pengaturan atau kredensial agent sendiri** diperlakukan lebih
+  ketat: perintah yang menyebut `.env`, `config.yaml`, `auth.json`, atau
+  `shell-hooks-allowlist.json` di home agent (lewat path ke home itu, atau dengan nama saja
+  bila perintah berjalan di dalam home), dan perintah yang menjalankan CLI pengelolaan agent
+  sendiri (`clite config`, `clite hooks`, `clite plugins`, dan seterusnya). Untuk perintah
+  semacam ini langkah 5 dan 6 tidak berlaku: tidak pernah diingat, tidak pernah masuk
+  `command_allowlist`, dan tidak pernah diloloskan peninjau `smart`. Pengguna ditanya setiap
+  kali.
 
 **Terminal dan lingkungan**
 - Satu lingkungan per `task_id`. `cd` bertahan antar-panggilan, dan tool file menyelesaikan
   path relatif terhadap direktori kerja yang sama.
-- Nama dari `.env` dibuang dari lingkungan perintah kecuali terdaftar di
-  `terminal.env_passthrough`. Keluaran diredaksi (`core.redact`).
+- Kredensial yang dikenal dibuang dari lingkungan perintah kecuali terdaftar di
+  `terminal.env_passthrough`: setiap nama dari `.env`, dan setiap kunci provider atau
+  platform (`core.env.secret_names`) juga bila ia di-`export` di shell pengguna. Keluaran
+  diredaksi (`core.redact`).
 - Batas waktu mematikan seluruh grup proses. Interupsi menghentikan perintah yang berjalan.
 - Keluaran panjang dipotong dengan kepala dan ekor dipertahankan.
 
 **Tool file**
-- `read_file` mengembalikan baris bernomor, berhalaman, dan menolak biner serta direktori.
+- `read_file` mengembalikan baris bernomor, berhalaman, dan menolak biner, direktori, serta
+  yang bukan file biasa (pipa, perangkat), supaya tidak pernah menggantung.
+- Yang dibaca model dikirim ke provider dan disimpan di database sesi. Karena itu file
+  kredensial tidak bisa dibaca (`.env` dan `auth.json` milik agent, `~/.ssh`, `~/.aws`, dan
+  sejenisnya), pencarian isi melewatinya, dan kredensial di file lain diredaksi dari hasil
+  `read_file`, `search_files`, dan diff `patch`. File di disk tidak diubah.
 - `patch` mengganti tepat satu kecocokan (kecuali `replace_all`), mengembalikan diff, dan
   mentoleransi indentasi yang salah bila kecocokannya unik.
 - `write_file` dan `patch` menolak `.env`, `config.yaml`, `auth.json`,
@@ -90,6 +105,8 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 **`web_fetch`**
 - Hanya `http` dan `https`. Alamat loopback, privat, dan link-local ditolak kecuali
   `web.allow_private_urls: true`.
+- Setiap lompatan redirect tunduk pada dua aturan yang sama. Halaman publik tidak bisa
+  memantulkan agent ke alamat internal atau ke skema lain.
 
 **MCP**
 - Tiap server menjadi toolset `mcp-<server>` dengan tool `mcp_<server>_<tool>`.
@@ -133,6 +150,10 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 
 ## Celah yang diketahui
 
-- Gerbang persetujuan hanya mencocokkan pola pada teks perintah. Perintah yang menyembunyikan
-  niatnya (skrip yang diunduh lalu dijalankan terpisah, alias) tidak tertangkap.
+- Gerbang persetujuan hanya mencocokkan pola pada teks satu perintah. Perintah yang
+  menyembunyikan niatnya (skrip yang ditulis ke file lalu dijalankan terpisah, alias) tidak
+  tertangkap. Gerbang ini sabuk pengaman terhadap kekeliruan model, bukan sandbox.
 - Tool file tidak dibatasi ke direktori kerja. Yang dibatasi hanya daftar path terlarang.
+- `web_fetch` memeriksa alamat dengan me-resolve nama host lebih dulu, lalu pustaka HTTP
+  me-resolve lagi saat menyambung. Server DNS yang menjawab berbeda di antara keduanya (DNS
+  rebinding) bisa lolos.

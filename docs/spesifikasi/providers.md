@@ -40,6 +40,9 @@ itu tool, sesi, atau giliran.
   (`ctx.register_provider`), `<home>/plugins/model-providers/` (per profil), bagian
   `providers:` di config (per profil).
 - Satu profil rusak tidak menyembunyikan profil lain.
+- Mendaftarkan profil juga mendaftarkan `env_vars`-nya sebagai kredensial
+  (`core.env.register_secret`), sehingga kunci itu tidak pernah sampai ke perintah yang
+  dijalankan agent dan nilainya diredaksi dari transkrip.
 
 **Resolusi rute**
 - Urutan: argumen eksplisit, lalu config, lalu deteksi otomatis (provider pertama yang punya

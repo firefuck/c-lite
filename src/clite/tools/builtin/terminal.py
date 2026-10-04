@@ -55,15 +55,17 @@ def terminal_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
     if not isinstance(command, str) or not command.strip():
         return tool_error("command is required")
 
-    decision = check_command(command, ctx)
-    if not decision.approved:
-        return tool_error(decision.reason, status="blocked")
-
     try:
         environment = get_environment(ctx.task_id or ctx.session_id, cwd=ctx.cwd)
     except ValueError as exc:
         return tool_error(str(exc))
     workdir = args.get("workdir") or None
+
+    # The gate sees where the command will run: inside the agent's own home, a bare
+    # `config.yaml` is the agent's policy file.
+    decision = check_command(command, ctx, cwd=environment.resolve_path(workdir) if workdir else environment.cwd)
+    if not decision.approved:
+        return tool_error(decision.reason, status="blocked")
 
     if args.get("background"):
         from clite.tools.builtin.process import process_registry

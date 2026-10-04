@@ -113,7 +113,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `config.py` | Configuration: ``config.yaml`` holds settings, ``.env`` holds secrets. | `deep_merge()`, `get_path()`, `load_user_config_raw()`, `load_config()`, `config_get()`, `reset_config_cache()`, `atomic_config_update()`, `config_set()`, `config_unset()`, `migrate_config_file()`, … (+1) |
 | `config_defaults.py` | ``DEFAULT_CONFIG``: every setting, its default, and the reason for that default. |  |
 | `constants.py` | Profile-aware home resolution. | `set_home_override()`, `reset_home_override()`, `get_home_override()`, `home_scope()`, `get_default_root()`, `get_process_home()`, `get_home()`, `home_key()`, `display_home()`, `ensure_dir()`, … (+13) |
-| `env.py` | Secrets: ``<home>/.env`` and nothing else. | `SecretSpec`, `register_secret()`, `read_env_file()`, `load_env()`, `loaded_secret_names()`, `secret_scope()`, `get_secret()`, `save_secret()`, `remove_secret()`, `mask_secret()` |
+| `env.py` | Secrets: ``<home>/.env`` and nothing else. | `SecretSpec`, `register_secret()`, `read_env_file()`, `load_env()`, `loaded_secret_names()`, `secret_names()`, `secret_scope()`, `get_secret()`, `save_secret()`, `remove_secret()`, … (+1) |
 | `errors.py` | Exception types shared across packages. | `CliteError`, `ConfigError`, `AuthError`, `ProviderError`, `ProfileError` |
 | `io.py` | Atomic file writes. | `atomic_write_text()`, `atomic_write_json()`, `read_json()` |
 | `logging.py` | File logging under ``<home>/logs``: ``agent.log`` (INFO+) and ``errors.log`` (WARNING+). | `setup_logging()`, `reset_logging()` |
@@ -226,7 +226,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | The headless backend: HTTP + WebSocket JSON-RPC for the desktop app and the dashboard. |  |
-| `app.py` | The ASGI app behind ``clite serve`` and ``clite dashboard``. | `presented_token()`, `origin_allowed()`, `create_app()` |
+| `app.py` | The ASGI app behind ``clite serve`` and ``clite dashboard``. | `presented_token()`, `host_allowed()`, `origin_allowed()`, `create_app()` |
 | `run.py` | Starting the backend: bind, announce readiness, serve. | `bind_socket()`, `dashboard_url()`, `serve()` |
 
 ## `clite/skills/`
@@ -237,7 +237,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `catalog.py` | Skill discovery across tiers. | `Skill`, `find_project_root()`, `register_extra_root()`, `unregister_extra_root()`, `skill_roots()`, `discover_skills()`, `get_skill()`, `linked_files()`, `read_skill_file()`, `reset_skill_cache()` |
 | `commands.py` | Skills as slash commands: ``/<skill-name> [instruction]``. | `skill_slug()`, `skill_commands()`, `build_skill_message()` |
 | `curator.py` | Curator: keep the agent's own skill library from growing without bound. | `archive_dir()`, `find_stale_skills()`, `archive_skill()`, `restore_skill()`, `run_curator()` |
-| `frontmatter.py` | SKILL.md parsing and validation. | `SkillFormatError`, `SkillMeta`, `validate_skill_name()`, `split_frontmatter()`, `parse_skill_text()`, `parse_skill_file()`, `platform_matches()`, `render_skill()` |
+| `frontmatter.py` | SKILL.md parsing and validation. | `SkillFormatError`, `SkillMeta`, `validate_skill_name()`, `split_frontmatter()`, `parse_skill_text()`, `platform_matches()`, `render_skill()` |
 | `hub.py` | Skill installation from outside sources. | `SkillBundle`, `SkillSource`, `LocalDirSource`, `GitHubSource`, `register_skill_source()`, `installed_skills()`, `install_skill()` |
 | `index.py` | The skills index: the only part of the skill system that costs tokens on every request. | `visible_skills()`, `build_skills_index()` |
 | `manager.py` | Skill writes: create, patch, rewrite, delete, and supporting files. | `SkillError`, `create_skill()`, `edit_skill()`, `patch_skill()`, `delete_skill()`, `write_skill_file()`, `remove_skill_file()` |
@@ -256,10 +256,10 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | Tools: the registry, toolsets, the dispatch entry points and the built-in tools. |  |
-| `approval.py` | Command approval: the gate between the model and a destructive shell command. | `DangerMatch`, `ApprovalDecision`, `reset_approval_state()`, `normalize_command()`, `detect_dangerous_command()`, `detect_hardline()`, `smart_verdict()`, `check_command()` |
+| `approval.py` | Command approval: the gate between the model and a destructive shell command. | `DangerMatch`, `ApprovalDecision`, `detect_self_access()`, `reset_approval_state()`, `normalize_command()`, `detect_dangerous_command()`, `detect_hardline()`, `smart_verdict()`, `check_command()` |
 | `context.py` | ``ToolContext``: what a tool handler may know about the call it is serving. | `ToolContext` |
 | `dispatch.py` | The two entry points the agent loop uses: tool definitions in, tool results out. | `reset_definition_cache()`, `resolve_enabled_tools()`, `get_tool_definitions()`, `coerce_args()`, `cap_result()`, `handle_function_call()` |
-| `file_safety.py` | Write guard for the file tools. | `write_denied_reason()` |
+| `file_safety.py` | Path guards for the file tools. | `write_denied_reason()`, `read_denied_reason()` |
 | `registry.py` | Tool registry: one process-wide table of every tool the model can call. | `ToolEntry`, `ToolRegistry`, `get_background_loop()`, `run_async()`, `tool_error()`, `tool_result()`, `discover_builtin_tools()`, `reset_check_cache()` |
 | `toolsets.py` | Toolsets: named groups of tools, composable through ``includes``. | `register_toolset()`, `toolset_exists()`, `resolve_toolset()`, `resolve_toolsets()`, `all_toolsets()`, `toolset_for_tool()` |
 

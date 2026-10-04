@@ -9,6 +9,11 @@ Precedence, first match wins on a name clash:
 
 Bundled skills are read in place. Editing one copies it into the local tier first
 (copy-on-write, see ``clite.skills.manager``), so an upgrade never fights a user's edit.
+
+A skill's description goes into the system prompt and its body is followed as a procedure, so
+skills that arrive with someone else's files (the project and external tiers) are scanned like
+any other untrusted text before they are offered. Local skills were scanned when they were
+written or installed.
 """
 
 from __future__ import annotations
@@ -22,11 +27,13 @@ from typing import Any
 from clite.core.brand import PROJECT_DIRNAME
 from clite.core.config import load_config
 from clite.core.constants import bundled_dir, get_skills_dir, home_key
-from clite.skills.frontmatter import SkillFormatError, SkillMeta, parse_skill_file, platform_matches
+from clite.core.threats import describe, scan_text
+from clite.skills.frontmatter import SkillFormatError, SkillMeta, parse_skill_text, platform_matches
 
 logger = logging.getLogger("clite.skills.catalog")
 
 TIER_PROJECT, TIER_LOCAL, TIER_EXTERNAL, TIER_BUNDLED = "project", "local", "external", "bundled"
+SCANNED_TIERS = frozenset({TIER_PROJECT, TIER_EXTERNAL})
 LINKED_DIRS = ("references", "templates", "scripts", "assets")
 _MAX_DEPTH = 2  # <root>/<name>/SKILL.md or <root>/<category>/<name>/SKILL.md
 
@@ -128,10 +135,16 @@ def discover_skills(
     for tier, root in skill_roots(cwd, cfg):
         for path in _skill_files(root):
             try:
-                meta, _body = parse_skill_file(path)
-            except SkillFormatError as exc:
+                text = path.read_text(encoding="utf-8")
+                meta, _body = parse_skill_text(text, expected_name=path.parent.name)
+            except (OSError, UnicodeDecodeError, SkillFormatError) as exc:
                 logger.debug("skipping %s: %s", path, exc)
                 continue
+            if tier in SCANNED_TIERS:
+                threats = scan_text(text)
+                if threats:
+                    logger.warning("skipping skill %s: rejected by the security scan (%s)", path, describe(threats))
+                    continue
             if meta.name in chosen:
                 continue  # a higher tier already provides this name
             if not all_platforms and not platform_matches(meta):

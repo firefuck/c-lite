@@ -257,7 +257,7 @@ ditemukan otomatis.
 
 Untuk tool inti, dua file:
 
-1. `tools/tool_anda.py` dengan `registry.register(...)` di tingkat modul.
+1. `tools/<nama_tool>.py` dengan `registry.register(...)` di tingkat modul.
 2. `toolsets.py`: tambahkan nama ke `_HERMES_CORE_TOOLS` atau ke toolset baru.
 
 ## Yang perlu ditiru persis

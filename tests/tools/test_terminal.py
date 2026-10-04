@@ -82,6 +82,20 @@ def test_secrets_from_dotenv_do_not_reach_the_command(clite_home):
     assert _run("echo [$PUBLIC_SETTING]")["output"].strip() == "[[REDACTED]]"
 
 
+def test_provider_keys_exported_in_the_shell_do_not_reach_the_command_either(monkeypatch):
+    """A key that never passed through .env is still a key: every provider's variables are
+    known credentials, and so are the numbered ones a credential pool reads."""
+    from clite.providers.registry import list_providers
+
+    list_providers()  # discovery registers each provider's key variables as secrets
+    monkeypatch.setenv("OPENAI_API_KEY", "exported-in-my-shell-profile")
+    monkeypatch.setenv("OPENAI_API_KEY_2", "second-exported-key-value")
+    monkeypatch.setenv("UNRELATED_SETTING", "plain")
+    assert _run("echo [$OPENAI_API_KEY][$OPENAI_API_KEY_2][$UNRELATED_SETTING]")["output"].strip() == "[][][plain]"
+    # And if some other program prints it, the transcript does not keep it.
+    assert _run("echo exported-in-my-shell-profile")["output"].strip() == "[REDACTED]"
+
+
 def test_key_shaped_output_is_redacted():
     assert "[REDACTED]" in _run("echo token=sk-abcdefghijklmnopqrstuvwxyz123456")["output"]
 

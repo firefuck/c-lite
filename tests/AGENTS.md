@@ -20,7 +20,8 @@ file hasil generate).
 3. **Model ditiru dengan `ScriptedClient`, bukan dengan menambal fungsi.** Tes menyatakan apa
    yang "dikatakan" model dan memeriksa apa yang dilakukan loop.
 4. **Nama tes adalah kalimat tentang perilaku.**
-   `test_a_broken_hook_fails_open_by_default_and_closed_on_request`, bukan `test_hook_3`.
+   `test_a_broken_hook_fails_open_by_default_and_closed_on_request`, bukan nama bernomor
+   seperti *test_hook_3*.
    Daftar nama tes sebuah modul harus terbaca sebagai spesifikasinya.
 5. **Tes menguji perilaku lewat pintu publik.** Panggil `handle_function_call`, `main([...])`,
    `agent.run_conversation`, bukan fungsi privat, kecuali fungsi privat itu memang unitnya.

@@ -44,3 +44,13 @@ def test_mask_never_shows_a_short_secret():
     assert env.mask_secret("abcd") == "****"
     assert env.mask_secret("sk-1234567890abcdef") == "sk-1…cdef"
     assert env.mask_secret(None) == "(not set)"
+
+
+def test_secret_names_cover_env_file_registered_and_numbered_variables(monkeypatch):
+    get_env_path().write_text("FROM_DOTENV=1\n")
+    env.load_env()
+    monkeypatch.setitem(env.SECRET_REGISTRY, "EXAMPLE_SERVICE_KEY", env.SecretSpec("EXAMPLE_SERVICE_KEY", "An example"))
+    monkeypatch.setenv("EXAMPLE_SERVICE_KEY_3", "third key of a pool")
+    names = env.secret_names()
+    assert {"FROM_DOTENV", "EXAMPLE_SERVICE_KEY", "EXAMPLE_SERVICE_KEY_3"} <= names
+    assert "EXAMPLE_SERVICE_KEY_4" not in names and "PATH" not in names

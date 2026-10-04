@@ -1,4 +1,4 @@
-"""web_fetch: text extraction, paging and the private-address guard."""
+"""web_fetch: text extraction, paging, and the guards on where a fetch may go."""
 
 from __future__ import annotations
 
@@ -8,6 +8,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
+from clite.core.config import reset_config_cache
+from clite.tools.builtin import web
 from clite.tools.builtin.web import html_to_text, private_address_reason, web_fetch_tool
 from clite.tools.context import ToolContext
 
@@ -17,8 +19,24 @@ PAGE = """<html><head><title>Docs &amp; Guides</title><style>body{color:red}</st
 
 
 class _Handler(BaseHTTPRequestHandler):
+    requested: list[str] = []  # every path this server was asked for, across requests
+
     def do_GET(self):  # noqa: N802 - http.server API
+        self.requested.append(self.path)
+        redirects = {
+            "/moved": "/page",
+            "/public-redirect-to-internal": "/internal",
+            "/redirect-to-file": "file:///etc/passwd",
+            "/redirect-to-ftp": "ftp://files.example.invalid/pub/readme.txt",
+        }
+        if self.path in redirects:
+            self.send_response(302)
+            self.send_header("Location", redirects[self.path])
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         routes = {
+            "/internal": (200, "text/plain", b"internal only"),
             "/page": (200, "text/html; charset=utf-8", PAGE.encode()),
             "/data.json": (200, "application/json", b'{"ok": true}'),
             "/image": (200, "image/png", b"\x89PNG"),
@@ -37,6 +55,7 @@ class _Handler(BaseHTTPRequestHandler):
 
 @pytest.fixture
 def server(clite_home):
+    _Handler.requested.clear()
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     (clite_home / "config.yaml").write_text("web:\n  allow_private_urls: true\n")
@@ -84,3 +103,29 @@ def test_only_http_schemes_are_accepted():
 def test_private_addresses_are_refused_by_default():
     assert "non-public" in _fetch("http://127.0.0.1:9/")["error"]
     assert private_address_reason("http://169.254.169.254/latest/meta-data") is not None
+
+
+def test_an_ordinary_redirect_is_followed(server):
+    result = _fetch(f"{server}/moved")
+    assert result["url"] == f"{server}/page" and result["title"] == "Docs & Guides"
+
+
+def test_a_redirect_is_held_to_the_same_rules_as_the_first_url(server, clite_home, monkeypatch):
+    """A public page must not be able to bounce the agent to an internal address."""
+    (clite_home / "config.yaml").write_text("web:\n  allow_private_urls: false\n")
+    reset_config_cache()
+    real = private_address_reason
+    # The test server stands in for a public site: only its "/public..." paths count as public.
+    monkeypatch.setattr(web, "private_address_reason", lambda url: None if "/public" in url else real(url))
+
+    result = _fetch(f"{server}/public-redirect-to-internal")
+
+    assert result["error"].startswith("Refused") and "non-public" in result["error"]
+    assert "/internal" not in _Handler.requested  # the internal address was never contacted
+
+
+def test_a_redirect_to_another_scheme_is_refused(server):
+    # urllib itself would follow a redirect to ftp://; the tool does not.
+    result = _fetch(f"{server}/redirect-to-ftp")
+    assert result["error"].startswith("Refused") and "only http and https" in result["error"]
+    assert "content" not in _fetch(f"{server}/redirect-to-file")

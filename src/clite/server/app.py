@@ -14,6 +14,12 @@ read-only integrations and health checks.
 
 Auth: one session token, required on every ``/api`` route except health. It is compared in
 constant time. The static files carry no secrets and are served without it.
+
+Two more locks sit behind the token, both aimed at a web page in the user's browser:
+
+* a server bound to loopback only answers ``/api`` requests addressed to a loopback name, so a
+  site whose name was re-pointed at 127.0.0.1 (DNS rebinding) gets nothing;
+* a WebSocket from a browser must come from the dashboard's own origin.
 """
 
 from __future__ import annotations
@@ -24,6 +30,7 @@ import logging
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from starlette.applications import Starlette
 from starlette.requests import HTTPConnection, Request
@@ -42,7 +49,7 @@ logger = logging.getLogger("clite.server")
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 WS_UNAUTHORIZED = 4401
-_LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "[::1]", "::1")
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
 
 def presented_token(connection: HTTPConnection) -> str:
@@ -52,25 +59,54 @@ def presented_token(connection: HTTPConnection) -> str:
     return connection.headers.get("x-clite-token", "") or connection.query_params.get("token", "")
 
 
+def _authority(value: str) -> tuple[str, int | None]:
+    """``(host, port)`` of a Host header or of an origin. The host is lower-case and an IPv6
+    literal loses its brackets; ``("", None)`` when there is nothing usable."""
+    try:
+        parts = urlsplit(value if "://" in value else f"//{value}")
+        return (parts.hostname or "").lower(), parts.port
+    except ValueError:
+        return "", None
+
+
+def host_allowed(connection: HTTPConnection, bind_host: str) -> bool:
+    """With the server bound to loopback, only requests addressed to a loopback name count.
+
+    A browser that was told ``evil.example`` now resolves to 127.0.0.1 still sends
+    ``Host: evil.example``. Refusing that name is what makes the rebinding useless. A server
+    the user deliberately bound to another address accepts any name.
+    """
+    if bind_host.strip("[]").lower() not in _LOOPBACK_HOSTS:
+        return True
+    return _authority(connection.headers.get("host", ""))[0] in _LOOPBACK_HOSTS
+
+
 def origin_allowed(connection: HTTPConnection) -> bool:
     """Reject cross-site WebSocket connections from a browser.
 
     A page on another origin can open a socket to localhost. The token already stops it; this
-    is the second lock, and it costs nothing. Non-browser clients send no Origin header.
+    is the second lock. Only the dashboard's own origin passes: the same host and port the
+    request was addressed to (``localhost`` and ``127.0.0.1`` count as the same host). A page
+    served from another port, a ``file://`` page and a sandboxed frame (``Origin: null``) do
+    not. Non-browser clients send no Origin header at all.
     """
     origin = connection.headers.get("origin")
-    if not origin or origin == "null" or origin.startswith(("file://", "app://")):
+    if not origin:
         return True
-    host = origin.split("://", 1)[-1].split("/", 1)[0]
-    return host == connection.headers.get("host", "") or host.rsplit(":", 1)[0] in _LOOPBACK_HOSTS
+    origin_host, origin_port = _authority(origin)
+    host, port = _authority(connection.headers.get("host", ""))
+    if not origin_host or origin_port != port:
+        return False
+    return origin_host == host or {origin_host, host} <= _LOOPBACK_HOSTS
 
 
-def create_app(token: str, *, client_factory: Callable[[], Any] | None = None, platform: str = "desktop") -> Starlette:
+def create_app(token: str, *, client_factory: Callable[[], Any] | None = None, platform: str = "desktop",
+               bind_host: str = "127.0.0.1") -> Starlette:
     if not token:
         raise ValueError("the server needs a session token")
 
     def authorized(connection: HTTPConnection) -> bool:
-        return hmac.compare_digest(presented_token(connection).encode(), token.encode())
+        return host_allowed(connection, bind_host) and hmac.compare_digest(presented_token(connection).encode(), token.encode())
 
     def guarded(handler: Callable[[Request], Any]) -> Callable[[Request], Any]:
         async def wrapper(request: Request) -> Response:

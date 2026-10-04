@@ -48,7 +48,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "backend": "local",
         "cwd": "",  # empty = the directory the process was started in
         "timeout": 180,
-        # Names from .env that commands run by the agent may see. Everything else is stripped.
+        # Credentials that commands run by the agent may see. By default every known one is
+        # stripped from their environment: each name in .env, and each provider or platform
+        # key (OPENAI_API_KEY, ...) even when it was exported in your shell.
         "env_passthrough": [],
     },
     "tool_output": {"max_chars": 50_000, "max_lines": 2000},

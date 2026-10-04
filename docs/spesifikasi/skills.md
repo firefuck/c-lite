@@ -64,6 +64,10 @@ skill.
   dikenali.
 - Skill yang tidak valid dilewati dengan alasan di log. Nama direktori harus sama dengan nama
   skill.
+- Skill dari tingkat proyek dan eksternal dipindai (`core.threats`) setiap kali ditemukan, dan
+  yang kena dilewati. Skill semacam itu datang bersama file orang lain (repositori hasil
+  clone), deskripsinya masuk system prompt, dan isinya diikuti sebagai prosedur. Skill yang
+  kena juga tidak menutupi skill bernama sama di tingkat bawahnya.
 - Penemuan tidak di-cache: selalu membaca disk.
 - `skills.disabled` dan `platforms` menyaring hasil.
 

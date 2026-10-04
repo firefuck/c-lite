@@ -14,7 +14,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from clite.core.config import config_get
-from clite.core.env import loaded_secret_names
+from clite.core.env import secret_names
 from clite.tools.environments.base import BaseEnvironment, ExecResult
 
 _POLL_SECONDS = 0.05
@@ -24,12 +24,13 @@ _KILL_GRACE_SECONDS = 2.0
 def build_child_env(extra: dict[str, str] | None = None, passthrough: list[str] | None = None) -> dict[str, str]:
     """Environment for a command the agent runs.
 
-    Names that came from ``.env`` are removed unless the user listed them in
-    ``terminal.env_passthrough``: an API key has no business in a build script's environment,
-    and one ``env`` call would otherwise put every credential into the transcript.
+    Known credentials (``core.env.secret_names``: everything from ``.env``, and every provider
+    and platform key even when it was exported in the shell) are removed unless the user listed
+    them in ``terminal.env_passthrough``: an API key has no business in a build script's
+    environment, and one ``env`` call would otherwise put every credential into the transcript.
     """
     allowed = set(passthrough if passthrough is not None else (config_get("terminal.env_passthrough", []) or []))
-    secrets = loaded_secret_names() - allowed
+    secrets = secret_names() - allowed
     env = {key: value for key, value in os.environ.items() if key not in secrets}
     env.setdefault("TERM", "dumb")
     env["PAGER"] = "cat"

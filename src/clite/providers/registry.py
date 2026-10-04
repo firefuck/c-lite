@@ -24,6 +24,7 @@ from typing import Any
 from clite.core.brand import PLUGIN_NAMESPACE
 from clite.core.config import load_config
 from clite.core.constants import bundled_dir, get_plugins_dir, home_key
+from clite.core.env import SecretSpec, register_secret
 from clite.providers.base import ProviderProfile
 
 logger = logging.getLogger("clite.providers.registry")
@@ -42,6 +43,10 @@ def register_provider(profile: ProviderProfile) -> None:
     target = _TARGET.get()
     with _LOCK:
         (target if target is not None else _BASE)[profile.name] = profile
+    # Known as credentials from now on: stripped from the commands the agent runs and
+    # redacted from what the model reads, wherever the value came from.
+    for name in profile.env_vars:
+        register_secret(SecretSpec(name, f"{profile.display_name or profile.name} API key", url=profile.signup_url))
 
 
 def _load_directory(directory: Path, target: dict[str, ProviderProfile], label: str) -> None:

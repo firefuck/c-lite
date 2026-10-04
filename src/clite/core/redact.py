@@ -1,7 +1,7 @@
 """Redaction: keep credentials out of transcripts and logs.
 
-Two layers: the exact values of every secret loaded from ``.env`` (certain), and shape-based
-patterns for well-known key formats (best effort). Redaction is one-way; the caller never
+Two layers: the exact values of every known credential (certain; see
+``core.env.secret_names``), and shape-based patterns for well-known key formats (best effort). Redaction is one-way; the caller never
 needs the original back.
 """
 
@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 import re
 
-from clite.core.env import loaded_secret_names
+from clite.core.env import secret_names
 
 REDACTED = "[REDACTED]"
 _MIN_SECRET_LENGTH = 8
@@ -31,7 +31,7 @@ def redact(text: str) -> str:
     """``text`` with known secret values and key-shaped strings replaced."""
     if not text:
         return text
-    for name in loaded_secret_names():
+    for name in secret_names():
         value = os.environ.get(name, "")
         if len(value) >= _MIN_SECRET_LENGTH and value in text:
             text = text.replace(value, REDACTED)

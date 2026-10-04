@@ -90,5 +90,5 @@ menebak dari ingatan. Pola ini dijelaskan lebih rinci di `docs/prompts/`.
 Lisensi MIT mengizinkan Anda menyalin, mengubah, dan menjual ulang kode Hermes selama
 pemberitahuan hak cipta dan teks lisensinya ikut disertakan. Scaffolding ini ditulis
 ulang, tidak menyalin file Hermes, tetapi arsitekturnya jelas diturunkan dari sana.
-Karena itu `NOTICE.md` di root mencantumkan atribusi. Jika nanti AI Anda menyalin
+Karena itu [NOTICE.md](../../NOTICE.md) di root mencantumkan atribusi. Jika nanti AI Anda menyalin
 potongan kode Hermes secara langsung, pertahankan atribusi itu.

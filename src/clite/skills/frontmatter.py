@@ -11,7 +11,6 @@ from __future__ import annotations
 import re
 import sys
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
 import yaml
@@ -126,14 +125,6 @@ def parse_skill_text(text: str, *, expected_name: str | None = None) -> tuple[Sk
         ),
         body.lstrip("\n"),
     )
-
-
-def parse_skill_file(path: Path) -> tuple[SkillMeta, str]:
-    try:
-        text = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError) as exc:
-        raise SkillFormatError(f"cannot read {path}: {exc}") from exc
-    return parse_skill_text(text, expected_name=path.parent.name)
 
 
 def platform_matches(meta: SkillMeta, host: str | None = None) -> bool:

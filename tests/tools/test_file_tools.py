@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
 
+from clite.core.env import load_env
 from clite.tools.builtin.file_tools import patch_tool, read_file_tool, search_files_tool, write_file_tool
 from clite.tools.context import ToolContext
-from clite.tools.file_safety import write_denied_reason
+from clite.tools.file_safety import read_denied_reason, write_denied_reason
 
 
 @pytest.fixture
@@ -81,6 +83,53 @@ def test_agent_cannot_write_its_own_credentials_or_settings(ctx, clite_home):
         assert not (clite_home / name).exists()
     assert write_denied_reason(Path.home() / ".ssh" / "authorized_keys")
     assert write_denied_reason(clite_home / "skills" / "note" / "SKILL.md") is None
+
+
+def test_credential_files_cannot_be_read(ctx, clite_home):
+    (clite_home / ".env").write_text("OPENROUTER_API_KEY=sk-or-very-secret-value-123456\n")
+    result = json.loads(read_file_tool({"path": str(clite_home / ".env")}, ctx))
+    assert "Refused" in result["error"] and "very-secret" not in json.dumps(result)
+
+    ssh = Path.home() / ".ssh"
+    ssh.mkdir()
+    (ssh / "id_ed25519").write_text("-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n")
+    assert "Refused" in json.loads(read_file_tool({"path": str(ssh / "id_ed25519")}, ctx))["error"]
+    # A content search across the home directory does not return them either.
+    found = json.loads(search_files_tool({"pattern": "PRIVATE KEY|very-secret", "path": str(Path.home())}, ctx))
+    assert found["count"] == 0
+
+    # Settings hold no secrets (they name them), so they stay readable.
+    assert read_denied_reason(clite_home / "config.yaml") is None
+
+
+def test_credentials_are_redacted_from_what_the_model_reads(ctx, clite_home):
+    """Whatever a file tool returns is sent to the model provider and stored in the session."""
+    (clite_home / ".env").write_text("DEPLOY_TOKEN=correct-horse-battery-staple\n")
+    load_env()
+    target = _ws(ctx) / "deploy.sh"
+    target.write_text("export DEPLOY=correct-horse-battery-staple\nexport OPENAI=sk-abcdefghijklmnopqrstuvwxyz123456\necho done\n")
+
+    read = json.loads(read_file_tool({"path": "deploy.sh"}, ctx))
+    assert "correct-horse" not in read["content"] and "sk-abcdef" not in read["content"]
+    assert read["content"].count("[REDACTED]") == 2 and "3|echo done" in read["content"]
+    assert "[REDACTED]" in read["note"]
+
+    found = json.loads(search_files_tool({"pattern": "export"}, ctx))
+    assert found["count"] == 2 and "correct-horse" not in json.dumps(found) and "sk-abcdef" not in json.dumps(found)
+
+    patched = json.loads(patch_tool({"path": "deploy.sh", "old_string": "echo done", "new_string": "echo finished"}, ctx))
+    assert "+echo finished" in patched["diff"] and "sk-abcdef" not in patched["diff"]
+    assert "sk-abcdefghijklmnopqrstuvwxyz123456" in target.read_text()  # the file itself is untouched
+
+    assert "note" not in json.loads(read_file_tool({"path": "deploy.sh", "offset": 3}, ctx))
+
+
+@pytest.mark.platforms("posix")
+def test_a_pipe_or_device_is_refused_instead_of_blocking(ctx):
+    pipe = _ws(ctx) / "queue"
+    os.mkfifo(pipe)
+    assert "not a regular file" in json.loads(read_file_tool({"path": "queue"}, ctx))["error"]
+    assert "not a regular file" in json.loads(read_file_tool({"path": "/dev/zero"}, ctx))["error"]
 
 
 def test_patch_replaces_a_unique_match_and_returns_a_diff(ctx):

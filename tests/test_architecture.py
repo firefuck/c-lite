@@ -5,6 +5,9 @@ These tests read the source instead of running it. They exist so that a rule wri
 
 * Imports point down the layers (``docs/arsitektur/01-lapisan.md``).
 * Every key in ``DEFAULT_CONFIG`` has code that reads it.
+* Conventions that keep the core narrow: no vendor names, no spelled-out home directory, no
+  stray reads of the process environment, no printing from library code
+  (``docs/arsitektur/03-invarian.md``).
 * The generated TypeScript contracts and the generated reference pages match the code.
 """
 
@@ -199,6 +202,112 @@ def test_every_config_key_has_a_reader():
 def test_indirect_reader_table_has_no_stale_entries():
     keys = set(_leaf_keys(DEFAULT_CONFIG))
     assert set(READ_INDIRECTLY) <= keys, f"not config keys any more: {sorted(set(READ_INDIRECTLY) - keys)}"
+
+
+# ── conventions ──────────────────────────────────────────────────────────────────────────
+
+
+def _relative(path: Path) -> str:
+    return path.relative_to(PACKAGE).as_posix()
+
+
+def _string_literals(tree: ast.AST) -> list[tuple[str, int]]:
+    """``(value, line)`` for every string literal that is not a docstring."""
+    docstrings = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef) and node.body:
+            first = node.body[0]
+            if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) and isinstance(first.value.value, str):
+                docstrings.add(id(first.value))
+    return [(node.value, node.lineno) for node in ast.walk(tree)
+            if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in docstrings]
+
+
+def _parsed_sources() -> list[tuple[Path, ast.AST]]:
+    return [(path, ast.parse(path.read_text(encoding="utf-8"))) for path in _source_files()]
+
+
+def test_vendors_are_named_only_in_their_provider_profiles():
+    """Core code never asks "is this OpenAI?". What differs between vendors is a method on
+    ``ProviderProfile`` that the vendor's profile overrides, so adding a provider is adding a
+    directory. ``mock`` and ``custom`` are not vendors: they are the built-in offline provider
+    and the bring-your-own-endpoint provider."""
+    from clite.providers.registry import list_providers
+
+    vendors = {name.lower() for profile in list_providers() for name in (profile.name, *profile.aliases)} - {"mock", "custom"}
+    assert vendors, "no bundled providers were discovered"
+    named = [f"{path.relative_to(REPO_ROOT)}:{line}: {value!r}"
+             for path, tree in _parsed_sources() for value, line in _string_literals(tree) if value.lower() in vendors]
+    assert not named, (
+        "a provider is named outside its profile; put the difference behind a ProviderProfile method "
+        "(src/clite/providers/base.py) and override it in the profile:\n  " + "\n  ".join(named)
+    )
+
+
+def test_the_home_directory_name_is_spelled_only_in_brand():
+    """Paths come from ``core.constants`` at call time (one process can serve several
+    profiles, and the project can be renamed), and messages use ``display_home()``."""
+    from clite.core import brand
+
+    spelled = [f"{path.relative_to(REPO_ROOT)}:{line}: {value!r}"
+               for path, tree in _parsed_sources() if _relative(path) != "core/brand.py"
+               for value, line in _string_literals(tree) if brand.HOME_DIRNAME in value]
+    assert not spelled, "use get_home() / display_home() instead of spelling the directory:\n  " + "\n  ".join(spelled)
+
+
+# Files outside ``core`` that read the process environment, with what they read. Secrets are
+# never read this way: they come from ``core.env.get_secret``, which honours the profile's
+# ``.env`` and the secret scope of the running activity.
+ENVIRONMENT_READERS: dict[str, str] = {
+    "cli/display.py": "NO_COLOR and TERM, to decide whether to colour output",
+    "cli/subcommands/config.py": "VISUAL and EDITOR, for `clite config edit`",
+    "cli/subcommands/tui.py": "the TUI bundle override, and the environment handed to the Node process",
+    "plugins/manager.py": "the switch that enables project plugins",
+    "plugins/shell_hooks.py": "the switch that accepts every configured shell hook",
+    "rpc/entry.py": "the platform name the parent process chose",
+    "server/run.py": "the session token handed down by the parent process",
+    "tools/environments/local.py": "builds the environment of a child command, minus the secrets",
+}
+
+
+def _reads_environment(tree: ast.AST) -> bool:
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == "os"
+                and node.attr in ("environ", "getenv", "putenv", "unsetenv")):
+            return True
+        if isinstance(node, ast.ImportFrom) and node.module == "os" and any(
+                alias.name in ("environ", "getenv", "putenv", "unsetenv") for alias in node.names):
+            return True
+    return False
+
+
+def test_the_process_environment_is_read_only_where_listed():
+    readers = {_relative(path) for path, tree in _parsed_sources()
+               if not _relative(path).startswith("core/") and _reads_environment(tree)}
+    unlisted = sorted(readers - set(ENVIRONMENT_READERS))
+    assert not unlisted, (
+        f"{unlisted} read the process environment. A secret is read with core.env.get_secret and a "
+        "setting belongs in config.yaml; if this is neither, list the file in ENVIRONMENT_READERS with the reason."
+    )
+    stale = sorted(set(ENVIRONMENT_READERS) - readers)
+    assert not stale, f"these files no longer read the environment; remove them from ENVIRONMENT_READERS: {stale}"
+
+
+# Library code logs; it does not print. On the stdio transport stdout is the protocol wire,
+# and on every surface a stray line would land in the middle of the user's output.
+PRINT_ALLOWED = {"server/run.py": "the ready line the parent process waits for, and startup notices on stderr"}
+
+
+def test_only_the_command_line_prints():
+    printing = sorted({
+        _relative(path) for path, tree in _parsed_sources() if not _relative(path).startswith("cli/")
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "print"
+    })
+    assert printing == sorted(PRINT_ALLOWED), (
+        "print() outside clite/cli: use logging, return the text to the surface, or emit a callback. "
+        f"Found in {printing}; allowed in {sorted(PRINT_ALLOWED)}."
+    )
 
 
 # ── generated code ───────────────────────────────────────────────────────────────────────

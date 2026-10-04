@@ -138,11 +138,53 @@ def test_static_dashboard_is_served_without_the_token(backend):
 def test_websocket_rejects_a_bad_token_and_a_foreign_origin(backend):
     from websockets.exceptions import ConnectionClosed, InvalidStatus
 
-    for kwargs in ({"token": "wrong"}, {"origin": "https://evil.example"}):
+    refused = (
+        {"token": "wrong"},
+        {"origin": "https://evil.example"},
+        {"origin": "null"},                                   # a sandboxed frame or a file:// page
+        {"origin": f"http://127.0.0.1:{backend.port + 1}"},   # another local web app
+        {"origin": "file://"},
+    )
+    for kwargs in refused:
         with pytest.raises((ConnectionClosed, InvalidStatus)), backend.connect(**kwargs) as socket:
             socket.recv(timeout=5)
-    with backend.connect(origin=backend.base) as socket:  # the dashboard's own origin is fine
-        assert json.loads(socket.recv(timeout=5))["params"]["type"] == "gateway.ready"
+    # The dashboard's own origin is fine, under either name for this machine.
+    for origin in (backend.base, f"http://localhost:{backend.port}"):
+        with backend.connect(origin=origin) as socket:
+            assert json.loads(socket.recv(timeout=5))["params"]["type"] == "gateway.ready"
+
+
+def test_a_loopback_server_ignores_requests_addressed_to_another_name(backend):
+    """DNS rebinding: a site re-pointed at 127.0.0.1 reaches the port, but its requests still
+    carry the site's own name. Even with the right token they get nothing."""
+    from websockets.exceptions import ConnectionClosed, InvalidStatus
+
+    rebound = {"Host": f"evil.example:{backend.port}"}
+    assert backend.get("/api/status", token=backend.token, headers=rebound)[0] == 401
+    assert backend.get("/api/status", token=backend.token)[0] == 200
+    with pytest.raises((ConnectionClosed, InvalidStatus)), backend.connect(additional_headers=rebound) as socket:
+        socket.recv(timeout=5)
+
+
+def test_origin_and_host_rules():
+    from types import SimpleNamespace
+
+    from clite.server.app import host_allowed, origin_allowed
+
+    def connection(**headers):
+        return SimpleNamespace(headers=headers)
+
+    assert origin_allowed(connection(host="127.0.0.1:8000"))  # not a browser
+    assert origin_allowed(connection(host="[::1]:8000", origin="http://[::1]:8000"))
+    assert origin_allowed(connection(host="agent.lan:8000", origin="https://agent.lan:8000"))
+    assert not origin_allowed(connection(host="agent.lan:8000", origin="https://other.lan:8000"))
+    assert not origin_allowed(connection(host="127.0.0.1:8000", origin="http://127.0.0.1:9000"))
+    assert not origin_allowed(connection(host="127.0.0.1:8000", origin="http://127.0.0.1:8000:garbage"))
+
+    assert host_allowed(connection(host="localhost:8000"), "127.0.0.1")
+    assert not host_allowed(connection(host="evil.example:8000"), "127.0.0.1")
+    assert not host_allowed(connection(), "127.0.0.1")
+    assert host_allowed(connection(host="agent.lan:8000"), "0.0.0.0")  # the user chose to expose it
 
 
 def test_a_full_turn_over_websocket_then_rest(backend):

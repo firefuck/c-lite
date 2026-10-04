@@ -72,9 +72,23 @@ def load_env(path: Path | None = None, *, override: bool = True) -> list[str]:
 
 
 def loaded_secret_names() -> set[str]:
-    """Every name any loaded ``.env`` defined. Child processes get these stripped by default."""
+    """Every name any loaded ``.env`` defined."""
     with _LOCK:
         return set().union(*_LOADED.values()) if _LOADED else set()
+
+
+def secret_names() -> set[str]:
+    """Every environment variable known to hold a credential.
+
+    That is every name a loaded ``.env`` defined, plus every name a provider or a platform
+    registered, whether its value came from ``.env`` or from the shell that started the
+    process, plus the numbered variants a credential pool reads (``NAME_2`` to ``NAME_9``).
+    Commands the agent runs get these stripped from their environment, and their values are
+    redacted from what the model reads.
+    """
+    names = loaded_secret_names() | set(SECRET_REGISTRY)
+    numbered = {f"{name}_{index}" for name in names for index in range(2, 10)}
+    return names | {name for name in numbered if name in os.environ}
 
 
 @contextmanager

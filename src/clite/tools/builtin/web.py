@@ -112,12 +112,38 @@ def private_address_reason(url: str) -> str | None:
     return None
 
 
+class _RedirectRefused(urllib.error.URLError):
+    """A redirect pointed somewhere the first URL would not have been allowed to point."""
+
+
+class _GuardedRedirects(urllib.request.HTTPRedirectHandler):
+    """Hold every redirect hop to the rules of the URL the model asked for.
+
+    Without this, a public page could answer ``302 Location: http://169.254.169.254/`` and the
+    address check on the first URL would have been for nothing. The standard handler would
+    also follow a redirect to ``ftp://``.
+    """
+
+    def __init__(self, allow_private: bool) -> None:
+        self.allow_private = allow_private
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001 - urllib's signature
+        if urllib.parse.urlsplit(newurl).scheme not in ("http", "https"):
+            raise _RedirectRefused(f"the page redirects to {newurl}, and only http and https are followed")
+        if not self.allow_private:
+            reason = private_address_reason(newurl)
+            if reason:
+                raise _RedirectRefused(f"the page redirects to {newurl}, and {reason}")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def web_fetch_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
     ctx = ctx or ToolContext()
     url = str(args.get("url") or "").strip()
     if urllib.parse.urlsplit(url).scheme not in ("http", "https"):
         return tool_error("url must start with http:// or https://")
-    if not ctx.setting("web.allow_private_urls", False):
+    allow_private = bool(ctx.setting("web.allow_private_urls", False))
+    if not allow_private:
         reason = private_address_reason(url)
         if reason:
             return tool_error(f"Refused: {reason}.")
@@ -130,12 +156,15 @@ def web_fetch_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
     request = urllib.request.Request(url, headers={  # noqa: S310 - scheme checked above
         "User-Agent": f"clite/{__version__} (+web_fetch)", "Accept": "text/html,text/plain,application/json,*/*;q=0.5",
     })
+    opener = urllib.request.build_opener(_GuardedRedirects(allow_private))
     try:
-        with urllib.request.urlopen(request, timeout=int(ctx.setting("web.timeout", 30) or 30)) as response:  # noqa: S310
+        with opener.open(request, timeout=int(ctx.setting("web.timeout", 30) or 30)) as response:
             raw = response.read(MAX_DOWNLOAD_BYTES + 1)
             content_type = response.headers.get_content_type()
             charset = response.headers.get_content_charset() or "utf-8"
             final_url = response.geturl()
+    except _RedirectRefused as exc:
+        return tool_error(f"Refused: {exc.reason}.", url=url)
     except urllib.error.HTTPError as exc:
         return tool_error(f"HTTP {exc.code} {exc.reason}", url=url)
     except (urllib.error.URLError, TimeoutError, OSError) as exc:

@@ -22,8 +22,9 @@ Tes: `pytest tests/gateway -q`
 
 ### Menambah platform
 
-Contoh lengkap: `platforms/telegram.py` (143 baris). Panduan Hermes yang setara:
-`gateway/platforms/ADDING_A_PLATFORM.md` di clone rujukan.
+Contoh lengkap di repositori ini: `platforms/telegram.py`.
+
+Panduan Hermes yang setara: `gateway/platforms/ADDING_A_PLATFORM.md` di clone rujukan.
 
 1. Buat `platforms/<nama>.py` dengan kelas turunan `BasePlatformAdapter`:
    - `connect()`: periksa kredensial (lempar bila salah), mulai loop terima dengan
