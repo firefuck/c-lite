@@ -129,7 +129,8 @@ def _proxy_for(url: str) -> str | None:
 def _open_connection(url: str, timeout: float) -> tuple[http.client.HTTPConnection, str]:
     """A connection for ``url`` and the request target to use on it."""
     parts = urlsplit(url)
-    if parts.scheme not in ("http", "https") or not parts.hostname:
+    host = parts.hostname or ""
+    if parts.scheme not in ("http", "https") or not host:
         raise ValueError(f"unsupported URL: {url!r}")
     secure = parts.scheme == "https"
     port = parts.port or (443 if secure else 80)
@@ -138,21 +139,22 @@ def _open_connection(url: str, timeout: float) -> tuple[http.client.HTTPConnecti
     context = ssl.create_default_context() if secure else None
     if proxy is None:
         connection: http.client.HTTPConnection = (
-            http.client.HTTPSConnection(parts.hostname, port, timeout=timeout, context=context)
-            if secure else http.client.HTTPConnection(parts.hostname, port, timeout=timeout)
+            http.client.HTTPSConnection(host, port, timeout=timeout, context=context)
+            if secure else http.client.HTTPConnection(host, port, timeout=timeout)
         )
         return connection, target
     proxy_parts = urlsplit(proxy if "://" in proxy else "http://" + proxy)
+    proxy_host = proxy_parts.hostname or ""
     proxy_port = proxy_parts.port or (443 if proxy_parts.scheme == "https" else 8080)
     proxy_headers = {}
     if proxy_parts.username:
         credentials = f"{unquote(proxy_parts.username)}:{unquote(proxy_parts.password or '')}".encode()
         proxy_headers["Proxy-Authorization"] = "Basic " + b64encode(credentials).decode()
     if secure:
-        connection = http.client.HTTPSConnection(proxy_parts.hostname, proxy_port, timeout=timeout, context=context)
-        connection.set_tunnel(parts.hostname, port, headers=proxy_headers)
+        connection = http.client.HTTPSConnection(proxy_host, proxy_port, timeout=timeout, context=context)
+        connection.set_tunnel(host, port, headers=proxy_headers)
         return connection, target
-    connection = http.client.HTTPConnection(proxy_parts.hostname, proxy_port, timeout=timeout)
+    connection = http.client.HTTPConnection(proxy_host, proxy_port, timeout=timeout)
     connection._clite_proxy_headers = proxy_headers  # type: ignore[attr-defined]
     return connection, url
 
@@ -248,7 +250,8 @@ def _lines(response: http.client.HTTPResponse) -> Iterator[str]:
 
 def parse_sse(lines: Iterator[str]) -> Iterator[SSEEvent]:
     """Server-sent events from an iterator of raw lines."""
-    event, data = "", []
+    event = ""
+    data: list[str] = []
     for line in lines:
         line = line.rstrip("\r\n")
         if not line:

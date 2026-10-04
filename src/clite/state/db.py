@@ -240,7 +240,8 @@ class SessionDB:
         include_archived: bool = False,
         include_children: bool = False,
     ) -> list[dict[str, Any]]:
-        clauses, params = [], []
+        clauses: list[str] = []
+        params: list[Any] = []
         if sources:
             clauses.append(f"source IN ({','.join('?' * len(sources))})")
             params.extend(sources)
@@ -288,6 +289,36 @@ class SessionDB:
             self._conn.commit()
             return cursor.rowcount > 0
 
+    def prune_sessions(
+        self,
+        older_than_days: float,
+        *,
+        keep: Iterable[str] = (),
+        dry_run: bool = False,
+        now: float | None = None,
+    ) -> int:
+        """Delete sessions with no activity for ``older_than_days`` and return how many.
+
+        Pinned sessions and the ids in ``keep`` survive. Children of a deleted session are
+        detached, not deleted: each is judged by its own last activity.
+        """
+        cutoff = (time.time() if now is None else now) - float(older_than_days) * 86400
+        spared = set(keep)
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT id FROM sessions WHERE pinned = 0 AND COALESCE(last_activity_at, started_at) < ?",
+                (cutoff,),
+            ).fetchall()
+            victims = [row["id"] for row in rows if row["id"] not in spared]
+            if dry_run or not victims:
+                return len(victims)
+            for session_id in victims:
+                self._conn.execute("UPDATE sessions SET parent_session_id = NULL WHERE parent_session_id = ?",
+                                   (session_id,))
+                self._conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+            self._conn.commit()
+        return len(victims)
+
     # ── messages ─────────────────────────────────────────────────────────────────────────
 
     def append_message(self, session_id: str, message: dict[str, Any]) -> int:
@@ -326,7 +357,7 @@ class SessionDB:
                 message.get("display_kind"), int(bool(message.get("is_summary"))),
             ),
         )
-        return int(cursor.lastrowid)
+        return int(cursor.lastrowid or 0)
 
     def _refresh_counts(self, session_id: str) -> None:
         self._conn.execute(

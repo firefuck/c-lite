@@ -15,7 +15,6 @@ from clite.providers.runtime import resolve_runtime_provider
 from clite.providers.testing import mock_route
 from clite.providers.transports.types import RequestParams
 
-
 MESSAGES = [{"role": "system", "content": "sys"}, {"role": "user", "content": "hi"}]
 
 

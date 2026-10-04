@@ -239,7 +239,7 @@ class AnthropicAccumulator(StreamAccumulator):
             from clite.providers.http import ProviderHTTPError
 
             error = payload.get("error") or {}
-            status = {"overloaded_error": 529, "rate_limit_error": 429, "api_error": 500}.get(error.get("type"), 400)
+            status = {"overloaded_error": 529, "rate_limit_error": 429, "api_error": 500}.get(str(error.get("type")), 400)
             raise ProviderHTTPError(status, json.dumps(payload), {}, "")
         return True
 

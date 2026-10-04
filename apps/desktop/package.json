@@ -12,9 +12,9 @@
     "start": "node build.mjs && electron ."
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "electron": "^33.0.0",
-    "esbuild": "^0.25.0",
-    "typescript": "^5.8.0"
+    "@types/node": ">=22",
+    "electron": "^44.0.0",
+    "esbuild": ">=0.25 <1",
+    "typescript": ">=5.8 <7"
   }
 }

@@ -30,7 +30,6 @@ from clite.gateway.platforms.base import PLATFORMS, BasePlatformAdapter, split_m
 from clite.gateway.session import SessionMap, build_session_key
 from clite.plugins.hooks import has_hook, invoke_hook
 from clite.plugins.manager import ensure_plugins_loaded
-from clite.providers.client import ModelClient
 from clite.runtime.commands import BUSY_ALLOW, resolve_command, split_command
 from clite.runtime.session import ACTION_NEW, ACTION_SUBMIT, ChatSession
 

@@ -5,6 +5,10 @@
 // processes: you can type while the agent works. A line sent during a turn is handled by the
 // server's busy policy (interrupt, queue or steer).
 //
+// Input that is not a terminal (a pipe, a file) is a script, not a person: there each line
+// waits for the turn before it to finish, so `printf 'question\n/quit\n' | clite tui` prints
+// the answer instead of interrupting it.
+//
 // A full-screen interface (panes, a live status bar, an inline diff viewer) is the planned
 // replacement; it will reuse backend.ts, render.ts and the shared transcript reducer as they
 // are. See docs/roadmap.
@@ -25,6 +29,9 @@ export interface PlainTuiOptions {
   color?: boolean;
   version?: string;
   session?: SessionCreateParams;
+  /** A person is typing: lines sent during a turn go to the server's busy policy at once.
+   *  Default: whether `input` is a terminal. */
+  interactive?: boolean;
 }
 
 type Question = { resolve: (answer: string) => void };
@@ -46,6 +53,10 @@ export class PlainTui {
   private closing = false;
   private sessionOpen: () => void = () => {};
   private chain: Promise<void>;
+  private readonly scripted: boolean;
+  private awaitedTurn = ""; // scripted input only: the turn the next line is waiting for
+  private lastFinishedTurn = "";
+  private waiters: Array<() => void> = [];
 
   constructor(options: PlainTuiOptions) {
     this.client = options.client;
@@ -53,6 +64,7 @@ export class PlainTui {
     this.color = options.color ?? false;
     this.version = options.version ?? "";
     this.sessionParams = options.session ?? {};
+    this.scripted = !(options.interactive ?? Boolean((options.input as { isTTY?: boolean }).isTTY));
     this.readline = createInterface({ input: options.input, crlfDelay: Infinity });
     // Listen from the start: input that arrives before the session is open (piped input,
     // a fast typist) is held in order and handled once it is.
@@ -63,8 +75,27 @@ export class PlainTui {
       this.chain = this.chain.then(() => this.handleLine(line));
     });
     this.readline.on("close", () => {
-      void this.chain.then(() => this.shutdown(0)); // Ctrl+D, or the input stream ended
+      // Ctrl+D, or the input stream ended. A script's last turn is allowed to finish first.
+      void this.chain.then(() => this.inputWanted()).then(() => this.shutdown(0));
     });
+  }
+
+  // ── scripted input ───────────────────────────────────────────────────────────────────
+
+  /** Resolves when the next line of input should be read: at once for a person, and for a
+   *  script once the turn it started is over or the agent asks it a question. */
+  private inputWanted(): Promise<void> {
+    if (!this.scripted || !this.awaitedTurn || this.question || this.closing) return Promise.resolve();
+    return new Promise((resolve) => this.waiters.push(resolve));
+  }
+
+  private releaseWaiters(): void {
+    for (const resolve of this.waiters.splice(0)) resolve();
+  }
+
+  private awaitTurn(turnId: string): void {
+    // The turn may already be over: its events travel on the same stream as this response.
+    if (this.scripted && turnId && turnId !== this.lastFinishedTurn) this.awaitedTurn = turnId;
   }
 
   // ── output ───────────────────────────────────────────────────────────────────────────
@@ -130,6 +161,9 @@ export class PlainTui {
         break;
       case "turn.complete":
         this.busy = false;
+        this.lastFinishedTurn = event.payload.turn_id;
+        if (this.awaitedTurn === event.payload.turn_id) this.awaitedTurn = "";
+        this.releaseWaiters();
         if (this.midLine) this.line();
         if (event.payload.interrupted) this.line(paint("(interrupted)", "yellow", this.color));
         else if (event.payload.error) this.line(paint(event.payload.final_response || event.payload.error, "red", this.color));
@@ -146,6 +180,7 @@ export class PlainTui {
     return new Promise((resolve) => {
       this.question = { resolve };
       this.write(promptText);
+      this.releaseWaiters(); // a script's next line is the answer
     });
   }
 
@@ -165,6 +200,8 @@ export class PlainTui {
   // ── input ────────────────────────────────────────────────────────────────────────────
 
   private async handleLine(raw: string): Promise<void> {
+    await this.inputWanted();
+    if (this.closing) return;
     this.midLine = false; // the user's Enter ended whatever line the cursor was on
     if (this.question) {
       const { resolve } = this.question;
@@ -179,7 +216,7 @@ export class PlainTui {
     }
     try {
       if (text.startsWith("/")) await this.runSlash(text);
-      else await this.client.request("prompt.submit", { session_id: this.sessionId, text });
+      else this.awaitTurn((await this.client.request("prompt.submit", { session_id: this.sessionId, text })).turn_id);
     } catch (error) {
       this.line(paint(error instanceof RpcError || error instanceof Error ? error.message : String(error), "red", this.color));
       this.prompt();
@@ -193,7 +230,10 @@ export class PlainTui {
       await this.shutdown(0);
       return;
     }
-    if (result.action === "submit") return; // a turn was started; its events do the rest
+    if (result.action === "submit") {
+      this.awaitTurn(result.turn_id); // a turn was started; its events do the rest
+      return;
+    }
     this.prompt();
   }
 
@@ -216,6 +256,7 @@ export class PlainTui {
   private async shutdown(code: number): Promise<void> {
     if (this.closing) return;
     this.closing = true;
+    this.releaseWaiters();
     this.readline.close();
     let stored = "";
     try {
@@ -241,6 +282,7 @@ export class PlainTui {
       if (!this.closing) {
         this.line(paint(`The backend stopped: ${reason}`, "red", this.color));
         this.closing = true;
+        this.releaseWaiters();
         this.readline.close();
         this.finish(1);
       }

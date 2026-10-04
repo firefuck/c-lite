@@ -172,7 +172,7 @@ def _load_for_write(target: Path) -> dict[str, Any]:
     return load_user_config_raw(target)
 
 
-def atomic_config_update(mutate: Callable[[MutableMapping[str, Any]], None], path: Path | None = None) -> None:
+def atomic_config_update(mutate: Callable[[dict[str, Any]], None], path: Path | None = None) -> None:
     """The one writer seam: load the user file, apply ``mutate``, write atomically."""
     target = path or get_config_path()
     document = _load_for_write(target)
@@ -184,7 +184,7 @@ def atomic_config_update(mutate: Callable[[MutableMapping[str, Any]], None], pat
     reset_config_cache()
 
 
-def _descend(document: MutableMapping[str, Any], parts: list[str], *, create: bool) -> MutableMapping | None:
+def _descend(document: MutableMapping[str, Any], parts: list[str], *, create: bool) -> MutableMapping[str, Any] | None:
     node: Any = document
     for part in parts:
         child = node.get(part) if isinstance(node, Mapping) else None
@@ -205,6 +205,7 @@ def config_set(dotpath: str, value: Any, path: Path | None = None) -> None:
 
     def mutate(document: MutableMapping[str, Any]) -> None:
         parent = _descend(document, parts[:-1], create=True)
+        assert parent is not None  # create=True always yields a mapping
         parent[parts[-1]] = value
 
     atomic_config_update(mutate, path)
@@ -232,7 +233,11 @@ def migrate_config_file(path: Path | None = None) -> bool:
     version = raw.get("_config_version")
     if not isinstance(version, int) or version >= CONFIG_VERSION:
         return False
-    atomic_config_update(lambda document: _apply_migrations(document) and None, path)
+
+    def mutate(document: MutableMapping[str, Any]) -> None:
+        _apply_migrations(document)
+
+    atomic_config_update(mutate, path)
     return True
 
 

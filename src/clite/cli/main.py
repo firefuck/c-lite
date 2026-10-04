@@ -86,7 +86,14 @@ def main(argv: list[str] | None = None) -> int:
     setup_logging(str(get_path(config, "logging.level", "INFO")), max_size_mb=int(get_path(config, "logging.max_size_mb", 5)),
                   backup_count=int(get_path(config, "logging.backup_count", 3)))
     try:
-        args = build_parser().parse_args(arguments)
+        parser = build_parser()
+        args, extra = parser.parse_known_args(arguments)
+        if extra:
+            # Only a command that forwards its arguments to another program (`clite tui`)
+            # may receive options argparse does not know.
+            if not getattr(args, "accepts_extra_args", False):
+                parser.error(f"unrecognized arguments: {' '.join(extra)}")
+            args.extra_args = extra
         return int(args.handler(args) or 0)
     except CliteError as exc:
         print(f"error: {exc}", file=sys.stderr)

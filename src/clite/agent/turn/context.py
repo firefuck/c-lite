@@ -27,6 +27,10 @@ def build_turn_context(agent: AIAgent, state: TurnState) -> None:
         recalled = agent.memory.prefetch(user_text, agent.session_id)
         if recalled:
             parts.append(recalled)
+        if "memory" in agent.tool_names:  # a reminder is only useful to a model that can act on it
+            nudge = agent.memory.turn_nudge()
+            if nudge:
+                parts.append(nudge)
     if has_hook("pre_llm_call"):
         for result in invoke_hook(
             "pre_llm_call", session_id=agent.session_id, user_message=user_text, platform=agent.platform,

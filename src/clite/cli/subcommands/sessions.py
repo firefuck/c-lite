@@ -8,6 +8,7 @@ import sys
 import time
 
 from clite.agent.messages import content_text
+from clite.core.config import config_get
 from clite.state.db import get_session_db
 
 
@@ -94,16 +95,14 @@ def run_search(args: argparse.Namespace) -> int:
 
 
 def run_prune(args: argparse.Namespace) -> int:
+    days = args.older_than if args.older_than is not None else float(config_get("sessions.retention_days", 90) or 90)
     db = get_session_db()
-    cutoff = time.time() - args.older_than * 86400
-    victims = [row for row in db.list_sessions(limit=100_000, include_archived=True, include_children=True, include_hidden=True)
-               if (row.get("last_activity_at") or row["started_at"]) < cutoff and not row.get("pinned")]
     if not args.yes:
-        print(f"{len(victims)} session(s) older than {args.older_than} days would be deleted. Re-run with --yes to delete them.")
+        count = db.prune_sessions(days, dry_run=True)
+        print(f"{count} session(s) with no activity for {days:g} days would be deleted (pinned sessions are kept). "
+              "Re-run with --yes to delete them.")
         return 0
-    for row in victims:
-        db.delete_session(row["id"])
-    print(f"Deleted {len(victims)} session(s).")
+    print(f"Deleted {db.prune_sessions(days)} session(s).")
     return 0
 
 
@@ -136,6 +135,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     search.add_argument("-n", "--limit", type=int, default=20)
     search.set_defaults(handler=run_search)
     prune = actions.add_parser("prune", help="delete old sessions")
-    prune.add_argument("--older-than", type=int, default=90, metavar="DAYS")
-    prune.add_argument("--yes", action="store_true")
+    prune.add_argument("--older-than", type=float, default=None, metavar="DAYS",
+                       help="default: sessions.retention_days from config.yaml")
+    prune.add_argument("--yes", action="store_true", help="delete; without it the command only counts")
     prune.set_defaults(handler=run_prune)

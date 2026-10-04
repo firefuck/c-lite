@@ -13,6 +13,7 @@ from clite.core.config import get_path, load_config
 from clite.plugins.manager import ensure_plugins_loaded
 from clite.providers.client import ModelClient
 from clite.providers.runtime import RuntimeRoute, resolve_runtime_provider
+from clite.runtime.maintenance import run_startup_maintenance
 from clite.tools.registry import discover_builtin_tools
 
 # Platforms where a person sits at this machine. They share the user's main toolset setting.
@@ -53,6 +54,7 @@ def build_agent(
     **agent_options: Any,
 ) -> AIAgent:
     cfg = config if config is not None else load_config()
+    run_startup_maintenance(cfg, keep_sessions=[session_id] if session_id else [])
     ensure_plugins_loaded()  # before tools are resolved: plugins contribute tools and providers
     discover_builtin_tools()
     if cfg.get("mcp_servers"):

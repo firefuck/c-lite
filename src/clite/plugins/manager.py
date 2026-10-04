@@ -1,4 +1,4 @@
-"""Plugin discovery and loading.
+"""Plugin discovery and loading (and, with them, the shell hooks from ``config.yaml``).
 
 Sources, in the order they are scanned (a later source replaces an earlier plugin of the
 same name):
@@ -45,11 +45,13 @@ from clite.plugins.manifest import (
     PluginManifest,
     load_manifest,
 )
+from clite.plugins.shell_hooks import SHELL_HOOKS_OWNER, ShellHook, register_shell_hooks
 
 logger = logging.getLogger("clite.plugins")
 
 SOURCE_BUNDLED, SOURCE_USER, SOURCE_PROJECT, SOURCE_PIP = "bundled", "user", "project", "pip"
-_RESERVED_DIRS = frozenset({"model-providers"})
+# Not plugins: provider profiles, and the owner id shell hooks register under.
+_RESERVED_DIRS = frozenset({"model-providers", SHELL_HOOKS_OWNER})
 _AUTO_LOAD_KINDS = frozenset({KIND_PLATFORM, KIND_BACKEND, KIND_MODEL_PROVIDER})
 PROJECT_PLUGINS_ENV = f"{ENV_PREFIX}_ENABLE_PROJECT_PLUGINS"
 
@@ -81,6 +83,7 @@ class PluginManager:
         self.plugins: dict[str, PluginInfo] = {}
         self.commands: dict[str, PluginCommand] = {}
         self.cli_commands: dict[str, PluginCliCommand] = {}
+        self.pending_shell_hooks: list[ShellHook] = []  # configured but not yet approved
         self._lock = threading.RLock()
         self._loaded = False
 
@@ -220,6 +223,11 @@ class PluginManager:
                     info.status = decision
                 else:
                     info.status = decision
+            try:
+                # Shell hooks from `hooks:` in config.yaml share the bus with plugin hooks.
+                _, self.pending_shell_hooks = register_shell_hooks(cfg)
+            except Exception:  # noqa: BLE001 - a bad hooks section must not stop startup
+                logger.warning("shell hooks could not be registered", exc_info=True)
             self._loaded = True
 
     def ensure_loaded(self) -> None:

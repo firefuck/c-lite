@@ -12,7 +12,14 @@ import pytest
 
 from clite.providers.testing import ScriptedClient, text_response, tool_call_response
 from clite.rpc.contracts.base import EVENTS, METHODS, SERVER_REQUESTS
-from clite.rpc.server import HANDLERS, INVALID_PARAMS, METHOD_NOT_FOUND, SESSION_BUSY, SESSION_NOT_FOUND, RpcServer
+from clite.rpc.server import (
+    HANDLERS,
+    INVALID_PARAMS,
+    METHOD_NOT_FOUND,
+    SESSION_BUSY,
+    SESSION_NOT_FOUND,
+    RpcServer,
+)
 from clite.rpc.transport import MemoryTransport
 from clite.state import get_session_db
 

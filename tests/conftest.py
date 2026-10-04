@@ -18,7 +18,8 @@ _HOST = {"linux": "linux", "darwin": "macos", "win32": "windows"}.get(sys.platfo
 
 def _reset_process_state() -> None:
     """Drop every process-global cache so one test cannot leak state into the next."""
-    from clite.core import config, env, logging as clite_logging
+    from clite.core import config, env
+    from clite.core import logging as clite_logging
     from clite.state import db
 
     config.reset_config_cache()
@@ -41,6 +42,7 @@ def _reset_process_state() -> None:
         ("clite.skills.catalog", "reset_skill_cache"),
         ("clite.cron.jobs", "reset_job_stores"),
         ("clite.rpc.server", "reset_server_state"),
+        ("clite.runtime.maintenance", "reset_maintenance_state"),
     ):
         module = sys.modules.get(module_name)
         reset = getattr(module, function_name, None) if module else None

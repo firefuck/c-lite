@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 
@@ -15,11 +16,11 @@ from clite.state import get_session_db
 from clite.tools.builtin.cronjob import cronjob_tool
 from clite.tools.context import ToolContext
 
-NOW = datetime(2026, 10, 4, 12, 0, tzinfo=timezone.utc).timestamp()  # a Sunday
+NOW = datetime(2026, 10, 4, 12, 0, tzinfo=UTC).timestamp()  # a Sunday
 
 
 def _utc(*args):
-    return datetime(*args, tzinfo=timezone.utc)
+    return datetime(*args, tzinfo=UTC)
 
 
 @pytest.fixture(autouse=True)
@@ -161,7 +162,7 @@ def test_tick_runs_due_jobs_in_a_fresh_cron_session(clite_home):
     saved = store.get(job["id"])
     assert saved["last_status"] == "ok" and saved["next_run_at"] == NOW + 7200
     assert (clite_home / "cron" / "output" / job["id"]).is_dir()
-    assert open(outcomes[0]["output_path"]).read() == "Disk is at 41%."
+    assert Path(outcomes[0]["output_path"]).read_text() == "Disk is at 41%."
     assert get_session_db().get_session(outcomes[0]["session_id"])["source"] == "cron"
 
 

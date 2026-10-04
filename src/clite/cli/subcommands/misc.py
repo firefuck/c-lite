@@ -107,8 +107,12 @@ def run_doctor(args: argparse.Namespace) -> int:
     from clite.plugins.manager import ensure_plugins_loaded
 
     try:
-        broken = [f"{info.name} ({info.error})" for info in ensure_plugins_loaded().list() if info.status == "error"]
+        manager = ensure_plugins_loaded()
+        broken = [f"{info.name} ({info.error})" for info in manager.list() if info.status == "error"]
         check("Enabled plugins load", not broken, "; ".join(broken))
+        pending = len(manager.pending_shell_hooks)
+        check("Shell hooks are approved", not pending,
+              f"{pending} configured hook(s) will not run until you approve them: clite hooks approve", required=False)
     except CliteError as exc:  # plugins are gated by config; with a broken config they cannot be checked
         check("Enabled plugins load", False, f"not checked: {exc}", required=False)
 

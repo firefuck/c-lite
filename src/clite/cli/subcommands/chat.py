@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import sys
 
+from clite.core.config import config_get
 from clite.core.errors import CliteError
 from clite.state.db import get_session_db
 
@@ -19,6 +21,11 @@ def add_chat_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--max-turns", type=int, help="limit tool-calling iterations per turn")
     parser.add_argument("--json", action="store_true", help="with -q: print the full result as JSON")
     parser.add_argument("--quiet", action="store_true", help="with -q: print nothing but the answer")
+    interface = parser.add_mutually_exclusive_group()
+    interface.add_argument("--tui", dest="interface", action="store_const", const="tui",
+                           help="use the terminal UI for this chat (default: display.interface)")
+    interface.add_argument("--classic", dest="interface", action="store_const", const="cli",
+                           help="use the classic CLI even when display.interface is tui")
 
 
 def session_options(args: argparse.Namespace) -> dict:
@@ -45,12 +52,32 @@ def session_options(args: argparse.Namespace) -> dict:
             "yolo": bool(getattr(args, "yolo", False)), "max_turns": getattr(args, "max_turns", None)}
 
 
+def wants_tui(args: argparse.Namespace, options: dict) -> bool:
+    """Whether an interactive chat should open in the TUI.
+
+    An explicit ``--tui`` or ``--classic`` wins. Otherwise ``display.interface`` decides, but
+    only on a real terminal and only when every option given is one the TUI takes.
+    """
+    choice = getattr(args, "interface", None)
+    if choice is not None:
+        return choice == "tui"
+    if str(config_get("display.interface", "cli") or "cli").lower() != "tui":
+        return False
+    if options.get("toolsets") or options.get("max_turns") is not None:
+        return False  # the TUI has no flag for these; honour them in the classic CLI
+    return sys.stdin.isatty() and sys.stdout.isatty()
+
+
 def run_chat(args: argparse.Namespace) -> int:
     from clite.cli.repl import Repl, run_single_query
 
     options = session_options(args)
     if args.query is not None:
         return run_single_query(args.query, as_json=args.json, quiet=args.quiet, **options)
+    if wants_tui(args, options):
+        from clite.cli.subcommands.tui import launch_tui, tui_arguments
+
+        return launch_tui(tui_arguments(options), fallback_options=options)
     return Repl(**options).run()
 
 

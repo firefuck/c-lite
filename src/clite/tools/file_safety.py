@@ -14,7 +14,8 @@ from clite.core.constants import get_default_root, get_home
 
 _HOME_RELATIVE_DENY = (".ssh", ".gnupg", ".aws", ".kube", ".docker/config.json", ".netrc", ".npmrc", ".pypirc")
 _SYSTEM_PREFIXES = ("/etc", "/boot", "/usr", "/bin", "/sbin", "/lib", "/sys", "/proc", "/dev")
-_PROTECTED_NAMES = (".env", "config.yaml", "auth.json")
+# shell-hooks-allowlist.json records which shell hooks the user consented to run.
+_PROTECTED_NAMES = (".env", "config.yaml", "auth.json", "shell-hooks-allowlist.json")
 
 
 def _resolve(path: str | os.PathLike[str]) -> Path:

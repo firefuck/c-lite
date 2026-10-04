@@ -51,7 +51,7 @@ class PluginCliCommand:
 class Registration:
     kind: str
     name: str
-    undo: Callable[[], None] = field(repr=False, default=lambda: None)
+    undo: Callable[[], Any] = field(repr=False, default=lambda: None)
 
 
 class PluginContext:
@@ -74,7 +74,7 @@ class PluginContext:
     def _entry(self, key: str, default: Any = None) -> Any:
         return get_path(load_config(), f"plugins.entries.{self.plugin_id}.{key}", default)
 
-    def _record(self, kind: str, name: str, undo: Callable[[], None]) -> None:
+    def _record(self, kind: str, name: str, undo: Callable[[], Any]) -> None:
         self.ledger.append(Registration(kind, name, undo))
 
     # ── tools ────────────────────────────────────────────────────────────────────────────

@@ -101,7 +101,8 @@ def parse_skill_text(text: str, *, expected_name: str | None = None) -> tuple[Sk
     if not body.strip():
         raise SkillFormatError("SKILL.md has no instructions after the frontmatter")
 
-    metadata = data.get("metadata") if isinstance(data.get("metadata"), dict) else {}
+    raw_metadata = data.get("metadata")
+    metadata: dict[str, Any] = raw_metadata if isinstance(raw_metadata, dict) else {}
     agent: dict[str, Any] = {}
     for key in reversed(SKILL_METADATA_KEYS):  # the first key in the tuple wins
         if isinstance(metadata.get(key), dict):

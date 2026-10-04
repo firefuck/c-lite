@@ -23,7 +23,8 @@ def apply_setup(provider_name: str, *, api_key: str | None = None, model: str | 
     chosen_model = model or profile.default_model
 
     def mutate(document: dict[str, Any]) -> None:
-        section = document.get("model") if isinstance(document.get("model"), dict) else {}
+        existing = document.get("model")
+        section: dict[str, Any] = existing if isinstance(existing, dict) else {}
         section["provider"] = profile.name
         if chosen_model:
             section["default"] = chosen_model

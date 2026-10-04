@@ -139,9 +139,8 @@ def test_websocket_rejects_a_bad_token_and_a_foreign_origin(backend):
     from websockets.exceptions import ConnectionClosed, InvalidStatus
 
     for kwargs in ({"token": "wrong"}, {"origin": "https://evil.example"}):
-        with pytest.raises((ConnectionClosed, InvalidStatus)):
-            with backend.connect(**kwargs) as socket:
-                socket.recv(timeout=5)
+        with pytest.raises((ConnectionClosed, InvalidStatus)), backend.connect(**kwargs) as socket:
+            socket.recv(timeout=5)
     with backend.connect(origin=backend.base) as socket:  # the dashboard's own origin is fine
         assert json.loads(socket.recv(timeout=5))["params"]["type"] == "gateway.ready"
 

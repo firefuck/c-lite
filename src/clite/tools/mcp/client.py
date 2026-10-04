@@ -30,6 +30,7 @@ import logging
 import re
 import subprocess
 import threading
+from dataclasses import dataclass, field
 from typing import Any
 
 from clite import __version__
@@ -53,6 +54,14 @@ def safe_name(text: str) -> str:
     return _NAME_RE.sub("_", text)
 
 
+@dataclass
+class _Waiter:
+    """A request in flight: the event its sender waits on and the reply once it arrives."""
+
+    event: threading.Event = field(default_factory=threading.Event)
+    message: dict[str, Any] | None = None
+
+
 class McpServer:
     """One server process and the request/response plumbing around it."""
 
@@ -65,7 +74,7 @@ class McpServer:
         self.registered: list[str] = []  # names under which the tools are exposed to the model
         self.server_info: dict[str, Any] = {}
         self._next_id = 0
-        self._pending: dict[int, dict[str, Any]] = {}
+        self._pending: dict[int, _Waiter] = {}
         self._lock = threading.Lock()
         self._write_lock = threading.Lock()
         self._stderr_tail: list[str] = []
@@ -130,16 +139,15 @@ class McpServer:
         with self._lock:
             self._next_id += 1
             request_id = self._next_id
-            waiter = {"event": threading.Event(), "message": None}
-            self._pending[request_id] = waiter
+            waiter = self._pending[request_id] = _Waiter()
         try:
             self._send({"jsonrpc": "2.0", "id": request_id, "method": method, "params": params or {}})
-            if not waiter["event"].wait(timeout or self.timeout):
+            if not waiter.event.wait(timeout or self.timeout):
                 raise McpError(f"mcp server {self.name!r} did not answer {method} within {timeout or self.timeout:.0f}s")
         finally:
             with self._lock:
                 self._pending.pop(request_id, None)
-        message = waiter["message"]
+        message = waiter.message
         if message is None:
             raise McpError(f"mcp server {self.name!r} exited" + self._stderr_hint())
         if "error" in message:
@@ -165,15 +173,16 @@ class McpServer:
                 self._handle_server_message(message)
                 continue
             with self._lock:
-                waiter = self._pending.get(message.get("id"))
+                reply_to = message.get("id")
+                waiter = self._pending.get(reply_to) if isinstance(reply_to, int) else None
             if waiter is not None:
-                waiter["message"] = message
-                waiter["event"].set()
+                waiter.message = message
+                waiter.event.set()
         # The server is gone: wake everything still waiting.
         with self._lock:
             waiters = list(self._pending.values())
         for waiter in waiters:
-            waiter["event"].set()
+            waiter.event.set()
 
     def _handle_server_message(self, message: dict[str, Any]) -> None:
         """Requests and notifications coming from the server."""

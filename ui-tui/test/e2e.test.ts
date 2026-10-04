@@ -37,7 +37,8 @@ before(() => {
 
 after(() => rmSync(sandbox, { recursive: true, force: true }));
 
-/** A TUI wired to in-memory streams, with helpers to type and to wait for output. */
+/** A TUI wired to in-memory streams, with helpers to type and to wait for output. It is
+ *  marked interactive: the test plays a person, who may type while a turn is running. */
 async function startTui(): Promise<{
   type: (line: string) => void;
   waitFor: (pattern: RegExp, timeoutMs?: number) => Promise<string>;
@@ -54,7 +55,9 @@ async function startTui(): Promise<{
   sink.on("data", (chunk: Buffer) => {
     text += chunk.toString();
   });
-  const tui = new PlainTui({ client: backend.client, input, output: sink, version: ready.version, session: { cwd: workdir } });
+  const tui = new PlainTui({
+    client: backend.client, input, output: sink, version: ready.version, session: { cwd: workdir }, interactive: true,
+  });
   const exit = tui.run();
   const waitFor = async (pattern: RegExp, timeoutMs = 15000): Promise<string> => {
     const deadline = Date.now() + timeoutMs;
@@ -166,17 +169,43 @@ test("Ctrl+C stops a running turn and leaves the session usable", async () => {
   await backend.stop();
 });
 
-test("end of input closes the session cleanly", async () => {
+/** Run the TUI over a whole script given up front, the way a pipe delivers it. */
+async function runScript(script: string): Promise<{ code: number; text: string }> {
   const backend = spawnBackend({ env: backendEnv(), cwd: workdir });
   await backend.ready;
   const input = new PassThrough();
   const sink = new PassThrough();
-  sink.resume();
+  let text = "";
+  sink.on("data", (chunk: Buffer) => {
+    text += chunk.toString();
+  });
   const tui = new PlainTui({ client: backend.client, input, output: sink, session: { cwd: workdir } });
   const exit = tui.run();
-  input.end("one last message\n");
-  assert.equal(await exit, 0);
+  input.end(script);
+  const code = await exit;
   assert.equal(await backend.stop(), 0);
+  return { code, text };
+}
+
+test("piped input is a script: each line waits for the turn before it", async () => {
+  const { code, text } = await runScript("first question\nsecond question\n/quit\n");
+  assert.equal(code, 0);
+  assert.match(text, /You said: first question\n[\s\S]*You said: second question\n/);
+  assert.doesNotMatch(text, /\(interrupted\)/);
+});
+
+test("end of input lets the last turn finish, then closes the session", async () => {
+  const { code, text } = await runScript("one last message\n");
+  assert.equal(code, 0);
+  assert.match(text, /You said: one last message\n[\s\S]*Resume this session with/);
+});
+
+test("a script answers the agent's questions with its next line", async () => {
+  mkdirSync(join(workdir, "scripted"), { recursive: true });
+  const { code, text } = await runScript('!terminal {"command": "rm -rf ./scripted"}\no\nafter the approval\n');
+  assert.equal(code, 0);
+  assert.equal(existsSync(join(workdir, "scripted")), false);
+  assert.match(text, /✓ terminal rm -rf \.\/scripted[\s\S]*You said: after the approval/);
 });
 
 test("a backend that cannot start is reported, not hung on", async () => {

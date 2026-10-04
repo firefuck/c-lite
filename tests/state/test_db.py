@@ -208,3 +208,26 @@ def test_reopening_preserves_data(db, clite_home):
     reopened = get_session_db()
     assert reopened is not db
     assert reopened.get_messages(sid)[0]["content"] == "persisted"
+
+
+def test_prune_deletes_only_old_unpinned_sessions(db):
+    day = 86400.0
+    now = 1_000 * day
+    ages = {"fresh": 1, "old": 100, "old-pinned": 100, "old-kept": 100, "old-child": 200}
+    for sid in ages:
+        db.create_session(sid, "cli", parent_session_id="old" if sid == "old-child" else None)
+    db.append_message("old", {"role": "user", "content": "forgettable"})  # (this counts as activity, so age afterwards)
+    for sid, age_days in ages.items():
+        db._conn.execute("UPDATE sessions SET started_at = ?, last_activity_at = ? WHERE id = ?",
+                         (now - age_days * day, now - age_days * day, sid))
+    # A session that never recorded activity is judged by when it started.
+    db.create_session("never-active", "cli")
+    db._conn.execute("UPDATE sessions SET started_at = ?, last_activity_at = NULL WHERE id = 'never-active'", (now - 95 * day,))
+    db.update_session("old-pinned", pinned=1)
+
+    assert db.prune_sessions(90, keep=["old-kept"], dry_run=True, now=now) == 3
+    assert db.get_session("old") is not None  # a dry run deletes nothing
+    assert db.prune_sessions(90, keep=["old-kept"], now=now) == 3
+    assert {row["id"] for row in db.list_sessions(include_children=True)} == {"fresh", "old-pinned", "old-kept"}
+    assert db.search_messages("forgettable") == []
+    assert db.prune_sessions(90, keep=["old-kept"], now=now) == 0

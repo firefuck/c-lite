@@ -7,7 +7,13 @@ import pytest
 from clite.core.config import load_config
 from clite.providers.testing import ScriptedClient, text_response, tool_call_response
 from clite.runtime import ChatSession
-from clite.runtime.commands import COMMAND_REGISTRY, command_catalog, commands_for, resolve_command, split_command
+from clite.runtime.commands import (
+    COMMAND_REGISTRY,
+    command_catalog,
+    commands_for,
+    resolve_command,
+    split_command,
+)
 from clite.runtime.factory import default_toolsets
 from clite.runtime.session import ACTION_NEW, ACTION_QUIT, ACTION_SUBMIT
 from clite.runtime.slash import SLASH_HANDLERS

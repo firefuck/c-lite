@@ -154,7 +154,7 @@ class RpcServer:
             if future is not None and not future.done():
                 future.set_result(message.get("result") if "error" not in message else None)
             return
-        name = message.get("method")
+        name = str(message.get("method") or "")
         spec, handler = METHODS.get(name), HANDLERS.get(name)
         if spec is None or handler is None:
             self._respond(request_id, error=RpcError(METHOD_NOT_FOUND, f"unknown method: {name}"))

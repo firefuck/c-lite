@@ -58,9 +58,10 @@ def _backoff(attempt: int, retry_after: float | None) -> float:
 def _recover(agent: AIAgent, state: TurnState, error: ClassifiedError) -> str:
     """``"retry"``, ``"restart"`` (the history changed) or ``"fail"``."""
     max_compress = int(get_path(agent.config, "compression.max_attempts", 3))
-    if error.should_compress and get_path(agent.config, "compression.enabled", True) and state.compression_attempts < max_compress:
-        if agent.compress_context(state, reason=error.reason.value):
-            return "restart"
+    may_compress = (error.should_compress and get_path(agent.config, "compression.enabled", True)
+                    and state.compression_attempts < max_compress)
+    if may_compress and agent.compress_context(state, reason=error.reason.value):
+        return "restart"
 
     route = state.route
     if error.should_rotate_credential and route.credential is not None and route.profile is not None:

@@ -21,7 +21,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "default": "",  # model id; empty until `clite setup` or `clite model` picks one
         "provider": "",  # provider name; empty = first provider with credentials
         "base_url": "",  # only for a custom endpoint; a provider's own URL comes from its profile
-        "api_mode": "",  # chat_completions | anthropic_messages | responses; empty = from provider
+        "api_mode": "",  # chat_completions | anthropic_messages; empty = from the provider
         "context_length": None,  # explicit override always wins over catalog lookups
         "max_tokens": None,
     },
@@ -68,7 +68,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "context": {"engine": "compressor"},
     "prompt_caching": {"cache_ttl": "5m"},  # 5m | 1h (Anthropic cache_control)
     "context_file_max_chars": None,  # null = scale with the model window (20k floor)
-    # Side-LLM tasks. provider "main" reuses the conversation route.
+    # Side-LLM tasks. provider "main" reuses the conversation route (with the provider's cheap
+    # model when it declares one). "approval" is the reviewer used by approvals.mode: smart.
     "auxiliary": {
         "compression": {"provider": "main", "model": ""},
         "title_generation": {"provider": "main", "model": ""},
@@ -81,7 +82,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "tool_progress": "all",  # off | new | all | verbose
         "skin": "default",
         "busy_input_mode": "interrupt",  # interrupt | queue | steer
-        "interface": "cli",  # cli | tui
+        # What a bare `clite` opens on a terminal: cli (classic) or tui (needs Node.js).
+        # `--tui` and `--classic` override it for one run.
+        "interface": "cli",
     },
     # ── Memory and skills ────────────────────────────────────────────────────────────────
     "memory": {
@@ -106,7 +109,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     # ── Safety ───────────────────────────────────────────────────────────────────────────
     "approvals": {
-        "mode": "manual",  # manual | off  (smart = auxiliary-LLM triage, see roadmap)
+        # manual: ask about every flagged command. smart: an auxiliary model clears false
+        # positives and refuses clear dangers; anything it is unsure about still asks you.
+        # off: never ask (same as --yolo). Hardline patterns are refused in every mode.
+        "mode": "manual",
         "timeout": 300,
         "cron_mode": "deny",
         "single_query_mode": "deny",
@@ -120,8 +126,12 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "entries": {},  # {plugin_id: {allow_tool_override, settings: {...}}}
         "hook_callback_timeout": 30,
     },
-    "hooks": {},  # shell hooks: {hook_name: [{command, timeout}]}
-    "mcp_servers": {},  # {name: {command, args, env} | {url}}
+    # Shell hooks: {event: [command | {command, matcher, timeout, fail_closed}]}. A hook runs
+    # only after `clite hooks approve` (see clite.plugins.shell_hooks).
+    "hooks": {},
+    # MCP servers over stdio: {name: {command, args, env, cwd, timeout, enabled,
+    # tools: {include: [..], exclude: [..]}}}
+    "mcp_servers": {},
     "quick_commands": {},  # {name: {type: exec|alias, command|target}}
     "platform_hints": {},  # {platform: "text" | {append: ..} | {replace: ..}}
     # ── Surfaces ─────────────────────────────────────────────────────────────────────────
@@ -133,6 +143,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "cron": {"enabled": True, "catch_up_missed": True, "inactivity_timeout_seconds": 600},
     "server": {"host": "127.0.0.1", "port": 0},
+    # auto_prune deletes sessions with no activity for retention_days, at most once a day, when
+    # a surface starts. Pinned sessions are kept. `clite sessions prune` does it on demand.
     "sessions": {"auto_prune": False, "retention_days": 90},
     "logging": {"level": "INFO", "max_size_mb": 5, "backup_count": 3},
     "timezone": "",  # IANA name; empty = system local time

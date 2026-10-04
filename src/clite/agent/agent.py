@@ -16,7 +16,7 @@ from typing import Any
 
 from clite.agent.budget import IterationBudget
 from clite.agent.callbacks import AgentCallbacks
-from clite.agent.context.engine import create_context_engine
+from clite.agent.context.engine import ContextEngine, create_context_engine
 from clite.agent.loop import run_turn
 from clite.agent.memory.manager import MemoryManager
 from clite.agent.prompt.builder import PromptInputs, build_system_prompt
@@ -74,16 +74,16 @@ class AIAgent:
         self.platform = platform
         self.cwd = cwd or str(get_path(self.config, "terminal.cwd", "") or "") or os.getcwd()
         self.parent = parent
-        self.depth = parent.depth + 1 if parent is not None else 0
-        self.callbacks = callbacks or AgentCallbacks()
-        self.approval_mode = approval_mode
+        self.depth: int = parent.depth + 1 if parent is not None else 0
+        self.callbacks: AgentCallbacks = callbacks or AgentCallbacks()
+        self.approval_mode: str | None = approval_mode
         self.system_message = system_message
         self.skip_context_files = skip_context_files
         self.auto_title = auto_title
         self.session_meta = {key: value for key, value in (session_meta or {}).items() if key in _SESSION_META_KEYS}
 
         self.db: SessionDB | None = (session_db or get_session_db()) if persist else None
-        self.session_id = session_id or new_session_id()
+        self.session_id: str = session_id or new_session_id()
 
         self.enabled_toolsets = list(enabled_toolsets if enabled_toolsets is not None else self.config.get("toolsets") or [])
         self.disabled_toolsets = list(
@@ -98,19 +98,19 @@ class AIAgent:
         self.tool_names: frozenset[str] = frozenset(tool["function"]["name"] for tool in self.tools)
 
         limit = max_turns if max_turns is not None else get_path(self.config, "agent.max_turns")
-        self.budget = IterationBudget(limit)
-        self.run_budget_seconds = get_path(self.config, "agent.run_budget_seconds")
-        self.reasoning_effort = str(get_path(self.config, "agent.reasoning_effort", "") or "")
-        self.stream = bool(get_path(self.config, "display.streaming", True)) if stream is None else stream
+        self.budget: IterationBudget = IterationBudget(limit)
+        self.run_budget_seconds: float | None = get_path(self.config, "agent.run_budget_seconds")
+        self.reasoning_effort: str = str(get_path(self.config, "agent.reasoning_effort", "") or "")
+        self.stream: bool = bool(get_path(self.config, "display.streaming", True)) if stream is None else stream
 
-        self.context_engine = create_context_engine(str(get_path(self.config, "context.engine", "compressor") or "compressor"))
+        self.context_engine: ContextEngine = create_context_engine(str(get_path(self.config, "context.engine", "compressor") or "compressor"))
         self.context_engine.configure(context_length=get_context_length(self.route, self.config), config=self.config)
 
         self.todos = TodoStore()
         self.messages: list[dict[str, Any]] = []
         self.system_prompt: str | None = None
         self.total_usage = Usage()
-        self.interrupt_event = threading.Event()
+        self.interrupt_event: threading.Event = threading.Event()
         self._steer: list[str] = []
         self._lock = threading.RLock()
         self._turn_lock = threading.Lock()

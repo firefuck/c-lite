@@ -6,7 +6,13 @@ import json
 
 from clite.plugins.hooks import get_hook_bus
 from clite.tools.context import ToolContext
-from clite.tools.dispatch import cap_result, coerce_args, get_tool_definitions, handle_function_call, resolve_enabled_tools
+from clite.tools.dispatch import (
+    cap_result,
+    coerce_args,
+    get_tool_definitions,
+    handle_function_call,
+    resolve_enabled_tools,
+)
 from clite.tools.registry import registry, tool_result
 from clite.tools.toolsets import TOOLSETS, all_toolsets, register_toolset, resolve_toolset, resolve_toolsets
 

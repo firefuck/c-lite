@@ -8,8 +8,8 @@ import pytest
 
 from clite.agent import AgentCallbacks
 from clite.agent.memory import MemoryManager, MemoryProvider, MemoryStore, register_memory_provider
-from clite.agent.memory.manager import strip_memory_context
-from clite.core.config import load_config
+from clite.agent.memory.manager import MEMORY_NUDGE, strip_memory_context
+from clite.core.config import load_config, reset_config_cache
 from clite.plugins.hooks import get_hook_bus
 from clite.providers.testing import ScriptedClient, text_response, tool_call_response
 from clite.state import get_session_db
@@ -173,6 +173,54 @@ def test_skip_memory_removes_the_block_and_the_store(make_agent):
     without.ensure_session()
     assert "a stored fact" in with_memory.system_prompt and "a stored fact" not in without.system_prompt
     assert without.memory is None
+
+
+# ── the save-to-memory reminder ──────────────────────────────────────────────────────────
+
+
+def _user_texts(client):
+    """The last user message of every model call, as it went over the wire."""
+    return [[m for m in call["messages"] if m["role"] == "user"][-1]["content"] for call in client.calls]
+
+
+def test_the_memory_nudge_rides_one_user_message_and_is_never_stored(make_agent, clite_home):
+    (clite_home / "config.yaml").write_text("memory:\n  nudge_interval: 3\n")
+    agent, client = make_agent([text_response(f"answer {n}") for n in range(1, 8)], enabled_toolsets=["memory"])
+    for n in range(1, 8):
+        agent.run_conversation(f"question {n}")
+    sent = _user_texts(client)
+    assert [MEMORY_NUDGE in text for text in sent] == [False, False, True, False, False, True, False]
+    assert sent[2].startswith("question 3")  # the reminder follows the user's words
+    assert all(MEMORY_NUDGE not in str(message["content"]) for message in agent.messages)
+    assert len(set(client.system_prompts())) == 1  # the cached prefix never changed
+
+
+def test_a_memory_write_restarts_the_nudge_count(make_agent, clite_home):
+    (clite_home / "config.yaml").write_text("memory:\n  nudge_interval: 2\n")
+    agent, client = make_agent(
+        [tool_call_response(("memory", {"action": "add", "target": "memory", "content": "Uses fish shell"})),
+         text_response("saved"), text_response("two"), text_response("three")],
+        enabled_toolsets=["memory"],
+    )
+    for text in ("remember my shell", "second", "third"):
+        agent.run_conversation(text)
+    by_turn = {text.split("\n")[0]: MEMORY_NUDGE in text for text in _user_texts(client)}
+    assert by_turn == {"remember my shell": False, "second": False, "third": True}
+
+
+def test_no_nudge_when_it_is_off_or_the_model_cannot_write_memory(make_agent, clite_home):
+    (clite_home / "config.yaml").write_text("memory:\n  nudge_interval: 1\n")
+    without_tool, client = make_agent([text_response("a"), text_response("b")], enabled_toolsets=["file"])
+    without_tool.run_conversation("one")
+    without_tool.run_conversation("two")
+    assert not any(MEMORY_NUDGE in text for text in _user_texts(client))
+
+    (clite_home / "config.yaml").write_text("memory:\n  nudge_interval: 0\n")
+    reset_config_cache()  # same size and possibly the same mtime as the file it replaces
+    switched_off, client = make_agent([text_response("a"), text_response("b")], enabled_toolsets=["memory"])
+    switched_off.run_conversation("one")
+    switched_off.run_conversation("two")
+    assert not any(MEMORY_NUDGE in text for text in _user_texts(client))
 
 
 # ── delegation ───────────────────────────────────────────────────────────────────────────

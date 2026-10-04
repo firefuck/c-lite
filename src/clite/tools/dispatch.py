@@ -149,7 +149,7 @@ def handle_function_call(name: str, args: dict[str, Any] | None, ctx: ToolContex
     if has_hook("pre_tool_call"):
         for directive in invoke_hook(
             "pre_tool_call", tool_name=name, args=args, session_id=ctx.session_id, platform=ctx.platform,
-            tool_call_id=ctx.tool_call_id,
+            tool_call_id=ctx.tool_call_id, cwd=ctx.cwd,
         ):
             if not isinstance(directive, dict):
                 continue
@@ -176,6 +176,6 @@ def handle_function_call(name: str, args: dict[str, Any] | None, ctx: ToolContex
     if has_hook("post_tool_call"):
         invoke_hook(
             "post_tool_call", tool_name=name, args=args, result=result, duration=duration,
-            session_id=ctx.session_id, platform=ctx.platform, tool_call_id=ctx.tool_call_id,
+            session_id=ctx.session_id, platform=ctx.platform, tool_call_id=ctx.tool_call_id, cwd=ctx.cwd,
         )
     return result

@@ -10,7 +10,7 @@ import threading
 from collections.abc import Callable
 from typing import Any, Protocol
 
-from clite.providers.http import Cancelled, CancelHandle, HttpClient
+from clite.providers.http import CancelHandle, Cancelled, HttpClient
 from clite.providers.runtime import RuntimeRoute
 from clite.providers.transports.base import get_transport
 from clite.providers.transports.types import NormalizedResponse, RequestParams

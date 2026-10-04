@@ -160,6 +160,7 @@ class MemoryStore:
             index, error = self._locate(target, entries, old_text)
             if error is not None:
                 return error
+            assert index is not None  # _locate returns exactly one of the two
             updated = list(entries)
             updated[index] = content
             size, limit = len(ENTRY_DELIMITER.join(updated)), self.limits[target]
@@ -176,6 +177,7 @@ class MemoryStore:
             index, error = self._locate(target, entries, old_text)
             if error is not None:
                 return error
+            assert index is not None  # _locate returns exactly one of the two
             updated = entries[:index] + entries[index + 1 :]
             self._write(target, updated)
         return self._result(target, updated, "Entry removed.")

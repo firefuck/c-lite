@@ -328,12 +328,18 @@ var PlainTui = class {
   sessionOpen = () => {
   };
   chain;
+  scripted;
+  awaitedTurn = "";
+  // scripted input only: the turn the next line is waiting for
+  lastFinishedTurn = "";
+  waiters = [];
   constructor(options) {
     this.client = options.client;
     this.output = options.output;
     this.color = options.color ?? false;
     this.version = options.version ?? "";
     this.sessionParams = options.session ?? {};
+    this.scripted = !(options.interactive ?? Boolean(options.input.isTTY));
     this.readline = createInterface({ input: options.input, crlfDelay: Infinity });
     this.chain = new Promise((resolve) => {
       this.sessionOpen = resolve;
@@ -342,8 +348,21 @@ var PlainTui = class {
       this.chain = this.chain.then(() => this.handleLine(line));
     });
     this.readline.on("close", () => {
-      void this.chain.then(() => this.shutdown(0));
+      void this.chain.then(() => this.inputWanted()).then(() => this.shutdown(0));
     });
+  }
+  // ── scripted input ───────────────────────────────────────────────────────────────────
+  /** Resolves when the next line of input should be read: at once for a person, and for a
+   *  script once the turn it started is over or the agent asks it a question. */
+  inputWanted() {
+    if (!this.scripted || !this.awaitedTurn || this.question || this.closing) return Promise.resolve();
+    return new Promise((resolve) => this.waiters.push(resolve));
+  }
+  releaseWaiters() {
+    for (const resolve of this.waiters.splice(0)) resolve();
+  }
+  awaitTurn(turnId) {
+    if (this.scripted && turnId && turnId !== this.lastFinishedTurn) this.awaitedTurn = turnId;
   }
   // ── output ───────────────────────────────────────────────────────────────────────────
   write(text) {
@@ -408,6 +427,9 @@ var PlainTui = class {
         break;
       case "turn.complete":
         this.busy = false;
+        this.lastFinishedTurn = event.payload.turn_id;
+        if (this.awaitedTurn === event.payload.turn_id) this.awaitedTurn = "";
+        this.releaseWaiters();
         if (this.midLine) this.line();
         if (event.payload.interrupted) this.line(paint("(interrupted)", "yellow", this.color));
         else if (event.payload.error) this.line(paint(event.payload.final_response || event.payload.error, "red", this.color));
@@ -422,6 +444,7 @@ var PlainTui = class {
     return new Promise((resolve) => {
       this.question = { resolve };
       this.write(promptText);
+      this.releaseWaiters();
     });
   }
   installServerRequests() {
@@ -438,6 +461,8 @@ var PlainTui = class {
   }
   // ── input ────────────────────────────────────────────────────────────────────────────
   async handleLine(raw) {
+    await this.inputWanted();
+    if (this.closing) return;
     this.midLine = false;
     if (this.question) {
       const { resolve } = this.question;
@@ -452,7 +477,7 @@ var PlainTui = class {
     }
     try {
       if (text.startsWith("/")) await this.runSlash(text);
-      else await this.client.request("prompt.submit", { session_id: this.sessionId, text });
+      else this.awaitTurn((await this.client.request("prompt.submit", { session_id: this.sessionId, text })).turn_id);
     } catch (error) {
       this.line(paint(error instanceof RpcError || error instanceof Error ? error.message : String(error), "red", this.color));
       this.prompt();
@@ -465,7 +490,10 @@ var PlainTui = class {
       await this.shutdown(0);
       return;
     }
-    if (result.action === "submit") return;
+    if (result.action === "submit") {
+      this.awaitTurn(result.turn_id);
+      return;
+    }
     this.prompt();
   }
   /** Ctrl+C: stop the running turn, or leave when nothing is running. */
@@ -487,6 +515,7 @@ var PlainTui = class {
   async shutdown(code) {
     if (this.closing) return;
     this.closing = true;
+    this.releaseWaiters();
     this.readline.close();
     let stored = "";
     try {
@@ -509,6 +538,7 @@ var PlainTui = class {
       if (!this.closing) {
         this.line(paint(`The backend stopped: ${reason}`, "red", this.color));
         this.closing = true;
+        this.releaseWaiters();
         this.readline.close();
         this.finish(1);
       }

@@ -101,7 +101,7 @@ class TelegramAdapter(BasePlatformAdapter):
         chat, sender = message.get("chat") or {}, message.get("from") or {}
         if not text or not chat or sender.get("is_bot"):
             return None
-        chat_type = _CHAT_TYPES.get(chat.get("type"), CHAT_GROUP)
+        chat_type = _CHAT_TYPES.get(str(chat.get("type") or ""), CHAT_GROUP)
         if text.startswith("/"):
             command, _, rest = text.partition(" ")
             name, _, target = command.partition("@")

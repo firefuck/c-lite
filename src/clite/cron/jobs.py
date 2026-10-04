@@ -86,9 +86,6 @@ class JobStore:
 
     # ── queries ──────────────────────────────────────────────────────────────────────────
 
-    def list(self) -> list[dict[str, Any]]:
-        return self._load()
-
     def get(self, job_id: str) -> dict[str, Any] | None:
         matches = [job for job in self._load() if job["id"] == job_id or job["id"].startswith(job_id)]
         return matches[0] if len(matches) == 1 else None
@@ -232,6 +229,11 @@ class JobStore:
         path = self.directory / "output" / job_id / f"{stamp}.md"
         atomic_write_text(path, text)
         return path
+
+    # Defined last on purpose: inside the class body a method named ``list`` shadows the
+    # builtin in every annotation written below it.
+    def list(self) -> list[dict[str, Any]]:
+        return self._load()
 
 
 _STORES: dict[str, JobStore] = {}

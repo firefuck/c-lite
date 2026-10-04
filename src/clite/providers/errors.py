@@ -9,12 +9,12 @@ from __future__ import annotations
 import http.client
 import socket
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 from clite.providers.http import Cancelled, ProviderHTTPError
 
 
-class FailoverReason(str, Enum):
+class FailoverReason(StrEnum):
     AUTH = "auth"
     BILLING = "billing"
     RATE_LIMIT = "rate_limit"

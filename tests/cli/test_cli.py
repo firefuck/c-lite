@@ -251,7 +251,9 @@ def test_sessions_commands(cli, tmp_path):
     cli("sessions", "export", "Launch notes", "-o", exported)
     data = json.loads(exported.read_text())
     assert data["session"]["title"] == "Launch notes" and [m["role"] for m in data["messages"]] == ["user", "assistant"]
-    assert "would be deleted" in cli("sessions", "prune", "--older-than", "0")
+    assert "0 session(s) with no activity for 90 days would be deleted" in cli("sessions", "prune")
+    assert "2 session(s)" in cli("sessions", "prune", "--older-than", "0")
+    assert get_session_db().get_session(first) is not None  # counting deletes nothing
     assert "Deleted" in cli("sessions", "delete", first)
     cli("sessions", "show", first, expect=1)
 
