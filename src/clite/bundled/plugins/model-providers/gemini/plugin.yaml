@@ -1,0 +1,5 @@
+name: gemini
+kind: model-provider
+version: 1.0.0
+description: Google Gemini through its OpenAI-compatible endpoint
+author: C-lite

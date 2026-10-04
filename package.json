@@ -1,0 +1,18 @@
+{
+  "name": "clite-workspace",
+  "private": true,
+  "description": "Node workspaces for C-lite: shared protocol client, terminal UI, desktop shell.",
+  "workspaces": [
+    "apps/shared",
+    "ui-tui",
+    "apps/desktop"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces",
+    "test": "npm run test --workspaces",
+    "build": "npm run build --workspace ui-tui && npm run build --workspace apps/desktop"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

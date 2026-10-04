@@ -1,0 +1,5 @@
+name: mock
+kind: model-provider
+version: 1.0.0
+description: Offline deterministic provider for demos and tests
+author: C-lite

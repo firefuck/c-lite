@@ -1,0 +1,21 @@
+{
+  "name": "@clite/tui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Terminal UI for C-lite. Talks to the Python backend over JSON-RPC on stdio.",
+  "bin": {
+    "clite-tui": "./dist/clite-tui.mjs"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p .",
+    "test": "node --test test/*.test.ts",
+    "build": "node build.mjs",
+    "dev": "node src/entry.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.0"
+  }
+}

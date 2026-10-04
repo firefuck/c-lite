@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clite"
+version = "0.1.0"
+description = "C-lite: a personal AI agent with one core across CLI, TUI, desktop and messaging."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  # Only packages every session needs belong here; anything provider- or platform-specific
+  # goes in an extra. Every dependency carries an upper bound.
+  "pydantic>=2.7,<3",
+  "PyYAML>=6.0,<7",
+  "python-dotenv>=1.0,<2",
+  # `clite serve` / `clite dashboard`: the JSON-RPC backend for the desktop app and web UI.
+  "starlette>=0.40,<2",
+  "uvicorn>=0.30,<1",
+  "websockets>=12,<17",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<10",
+  "ruff>=0.6,<1",
+]
+
+[project.scripts]
+clite = "clite.cli.main:main"
+c-lite = "clite.cli.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+# Bundled plugins and skills ship inside the wheel. Plugin directories are not importable
+# packages (their names contain hyphens), so they are listed as data. The dashboard's static
+# files ship the same way.
+clite = [
+  "bundled/**/*.py",
+  "bundled/**/*.yaml",
+  "bundled/**/*.md",
+  "bundled/**/*.json",
+  "bundled/**/*.txt",
+  "bundled/**/*.sh",
+  "server/static/*.html",
+  "server/static/*.css",
+  "server/static/*.js",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+  "platforms(*specs): run only on the named host platforms (linux, macos, windows, posix)",
+  "network: needs real network access (never run in CI)",
+  "browser: drives the dashboard in a real browser (needs playwright and Chromium)",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+ignore = ["E501", "B008", "SIM105", "SIM108", "UP007"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011"]

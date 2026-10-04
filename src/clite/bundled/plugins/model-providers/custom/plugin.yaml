@@ -1,0 +1,5 @@
+name: custom
+kind: model-provider
+version: 1.0.0
+description: Any OpenAI-compatible endpoint
+author: C-lite

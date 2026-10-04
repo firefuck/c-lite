@@ -1,0 +1,5 @@
+name: openai
+kind: model-provider
+version: 1.0.0
+description: OpenAI API
+author: C-lite

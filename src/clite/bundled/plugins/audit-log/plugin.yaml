@@ -1,0 +1,6 @@
+name: audit-log
+version: 1.0.0
+description: Record every tool call to logs/tool-audit.jsonl and show recent ones with /audit
+author: C-lite
+kind: standalone
+provides_hooks: [post_tool_call]
