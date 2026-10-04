@@ -12,6 +12,19 @@ import re
 from typing import Any
 
 INTERRUPTED_RESULT = json.dumps({"error": "interrupted before this tool ran"})
+# ``display_kind`` of a user-role message the agent wrote itself (a request to continue a cut-off
+# answer, a wrap-up request). It is part of the conversation the model sees, so it is stored and
+# re-sent like any message, but it is not something the user said: transcripts hide it, and
+# "undo the last turn" looks past it.
+INTERNAL = "internal"
+
+
+def internal_user_message(text: str) -> dict[str, Any]:
+    return {"role": "user", "content": text, "display_kind": INTERNAL}
+
+
+def is_internal(message: dict[str, Any]) -> bool:
+    return message.get("display_kind") == INTERNAL
 
 
 def content_text(content: Any) -> str:

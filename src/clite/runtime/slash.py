@@ -15,7 +15,7 @@ import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from clite.agent.messages import content_text
+from clite.agent.messages import content_text, is_internal
 from clite.agent.prompt.builder import build_prompt_tiers
 from clite.core.config import config_set, get_path, load_config
 from clite.core.constants import display_home, get_config_path
@@ -70,7 +70,7 @@ def _handle_undo(session: ChatSession, args: str) -> SlashResult:
 def _handle_history(session: ChatSession, args: str) -> SlashResult:
     count = int(args) if args.isdigit() else 20
     lines = []
-    for message in session.agent.messages[-count:]:
+    for message in [message for message in session.agent.messages if not is_internal(message)][-count:]:
         role = message.get("role", "")
         if role == "tool":
             lines.append(f"  [tool {message.get('name')}] {_clip(content_text(message.get('content')), 100)}")

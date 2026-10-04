@@ -7,7 +7,7 @@ import json
 import sys
 import time
 
-from clite.agent.messages import content_text
+from clite.agent.messages import content_text, is_internal
 from clite.core.config import config_get
 from clite.state.db import get_session_db
 
@@ -41,6 +41,8 @@ def run_show(args: argparse.Namespace) -> int:
         return 1
     print(f"# {row.get('title') or row['id']}  ({row['source']}, {row.get('model')}, started {_when(row['started_at'])})\n")
     for message in get_session_db().get_messages(row["id"], include_inactive=args.all):
+        if is_internal(message) and not args.all:
+            continue  # a note the agent wrote to itself, not something the user said
         role, text = message["role"], content_text(message.get("content"))
         if role == "tool":
             print(f"[tool {message.get('name')}] {text[:500]}\n")

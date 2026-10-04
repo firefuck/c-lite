@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from clite.agent.messages import internal_user_message
 from clite.agent.state import BREAK, CONTINUE, PROCEED, TurnState, Verdict
 from clite.agent.tool_executor import run_tool_round
 from clite.plugins.hooks import first_result, has_hook, invoke_hook
@@ -56,7 +57,7 @@ def normalize_response(agent: AIAgent, state: TurnState) -> Verdict:
         state.length_continuations += 1
         state.partial_text += response.content or ""
         agent.append_message(response.to_assistant_message())
-        agent.append_message({"role": "user", "content": CONTINUE_REQUEST})
+        agent.append_message(internal_user_message(CONTINUE_REQUEST))
         agent.callbacks.emit("on_status", "warning", "response hit the output limit, continuing")
         return Verdict(CONTINUE, "length")
     return PROCEED

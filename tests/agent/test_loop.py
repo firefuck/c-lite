@@ -362,6 +362,7 @@ def test_truncated_output_is_continued_and_joined(make_agent):
     assert result.final_response == "The answer is forty-two."
     assert "cut off" in client.calls[1]["messages"][-1]["content"]
     assert _roles(agent) == ["user", "assistant", "user", "assistant"]
+    assert [message.get("display_kind") for message in agent.messages] == [None, None, "internal", None]
 
 
 # ── limits ───────────────────────────────────────────────────────────────────────────────
@@ -375,7 +376,14 @@ def test_iteration_budget_ends_with_a_tool_less_wrap_up(make_agent):
     assert result.final_response == "I read the file twice; more remains."
     assert client.calls[-1]["tools"] is None
     assert "limit for this turn" in client.calls[-1]["messages"][-1]["content"]
-    assert _roles(agent)[-1] == "assistant"
+    # The wrap-up request is part of the stored conversation (so the next request repeats
+    # it), marked as written by the agent rather than said by the user.
+    assert _roles(agent)[-2:] == ["user", "assistant"]
+    assert agent.messages[-2]["display_kind"] == "internal" and "limit for this turn" in agent.messages[-2]["content"]
+    agent.budget.limit = None
+    client.queue(text_response("continuing"))
+    agent.run_conversation("carry on")
+    assert client.calls[-1]["messages"][:len(client.calls[-2]["messages"])] == client.calls[-2]["messages"]
 
 
 def test_the_model_is_warned_before_the_budget_runs_out(make_agent):

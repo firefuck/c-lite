@@ -128,6 +128,22 @@ def test_undo_and_retry(make_session):
     assert session.run_slash("/undo").text == "Nothing to undo."
 
 
+def test_undo_history_and_retry_look_past_messages_the_agent_wrote_itself(make_session):
+    session, client = make_session([text_response("The answer is ", finish_reason="length"), text_response("forty-two."),
+                                    text_response("forty-two, on a second try.")])
+    assert session.submit("what is the answer?").final_response == "The answer is forty-two."
+    internal = [m for m in session.agent.messages if m.get("display_kind") == "internal"]
+    assert len(internal) == 1 and "cut off" in internal[0]["content"]
+
+    history = session.run_slash("/history").text
+    assert "what is the answer?" in history and "forty-two." in history and "cut off" not in history
+
+    # /retry resends what the user said, not the agent's own "continue" request.
+    retried = session.handle_input("/retry")
+    assert retried.final_response == "forty-two, on a second try."
+    assert [m["content"] for m in session.agent.messages] == ["what is the answer?", "forty-two, on a second try."]
+
+
 def test_model_switch_for_the_session_or_as_the_default(make_session, clite_home):
     session, client = make_session()
     assert "Model: mock-1" in session.run_slash("/model").text

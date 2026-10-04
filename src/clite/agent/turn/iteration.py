@@ -7,7 +7,7 @@ import time
 from typing import TYPE_CHECKING
 
 from clite.agent.context.tokens import estimate_messages_tokens
-from clite.agent.messages import append_to_content
+from clite.agent.messages import append_to_content, internal_user_message
 from clite.agent.state import BREAK, PROCEED, TurnState, Verdict
 from clite.core.config import get_path
 from clite.providers.transports.types import RequestParams
@@ -30,10 +30,11 @@ def _wrap_up(agent: AIAgent, state: TurnState, reason: str) -> Verdict:
     from clite.agent.turn.request import assemble_api_messages
 
     state.exit_reason = "budget_exhausted"
-    request = [*assemble_api_messages(agent, state), {"role": "user", "content": WRAP_UP_REQUEST.format(reason=reason)}]
+    # Stored like any other message: what the model was sent must be what it is sent again.
+    agent.append_message(internal_user_message(WRAP_UP_REQUEST.format(reason=reason)))
     try:
         response = agent.client.complete(
-            state.route, request, None, stream=agent.stream, on_delta=agent.callbacks.on_delta,
+            state.route, assemble_api_messages(agent, state), None, stream=agent.stream, on_delta=agent.callbacks.on_delta,
             cancel=agent.interrupt_event, params=RequestParams(session_id=agent.session_id),
         )
         text = (response.content or "").strip() or WRAP_UP_FALLBACK.format(reason=reason)
@@ -62,7 +63,7 @@ def _apply_steer(agent: AIAgent) -> None:
     if last.get("role") in ("tool", "user"):
         agent.replace_last_content(append_to_content(last.get("content"), note))
     else:
-        agent.append_message({"role": "user", "content": note})
+        agent.append_message(internal_user_message(note))
 
 
 def begin_iteration(agent: AIAgent, state: TurnState) -> Verdict:

@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from clite.agent import AgentCallbacks, AIAgent, TurnResult
-from clite.agent.messages import content_text
+from clite.agent.messages import content_text, is_internal
 from clite.core.config import load_config
 from clite.plugins.hooks import invoke_hook
 from clite.plugins.manager import get_plugin_manager
@@ -209,7 +209,7 @@ class ChatSession:
         messages = self.agent.messages
         for index in range(len(messages) - 1, -1, -1):
             message = messages[index]
-            if message.get("role") == "user" and not message.get("is_summary"):
+            if message.get("role") == "user" and not message.get("is_summary") and not is_internal(message):
                 text = content_text(message.get("content"))
                 row_id = message.get("_row_id")
                 if self.agent.db is not None and row_id:

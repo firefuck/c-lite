@@ -8,7 +8,7 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 from clite.agent import AgentCallbacks
-from clite.agent.messages import content_text
+from clite.agent.messages import content_text, is_internal
 from clite.core.config import config_get
 from clite.core.errors import CliteError
 from clite.rpc.contracts import schema
@@ -114,7 +114,7 @@ class RpcSession:
                 tool_calls=[call["function"]["name"] for call in message.get("tool_calls") or []],
                 is_summary=bool(message.get("is_summary")), timestamp=message.get("timestamp"),
             )
-            for message in self.chat.agent.messages
+            for message in self.chat.agent.messages if not is_internal(message)
         ]
 
     # ── turns ────────────────────────────────────────────────────────────────────────────

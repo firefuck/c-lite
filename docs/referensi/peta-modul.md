@@ -29,7 +29,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `callbacks.py` | ``AgentCallbacks``: how a surface observes and answers the agent. | `AgentCallbacks` |
 | `delegation.py` | Delegation: run subagents with their own context and return only their reports. | `delegate()` |
 | `loop.py` | The turn loop: a short driver over phase functions. | `run_turn()` |
-| `messages.py` | Message hygiene: keep the transcript in a shape every provider accepts. | `content_text()`, `append_to_content()`, `sanitize_for_api()`, `parse_tool_arguments()` |
+| `messages.py` | Message hygiene: keep the transcript in a shape every provider accepts. | `internal_user_message()`, `is_internal()`, `content_text()`, `append_to_content()`, `sanitize_for_api()`, `parse_tool_arguments()` |
 | `state.py` | Per-turn state and the verdicts phases return. | `Verdict`, `TurnState`, `TurnResult` |
 | `title.py` | Session titles: a short label generated after the first exchange. | `fallback_title()`, `clean_title()`, `generate_title()`, `generate_title_async()` |
 | `todo.py` | In-session task list, owned by the agent and edited through the ``todo`` tool. | `TodoStore` |
