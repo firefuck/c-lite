@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from clite.agent.messages import content_text
 from clite.agent.state import TurnState
@@ -20,8 +20,12 @@ def build_turn_context(agent: AIAgent, state: TurnState) -> None:
     state.first_message_index = len(agent.messages)
     user_text = content_text(state.user_message)
 
-    # Context that applies to this turn only is collected here and attached to the user
-    # message on the wire. It never enters the system prompt and is never stored.
+    # Context gathered for this turn (recalled memory, hook output, reminders) travels with
+    # the user message, never in the system prompt. It is stored beside the message as
+    # ``turn_context``: the user's own words stay clean for display and search, and every
+    # later request sends this message exactly as it was first sent. Sending it once and then
+    # dropping it would change the conversation's prefix, which costs the prompt cache and
+    # makes providers that sign their reasoning blocks reject the next request.
     parts: list[str] = []
     if agent.memory is not None:
         recalled = agent.memory.prefetch(user_text, agent.session_id)
@@ -39,6 +43,7 @@ def build_turn_context(agent: AIAgent, state: TurnState) -> None:
             text = result.get("context") if isinstance(result, dict) else result if isinstance(result, str) else None
             if text:
                 parts.append(str(text))
-    state.turn_context = "\n\n".join(parts)
-
-    agent.append_message({"role": "user", "content": state.user_message})
+    message: dict[str, Any] = {"role": "user", "content": state.user_message}
+    if parts:
+        message["turn_context"] = "\n\n".join(parts)
+    agent.append_message(message)

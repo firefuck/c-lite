@@ -183,7 +183,7 @@ def _user_texts(client):
     return [[m for m in call["messages"] if m["role"] == "user"][-1]["content"] for call in client.calls]
 
 
-def test_the_memory_nudge_rides_one_user_message_and_is_never_stored(make_agent, clite_home):
+def test_the_memory_nudge_rides_one_user_message_and_stays_out_of_its_text(make_agent, clite_home):
     (clite_home / "config.yaml").write_text("memory:\n  nudge_interval: 3\n")
     agent, client = make_agent([text_response(f"answer {n}") for n in range(1, 8)], enabled_toolsets=["memory"])
     for n in range(1, 8):

@@ -5,7 +5,7 @@ These tests read the source instead of running it. They exist so that a rule wri
 
 * Imports point down the layers (``docs/arsitektur/01-lapisan.md``).
 * Every key in ``DEFAULT_CONFIG`` has code that reads it.
-* The generated TypeScript contracts match the Python ones.
+* The generated TypeScript contracts and the generated reference pages match the code.
 """
 
 from __future__ import annotations
@@ -213,6 +213,18 @@ def test_typescript_contracts_match_the_python_contracts():
     assert result.returncode == 0, (
         "apps/shared/src/contracts.generated.ts is out of date. Run `python scripts/gen_rpc_contracts.py`.\n"
         + result.stdout + result.stderr
+    )
+
+
+def test_generated_reference_pages_are_current():
+    script = REPO_ROOT / "scripts" / "gen_docs.py"
+    if not script.is_file():
+        pytest.skip("not a source checkout")
+    result = subprocess.run([sys.executable, str(script), "--check"], capture_output=True, text=True, timeout=120,
+                            cwd=REPO_ROOT, env=_env_with_source_path())
+    assert result.returncode == 0, (
+        "docs/referensi/ is out of date (a tool, command, RPC method, config key or module changed). "
+        "Run `python scripts/gen_docs.py` and commit the result.\n" + result.stdout + result.stderr
     )
 
 

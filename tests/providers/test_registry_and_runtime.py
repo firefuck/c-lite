@@ -160,6 +160,33 @@ def test_anthropic_uses_its_own_auth_header(monkeypatch):
     assert route.api_mode == "anthropic_messages"
 
 
+def test_anthropic_profile_knows_what_each_model_generation_accepts(monkeypatch):
+    """Facts from the provider's documentation, kept in one profile (see its docstring)."""
+    from clite.providers.models import get_context_length
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    profile = get_provider("anthropic")
+    current = ("claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5")
+    legacy = ("claude-haiku-4-5-20251001", "claude-sonnet-4-5", "claude-3-7-sonnet-latest")
+
+    for model in current:
+        # Adaptive thinking with an effort level; no sampling parameters; signed blocks are
+        # bound to the conversation before them.
+        assert profile.build_extra_body(model=model, reasoning_effort="high") == {
+            "thinking": {"type": "adaptive"}, "output_config": {"effort": "high"}}
+        assert profile.resolve_temperature(model, 0.3) is None
+        assert profile.replay_is_prefix_bound(model) is True
+        assert get_context_length(resolve_runtime_provider("anthropic", model)) == 1_000_000
+    for model in legacy:
+        assert profile.build_extra_body(model=model, reasoning_effort="high") == {
+            "thinking": {"type": "enabled", "budget_tokens": 16384}}
+        assert profile.resolve_temperature(model, 0.3) == 0.3
+        assert profile.replay_is_prefix_bound(model) is False
+        assert get_context_length(resolve_runtime_provider("anthropic", model)) == 200_000
+    # No effort chosen: send nothing and take the model's default.
+    assert profile.build_extra_body(model="claude-fable-5-1") == {}
+
+
 def test_a_provider_key_is_not_sent_to_another_host(clite_home, monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
     (clite_home / "config.yaml").write_text(

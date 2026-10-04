@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS messages (
     finish_reason TEXT,
     reasoning TEXT,
     provider_data TEXT,
+    turn_context TEXT,
     display_kind TEXT,
     is_summary INTEGER NOT NULL DEFAULT 0,
     active INTEGER NOT NULL DEFAULT 1,
@@ -112,7 +113,9 @@ END;
 """
 
 # {table: {column: "SQL type and default"}} for columns added after the first release.
-COLUMN_ADDITIONS: dict[str, dict[str, str]] = {}
+# `turn_context` is listed although the schema above has it: databases created before it was
+# added gain it here.
+COLUMN_ADDITIONS: dict[str, dict[str, str]] = {"messages": {"turn_context": "TEXT"}}
 
 # {from_version: [sql, ...]} run in order to reach SCHEMA_VERSION.
 MIGRATIONS: dict[int, list[str]] = {}

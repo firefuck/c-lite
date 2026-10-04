@@ -18,12 +18,23 @@ CONTINUE_REQUEST = (
     "Do not repeat or summarise what you already wrote.]"
 )
 EMPTY_RESPONSE_TEXT = "(The model returned an empty response. Try rephrasing, or switch models with /model.)"
+REFUSAL_TEXT = "(The model declined to respond to this request.)"
 
 
 def normalize_response(agent: AIAgent, state: TurnState) -> Verdict:
     response = state.response
     assert response is not None
     text = (response.content or "").strip()
+
+    if not response.tool_calls and not text and response.finish_reason == "content_filter":
+        # A refusal is an answer, not a glitch: asking again would only repeat it.
+        message = {"role": "assistant", "content": REFUSAL_TEXT, "finish_reason": "content_filter"}
+        agent.append_message(message)
+        agent.callbacks.emit("on_message", message)
+        state.final_response = state.partial_text + REFUSAL_TEXT
+        state.error = "refusal"
+        state.exit_reason = "refusal"
+        return Verdict(BREAK, "refusal")
 
     if not response.tool_calls and not text:
         if state.empty_retries < MAX_EMPTY_RETRIES:

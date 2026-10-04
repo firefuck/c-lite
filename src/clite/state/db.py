@@ -5,7 +5,9 @@ Contracts the agent loop relies on:
 * History is append-only. The only rewrite is compaction, which soft-archives the old rows
   (``active=0, compacted=1``) under the same session id so they stay searchable.
 * A message is durable the moment :meth:`SessionDB.append_message` returns.
-* Messages round-trip in the internal OpenAI-style shape (see ``docs/arsitektur``).
+* Messages round-trip in the internal OpenAI-style shape (see ``docs/arsitektur``). Two
+  extra keys ride along: ``provider_data`` (opaque data the same provider wants back) and
+  ``turn_context`` (text that was sent with a user message but is not the user's words).
 """
 
 from __future__ import annotations
@@ -345,15 +347,16 @@ class SessionDB:
         cursor = self._conn.execute(
             """INSERT INTO messages
                (session_id, role, content, content_is_json, tool_call_id, tool_calls, tool_name,
-                timestamp, token_count, finish_reason, reasoning, provider_data, display_kind,
-                is_summary)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                timestamp, token_count, finish_reason, reasoning, provider_data, turn_context,
+                display_kind, is_summary)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 session_id, message["role"], content, content_is_json, message.get("tool_call_id"),
                 json.dumps(tool_calls, ensure_ascii=False) if tool_calls else None,
                 message.get("name"), float(message.get("timestamp") or time.time()),
                 message.get("token_count"), message.get("finish_reason"), message.get("reasoning"),
                 json.dumps(provider_data, ensure_ascii=False) if provider_data else None,
+                message.get("turn_context") or None,
                 message.get("display_kind"), int(bool(message.get("is_summary"))),
             ),
         )
@@ -405,6 +408,18 @@ class SessionDB:
             self._refresh_counts(session_id)
             self._conn.commit()
         return row_ids
+
+    def clear_provider_data(self, session_id: str) -> int:
+        """Forget the opaque replay data on a session's active messages (the provider no
+        longer accepts it). The visible transcript is untouched. Returns the rows changed."""
+        with self._lock:
+            cursor = self._conn.execute(
+                "UPDATE messages SET provider_data = NULL WHERE session_id = ? AND active = 1 "
+                "AND provider_data IS NOT NULL",
+                (session_id,),
+            )
+            self._conn.commit()
+            return cursor.rowcount
 
     def deactivate_from(self, session_id: str, row_id: int) -> int:
         """Rewind: drop ``row_id`` and everything after it from the active transcript."""
@@ -508,6 +523,8 @@ def _row_to_message(row: sqlite3.Row) -> dict[str, Any]:
         message["reasoning"] = row["reasoning"]
     if row["provider_data"]:
         message["provider_data"] = json.loads(row["provider_data"])
+    if row["turn_context"]:
+        message["turn_context"] = row["turn_context"]
     if row["finish_reason"]:
         message["finish_reason"] = row["finish_reason"]
     if row["is_summary"]:

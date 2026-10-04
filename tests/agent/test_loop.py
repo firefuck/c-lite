@@ -167,15 +167,47 @@ def test_memory_written_mid_session_does_not_change_that_sessions_prompt(make_ag
     assert "Prefers tabs over spaces" in fresh_client.system_prompts()[0]
 
 
-def test_turn_context_from_hooks_rides_the_user_message_and_is_not_stored(make_agent):
+def test_turn_context_rides_the_user_message_and_is_stored_beside_it(make_agent):
     get_hook_bus().register("pre_llm_call", lambda user_message: {"context": f"[recalled for: {user_message}]"})
-    agent, client = make_agent([tool_call_response(("read_file", {"path": "x"})), text_response("ok")])
+    agent, client = make_agent([tool_call_response(("read_file", {"path": "x"})), text_response("ok"), text_response("later")])
     agent.run_conversation("deploy status?")
-    for call in client.calls:  # the same bytes on every request of the turn
+    agent.run_conversation("and now?")
+    for call in client.calls:  # the same bytes on every request, in this turn and the next
         assert call["messages"][1]["content"] == "deploy status?\n\n[recalled for: deploy status?]"
         assert "[recalled" not in call["messages"][0]["content"]
-    assert agent.messages[0]["content"] == "deploy status?"
-    assert get_session_db().get_messages(agent.session_id)[0]["content"] == "deploy status?"
+        assert all("turn_context" not in message for message in call["messages"])
+    # The user's own words stay clean for display and search; the context sits beside them.
+    stored = get_session_db().get_messages(agent.session_id)[0]
+    assert agent.messages[0]["content"] == stored["content"] == "deploy status?"
+    assert stored["turn_context"] == "[recalled for: deploy status?]"
+    assert get_session_db().search_messages("recalled") == []
+
+
+def test_every_request_repeats_the_previous_one_and_adds_to_its_end(make_agent, clite_home):
+    """The wire form of what was already sent never changes. Prompt caching depends on it,
+    and so do providers that sign reasoning blocks against the conversation before them."""
+    (clite_home / "config.yaml").write_text("memory:\n  nudge_interval: 2\n")
+    counter = iter(range(100))
+    get_hook_bus().register("pre_llm_call", lambda user_message: {"context": f"[context #{next(counter)}]"})
+    agent, client = make_agent(
+        [tool_call_response(("read_file", {"path": "a"}), ("read_file", {"path": "b"})), text_response("one"),
+         tool_call_response(("memory", {"action": "add", "target": "memory", "content": "Uses fish"})), text_response("two"),
+         text_response("three"), text_response("four")],
+        enabled_toolsets=["file", "memory"],
+    )
+    for text in ("first", "second", "third", "fourth"):
+        agent.run_conversation(text)
+    requests = [call["messages"] for call in client.calls]
+    assert len(requests) == 6
+    for earlier, later in zip(requests, requests[1:], strict=False):
+        assert later[:len(earlier)] == earlier
+        assert len(later) > len(earlier)
+
+    # A resumed session sends the same bytes again.
+    resumed, resumed_client = make_agent([text_response("five")], session_id=agent.session_id,
+                                         enabled_toolsets=["file", "memory"])
+    resumed.run_conversation("fifth")
+    assert resumed_client.calls[0]["messages"][:len(requests[-1])] == requests[-1]
 
 
 def test_cache_markers_are_applied_on_the_wire_only(make_agent):
@@ -307,6 +339,14 @@ def test_empty_response_is_retried(make_agent):
     assert result.final_response == "finally" and len(client.calls) == 3
     assert statuses == ["retry", "retry"]
     assert _roles(agent) == ["user", "assistant"]  # the empty responses left no trace
+
+
+def test_a_refusal_is_reported_once_and_not_retried(make_agent):
+    agent, client = make_agent([text_response("", finish_reason="content_filter")])
+    result = agent.run_conversation("go")
+    assert len(client.calls) == 1
+    assert result.completed is False and result.exit_reason == "refusal"
+    assert "declined to respond" in result.final_response and _roles(agent) == ["user", "assistant"]
 
 
 def test_persistently_empty_response_ends_the_turn_with_an_explanation(make_agent):
@@ -494,6 +534,76 @@ def test_context_overflow_compresses_and_tries_again(make_agent):
     assert len(agent.messages) < 26
     assert get_session_db().get_session(session_id)["compression_count"] == 1
     assert get_session_db().search_messages("question 5")  # archived turns stay searchable
+
+
+# ── replayed reasoning blocks ────────────────────────────────────────────────────────────
+
+SIGNED = {"anthropic_blocks": [{"type": "thinking", "thinking": "", "signature": "sig-1"}, {"type": "text", "text": "one"}]}
+SIGNATURE_ERROR = ("messages.1.content.0: Invalid `signature` in `thinking` block. The block is bound to a "
+                   "different conversation.")
+
+
+def _signed(text):
+    response = text_response(text)
+    response.provider_data = dict(SIGNED)
+    return response
+
+
+def test_replay_data_is_stored_and_sent_back(make_agent):
+    agent, client = make_agent([_signed("one"), text_response("two")])
+    agent.run_conversation("first")
+    agent.run_conversation("second")
+    assert client.calls[1]["messages"][2]["provider_data"] == SIGNED
+    assert get_session_db().get_messages(agent.session_id)[1]["provider_data"] == SIGNED
+
+
+def test_rejected_replay_data_is_dropped_and_the_request_retried_once(make_agent):
+    statuses = []
+    agent, client = make_agent(
+        [_signed("one"), _http_error(400, SIGNATURE_ERROR), text_response("two")],
+        callbacks=AgentCallbacks(on_status=lambda kind, text: statuses.append(text)),
+    )
+    agent.run_conversation("first")
+    result = agent.run_conversation("second")
+    assert result.final_response == "two" and result.api_calls == 1
+    assert "provider_data" in client.calls[1]["messages"][2] and "provider_data" not in client.calls[2]["messages"][2]
+    assert "resending without it" in statuses[0]
+    # Dropped for good, in memory and in the database; what the user sees is unchanged.
+    stored = get_session_db().get_messages(agent.session_id)
+    assert all("provider_data" not in message for message in [*agent.messages, *stored])
+    assert [message["content"] for message in stored] == ["first", "one", "second", "two"]
+
+
+def test_a_second_signature_rejection_in_the_same_turn_fails_the_turn(make_agent):
+    agent, client = make_agent([_signed("one"), _http_error(400, SIGNATURE_ERROR), _http_error(400, SIGNATURE_ERROR)])
+    agent.run_conversation("first")
+    result = agent.run_conversation("second")
+    assert result.completed is False and result.exit_reason == "api_error:thinking_signature"
+    assert len(client.calls) == 3
+
+
+def test_switching_models_drops_replay_data(make_agent):
+    agent, client = make_agent([_signed("one"), text_response("two")])
+    agent.run_conversation("first")
+    agent.switch_model(mock_route(model="another-model"))
+    agent.run_conversation("second")
+    assert all("provider_data" not in message for message in client.calls[1]["messages"])
+
+
+def test_compression_drops_replay_data_only_when_it_is_bound_to_the_prefix(make_agent):
+    class Bound(ProviderProfile):
+        def replay_is_prefix_bound(self, model):
+            return True
+
+    def run(route):
+        agent, _ = make_agent([_signed(f"answer {n}") for n in range(14)] + [text_response("SUMMARY")], route=route)
+        for n in range(14):
+            agent.run_conversation(f"question {n}")
+        assert agent.compress_context() is True
+        return [message for message in agent.messages if message.get("provider_data")]
+
+    assert run(mock_route(profile=Bound(name="mock", api_mode="mock", auth_type="none"))) == []
+    assert len(run(mock_route())) > 0  # a provider without that rule keeps its blocks
 
 
 def test_an_internal_error_is_reported_not_raised(make_agent, monkeypatch):

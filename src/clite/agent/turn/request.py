@@ -2,11 +2,12 @@
 
 Recovery order for a failed call, first match wins:
 
-1. context overflow      compress, then start the iteration again
-2. credential problem    rotate to another key for the same provider and retry at once
-3. transient failure     back off (honouring ``Retry-After``) and retry, up to ``agent.api_max_retries``
-4. provider is down      move to the next entry in ``fallback_providers`` for the rest of the turn
-5. otherwise             end the turn with the classified error
+1. rejected replay data  drop the stored reasoning blocks and retry at once (once per turn)
+2. context overflow      compress, then start the iteration again
+3. credential problem    rotate to another key for the same provider and retry at once
+4. transient failure     back off (honouring ``Retry-After``) and retry, up to ``agent.api_max_retries``
+5. provider is down      move to the next entry in ``fallback_providers`` for the rest of the turn
+6. otherwise             end the turn with the classified error
 
 The decision comes from ``classify_api_error``; nothing here looks at status codes.
 """
@@ -17,7 +18,7 @@ import logging
 import random
 from typing import TYPE_CHECKING, Any
 
-from clite.agent.messages import append_to_content, sanitize_for_api
+from clite.agent.messages import sanitize_for_api
 from clite.agent.prompt.caching import apply_cache_markers
 from clite.agent.state import BREAK, CONTINUE, PROCEED, TurnState, Verdict
 from clite.core.config import get_path
@@ -36,13 +37,7 @@ MAX_BACKOFF_SECONDS = 30.0
 
 def assemble_api_messages(agent: AIAgent, state: TurnState) -> list[dict[str, Any]]:
     """The exact message list for this request, built on a copy of the stored history."""
-    messages = sanitize_for_api(agent.messages)
-    if state.turn_context:
-        for message in reversed(messages):
-            if message.get("role") == "user":
-                message["content"] = append_to_content(message.get("content"), state.turn_context)
-                break
-    request = [{"role": "system", "content": agent.system_prompt or ""}, *messages]
+    request = [{"role": "system", "content": agent.system_prompt or ""}, *sanitize_for_api(agent.messages)]
     profile = state.route.profile
     if profile is not None and profile.wants_cache_markers(state.route.model):
         request = apply_cache_markers(request, str(get_path(agent.config, "prompt_caching.cache_ttl", "5m")))
@@ -57,6 +52,12 @@ def _backoff(attempt: int, retry_after: float | None) -> float:
 
 def _recover(agent: AIAgent, state: TurnState, error: ClassifiedError) -> str:
     """``"retry"``, ``"restart"`` (the history changed) or ``"fail"``."""
+    if error.should_drop_replay and not state.replay_dropped:
+        state.replay_dropped = True
+        if agent.drop_replay_data():
+            agent.callbacks.emit("on_status", "retry", "the provider rejected replayed reasoning; resending without it")
+            return "retry"
+
     max_compress = int(get_path(agent.config, "compression.max_attempts", 3))
     may_compress = (error.should_compress and get_path(agent.config, "compression.enabled", True)
                     and state.compression_attempts < max_compress)

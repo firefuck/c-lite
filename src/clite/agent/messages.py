@@ -42,6 +42,10 @@ def sanitize_for_api(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     * A tool result whose call is missing is dropped.
     * A tool call with no result gets a stub result directly after its assistant message.
     * System messages inside the history are dropped (the system prompt is added separately).
+    * A message's stored ``turn_context`` is appended to its content.
+
+    The function is deterministic: the same stored history always produces the same list, so
+    each request repeats the previous one and adds to its end.
     """
     call_ids = {call.get("id") for message in messages for call in message.get("tool_calls") or []}
     answered = {message.get("tool_call_id") for message in messages if message.get("role") == "tool"}
@@ -54,7 +58,11 @@ def sanitize_for_api(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
             continue
         # Bookkeeping keys never leave the process; `provider_data` and `reasoning` stay,
         # because a transport may need them to replay the turn to the same provider.
-        cleaned.append({key: value for key, value in message.items() if not key.startswith("_") and key != "timestamp"})
+        wire = {key: value for key, value in message.items()
+                if not key.startswith("_") and key not in ("timestamp", "turn_context")}
+        if message.get("turn_context"):
+            wire["content"] = append_to_content(message.get("content"), str(message["turn_context"]))
+        cleaned.append(wire)
         if role == "assistant":
             missing = [call for call in message.get("tool_calls") or [] if call.get("id") not in answered]
             if missing:

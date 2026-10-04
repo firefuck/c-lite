@@ -211,6 +211,21 @@ def test_anthropic_request_omits_temperature_when_thinking():
     assert "temperature" not in body and body["output_config"] == {"effort": "high"}
 
 
+def test_the_profile_decides_whether_a_temperature_is_sent():
+    class NoSampling(ProviderProfile):
+        def resolve_temperature(self, model, requested):
+            return None if model.startswith("locked") else requested
+
+    profile = NoSampling(name="p", base_url="https://api.test")
+    for mode in ("anthropic_messages", "chat_completions"):
+        def body(model, mode=mode):
+            route = RuntimeRoute(provider="p", model=model, api_mode=mode, base_url="https://api.test", profile=profile)
+            return get_transport(mode).build_request(route, HISTORY, None, RequestParams(temperature=0.3), stream=False).body
+
+        assert "temperature" not in body("locked-model")
+        assert body("open-model")["temperature"] == 0.3
+
+
 def test_anthropic_response_is_normalised():
     response = get_transport("anthropic_messages").parse_response({
         "model": "claude-x", "stop_reason": "tool_use",

@@ -7,8 +7,13 @@ Thinking has two wire shapes and the API rejects the wrong one:
 * models from the 4.5 generation and earlier take a manual token budget
   (``thinking: {type: enabled, budget_tokens: N}``).
 
-Checked against the Anthropic docs on 2026-10-04. When a new model family ships, this file is
-the only place that needs to learn about it.
+Current models also fix the sampling parameters (a ``temperature`` is rejected), and bind
+each thinking block to the model and to the conversation before it: a request whose earlier
+turns were edited is refused with "Invalid signature in thinking block".
+
+Checked against the Anthropic docs on 2026-10-05 (model overviews and the Fable 5.1 migration
+guide). When a new model family ships, this file is the only place that needs to learn about
+it.
 """
 
 from __future__ import annotations
@@ -43,6 +48,12 @@ class AnthropicProfile(ProviderProfile):
     def wants_cache_markers(self, model: str) -> bool:
         return True
 
+    def resolve_temperature(self, model: str, requested: float | None) -> float | None:
+        return requested if _MANUAL_BUDGET_MODELS.search(model) else None
+
+    def replay_is_prefix_bound(self, model: str) -> bool:
+        return not _MANUAL_BUDGET_MODELS.search(model)
+
 
 register_provider(
     AnthropicProfile(
@@ -61,6 +72,10 @@ register_provider(
         # Used only when the live catalog cannot be fetched. Update when models are retired.
         fallback_models=("claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-4-5-20251001"),
         default_aux_model="claude-haiku-4-5-20251001",
-        context_lengths={"claude-": 200_000},
+        # Longest matching prefix wins. The live catalog and model.context_length override this.
+        context_lengths={
+            "claude-fable-5": 1_000_000, "claude-mythos-5": 1_000_000, "claude-opus-5": 1_000_000,
+            "claude-sonnet-5-5": 1_000_000, "claude-": 200_000,
+        },
     )
 )

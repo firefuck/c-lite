@@ -88,6 +88,18 @@ class ProviderProfile:
         """True when this route honours Anthropic-style ``cache_control`` breakpoints."""
         return False
 
+    def resolve_temperature(self, model: str, requested: float | None) -> float | None:
+        """The sampling temperature to send for ``model``, or ``None`` to send none."""
+        if self.fixed_temperature is OMIT_TEMPERATURE:
+            return None
+        return self.fixed_temperature if self.fixed_temperature is not None else requested
+
+    def replay_is_prefix_bound(self, model: str) -> bool:
+        """True when replayed ``provider_data`` (signed reasoning) is valid only while every
+        message before it is unchanged. The agent then drops it whenever it rewrites the
+        conversation's prefix on purpose (compression, a model switch)."""
+        return False
+
     def get_max_tokens(self, model: str) -> int | None:
         return self.default_max_tokens
 

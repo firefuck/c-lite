@@ -293,10 +293,26 @@ class AIAgent:
             self._fallback_routes = resolve_fallback_routes(self.config)
         return self._fallback_routes
 
+    def drop_replay_data(self) -> bool:
+        """Forget the opaque ``provider_data`` on every message. True when there was any.
+
+        Signed reasoning blocks are valid for one model and one unchanged conversation
+        prefix. After the prefix is rewritten, or when the provider rejects them, they are
+        dropped; the visible transcript stays as it is.
+        """
+        with self._lock:
+            carriers = [message for message in self.messages if message.get("provider_data")]
+            for message in carriers:
+                del message["provider_data"]
+            if carriers and self.db is not None and self._session_ready:
+                self.db.clear_provider_data(self.session_id)
+        return bool(carriers)
+
     def switch_model(self, route: RuntimeRoute) -> None:
         """Use another model from the next turn on. The prompt cache is lost either way, so
         the system prompt is rebuilt to name the new model."""
         self.route = route
+        self.drop_replay_data()  # reasoning signed by the old model means nothing to the new one
         self.context_engine.configure(context_length=get_context_length(route, self.config), config=self.config)
         if self._session_ready:
             self.rebuild_system_prompt()
@@ -327,6 +343,11 @@ class AIAgent:
             return False
         todo_note = self.todos.format_active()
         cleaned = [{key: value for key, value in message.items() if key != "_row_id"} for message in after]
+        profile = self.route.profile
+        if profile is not None and profile.replay_is_prefix_bound(self.route.model):
+            # The kept messages now follow a different prefix, so their signed blocks are void.
+            for message in cleaned:
+                message.pop("provider_data", None)
         if todo_note:
             for message in cleaned:
                 if message.get("is_summary") and isinstance(message.get("content"), str):

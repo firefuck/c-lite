@@ -40,8 +40,6 @@ class TurnState:
     # What the model is offered and sent this iteration.
     api_messages: list[dict[str, Any]] = field(default_factory=list)
     response: NormalizedResponse | None = None
-    # Text recalled or injected for this turn only; attached to the user message on the wire.
-    turn_context: str = ""
     # Outcome.
     final_response: str | None = None
     partial_text: str = ""  # text carried across "length" continuations
@@ -56,6 +54,7 @@ class TurnState:
     length_continuations: int = 0
     fallback_index: int = 0
     rotated_credentials: int = 0
+    replay_dropped: bool = False  # replayed provider data was dropped once already this turn
     first_message_index: int = 0  # index in agent.messages where this turn begins
 
 

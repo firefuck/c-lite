@@ -10,7 +10,7 @@ import json
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from clite.providers.base import API_MODE_CHAT_COMPLETIONS, OMIT_TEMPERATURE
+from clite.providers.base import API_MODE_CHAT_COMPLETIONS
 from clite.providers.transports.base import (
     INTERNAL_MESSAGE_KEYS,
     ProviderTransport,
@@ -149,11 +149,9 @@ class ChatCompletionsTransport(ProviderTransport):
         max_tokens = params.max_tokens or route.max_tokens or (profile.get_max_tokens(route.model) if profile else None)
         if max_tokens:
             body[profile.max_tokens_param if profile else "max_tokens"] = max_tokens
-        fixed = profile.fixed_temperature if profile else None
-        if fixed is not OMIT_TEMPERATURE:
-            temperature = fixed if fixed is not None else params.temperature
-            if temperature is not None:
-                body["temperature"] = temperature
+        temperature = profile.resolve_temperature(route.model, params.temperature) if profile else params.temperature
+        if temperature is not None:
+            body["temperature"] = temperature
         if stream:
             body["stream"] = True
             body["stream_options"] = {"include_usage": True}

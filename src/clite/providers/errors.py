@@ -25,6 +25,7 @@ class FailoverReason(StrEnum):
     PAYLOAD_TOO_LARGE = "payload_too_large"
     MODEL_NOT_FOUND = "model_not_found"
     FORMAT_ERROR = "format_error"
+    THINKING_SIGNATURE = "thinking_signature"  # replayed reasoning blocks were rejected
     CANCELLED = "cancelled"
     UNKNOWN = "unknown"
 
@@ -38,6 +39,7 @@ class ClassifiedError:
     should_compress: bool = False  # shrink the context, then retry
     should_rotate_credential: bool = False  # try another key for the same provider
     should_fallback: bool = False  # move to the next provider in the fallback chain
+    should_drop_replay: bool = False  # drop replayed provider_data from the history, then retry
     retry_after: float | None = None
 
     def user_message(self) -> str:
@@ -55,6 +57,9 @@ _BILLING_PHRASES = ("insufficient credit", "insufficient_quota", "billing", "pay
 _MODEL_PHRASES = ("model not found", "model_not_found", "does not exist", "no such model", "unknown model",
                   "is not a valid model", "not_found_error")
 _OVERLOAD_PHRASES = ("overloaded", "over capacity", "temporarily unavailable")
+# A signed reasoning block no longer matches the conversation before it (the history was
+# edited, compressed, or produced by another model). Aggregators relay the same wording.
+_THINKING_REPLAY_PHRASES = ("signature", "cannot be modified", "must remain as they were", "bound to a different")
 
 
 def _has(text: str, phrases: tuple[str, ...]) -> bool:
@@ -99,6 +104,8 @@ def _classify_http(error: ProviderHTTPError) -> ClassifiedError:
         return result(FailoverReason.CONTEXT_OVERFLOW, should_compress=True)
     if status == 413:
         return result(FailoverReason.PAYLOAD_TOO_LARGE, should_compress=True)
+    if status == 400 and "thinking" in text and _has(text, _THINKING_REPLAY_PHRASES):
+        return result(FailoverReason.THINKING_SIGNATURE, should_drop_replay=True)
     if status == 402 or _has(text, _BILLING_PHRASES):
         return result(FailoverReason.BILLING, should_rotate_credential=True, should_fallback=True)
     if status in (401, 403):

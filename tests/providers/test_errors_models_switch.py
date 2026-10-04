@@ -37,6 +37,10 @@ def _http(status, message="", error_type="", headers=None):
         (_http(404, "not found"), FailoverReason.MODEL_NOT_FOUND, {"should_fallback"}),
         (_http(400, "The model `gpt-x` does not exist"), FailoverReason.MODEL_NOT_FOUND, {"should_fallback"}),
         (_http(400, "messages.1: tool_result block must follow tool_use"), FailoverReason.FORMAT_ERROR, set()),
+        (_http(400, "messages.5.content.0: Invalid `signature` in `thinking` block. The block is bound to a "
+                    "different conversation."), FailoverReason.THINKING_SIGNATURE, {"should_drop_replay"}),
+        (_http(400, "thinking blocks cannot be modified"), FailoverReason.THINKING_SIGNATURE, {"should_drop_replay"}),
+        (_http(400, "invalid signature on the uploaded file"), FailoverReason.FORMAT_ERROR, set()),
         (TimeoutError("read timed out"), FailoverReason.TIMEOUT, {"retryable", "should_fallback"}),
         (ConnectionResetError("reset"), FailoverReason.TIMEOUT, {"retryable", "should_fallback"}),
         (InterruptedError(), FailoverReason.CANCELLED, set()),
@@ -46,8 +50,8 @@ def _http(status, message="", error_type="", headers=None):
 def test_classification(error, reason, hints):
     classified = classify_api_error(error)
     assert classified.reason is reason
-    actual = {name for name in ("retryable", "should_compress", "should_rotate_credential", "should_fallback")
-              if getattr(classified, name)}
+    actual = {name for name in ("retryable", "should_compress", "should_rotate_credential", "should_fallback",
+                                "should_drop_replay") if getattr(classified, name)}
     assert actual == hints
 
 

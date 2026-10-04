@@ -174,6 +174,51 @@ def test_usage_accumulates(db):
     assert session["estimated_cost_usd"] == pytest.approx(0.01)
 
 
+def test_turn_context_is_stored_beside_the_message_not_in_it(db):
+    sid = _seed(db)
+    db.append_messages(sid, [{"role": "user", "content": "deploy status?", "turn_context": "[recalled: deploys happen on Friday]"},
+                             {"role": "assistant", "content": "On Friday."}])
+    user, assistant = db.get_messages(sid)
+    assert user["content"] == "deploy status?" and user["turn_context"] == "[recalled: deploys happen on Friday]"
+    assert "turn_context" not in assistant
+    assert db.search_messages("Friday")[0]["role"] == "assistant"  # recalled text is not searchable
+
+
+def test_replay_data_can_be_cleared_without_touching_the_transcript(db):
+    sid = _seed(db)
+    other = _seed(db, "s2")
+    for session in (sid, other):
+        db.append_messages(session, [{"role": "user", "content": "hi"},
+                                     {"role": "assistant", "content": "hello", "provider_data": {"signature": "abc"}}])
+    assert db.clear_provider_data(sid) == 1
+    assert db.clear_provider_data(sid) == 0
+    assert [(m["content"], "provider_data" in m) for m in db.get_messages(sid)] == [("hi", False), ("hello", False)]
+    assert "provider_data" in db.get_messages(other)[1]  # another session keeps its own
+
+
+def test_a_database_from_before_a_column_existed_gains_it_on_open(clite_home):
+    import sqlite3
+
+    from clite.state.schema import SCHEMA_SQL
+
+    path = clite_home / "old.db"
+    connection = sqlite3.connect(path)
+    connection.executescript(SCHEMA_SQL.replace("    turn_context TEXT,\n", ""))
+    connection.execute("INSERT INTO schema_version(version) VALUES (1)")
+    connection.execute("INSERT INTO sessions(id, source, started_at) VALUES ('old', 'cli', 1)")
+    connection.execute("INSERT INTO messages(session_id, role, content, timestamp) VALUES ('old', 'user', 'kept', 1)")
+    connection.commit()
+    connection.close()
+
+    upgraded = SessionDB(path)
+    try:
+        assert upgraded.get_messages("old")[0]["content"] == "kept"
+        upgraded.append_message("old", {"role": "user", "content": "new", "turn_context": "note"})
+        assert upgraded.get_messages("old")[1]["turn_context"] == "note"
+    finally:
+        upgraded.close()
+
+
 def test_delete_session_removes_messages_and_orphans_children(db):
     _seed(db, "parent")
     db.create_session("child", "cli", parent_session_id="parent")
