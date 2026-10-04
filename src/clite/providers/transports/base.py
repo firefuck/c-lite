@@ -17,7 +17,8 @@ if TYPE_CHECKING:
 
 # Keys that exist on stored messages but must never go on the wire.
 INTERNAL_MESSAGE_KEYS = frozenset(
-    {"_row_id", "timestamp", "reasoning", "provider_data", "finish_reason", "is_summary", "display_kind", "token_count"}
+    {"_row_id", "timestamp", "reasoning", "provider_data", "turn_context", "finish_reason", "is_summary", "display_kind",
+     "token_count"}
 )
 
 

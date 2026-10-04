@@ -36,3 +36,19 @@ def test_display_home_hides_the_user_directory(clite_home):
 
 def test_bundled_dir_ships_with_the_package():
     assert constants.bundled_dir().is_dir()
+
+
+def test_a_thread_started_for_session_work_keeps_the_callers_home(tmp_path):
+    import threading
+
+    from clite.core.threads import start_thread
+
+    seen = {}
+    other = tmp_path / "other-profile"
+    with constants.home_scope(other):
+        start_thread(lambda: seen.setdefault("carried", constants.get_home()), name="t-carried").join()
+        plain = threading.Thread(target=lambda: seen.setdefault("plain", constants.get_home()))
+        plain.start()
+        plain.join()
+    assert seen["carried"] == other
+    assert seen["plain"] != other  # why start_thread exists: a bare thread loses the scope

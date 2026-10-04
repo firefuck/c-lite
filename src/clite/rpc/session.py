@@ -11,6 +11,7 @@ from clite.agent import AgentCallbacks
 from clite.agent.messages import content_text, is_internal
 from clite.core.config import config_get
 from clite.core.errors import CliteError
+from clite.core.threads import start_thread
 from clite.rpc.contracts import schema
 from clite.runtime.commands import BUSY_ALLOW, resolve_command, split_command
 from clite.runtime.presentation import result_failed, tool_preview
@@ -136,8 +137,7 @@ class RpcSession:
                     self.chat.interrupt()
                 return schema.PromptSubmitResult(accepted=True, turn_id=turn_id, queued=True)
             self._queue.append((turn_id, text))
-            self._worker = threading.Thread(target=self._drain, name=f"clite-turn-{self.id}", daemon=True)
-            self._worker.start()
+            self._worker = start_thread(self._drain, name=f"clite-turn-{self.id}")
         return schema.PromptSubmitResult(accepted=True, turn_id=turn_id)
 
     def _drain(self) -> None:

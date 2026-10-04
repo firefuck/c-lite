@@ -119,6 +119,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `logging.py` | File logging under ``<home>/logs``: ``agent.log`` (INFO+) and ``errors.log`` (WARNING+). | `setup_logging()`, `reset_logging()` |
 | `profiles.py` | Profiles: fully separate homes under ``<default root>/profiles/<name>``. | `ProfileInfo`, `validate_profile_name()`, `get_sticky_profile()`, `get_active_profile_name()`, `list_profiles()`, `profile_exists()`, `create_profile()`, `delete_profile()`, `set_sticky_profile()`, `apply_profile_override()` |
 | `redact.py` | Redaction: keep credentials out of transcripts and logs. | `redact()` |
+| `threads.py` | Threads that carry the caller's context. | `start_thread()` |
 | `threats.py` | Scan text that will be injected into the system prompt. | `Threat`, `scan_text()`, `describe()` |
 
 ## `clite/cron/`
@@ -294,4 +295,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `__init__.py` | MCP (Model Context Protocol) client: tools served by external processes. |  |
 | `client.py` | A small MCP client over stdio. | `McpError`, `safe_name()`, `McpServer`, `connect_mcp_servers()`, `shutdown_mcp_servers()` |
 
-Jumlah: 158 modul.
+Jumlah: 159 modul.

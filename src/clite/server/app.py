@@ -33,7 +33,7 @@ from starlette.staticfiles import StaticFiles
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from clite import __version__
-from clite.agent.messages import content_text
+from clite.agent.messages import content_text, is_internal
 from clite.rpc.server import RpcServer
 from clite.rpc.transport import WebSocketTransport
 from clite.state.db import get_session_db
@@ -105,7 +105,7 @@ def create_app(token: str, *, client_factory: Callable[[], Any] | None = None, p
         messages = [
             {"role": m["role"], "text": content_text(m.get("content")), "tool_name": m.get("name") or "",
              "tool_calls": [call["function"]["name"] for call in m.get("tool_calls") or []], "timestamp": m.get("timestamp")}
-            for m in db.get_messages(row["id"])
+            for m in db.get_messages(row["id"]) if not is_internal(m)
         ]
         return JSONResponse({"session_id": row["id"], "title": row.get("title") or "", "messages": messages})
 

@@ -22,6 +22,7 @@ import urllib.request
 from typing import Any
 
 from clite.core.env import SecretSpec, get_secret, register_secret
+from clite.core.threads import start_thread
 from clite.gateway.event import CHAT_CHANNEL, CHAT_DM, CHAT_GROUP, MessageEvent, SendResult, SessionSource
 from clite.gateway.platforms.base import BasePlatformAdapter, register_platform
 
@@ -71,8 +72,7 @@ class TelegramAdapter(BasePlatformAdapter):
             raise RuntimeError(f"{TOKEN_ENV} is not set; add it to .env")
         self.bot_username = str(self._call("getMe").get("username") or "")
         self._stop.clear()
-        self._thread = threading.Thread(target=self._poll, name="clite-telegram", daemon=True)
-        self._thread.start()
+        self._thread = start_thread(self._poll, name="clite-telegram")
 
     def disconnect(self) -> None:
         self._stop.set()

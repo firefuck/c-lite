@@ -24,6 +24,7 @@ from typing import Any
 from clite.agent import AgentCallbacks
 from clite.core.config import get_path, load_config
 from clite.core.errors import CliteError
+from clite.core.threads import start_thread
 from clite.gateway.event import CHAT_DM, MessageEvent, SessionSource
 from clite.gateway.pairing import PairingStore
 from clite.gateway.platforms.base import PLATFORMS, BasePlatformAdapter, split_message
@@ -317,8 +318,7 @@ class GatewayRunner:
                     session.chat.interrupt()
                 return
             session.queue.append(text)
-            session.worker = threading.Thread(target=self._drain, args=(session,), name=f"clite-gw-{session.key}", daemon=True)
-            session.worker.start()
+            session.worker = start_thread(self._drain, session, name=f"clite-gw-{session.key}")
 
     def _drain(self, session: GatewaySession) -> None:
         merge_bursts = str(get_path(self.config, "display.busy_input_mode", "interrupt")) == "interrupt"

@@ -17,6 +17,7 @@ from typing import Any
 from clite.agent import AgentCallbacks
 from clite.core.config import config_get
 from clite.core.constants import ensure_dir, get_cron_dir
+from clite.core.threads import start_thread
 from clite.cron.jobs import JobStore, get_job_store
 from clite.providers.client import ModelClient
 from clite.skills.catalog import get_skill
@@ -77,7 +78,7 @@ def run_job(job: dict[str, Any], *, store: JobStore | None = None, client: Model
             finally:
                 done.set()
 
-        threading.Thread(target=work, name=f"clite-cron-{job['id']}", daemon=True).start()
+        start_thread(work, name=f"clite-cron-{job['id']}")
         while not done.wait(1.0):
             if timeout and time.monotonic() - last_activity[0] > timeout:
                 logger.warning("cron job %s made no progress for %ss; interrupting", job["id"], timeout)
@@ -183,12 +184,9 @@ class Scheduler:
         if self._thread is not None and self._thread.is_alive():
             return
         self._stop.clear()
-        self._thread = threading.Thread(target=self._run, name="clite-cron-scheduler", daemon=True)
-        self._thread.start()
+        self._thread = start_thread(self._run, name="clite-cron-scheduler")
 
     def _run(self) -> None:
-        import contextvars  # noqa: F401 - the thread inherits the creating context's home
-
         while not self._stop.is_set():
             try:
                 tick(client=self.client, deliver=self.deliver)

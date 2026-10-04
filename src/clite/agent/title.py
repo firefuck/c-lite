@@ -7,6 +7,7 @@ import re
 import threading
 from typing import TYPE_CHECKING
 
+from clite.core.threads import start_thread
 from clite.providers.auxiliary import call_auxiliary
 
 if TYPE_CHECKING:
@@ -63,6 +64,4 @@ def generate_title_async(agent: AIAgent, user_text: str) -> threading.Thread:
         except Exception:  # noqa: BLE001
             logger.debug("could not store session title", exc_info=True)
 
-    thread = threading.Thread(target=work, name="clite-title", daemon=True)
-    thread.start()
-    return thread
+    return start_thread(work, name="clite-title")
