@@ -1,0 +1,5 @@
+name: openrouter
+kind: model-provider
+version: 1.0.0
+description: OpenRouter: one key, many models
+author: C-lite

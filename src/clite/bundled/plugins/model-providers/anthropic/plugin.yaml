@@ -1,0 +1,5 @@
+name: anthropic
+kind: model-provider
+version: 1.0.0
+description: Anthropic Messages API (Claude)
+author: C-lite

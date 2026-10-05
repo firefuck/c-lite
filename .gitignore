@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+build/
+/dist/
+
+# Node
+node_modules
+ui-tui/dist/
+apps/desktop/dist/
+apps/shared/dist/
+*.tsbuildinfo
+
+# Local state: never commit a home directory or secrets
+.env
+.clite/
+*.db
+*.db-wal
+*.db-shm
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store

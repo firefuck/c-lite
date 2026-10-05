@@ -1,0 +1,5 @@
+name: ollama
+kind: model-provider
+version: 1.0.0
+description: Local models served by Ollama
+author: C-lite

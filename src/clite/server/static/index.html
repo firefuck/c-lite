@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>C-lite</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div class="brand">C-lite</div>
+      <button id="new-chat" type="button">+ New chat</button>
+      <div class="section-title">Sessions</div>
+      <ul id="sessions" aria-label="Sessions"></ul>
+      <div id="status" aria-live="polite">
+        <div id="status-connection" class="pill offline">connecting…</div>
+        <div id="status-model"></div>
+        <div id="status-context"></div>
+      </div>
+    </aside>
+
+    <main>
+      <nav id="tabs" role="tablist">
+        <button type="button" role="tab" data-tab="chat" class="active">Chat</button>
+        <button type="button" role="tab" data-tab="skills">Skills</button>
+        <button type="button" role="tab" data-tab="tools">Tools</button>
+        <button type="button" role="tab" data-tab="cron">Cron</button>
+        <button type="button" role="tab" data-tab="plugins">Plugins</button>
+        <button type="button" role="tab" data-tab="memory">Memory</button>
+      </nav>
+
+      <section id="view-chat" class="view active">
+        <div id="transcript" aria-live="polite"></div>
+        <form id="composer">
+          <textarea id="prompt" rows="2" placeholder="Message, or /help for commands" autocomplete="off"></textarea>
+          <button id="send" type="submit">Send</button>
+          <button id="stop" type="button" hidden>Stop</button>
+        </form>
+      </section>
+      <section id="view-skills" class="view"><div class="panel" id="panel-skills"></div></section>
+      <section id="view-tools" class="view"><div class="panel" id="panel-tools"></div></section>
+      <section id="view-cron" class="view"><div class="panel" id="panel-cron"></div></section>
+      <section id="view-plugins" class="view"><div class="panel" id="panel-plugins"></div></section>
+      <section id="view-memory" class="view"><div class="panel" id="panel-memory"></div></section>
+    </main>
+  </div>
+
+  <dialog id="dialog"><div id="dialog-body"></div></dialog>
+
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>
