@@ -57,6 +57,7 @@ dijalankan terhadap hal yang sebenarnya. Anggap belum berfungsi sampai terbukti.
 | macOS | Belum pernah dijalankan | F1-T1 |
 | Plugin lewat entry point pip | Jalur muatnya ada; belum diuji dengan paket yang benar-benar terpasang | F6-T5 |
 | Cangkang Electron (`apps/desktop/src/main.ts`, `preload.ts`, `build.mjs`) | Ditulis tanpa Electron terpasang; belum pernah dijalankan | F5-T1 |
+| Model atau harness selain Claude Code | Belum pernah ada yang mengerjakan repositori ini. Panduan peralihannya disusun dari isi repositori, belum dari sesi nyata ([PANDUAN-MODEL-LAIN.md](PANDUAN-MODEL-LAIN.md)) | Coba dengan satu task S |
 | Skill dan subagent Claude Code di `.claude/` | Ditulis mengikuti dokumentasi Claude Code; belum pernah dipanggil di Claude Code. Bila `/orientasi` tidak dikenali, tempel bagian "Prompt" dari file di `docs/prompts/` | Coba dengan `/orientasi` |
 
 Yang sudah teramati dari integrasi Claude Code, di sesi cloud tempat scaffolding ini dibuat

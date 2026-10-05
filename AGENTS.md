@@ -38,6 +38,7 @@ Sesudah mengubah sesuatu yang punya turunan, buat ulang turunannya. Suite gagal 
 | Modul mana berisi apa (dihasilkan dari kode) | `docs/referensi/peta-modul.md` |
 | Pekerjaan berikutnya | `docs/roadmap/README.md` |
 | Padanan file Hermes | `docs/hermes/99-peta-file.md` |
+| Bekerja dengan model atau harness selain Claude Code | `docs/PANDUAN-MODEL-LAIN.md` |
 
 ## Aturan yang tidak boleh dilanggar
 

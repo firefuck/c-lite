@@ -22,6 +22,8 @@ untuk Claude Fable 5.1 di Claude Code, tetapi isinya tidak bergantung pada alat 
 Perintah di kolom kedua adalah skill proyek di `.claude/skills/`. Tiap skill hanya menunjuk ke
 file prompt di folder ini, sehingga isinya ditulis di satu tempat.
 
+Memakai model atau harness selain Claude Code: lihat [PANDUAN-MODEL-LAIN.md](../PANDUAN-MODEL-LAIN.md).
+
 ## Menyiapkan Claude Code
 
 Yang diperlukan sekali saja:
