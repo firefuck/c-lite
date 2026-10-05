@@ -50,12 +50,23 @@ membutuhkan otorisasi tersendiri.
   kini memakai profil yang tidak ada, tetap berlaku saat paket sudah terpasang, memiliki
   timeout dan cleanup. Kedua tes tetap memeriksa kontrak kegagalan aslinya.
 - Berkas lama yang belum terlacak: `package-lock.json`; simpan untuk diperiksa pada F1-T1.
-- Backup: tujuan pemilik `https://github.com/dragovics/clite` terkonfirmasi kosong di awal
-  sesi. Selesaikan backup fase ini sebelum mengerjakan fase berikutnya. Kredensial Git CLI
-  tidak tersedia; koneksi GitHub mempunyai izin tulis. Jangan mengaku backup berhasil
-  sampai ref remote dan isi tree sudah terverifikasi.
-- Langkah lanjut setelah backup: F1-T1, periksa lockfile, pemasangan bersih, job wheel,
-  dan CI di repo tujuan. Jangan menandai F1-T1 selesai tanpa job CI yang benar-benar hijau.
+- Backup fase audit berhasil: snapshot source di `main` dan
+  `codex/checkpoint-2026-10-05` pada GitHub commit `a9f7b550c4d86f29624cef23f0a3b40f3ae5d66c`.
+  Tree `4b3ef181801b77a16f4032e1fb931622a80b531f` identik dengan commit lokal `9ac1d63`.
+  Branch `codex/history-2026-10-06` pada `af63a5fdf15ab9ee1ced779f26668e528b233073`
+  menyimpan bundle seluruh riwayat asli dan petunjuk pemulihan. Blob bundle cocok dengan
+  hasil lokal. Git CLI tidak mempunyai kredensial, sehingga snapshot dikirim melalui
+  koneksi GitHub; SHA commit berbeda, tree sama.
+- Tugas aktif berikutnya: F1-T1. Commit awal `9ac1d63`; periksa lockfile lama,
+  jalankan pemasangan bersih, tambahkan job wheel, dan pakai `npm ci` di CI. CI pertama
+  repo tujuan (run `37355514348`) sudah hijau: Python 3.11/3.12/3.13 dan Node 22.
+  Billing blocker dari repo upstream tidak berlaku pada repo tujuan ini. Jangan menandai
+  F1-T1 selesai sampai job wheel dan instalasi lockfile juga benar-benar hijau.
+- Hasil lokal F1-T1: `pip install -e ".[dev]"` dan `npm ci` berhasil di lingkungan
+  baru dari registry; `scripts/run_tests.sh` lulus dan kedua build Node berhasil.
+  Smoke wheel di luar checkout lulus, serta menolak salinan instalasi dengan satu aset
+  skill dihilangkan. Lockfile lama telah diperiksa dan cocok dengan ketiga workspace.
+  Perubahan berikutnya siap dikirim untuk memverifikasi job wheel dan `npm ci` di CI.
 
 ## Riwayat checkpoint
 

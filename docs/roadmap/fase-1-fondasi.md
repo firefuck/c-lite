@@ -34,27 +34,35 @@ melihat seluruh pemeriksaan lulus, di mesinnya dan di GitHub Actions.
 
 **File.** `pyproject.toml`, `package.json`, `ui-tui/package.json`, `apps/shared/package.json`,
 `apps/desktop/package.json`, `.github/workflows/ci.yml`, `scripts/run_tests.sh`,
-`docs/STATUS.md`.
+`docs/STATUS.md`, `package-lock.json`, `scripts/check_wheel_install.py`.
 
 **Rujukan Hermes.** `scripts/run_tests.sh` dan `scripts/install.sh` untuk melihat apa saja
 yang diperiksa Hermes saat memasang.
 
 **Selesai bila.**
-- [ ] CI hijau di ketiga versi Python dan di job Node, pada commit di `main`.
+- [x] CI hijau di ketiga versi Python dan di job Node, pada commit di `main`.
 - [ ] `package-lock.json` ada dan `npm ci` berhasil di CI.
 - [ ] Job wheel membuktikan paket terpasang membawa plugin bawaan, skill bawaan, dashboard,
       dan bundle TUI (`clite tui --help` jalan dari wheel).
-- [ ] Komentar "NOT VERIFIED" di `ci.yml` dihapus.
+- [x] Komentar "NOT VERIFIED" di `ci.yml` dihapus.
 - [ ] Butir pemasangan dan CI di `docs/STATUS.md` dipindah dari "belum diverifikasi".
 
 **Ukuran.** S
 
 **Bergantung pada.** -
 
-**Butuh dari Anda.** Akses dorong ke repositori GitHub dengan Actions aktif. Saat scaffolding
-ini dibuat, workflow sudah terpicu di setiap push tetapi GitHub menolak semua job sebelum
-berjalan, dengan pesan "account is locked due to a billing issue". Kunci itu dibuka di
-pengaturan penagihan akun GitHub pemilik repositori; sebelum itu task ini tidak bisa selesai.
+**Butuh dari Anda.** Akses dorong ke repositori GitHub dengan Actions aktif. Sudah
+tersedia pada `https://github.com/dragovics/clite`. Kendala penagihan repo sebelumnya
+tidak menghalangi repo ini.
+
+**Kemajuan 6 Oktober 2026.** Run `37355514348` pada commit `a9f7b55` lulus di Python
+3.11/3.12/3.13 dan Node 22. Pemasangan editable dari registry dan `npm ci` dari lockfile
+lama berhasil di lingkungan lokal baru. `scripts/run_tests.sh` lulus tanpa pengaturan
+tambahan setelah aktivasi virtualenv, diikuti build TUI dan desktop. Wheel dibangun dari
+source, dipasang ke virtualenv bersih, lalu CLI, doctor, giliran mock, plugin, skill,
+aset dashboard, dan TUI lulus smoke di luar checkout. Menghapus satu aset skill pada
+salinan instalasi membuat smoke gagal sebagaimana mestinya. Workflow diperluas untuk
+menjalankan pemeriksa kanonis dan smoke wheel itu; tunggu hasil CI sebelum menutup task.
 
 ---
 

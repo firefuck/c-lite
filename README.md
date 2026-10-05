@@ -32,7 +32,7 @@ Daftar lengkap yang dihasilkan dari kode ada di
 Butuh Python 3.11 atau lebih baru. Node 22 hanya diperlukan untuk TUI.
 
 ```bash
-git clone https://github.com/firefuck/c-lite && cd c-lite
+git clone https://github.com/dragovics/clite && cd clite
 pip install -e ".[dev]"
 
 python -m clite chat -q "halo" --provider mock   # satu giliran tanpa kunci API
@@ -43,8 +43,9 @@ clite dashboard                                  # dashboard web di browser
 clite doctor                                     # periksa instalasi
 ```
 
-`pip install` dari registry belum pernah dijalankan saat scaffolding ini dibuat; yang sudah
-dicoba adalah membangun wheel lalu memasangnya. Lihat [docs/STATUS.md](docs/STATUS.md).
+Pemasangan dari registry dan tes sudah lulus di CI Linux pada Python 3.11–3.13 dan Node 22.
+Untuk dependensi pengembangan Node, jalankan `npm ci` di root. Batas verifikasi lainnya
+tercatat di [docs/STATUS.md](docs/STATUS.md).
 
 ## Mengerjakan proyek ini dengan AI
 

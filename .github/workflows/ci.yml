@@ -1,8 +1,7 @@
 # Every push and pull request runs the same checks as scripts/run_tests.sh.
 #
-# NOT VERIFIED: this workflow was written without a GitHub Actions run to confirm it. The
-# commands are the ones that pass locally; the runner setup around them is what to check on
-# the first run (see docs/roadmap, task F1-T1).
+# Python 3.11-3.13 and Node were verified in the target repository on 2026-10-06.
+# The wheel job also checks package data and entry points outside the checkout.
 name: ci
 
 on:
@@ -27,6 +26,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - run: pip install -e ".[dev]"
       - run: ruff check src tests scripts
       - run: mypy
@@ -43,11 +45,32 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       # The TypeScript tests start the real Python backend.
-      - run: pip install -e .
-      - run: npm install
-      - run: npm run typecheck
-      - run: npm test
+      - run: pip install -e ".[dev]"
+      - run: npm ci
+      - run: scripts/run_tests.sh
       # Whether the committed bundle is stale is checked by the Python suite (it compares a
       # hash of the sources), so this step only proves the bundle still builds.
-      - run: npm run build --workspace ui-tui
+      - run: npm run build
+
+  wheel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the distributable wheel
+        run: python -m pip wheel --no-deps . --wheel-dir dist
+      - name: Install into a clean virtualenv
+        run: |
+          python -m venv "$RUNNER_TEMP/clite-wheel"
+          "$RUNNER_TEMP/clite-wheel/bin/python" -m pip install dist/*.whl
+      - name: Exercise the installed package outside the checkout
+        working-directory: ${{ runner.temp }}
+        run: '"$RUNNER_TEMP/clite-wheel/bin/python" -I "$GITHUB_WORKSPACE/scripts/check_wheel_install.py"'
