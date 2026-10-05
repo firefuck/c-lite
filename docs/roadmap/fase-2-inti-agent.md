@@ -534,3 +534,45 @@ masuk lewat browser, tanpa menyalin kunci.
 **Ukuran.** L
 
 **Bergantung pada.** F1-T2
+
+---
+
+### F2-T15 Deteksi perintah yang lebih tahan penyamaran
+
+**Tujuan.** Gerbang persetujuan mengenali perintah berbahaya yang dibungkus interpreter atau
+dirakit dari variabel, dan berhenti menolak teks yang hanya *menyebut* perintah terlarang.
+
+**Lingkup.**
+- Posisi perintah yang sadar tanda kutip. `git commit -m "buang rm -rf / dari skrip"` adalah
+  data dan tidak ditolak mutlak; isi `sh -c`, `bash -c`, dan `eval` adalah kode dan tetap
+  dibaca.
+- Muatan interpreter: `python -c`, `node -e`, `perl -e`, `ruby -e` yang membuka atau menghapus
+  file terlindung, atau memanggil CLI agent.
+- Penugasan lalu pemakaian variabel di baris yang sama: `c=clite; $c config set ...` dan
+  `d=/; rm -rf $d`.
+- Larangan mutlak tambahan seperti di Hermes: `kill -1`, `shutdown`, `reboot`, `init 0`, dan
+  `mkfs` di posisi perintah.
+- Batas ukuran dan kedalaman penguraian. Perintah yang terlalu panjang atau terlalu bersarang
+  untuk diurai ditolak, tidak diloloskan.
+
+**Di luar lingkup.** Menjalankan shell sungguhan untuk mengurai perintah, dan sandbox
+(F2-T7). Deteksi ini tetap sabuk pengaman.
+
+**File.** `src/clite/tools/approval.py`, `tests/tools/test_approval.py`,
+`docs/arsitektur/06-keamanan.md`, `docs/spesifikasi/tools.md`.
+
+**Rujukan Hermes.** `tools/approval_detection.py` (normalisasi, posisi perintah, penyamaran
+tanda kutip, muatan interpreter) dan `tools/approval_floors.py`.
+
+**Selesai bila.**
+- [ ] Setiap contoh di baris "Gerbang persetujuan tidak menjalankan shell" pada daftar celah
+      `docs/arsitektur/06-keamanan.md` punya tes yang menangkapnya, atau tetap terdaftar
+      sebagai celah beserta alasannya.
+- [ ] Pesan commit dan `echo` yang menyebut perintah terlarang tidak lagi ditolak mutlak,
+      sedangkan `bash -c` dengan perintah yang sama tetap ditolak.
+- [ ] Perintah yang melampaui batas penguraian ditolak dengan pesan yang menyebut sebabnya.
+- [ ] Tidak ada tes yang sudah ada dilemahkan.
+
+**Ukuran.** L
+
+**Bergantung pada.** -

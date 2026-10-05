@@ -17,8 +17,10 @@ A command that reaches for the agent's own settings or credentials (its ``config
 ``.env``, its own management CLI) is dangerous in a stricter way: steps 5 and 6 do not apply
 to it and the user's yes is never remembered, so each such command is asked about on its own.
 
-This gate is a seat belt, not a sandbox. It reads the text of one command; a script written to
-a file and run in a second step is outside what it can see.
+This gate is a seat belt, not a sandbox. It reads the text of one command, both as written and
+with the spellings a shell ignores undone (quotes, backslashes, ``${NAME}``, repeated
+slashes). It does not run a shell: a name assembled from variables or by an interpreter, and a
+script written to a file and run in a second step, are outside what it can see.
 """
 
 from __future__ import annotations
@@ -26,6 +28,7 @@ from __future__ import annotations
 import fnmatch
 import functools
 import logging
+import posixpath
 import re
 import threading
 import unicodedata
@@ -35,11 +38,11 @@ from typing import Any
 
 from clite.core.brand import APP_NAME, DISPLAY_NAME, HOME_DIRNAME, HOME_ENV
 from clite.core.config import atomic_config_update
-from clite.core.constants import get_default_root, get_home
+from clite.core.constants import get_default_root, get_home, get_profiles_root
 from clite.plugins.hooks import invoke_hook
 from clite.providers.auxiliary import call_auxiliary
 from clite.tools.context import ToolContext
-from clite.tools.file_safety import PROTECTED_NAMES
+from clite.tools.file_safety import PROTECTED_PATHS
 
 logger = logging.getLogger("clite.tools.approval")
 
@@ -129,6 +132,142 @@ class ApprovalDecision:
     matches: list[DangerMatch] = field(default_factory=list)
 
 
+# ── reading a command the way a shell would ──────────────────────────────────────────────
+
+_LINE_CONTINUATION = re.compile(r"\\\r?\n")
+_ESCAPED = re.compile(r"\\(.)", re.DOTALL)
+_IFS = re.compile(r"\$\{IFS\b[^}]*\}|\$IFS\b")
+_BRACED_VARIABLE = re.compile(r"\$\{(\w+)\}")
+_REPEATED_SLASH = re.compile(r"(?<![:/])/{2,}")  # not the // of a URL
+_QUOTES = str.maketrans("", "", "\"'")
+_COMMAND_BREAK = re.compile(r"&&|\|\||[;&|(){}\n`]|\$\(")
+_ASSIGNMENT = re.compile(r"[A-Za-z_]\w*=")
+# Words that run the command named after them.
+_WRAPPERS = frozenset({"sudo", "doas", "env", "exec", "nohup", "setsid", "time", "command", "builtin", "nice", "timeout",
+                       "stdbuf", "xargs", "uv", "uvx", "pipx", "poetry"})
+
+
+def shell_plain(command: str) -> str:
+    """``command`` without the spellings a shell ignores: line continuations, backslash
+    escapes, quotes, ``${NAME}`` for ``$NAME``, ``$IFS`` for a space, repeated slashes.
+
+    Every detector reads this form as well as the original, so ``rm -rf "$HOME"`` and
+    ``r\\m -rf ~`` are judged like the plain command they run as.
+    """
+    text = _LINE_CONTINUATION.sub("", normalize_command(command))
+    text = _ESCAPED.sub(r"\1", text).translate(_QUOTES)
+    text = _BRACED_VARIABLE.sub(r"$\1", _IFS.sub(" ", text))
+    return _REPEATED_SLASH.sub("/", text)
+
+
+def _readings(command: str) -> list[str]:
+    """The texts every detector looks at: the command as written, and as a shell reads it."""
+    written, plain = normalize_command(command), shell_plain(command)
+    return [written] if plain == written else [written, plain]
+
+
+def _simple_commands(text: str) -> list[list[str]]:
+    """The words of each simple command in ``text``, leading ``NAME=value`` words dropped."""
+    commands = []
+    for segment in _COMMAND_BREAK.split(text):
+        words = segment.split()
+        while words and _ASSIGNMENT.match(words[0]):
+            words.pop(0)
+        if words:
+            commands.append(words)
+    return commands
+
+
+def _arguments_of(words: list[str], names: frozenset[str]) -> list[str] | None:
+    """The words after the command when ``words`` runs one of ``names``, directly, by path, or
+    through a wrapper such as ``sudo``; ``None`` when it runs something else."""
+    first = posixpath.basename(words[0]).lower()
+    if first in names:
+        return words[1:]
+    if first in _WRAPPERS:
+        for index, word in enumerate(words[1:], 1):
+            if posixpath.basename(word).lower() in names:
+                return words[index + 1:]
+    return None
+
+
+# ── deletes with no way back ─────────────────────────────────────────────────────────────
+
+# Besides the root and the home directory (and whatever holds the home directory).
+SYSTEM_DIRECTORIES = frozenset({"/home", "/root", "/etc", "/usr", "/var", "/bin", "/sbin", "/boot", "/lib", "/lib64",
+                                "/Users", "/System", "/Library"})
+_RM = frozenset({"rm"})
+_TRAILING_GLOB = re.compile(r"(?:^|(?<=/))\.?\*+$")  # `dir/*` and `dir/.*` empty `dir`
+_HOME_WORD = re.compile(r"^(?:~|\$HOME)(?=/|$)")
+_PWD_WORD = re.compile(r"^\$PWD(?=/|$)")
+
+
+def _user_home() -> str | None:
+    try:
+        return posixpath.normpath(str(Path.home()))
+    except RuntimeError:  # no HOME and no passwd entry: nothing to compare against
+        return None
+
+
+def _absolute(word: str, where: str | None) -> str | None:
+    """``word`` as a normalised absolute path, read from the directory ``where``; ``None``
+    when only a running shell could tell."""
+    home = _user_home()
+    if home:
+        word = _HOME_WORD.sub(lambda _match: home, word)
+    if where:
+        word = _PWD_WORD.sub(lambda _match: where, word)
+    if "$" in word or "`" in word or word.startswith("~"):
+        return None
+    if not word.startswith("/"):
+        if not where:
+            return None
+        word = posixpath.join(where, word)
+    return posixpath.normpath("/" + word.lstrip("/"))
+
+
+def _victim(path: str) -> str | None:
+    home = _user_home()
+    if path == "/":
+        return "delete the root filesystem"
+    if home and path == home:
+        return "delete the home directory"
+    if home and home.startswith(path + "/"):
+        return "delete the directory that holds the home directory"
+    if path in SYSTEM_DIRECTORIES:
+        return "delete a system directory"
+    return None
+
+
+def _recursive_delete_victim(text: str, cwd: str = "") -> str | None:
+    """What a recursive ``rm`` in ``text`` would destroy beyond recovery, if anything: the
+    root, the home directory, or a system directory. Targets are read the way the shell
+    resolves them (``~``, ``$HOME``, ``..``, a trailing ``/*``), from ``cwd`` when it is
+    known, following any ``cd`` earlier on the same command line."""
+    where: str | None = posixpath.normpath(cwd) if cwd else None
+    for words in _simple_commands(text):
+        if words[0] in ("cd", "pushd"):
+            target = words[1] if len(words) > 1 else "~"
+            where = None if target.startswith("-") else _absolute(target, where)
+            continue
+        arguments = _arguments_of(words, _RM)
+        if arguments is None:
+            continue
+        options_end = arguments.index("--") if "--" in arguments else len(arguments)
+        flags = [word for word in arguments[:options_end] if word.startswith("-")]
+        targets = [word for word in arguments[:options_end] if not word.startswith("-")] + arguments[options_end + 1:]
+        if "--no-preserve-root" in flags:
+            return "delete the root filesystem"
+        if not any(flag == "--recursive" or (not flag.startswith("--") and "r" in flag.lower()) for flag in flags):
+            continue
+        for target in targets:
+            path = _absolute(_TRAILING_GLOB.sub("", target) or ".", where)
+            victim = _victim(path) if path else None
+            if victim:
+                return victim
+    return None
+
+
 # ── the agent's own settings ─────────────────────────────────────────────────────────────
 
 SELF_ACCESS = DangerMatch("agent_settings_access", "reaches for this agent's own settings or credentials")
@@ -136,7 +275,10 @@ SELF_ACCESS = DangerMatch("agent_settings_access", "reaches for this agent's own
 # allowlist, never cleared by the smart reviewer. Editing the policy is how a gate gets removed.
 NEVER_REMEMBERED = frozenset({SELF_ACCESS.key})
 
-_PROTECTED_NAME = re.compile(r"(?<![\w.\-])(?:" + "|".join(re.escape(name) for name in PROTECTED_NAMES) + r")(?![\w.\-])")
+_PROTECTED_NAME = re.compile(
+    r"(?<![\w.\-])(?:" + "|".join(re.escape(posixpath.basename(name)) for name in PROTECTED_PATHS) + r")(?![\w.\-])",
+    re.IGNORECASE,
+)
 # Subcommands of the agent's own command line that change what it is allowed to do or what
 # it stores. Read-only uses are caught as well; the model has tools and slash commands for those.
 OWN_CLI_SUBCOMMANDS = ("config", "hooks", "plugins", "setup", "gateway", "profile", "tools", "model", "skills", "cron", "sessions")
@@ -165,6 +307,42 @@ def _own_cli() -> re.Pattern[str]:
     )
 
 
+@functools.lru_cache(maxsize=1)
+def _own_names() -> frozenset[str]:
+    return frozenset(name.lower() for name in own_command_names())
+
+
+_PYTHON = re.compile(r"(?:python|pypy)[\d.]*$|py$")
+_SUBSTITUTION = re.compile(r"\$\(([^()]*)\)|`([^`]*)`")
+
+
+def _runs_own_cli(text: str) -> bool:
+    """Whether ``text`` starts this agent's own command line with one of the subcommands that
+    change what the agent may do: by name, by path, through ``python -m``, through a wrapper
+    such as ``sudo``, or through a substitution such as ``$(command -v <name>)``."""
+    names = _own_names()
+
+    def named(match: re.Match[str]) -> str:
+        inner = (match.group(1) or match.group(2) or "").split()
+        # The command is whatever the substitution prints: read it as the name it looks up.
+        return f" {APP_NAME} " if any(posixpath.basename(word).lower() in names for word in inner) else match.group(0)
+
+    for words in _simple_commands(_SUBSTITUTION.sub(named, text)):
+        arguments = _arguments_of(words, names)
+        if arguments is None and any(_PYTHON.match(posixpath.basename(word).lower()) for word in words):
+            module = next((index for index, word in enumerate(words[:-1]) if word == "-m"
+                           and words[index + 1].lower().split(".")[0] == APP_NAME), None)
+            arguments = words[module + 2:] if module is not None else None
+        if arguments is None:
+            continue
+        index = 0
+        while index < len(arguments) and arguments[index].startswith("-"):
+            index += 2 if arguments[index] in ("-p", "--profile") else 1
+        if index < len(arguments) and arguments[index].lower() in OWN_CLI_SUBCOMMANDS:
+            return True
+    return False
+
+
 def _home_spellings() -> list[str]:
     """The ways a command can spell one of this agent's home directories."""
     spellings = {f"~/{HOME_DIRNAME}", f"$HOME/{HOME_DIRNAME}", f"${{HOME}}/{HOME_DIRNAME}", f"${HOME_ENV}", f"${{{HOME_ENV}}}"}
@@ -173,25 +351,86 @@ def _home_spellings() -> list[str]:
     return sorted(spellings)
 
 
-def _inside_agent_home(cwd: str) -> bool:
+_HOME_MARK = "\x00agent-home\x00"  # normalize_command drops NUL bytes, so a command cannot contain this
+_MARKED_PATH = re.compile(re.escape(_HOME_MARK) + r"""([^\s;&|<>()"'`]*)""")
+_PATH_END = r"""(?=[/\s;&|<>()"'`]|$)"""  # the directory itself, not a longer name that starts like it
+# The home directory named from the directory above it (`cd ~ && cat <dirname>/...`).
+_RELATIVE_HOME = re.compile(r"(?<![\w./~$\-])" + re.escape(HOME_DIRNAME) + _PATH_END, re.IGNORECASE)
+_SHELL_DECIDES = re.compile(r"[$`{}]")  # the shell, not the text, decides what such a word names
+_GLOB = re.compile(r"[*?\[\]]")
+_PARENT_REFERENCE = re.compile(r"(?:^|[\s/=:])\.\.(?:[/\s;&|)]|$)")
+
+
+def _mark_agent_homes(text: str) -> str:
+    """``text`` with every spelling of one of this agent's home directories replaced by a
+    mark, the longest spelling first so that a profile's home wins over the root above it."""
+    spellings = "|".join(re.escape(spelling) for spelling in sorted(_home_spellings(), key=len, reverse=True))
+    marked = re.sub(rf"(?:{spellings}){_PATH_END}", lambda _match: _HOME_MARK, text, flags=re.IGNORECASE)
+    return _RELATIVE_HOME.sub(lambda _match: _HOME_MARK, marked)
+
+
+def _could_name(word: str, name: str) -> bool:
+    """Whether the shell could turn ``word`` into ``name``."""
+    if _SHELL_DECIDES.search(word):
+        return True
+    word, name = word.lower(), name.lower()
+    return fnmatch.fnmatchcase(name, word) if _GLOB.search(word) else word == name
+
+
+def _names_protected(parts: list[str]) -> bool:
+    """Whether the path ``parts`` inside a home is a protected file, could expand to one, or
+    is a directory that holds one. No parts at all is the home itself."""
+    candidates = [name.split("/") for name in PROTECTED_PATHS]
+    for depth, part in enumerate(parts):
+        candidates = [candidate for candidate in candidates if len(candidate) > depth and _could_name(part, candidate[depth])]
+        if not candidates:
+            return False
+    return True
+
+
+def _reaches_protected(tail: str) -> bool:
+    """The same question for ``tail``, the rest of a path after a home directory. A profile
+    is a home of its own, so ``profiles/<name>/...`` is read from inside that profile."""
+    parts = [part for part in tail.split("/") if part not in ("", ".")]
+    if ".." in parts:
+        return True
+    if parts and _could_name(parts[0], get_profiles_root().name) and (len(parts) <= 2 or _names_protected(parts[2:])):
+        return True
+    return _names_protected(parts)
+
+
+def _tails_inside_agent_homes(cwd: str) -> list[str]:
+    """Where ``cwd`` is inside each agent home that contains it, as a path from that home."""
     if not cwd:
-        return False
+        return []
     try:
         directory = Path(cwd).expanduser().resolve(strict=False)
     except (OSError, RuntimeError):
-        return False
-    return any(directory.is_relative_to(home.resolve(strict=False)) for home in (get_home(), get_default_root()))
+        return []
+    homes = {home.resolve(strict=False) for home in (get_home(), get_default_root())}
+    return [directory.relative_to(home).as_posix() for home in homes if directory.is_relative_to(home)]
+
+
+def _reaches_into_agent_home(text: str, cwd: str) -> bool:
+    marked = _mark_agent_homes(text)
+    if _HOME_MARK in marked:
+        # A protected name next to any mention of the home (`cd <home> && sed -i ... config.yaml`),
+        # or a path into the home that is, or could expand to, a protected file.
+        return bool(_PROTECTED_NAME.search(text)) or any(_reaches_protected(tail) for tail in _MARKED_PATH.findall(marked))
+    # Working in the home itself (or in a directory that holds a protected file) every relative
+    # name can be one of them. Deeper inside, only a path that climbs back out can.
+    tails = _tails_inside_agent_homes(cwd)
+    return any(_reaches_protected(tail) for tail in tails) or (bool(tails) and _PARENT_REFERENCE.search(text) is not None)
 
 
 def detect_self_access(command: str, cwd: str = "") -> DangerMatch | None:
-    """A match when ``command`` reaches for the agent's own settings or credentials: it names
-    one of the protected files by a path into the agent's home (or by bare name while working
-    inside that home), or it runs the agent's own management command."""
-    text = normalize_command(command)
-    if _own_cli().search(text):
-        return SELF_ACCESS
-    if _PROTECTED_NAME.search(text) and (_inside_agent_home(cwd) or any(spelling in text for spelling in _home_spellings())):
-        return SELF_ACCESS
+    """A match when ``command`` reaches for the agent's own settings or credentials: it runs
+    the agent's own management command, it names a path into one of the agent's homes that is
+    (or could expand to) a protected file or a directory holding one, or it runs from inside
+    such a directory."""
+    for text in _readings(command):
+        if _own_cli().search(text) or _runs_own_cli(text) or _reaches_into_agent_home(text, cwd):
+            return SELF_ACCESS
     return None
 
 
@@ -203,6 +442,7 @@ def reset_approval_state() -> None:
     with _LOCK:
         _SESSION_APPROVED.clear()
     _own_cli.cache_clear()
+    _own_names.cache_clear()
 
 
 def normalize_command(command: str) -> str:
@@ -212,20 +452,22 @@ def normalize_command(command: str) -> str:
 
 
 def detect_dangerous_command(command: str) -> list[DangerMatch]:
-    text = normalize_command(command)
     found: dict[str, DangerMatch] = {}
-    for pattern, key, description in _COMPILED_DANGEROUS:
-        if key not in found and pattern.search(text):
-            found[key] = DangerMatch(key, description)
+    for text in _readings(command):
+        for pattern, key, description in _COMPILED_DANGEROUS:
+            if key not in found and pattern.search(text):
+                found[key] = DangerMatch(key, description)
     return list(found.values())
 
 
-def detect_hardline(command: str) -> str | None:
-    text = normalize_command(command)
-    for pattern, description in _COMPILED_HARDLINE:
-        if pattern.search(text):
-            return description
-    return None
+def detect_hardline(command: str, cwd: str = "") -> str | None:
+    """Why ``command`` is refused in every mode, or ``None``. ``cwd`` is the directory it would
+    run in, when known: a relative ``rm -rf *`` is only catastrophic in some places."""
+    for text in _readings(command):
+        for pattern, description in _COMPILED_HARDLINE:
+            if pattern.search(text):
+                return description
+    return _recursive_delete_victim(shell_plain(command), cwd)
 
 
 def _non_interactive_policy(ctx: ToolContext) -> str:
@@ -264,13 +506,14 @@ def check_command(command: str, ctx: ToolContext | None = None, *, cwd: str = ""
     ``cwd`` is the directory the command will run in, when the caller knows it.
     """
     ctx = ctx or ToolContext()
-    hardline = detect_hardline(command)
+    cwd = cwd or ctx.cwd
+    hardline = detect_hardline(command, cwd)
     if hardline:
         return ApprovalDecision(False, f"Refused: this command would {hardline}. No setting allows it.", "hardline")
 
-    normalized = normalize_command(command)
+    readings = _readings(command)
     for glob in ctx.setting("approvals.deny", []) or []:
-        if fnmatch.fnmatch(normalized, str(glob)):
+        if any(fnmatch.fnmatch(text, str(glob)) for text in readings):
             return ApprovalDecision(False, f"Refused by the approvals.deny rule {glob!r}.", "denylist")
 
     mode = ctx.approval_mode or str(ctx.setting("approvals.mode", "manual"))
@@ -278,7 +521,7 @@ def check_command(command: str, ctx: ToolContext | None = None, *, cwd: str = ""
         return ApprovalDecision(True, "approvals are off", "auto")
 
     matches = detect_dangerous_command(command)
-    self_access = detect_self_access(command, cwd or ctx.cwd)
+    self_access = detect_self_access(command, cwd)
     if self_access is not None:
         matches.append(self_access)
     if not matches:

@@ -107,6 +107,7 @@ Status: ⬜ belum, 🟡 sedang dikerjakan atau selesai sebagian, ✅ selesai.
 | F2-T12 | Review latar belakang dan kurator terjadwal | M | - | ⬜ |
 | F2-T13 | Delegasi yang lebih kaya | M | - | ⬜ |
 | F2-T14 | OAuth dan `clite auth` | L | F1-T2 | ⬜ |
+| F2-T15 | Deteksi perintah yang lebih tahan penyamaran | L | - | ⬜ |
 
 ### Fase 3: CLI dan TUI
 

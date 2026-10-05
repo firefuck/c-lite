@@ -58,6 +58,18 @@ pernah diingat. Sub-perintah `clite` baru yang mengubah pengaturan ditambahkan k
 `OWN_CLI_SUBCOMMANDS`, dengan satu baris di
 `test_commands_that_reach_for_the_agents_own_settings_are_flagged`.
 
+Setiap pendeteksi membaca perintah dua kali: seperti tertulis dan lewat `shell_plain` (tanpa
+tanda kutip, garis miring terbalik, dan ejaan lain yang diabaikan shell). Pola baru cukup
+ditulis untuk ejaan polosnya; jangan menulis pola yang bergantung pada tanda kutip.
+
+### Menambah file kebijakan atau kredensial di home
+
+File baru di home yang menentukan apa yang boleh dilakukan agent, atau yang menyimpan rahasia,
+ditambahkan ke `PROTECTED_PATHS` di `file_safety.py` (dan ke `_CREDENTIAL_PATHS` bila tidak
+boleh dibaca). Tool file dan gerbang persetujuan sama-sama membaca daftar itu, untuk setiap
+home termasuk home tiap profil. Tambahkan satu baris ke
+`test_every_profile_and_the_pairing_store_are_guarded_like_the_active_home`.
+
 ### Menambah backend terminal
 
 Turunkan `BaseEnvironment` (`environments/base.py`), implementasikan `execute` dan

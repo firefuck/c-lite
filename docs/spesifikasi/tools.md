@@ -21,7 +21,7 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 | Dispatch | `dispatch.py` | `get_tool_definitions` dan `handle_function_call` |
 | Konteks | `context.py` | `ToolContext`: apa yang boleh diketahui handler tentang panggilannya |
 | Persetujuan | `approval.py` | Pola berbahaya, pola terlarang mutlak, mode `manual` / `smart` / `off` |
-| Penjaga file | `file_safety.py` | Path yang tidak boleh ditulis tool file |
+| Penjaga file | `file_safety.py` | Path yang tidak boleh ditulis atau dibaca tool file; `PROTECTED_PATHS` adalah daftar file terlindung di tiap home agent, dipakai juga oleh gerbang persetujuan |
 | Lingkungan | `environments/` | `BaseEnvironment`, backend `local` |
 | Tool bawaan | `builtin/` | 16 tool (lihat [katalog](../referensi/katalog.md)) |
 | MCP | `mcp/client.py` | Klien MCP stdio tanpa SDK |
@@ -59,7 +59,10 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 - Hook `pre_tool_call` yang melempar atau kehabisan waktu berarti **blokir**.
 
 **Persetujuan perintah** (urutan pemeriksaan, yang paling mutlak dulu)
-1. Pola terlarang mutlak (`HARDLINE_PATTERNS`) ditolak di semua mode.
+1. Yang terlarang mutlak ditolak di semua mode: pola di `HARDLINE_PATTERNS`, dan `rm`
+   rekursif yang targetnya root, direktori home (atau direktori di atasnya), atau direktori
+   sistem (`SYSTEM_DIRECTORIES`). Target dibaca seperti shell menyelesaikannya, dari direktori
+   kerja bila diketahui.
 2. Glob `approvals.deny` ditolak di semua mode, termasuk `--yolo`.
 3. Mode `off` meloloskan sisanya.
 4. Perintah tanpa pola berbahaya langsung jalan.
@@ -68,13 +71,16 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
    galat dan jawaban tak terduga) lanjut ke langkah 7. Putusannya tidak diingat.
 7. Tanya pengguna: `once`, `session`, `always`, `deny`. Tanpa pengguna (cron, `-q`),
    kebijakan non-interaktif yang memutuskan; defaultnya tolak.
-- Perintah dinormalkan dulu (escape ANSI, byte NUL, huruf lebar penuh) sebelum dicocokkan.
+- Perintah dinormalkan dulu (escape ANSI, byte NUL, huruf lebar penuh), lalu setiap pendeteksi
+  membacanya dua kali: seperti tertulis, dan seperti shell membacanya (`shell_plain`: tanpa
+  tanda kutip, garis miring terbalik, `${NAMA}`, `$IFS`, dan garis miring berulang).
 - Callback persetujuan yang rusak atau jawaban tak dikenal berarti tolak.
-- **Perintah yang menjangkau pengaturan atau kredensial agent sendiri** diperlakukan lebih
-  ketat: perintah yang menyebut `.env`, `config.yaml`, `auth.json`, atau
-  `shell-hooks-allowlist.json` di home agent (lewat path ke home itu, atau dengan nama saja
-  bila perintah berjalan di dalam home), dan perintah yang menjalankan CLI pengelolaan agent
-  sendiri (`clite config`, `clite hooks`, `clite plugins`, dan seterusnya). Untuk perintah
+- **Perintah yang menjangkau pengaturan atau kredensial agent sendiri**
+  (`detect_self_access`) diperlakukan lebih ketat. Termasuk di dalamnya: path ke dalam salah
+  satu home agent yang menunjuk, atau bisa mengembang menjadi, file di `PROTECTED_PATHS` atau
+  direktori pemuatnya; perintah apa pun yang dijalankan dari dalam direktori semacam itu; dan
+  CLI pengelolaan agent sendiri (`clite config`, `clite hooks`, `clite plugins`, dan
+  seterusnya) dengan cara pemanggilan apa pun yang terbaca dari teksnya. Untuk perintah
   semacam ini langkah 5 dan 6 tidak berlaku: tidak pernah diingat, tidak pernah masuk
   `command_allowlist`, dan tidak pernah diloloskan peninjau `smart`. Pengguna ditanya setiap
   kali.
@@ -150,9 +156,13 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 
 ## Celah yang diketahui
 
-- Gerbang persetujuan hanya mencocokkan pola pada teks satu perintah. Perintah yang
-  menyembunyikan niatnya (skrip yang ditulis ke file lalu dijalankan terpisah, alias) tidak
-  tertangkap. Gerbang ini sabuk pengaman terhadap kekeliruan model, bukan sandbox.
+- Gerbang persetujuan membaca teks satu perintah dan tidak menjalankan shell. Perintah yang
+  menyembunyikan niatnya tidak tertangkap: skrip yang ditulis ke file lalu dijalankan
+  terpisah, alias, nama yang dirakit dari variabel atau substitusi perintah, dan muatan
+  interpreter (`python -c`). Gerbang ini sabuk pengaman terhadap kekeliruan model, bukan
+  sandbox. Deteksi yang lebih dalam: F2-T15.
+- Persetujuan yang diingat (`session`, `always`) berlaku untuk seluruh pola, bukan untuk
+  perintah yang ditanyakan saja.
 - Tool file tidak dibatasi ke direktori kerja. Yang dibatasi hanya daftar path terlarang.
 - `web_fetch` memeriksa alamat dengan me-resolve nama host lebih dulu, lalu pustaka HTTP
   me-resolve lagi saat menyambung. Server DNS yang menjawab berbeda di antara keduanya (DNS

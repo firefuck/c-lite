@@ -32,7 +32,7 @@ pemeriksaan kesehatan.
 **Startup** (`clite serve`, `clite dashboard`)
 - Token sesi diambil dari `CLITE_SESSION_TOKEN` bila ada (proses induk sudah tahu, dan token
   tidak pernah muncul di baris perintah); kalau tidak, dibuat acak dan URL dashboard dicetak
-  ke stderr.
+  ke stderr. `clite serve` dan `clite dashboard` sengaja tidak punya opsi `--token`.
 - Setelah soket terikat, tepat satu baris `CLITE_BACKEND_READY port=<n>` ditulis ke stdout.
   Dengan `--port 0`, dari situlah induk mengetahui port.
 - Default hanya mendengarkan di `127.0.0.1`. Host lain memicu peringatan di stderr.

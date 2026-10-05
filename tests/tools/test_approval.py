@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -67,8 +68,44 @@ def test_hardline_commands_are_refused_in_every_mode(command):
 
 
 def test_hardline_does_not_catch_ordinary_deletes():
-    assert detect_hardline("rm -rf /tmp/build") is None
-    assert detect_hardline("rm -rf ./node_modules") is None
+    for command in ("rm -rf /tmp/build", "rm -rf ./node_modules", "rm -rf ~/project/dist", "rm -rf $HOME/.cache/pip",
+                    "rm -rf $BUILD_DIR", "rm -f /etc/hosts.bak", "git rm -r --cached .", "cd build && rm -rf *"):
+        assert detect_hardline(command) is None, command
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        'rm -rf "/"', "rm -rf '/'", "rm -rf /.", 'rm -rf "$HOME"', "rm -rf ${HOME}", "rm --recursive --force /",
+        "r\\m -rf /", "rm -rf \\\n/", "rm${IFS}-rf${IFS}/", "rm -rf ~/*", "rm -rf /../..", "rm -rf ~/..", "rm -rf -- /",
+        "/bin/rm -rf /", "sudo -u root rm -rf /usr/*", "env X=1 rm -rf ~", "rm -rf /etc", 'bash -c "rm -rf /"',
+        "cd / && rm -rf *", "cd ~; rm -rf .",
+    ],
+)
+def test_shell_spellings_do_not_hide_a_hardline_delete(command):
+    """Quotes, braces, backslashes, long options, wrappers and ``cd`` change how a command is
+    spelled, not what it deletes."""
+    assert detect_hardline(command), command
+    assert check_command(command, ToolContext(approval_mode="off")).choice == "hardline"
+
+
+def test_a_relative_delete_is_judged_by_where_it_runs(clite_home):
+    home = str(Path.home())
+    assert detect_hardline("rm -rf *", cwd=home) == "delete the home directory"
+    assert detect_hardline("rm -rf .", cwd=home)
+    assert detect_hardline(f"rm -rf {home}") and detect_hardline(f"rm -rf {Path(home).parent}/")
+    assert detect_hardline("rm -rf *", cwd=f"{home}/project") is None
+    assert detect_hardline("rm -rf *") is None  # nothing known about where: the ordinary prompt decides
+
+
+def test_a_remembered_delete_does_not_cover_wiping_the_home_directory():
+    """An approval is remembered per pattern, so the hard limit must hold on its own."""
+    ctx, asked = _ctx("session")
+    assert check_command("rm -rf build/", ctx).approved is True
+    for command in ('rm -rf "$HOME"', "rm -rf ${HOME}", 'rm -rf "/"', "rm --recursive --force /"):
+        decision = check_command(command, ctx)
+        assert decision.approved is False and decision.choice == "hardline", command
+    assert len(asked) == 1
 
 
 def test_obfuscated_commands_are_normalised_before_matching():
@@ -134,6 +171,12 @@ def test_mode_off_skips_the_prompt():
 def test_deny_globs_beat_mode_off(clite_home):
     (clite_home / "config.yaml").write_text("approvals:\n  deny: ['*production*']\n")
     decision = check_command("deploy --target production", ToolContext(approval_mode="off"))
+    assert decision.approved is False and decision.choice == "denylist"
+
+
+def test_deny_globs_see_through_shell_spellings(clite_home):
+    (clite_home / "config.yaml").write_text("approvals:\n  deny: ['*git push*']\n")
+    decision = check_command('git "push" origin main', ToolContext(approval_mode="off"))
     assert decision.approved is False and decision.choice == "denylist"
 
 
@@ -209,8 +252,64 @@ def test_ordinary_use_of_similar_names_is_not_flagged(clite_home):
         "grep -r clite docs/",
         "pip install clite",
         "clite --version",
+        "command -v clite",
+        "ls ~/.clite/skills/*.md",              # a glob that cannot leave the skills directory
+        "tail -n 50 ~/.clite/logs/agent.log",
+        "python ~/.clite/skills/demo/scripts/run.py",
+        "cat ~/.clitex/.env",                   # another directory whose name starts the same way
+        "ls src/clite tools",                   # the package directory as an argument, not the command
+        "cd src/clite && git config user.name someone",
     ):
         assert detect_self_access(command) is None, command
+
+
+def test_shell_spellings_do_not_hide_a_reach_for_the_agents_settings(clite_home):
+    for command in (
+        "cat ~/.clite/.e*",                     # a glob the shell expands to the protected name
+        "echo x >> ~/.clite/config.yam?",
+        "cat ~/.clite/*",
+        "cat ~//.clite/.env",                   # repeated slashes
+        'cat ~/.cl""ite/.env',
+        "cat ~/.cl\\ite/.env",
+        'cat "$HOME"/.clite/.env',
+        "cat ~/.clite/$name",                   # only the shell knows what these two name
+        "cat ~/.clite/{.env,notes}",
+        "cat ~/.clite/skills/../.env",
+        "cat ~/.CLITE/CONFIG.YAML",             # the same file where names ignore case
+        "cd ~ && cat .clite/.env",
+        "cp -r ~/.clite /tmp/copy",             # the whole home, credentials included
+        "tar czf /tmp/home.tgz ~/.clite",
+        "/usr/local/bin/clite config set approvals.mode off",
+        "$(command -v clite) config set approvals.mode off",
+        "`which clite` hooks approve --yes",
+        "sudo clite plugins enable something",
+        "uv run clite gateway pair approve telegram ABCD2345",
+        "python3 -m clite.cli.main config set approvals.mode off",
+    ):
+        assert detect_self_access(command) is not None, command
+
+
+def test_every_home_and_the_pairing_store_are_guarded(clite_home):
+    """Each profile is a home of its own, and gateway/pairing.json decides who may talk to
+    the agent."""
+    for command in (
+        "cat ~/.clite/profiles/work/.env",
+        "cat ~/.clite/profiles/*/.env",
+        "rm -rf ~/.clite/profiles/work",
+        "echo '{}' > ~/.clite/gateway/pairing.json",
+        "cat ~/.clite/gateway/*",
+    ):
+        assert detect_self_access(command) is not None, command
+    assert detect_self_access("cat ~/.clite/gateway/sessions.json") is None
+
+
+def test_where_a_command_runs_decides_what_a_relative_name_can_reach(clite_home, tmp_path):
+    inside = str(clite_home)
+    assert detect_self_access("ls", cwd=inside) is not None  # any name here can be a protected file
+    assert detect_self_access("cat pairing.json", cwd=f"{inside}/gateway") is not None
+    assert detect_self_access("python scripts/run.py", cwd=f"{inside}/skills/demo") is None
+    assert detect_self_access("cat ../../.env", cwd=f"{inside}/skills/demo") is not None
+    assert detect_self_access("ls", cwd=str(tmp_path / "project")) is None
 
 
 def test_a_bare_file_name_counts_when_the_command_runs_inside_the_agents_home(clite_home, tmp_path):

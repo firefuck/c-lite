@@ -13,16 +13,18 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from clite.core.constants import get_default_root, get_home
+from clite.core.constants import get_default_root, get_home, get_profiles_root
 
 _HOME_RELATIVE_DENY = (".ssh", ".gnupg", ".aws", ".kube", ".docker/config.json", ".netrc", ".npmrc", ".pypirc")
 _SYSTEM_PREFIXES = ("/etc", "/boot", "/usr", "/bin", "/sbin", "/lib", "/sys", "/proc", "/dev")
-# The subset of PROTECTED_NAMES that holds secrets. config.yaml references secrets by name only.
-_CREDENTIAL_NAMES = (".env", "auth.json")
-# Files in the agent's home that hold its credentials and its policy. config.yaml *is* the
-# approval policy (mode, allowlist, enabled plugins), and shell-hooks-allowlist.json records
-# which shell hooks the user consented to run. The command approval gate guards the same list.
-PROTECTED_NAMES = (".env", "config.yaml", "auth.json", "shell-hooks-allowlist.json")
+# Files in each of the agent's homes that hold its credentials and its policy, as paths inside
+# that home. config.yaml *is* the approval policy (mode, allowlist, enabled plugins),
+# shell-hooks-allowlist.json records which shell hooks the user consented to run, and
+# gateway/pairing.json records which chat users may talk to the agent. The command approval
+# gate guards the same list.
+PROTECTED_PATHS = (".env", "config.yaml", "auth.json", "shell-hooks-allowlist.json", "gateway/pairing.json")
+# The subset that holds secrets. config.yaml references secrets by name only.
+_CREDENTIAL_PATHS = (".env", "auth.json")
 
 
 def _resolve(path: str | os.PathLike[str]) -> Path:
@@ -37,13 +39,30 @@ def _is_within(path: Path, parent: Path) -> bool:
         return False
 
 
+def protected_path(path: str | os.PathLike[str]) -> str | None:
+    """Which protected file ``path`` is, as its path inside the home it belongs to, or ``None``.
+
+    Every home counts: the active one, the default one, and each profile's, whether or not
+    that profile exists yet. Names are compared without regard to case, because the common
+    macOS and Windows file systems do the same.
+    """
+    target = _resolve(path)
+    inside = []
+    for home in {get_home(), get_default_root()}:
+        if _is_within(target, home):
+            inside.append(target.relative_to(home.resolve(strict=False)).parts)
+    if _is_within(target, get_profiles_root()):
+        inside.append(target.relative_to(get_profiles_root().resolve(strict=False)).parts[1:])
+    names = {"/".join(parts).lower() for parts in inside}
+    return next((name for name in PROTECTED_PATHS if name in names), None)
+
+
 def write_denied_reason(path: str | os.PathLike[str]) -> str | None:
     """Why ``path`` may not be written, or ``None`` when it may."""
     target = _resolve(path)
-    for home in {get_home(), get_default_root()}:
-        for name in PROTECTED_NAMES:
-            if target == (home / name).resolve(strict=False):
-                return f"{name} holds this agent's own credentials or settings; the user edits it, not the agent"
+    name = protected_path(target)
+    if name is not None:
+        return f"{name} holds this agent's own credentials or settings; the user edits it, not the agent"
     user_home = Path.home()
     for relative in _HOME_RELATIVE_DENY:
         if _is_within(target, user_home / relative):
@@ -58,10 +77,9 @@ def write_denied_reason(path: str | os.PathLike[str]) -> str | None:
 def read_denied_reason(path: str | os.PathLike[str]) -> str | None:
     """Why ``path`` may not be read by the file tools, or ``None`` when it may."""
     target = _resolve(path)
-    for home in {get_home(), get_default_root()}:
-        for name in _CREDENTIAL_NAMES:
-            if target == (home / name).resolve(strict=False):
-                return f"{name} holds this agent's credentials"
+    name = protected_path(target)
+    if name in _CREDENTIAL_PATHS:
+        return f"{name} holds this agent's credentials"
     user_home = Path.home()
     for relative in _HOME_RELATIVE_DENY:
         if _is_within(target, user_home / relative):

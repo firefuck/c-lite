@@ -85,6 +85,22 @@ def test_agent_cannot_write_its_own_credentials_or_settings(ctx, clite_home):
     assert write_denied_reason(clite_home / "skills" / "note" / "SKILL.md") is None
 
 
+def test_every_profile_and_the_pairing_store_are_guarded_like_the_active_home(ctx, clite_home):
+    """A profile is a home of its own, and gateway/pairing.json decides which chat users may
+    talk to the agent: both are settings the agent must not edit."""
+    other = clite_home / "profiles" / "work"
+    other.mkdir(parents=True)
+    (other / ".env").write_text("WORK_API_KEY=sk-work-very-secret-value-123456\n")
+    assert "Refused" in json.loads(read_file_tool({"path": str(other / ".env")}, ctx))["error"]
+    for target in (other / ".env", other / "config.yaml", clite_home / "profiles" / "not-made-yet" / "config.yaml",
+                   clite_home / "gateway" / "pairing.json", other / "gateway" / "pairing.json", clite_home / "CONFIG.YAML"):
+        result = json.loads(write_file_tool({"path": str(target), "content": "x"}, ctx))
+        assert "Refused" in result["error"], target
+    assert (other / ".env").read_text().startswith("WORK_API_KEY=")
+    assert write_denied_reason(clite_home / "gateway" / "sessions.json") is None
+    assert read_denied_reason(other / "config.yaml") is None  # policy, not credentials: readable
+
+
 def test_credential_files_cannot_be_read(ctx, clite_home):
     (clite_home / ".env").write_text("OPENROUTER_API_KEY=sk-or-very-secret-value-123456\n")
     result = json.loads(read_file_tool({"path": str(clite_home / ".env")}, ctx))

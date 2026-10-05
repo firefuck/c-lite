@@ -38,7 +38,7 @@ sebelum dijalankan. Urutannya ada di [spesifikasi tools](../spesifikasi/tools.md
 
 | Lapis | Berlaku di mode | Bisa dibuka dengan |
 |---|---|---|
-| Pola terlarang mutlak (menghapus root atau home, memformat disk, fork bomb) | Semua, termasuk `off` | Tidak ada |
+| Terlarang mutlak: `rm` rekursif atas root, direktori home, atau direktori sistem; memformat disk; fork bomb | Semua, termasuk `off` | Tidak ada |
 | `approvals.deny` (glob milik pengguna) | Semua, termasuk `off` | Menyunting config |
 | Pola berbahaya (hapus rekursif, `sudo`, `git push --force`, unduh lalu jalankan, dan lainnya) | `manual`, `smart` | Jawaban pengguna; bisa diingat per sesi atau selamanya |
 | Menjangkau pengaturan atau kredensial agent sendiri | `manual`, `smart` | Jawaban pengguna, **setiap kali** |
@@ -46,13 +46,39 @@ sebelum dijalankan. Urutannya ada di [spesifikasi tools](../spesifikasi/tools.md
 Lapis terakhir menutup jalur eskalasi yang paling langsung. `config.yaml` adalah kebijakan itu
 sendiri (mode persetujuan, daftar izin, plugin aktif), jadi perintah seperti
 `clite config set approvals.mode off` atau `echo ... >> ~/.clite/config.yaml` tidak pernah
-diingat, tidak pernah masuk daftar izin, dan tidak pernah diloloskan peninjau `smart`.
+diingat, tidak pernah masuk daftar izin, dan tidak pernah diloloskan peninjau `smart`. Yang
+dihitung menjangkau:
+
+- path ke dalam salah satu home agent (yang aktif, yang default, dan home tiap profil) yang
+  menunjuk file terlindung, yang **bisa** mengembang menjadi file itu (glob, kurung kurawal,
+  variabel), atau yang menunjuk direktori pemuatnya, termasuk home itu sendiri. File
+  terlindung didaftar sekali di `PROTECTED_PATHS`: `.env`, `config.yaml`, `auth.json`,
+  `shell-hooks-allowlist.json`, dan `gateway/pairing.json`;
+- perintah apa pun yang dijalankan dari dalam home atau dari direktori yang memuat file
+  terlindung, dan dari subdirektori lain bila perintahnya memanjat keluar dengan `..`;
+- CLI pengelolaan agent sendiri, dipanggil dengan nama, dengan path, lewat `python -m`, lewat
+  pembungkus seperti `sudo`, atau lewat substitusi seperti `$(command -v clite)`.
+
+**Perintah dibaca dua kali**: seperti tertulis, dan seperti shell membacanya, yaitu setelah
+tanda kutip, garis miring terbalik, `${NAMA}`, `$IFS`, dan garis miring berulang dibuang.
+`rm -rf "$HOME"`, `rm --recursive --force /`, dan `cat ~//.clite/.e*` dinilai sama dengan
+ejaan polosnya. Target `rm` dibaca seperti shell menyelesaikannya (`~`, `..`, `/*` di ujung),
+dari direktori kerja bila diketahui, dengan mengikuti `cd` di baris yang sama. Gerbang ini
+tetap tidak menjalankan shell: nama yang dirakit dari variabel, oleh substitusi perintah, atau
+oleh interpreter (`python -c`) tidak terlihat. Lihat [celah yang diketahui](#celah-yang-diketahui).
 
 Tanpa pengguna untuk ditanya (cron, `-q`, chat yang diam), jawabannya tolak.
 
-**Tes**: `test_hardline_commands_are_refused_in_every_mode`, `test_deny_globs_beat_mode_off`,
+**Tes**: `test_hardline_commands_are_refused_in_every_mode`,
+`test_shell_spellings_do_not_hide_a_hardline_delete`,
+`test_a_relative_delete_is_judged_by_where_it_runs`,
+`test_a_remembered_delete_does_not_cover_wiping_the_home_directory`,
+`test_deny_globs_beat_mode_off`, `test_deny_globs_see_through_shell_spellings`,
 `test_no_one_to_ask_means_deny_by_default`,
 `test_commands_that_reach_for_the_agents_own_settings_are_flagged`,
+`test_shell_spellings_do_not_hide_a_reach_for_the_agents_settings`,
+`test_every_home_and_the_pairing_store_are_guarded`,
+`test_where_a_command_runs_decides_what_a_relative_name_can_reach`,
 `test_reaching_for_the_agents_settings_is_asked_about_every_time`,
 `test_smart_mode_never_reviews_a_command_that_reaches_for_the_agents_settings`,
 `test_the_command_cannot_talk_the_reviewer_prompt_out_of_its_frame`.
@@ -63,13 +89,18 @@ Tool file dijaga `src/clite/tools/file_safety.py`.
 
 | Operasi | Ditolak untuk |
 |---|---|
-| Tulis (`write_file`, `patch`) | `.env`, `config.yaml`, `auth.json`, `shell-hooks-allowlist.json` milik agent; `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.kube`, `~/.netrc`, dan sejenisnya; direktori sistem |
-| Baca (`read_file`, isi `search_files`) | `.env` dan `auth.json` milik agent; direktori dan file kredensial yang sama |
+| Tulis (`write_file`, `patch`) | `.env`, `config.yaml`, `auth.json`, `shell-hooks-allowlist.json`, dan `gateway/pairing.json` di setiap home agent (aktif, default, dan tiap profil); `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.kube`, `~/.netrc`, dan sejenisnya; direktori sistem |
+| Baca (`read_file`, isi `search_files`) | `.env` dan `auth.json` di setiap home agent; direktori dan file kredensial yang sama |
+
+Path diselesaikan dulu (symlink, `..`, `~`), dan nama dibandingkan tanpa membedakan huruf
+besar-kecil. `gateway/pairing.json` ikut dilindungi karena isinya menentukan pengguna chat
+mana yang boleh memerintah agent.
 
 Selain itu, kredensial yang muncul di file lain diredaksi dari apa yang dibaca model, karena
 semua yang dibaca model dikirim ke provider dan disimpan di database sesi.
 
 **Tes**: `test_agent_cannot_write_its_own_credentials_or_settings`,
+`test_every_profile_and_the_pairing_store_are_guarded_like_the_active_home`,
 `test_credential_files_cannot_be_read`,
 `test_credentials_are_redacted_from_what_the_model_reads`,
 `test_the_allowlist_cannot_be_written_with_the_file_tools`.
@@ -144,6 +175,8 @@ Setiap lompatan redirect diperiksa dengan aturan yang sama.
 - Default hanya mendengarkan di `127.0.0.1`. Host lain memicu peringatan.
 - Satu token acak per proses, dibandingkan dalam waktu konstan. Token berada di fragmen URL
   dashboard, yang tidak pernah dikirim ke server atau tertulis di log.
+- Token masuk hanya lewat variabel lingkungan `CLITE_SESSION_TOKEN`. Tidak ada opsi baris
+  perintah untuknya, karena argumen sebuah proses terlihat oleh semua pengguna mesin itu.
 - WebSocket dari browser harus berasal dari origin dashboard sendiri.
 - Server yang terikat ke loopback hanya melayani permintaan yang ditujukan ke nama loopback,
   sehingga DNS rebinding tidak berguna.
@@ -153,6 +186,7 @@ Setiap lompatan redirect diperiksa dengan aturan yang sama.
 `test_websocket_rejects_a_bad_token_and_a_foreign_origin`,
 `test_a_loopback_server_ignores_requests_addressed_to_another_name`,
 `test_dashboard_url_keeps_the_token_in_the_fragment`,
+`test_the_session_token_cannot_be_given_on_the_command_line`,
 `test_slash_commands_and_script_injection_safety`.
 
 ### Gateway
@@ -200,6 +234,8 @@ Ditulis apa adanya supaya tidak ada yang mengandalkan pagar yang tidak ada.
 |---|---|---|
 | Tidak ada sandbox | Perintah yang lolos gerbang berjalan dengan hak penuh pengguna | Backend Docker dan SSH: F2-T7 |
 | Gerbang persetujuan membaca teks **satu** perintah | Skrip yang ditulis ke file lalu dijalankan di langkah berikutnya tidak terlihat | Pemindaian yang lebih dalam tidak menggantikan sandbox |
+| Gerbang persetujuan tidak menjalankan shell | Nama yang baru terbentuk saat perintah berjalan tidak terbaca: `rm -rf $(echo /)`, `c=clite; $c config set ...`, `python -c "..."`. Yang pertama masih ditanyakan sebagai hapus rekursif; dua yang lain lolos tanpa pertanyaan | Deteksi muatan interpreter dan posisi perintah: F2-T15. Jaminan sungguhan hanya dari sandbox |
+| Persetujuan yang diingat berlaku per **pola**, bukan per perintah | Menjawab "session" atau "always" untuk satu `rm -rf build/` meloloskan setiap hapus rekursif berikutnya, kecuali yang terlarang mutlak | Jawab "once" untuk perintah yang tidak ingin digeneralkan |
 | Tool file tidak dibatasi ke direktori kerja | Model bisa menulis ke mana pun di luar daftar terlarang | Checkpoint sebelum menulis: F2-T8 |
 | Skrip shell hook bisa ditulis ulang | Persetujuan mengikat teks perintah, bukan isi file yang ditunjuknya | Simpan skrip hook di luar jangkauan agent, atau buat hanya-baca |
 | Plugin berjalan dalam proses dengan hak penuh | Plugin jahat yang diaktifkan bisa melakukan apa saja | Baca plugin sebelum mengaktifkan |

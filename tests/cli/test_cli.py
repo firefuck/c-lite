@@ -339,6 +339,17 @@ def test_unknown_profile_and_help(clite_home, capsys):
         assert command in out
 
 
+def test_the_session_token_cannot_be_given_on_the_command_line(clite_home):
+    """Arguments are visible to every local user (`ps`), so the token only comes in through
+    the environment."""
+    from clite.cli.main import build_parser
+
+    for command in ("serve", "dashboard"):
+        args, extra = build_parser().parse_known_args([command, "--token", "secret-token"])
+        assert extra == ["--token", "secret-token"], command
+        assert not getattr(args, "accepts_extra_args", False), command
+
+
 def test_serve_prints_the_ready_line_as_a_real_process(clite_home):
     """`clite serve` the way the desktop app starts it: token in the environment, port 0."""
     import urllib.request
