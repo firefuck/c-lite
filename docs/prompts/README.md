@@ -37,7 +37,10 @@ Yang diperlukan sekali saja:
    git -C ../hermes-ref checkout 1298c8e74baa73e1a2b90124228d017261ac6bc4
    ```
 
-4. Jalankan `/orientasi` satu kali.
+4. Jalankan `/orientasi` satu kali. Bila perintah itu tidak dikenali, skill proyek tidak
+   termuat: tempel bagian "Prompt" dari [01-orientasi.md](01-orientasi.md) sebagai gantinya.
+   Skill di `.claude/skills/` belum pernah dicoba di Claude Code (lihat
+   [STATUS.md](../STATUS.md)); file prompt-nya tidak bergantung pada skill itu.
 
 Yang dimuat otomatis oleh Claude Code: `CLAUDE.md` di root (yang mengimpor `AGENTS.md`), dan
 `CLAUDE.md` di sebuah direktori saat file di direktori itu dibaca. Aturan proyek tidak perlu

@@ -16,11 +16,15 @@ package name written as ``old`` and the new one as ``new``:
 
 The script edits text files in place and renames files and directories. Run it on a clean
 git tree: ``git diff`` then shows exactly what it did and ``git checkout . && git clean -fd``
-undoes it. Afterwards regenerate the generated files (the script prints the commands) and
-run the tests; they are what proves the rename left the tree consistent.
+undoes it. Afterwards regenerate the generated files and re-sort the imports (the script
+prints the commands), then run the tests; they are what proves the rename left the tree
+consistent.
 
 It is deliberately simple: string replacement, no parsing. That works because the code never
-spells the name any other way, and ``core/brand.py`` is where code reads the name from.
+spells the name any other way, and ``core/brand.py`` is where code reads the name from. An
+extra console script (an alias of the command) is a spelling of its own: name it only in
+``pyproject.toml``, never in prose. ``tests/test_rename.py`` renames a copy of the repository
+and fails on anything left behind.
 """
 
 from __future__ import annotations
@@ -163,11 +167,13 @@ def main(argv: list[str] | None = None) -> int:
     if not args.dry_run:
         print(
             "\nNext:\n"
-            "  1. python scripts/gen_rpc_contracts.py     regenerate the TypeScript contracts\n"
-            "  2. (cd ui-tui && npm run build)            rebuild the terminal UI shipped in the package\n"
-            "  3. pip install -e '.[dev]'                 the package directory changed\n"
-            "  4. scripts/run_tests.sh\n"
-            f"  5. Existing installs: move ~/.{old} to ~/.{args.name} and rename {old.upper()}_* variables."
+            "  1. pip install -e '.[dev]'                 the package directory changed\n"
+            "  2. python scripts/gen_rpc_contracts.py     regenerate the TypeScript contracts\n"
+            "  3. python scripts/gen_docs.py              regenerate the reference pages\n"
+            "  4. (cd ui-tui && npm run build)            rebuild the terminal UI shipped in the package\n"
+            "  5. ruff check --fix src tests scripts      re-sort imports: the new name sorts differently\n"
+            "  6. scripts/run_tests.sh\n"
+            f"  7. Existing installs: move ~/.{old} to ~/.{args.name} and rename {old.upper()}_* variables."
         )
     return 0
 

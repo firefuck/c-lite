@@ -20,7 +20,7 @@ untuk pengguna akhir belum ada (roadmap F6-T9).
 | [arsitektur/](arsitektur/README.md) | Lapisan, alur giliran, invarian, format data, protokol RPC, keamanan, beda dengan Hermes | Ditulis tangan; berubah bila arsitektur berubah |
 | [spesifikasi/](spesifikasi/README.md) | Satu dokumen per modul: tanggung jawab, kontrak, status fitur, celah | Ditulis tangan; berubah bersama kode modulnya |
 | [referensi/](referensi/katalog.md) | Katalog (tool, perintah, method RPC, kunci config) dan peta modul | **Dihasilkan** oleh `scripts/gen_docs.py`; jangan disunting |
-| [roadmap/](roadmap/README.md) | 54 task dalam enam fase, dengan kriteria selesai | Ditulis tangan; status diperbarui tiap task selesai |
+| [roadmap/](roadmap/README.md) | 55 task dalam enam fase, dengan kriteria selesai | Ditulis tangan; status diperbarui tiap task selesai |
 | [prompts/](prompts/README.md) | Prompt siap pakai untuk mengerjakan proyek dengan AI | Ditulis tangan |
 | [hermes/](hermes/README.md) | Bedah Hermes Agent dan peta padanan file | Ditulis tangan; mengacu ke satu commit Hermes |
 | [STATUS.md](STATUS.md) | Apa yang dijaga tes, apa yang belum diverifikasi | Diperbarui tiap ada yang terverifikasi |
@@ -64,6 +64,7 @@ oleh suite:
 | Nomor task roadmap, dan kelengkapan bagian tiap task | `test_roadmap_tasks_cited_in_the_docs_are_defined`, `test_every_roadmap_task_is_in_the_index_and_has_the_standard_fields` |
 | Halaman hasil generate masih sama dengan kodenya | `test_generated_reference_pages_are_current` |
 | Setiap `AGENTS.md` punya `CLAUDE.md` yang mengimpornya, dan tetap pendek | `test_every_agents_file_has_a_claude_file_that_imports_it`, `test_instruction_files_stay_short` |
+| Nama proyek bisa diganti: tidak ada file, termasuk dokumen, yang mengejanya dengan cara yang tidak terlihat skrip pengganti nama | `test_renaming_leaves_no_trace_of_the_old_name_and_the_program_still_runs` |
 
 Path ke repositori Hermes tidak bisa diperiksa suite, karena suite tidak boleh bergantung pada
 repositori kedua. Untuk itu ada skrip tersendiri:

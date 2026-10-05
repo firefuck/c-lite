@@ -169,6 +169,7 @@ dimulai dengan `core.threads.start_thread`.
 diganti dengan `scripts/rename_project.py`.
 
 **Tes**: `test_the_home_directory_name_is_spelled_only_in_brand`,
+`test_renaming_leaves_no_trace_of_the_old_name_and_the_program_still_runs`,
 `test_override_wins_and_is_restored`,
 `test_a_thread_started_for_session_work_keeps_the_callers_home`,
 `test_database_lives_in_the_active_home`, `test_each_profile_has_its_own_plugins`,

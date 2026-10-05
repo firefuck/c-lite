@@ -25,7 +25,8 @@ melihat seluruh pemeriksaan lulus, di mesinnya dan di GitHub Actions.
 - Jalankan `scripts/run_tests.sh` tanpa variabel lingkungan tambahan.
 - Dorong ke GitHub dan buat `.github/workflows/ci.yml` hijau. Hal yang patut dicurigai lebih
   dulu: versi Node bawaan runner (tes bundle TUI butuh Node 22), tes yang butuh `playwright`
-  (harus terlewati, bukan gagal), dan `mypy` terhadap versi dependensi yang berbeda.
+  (harus terlewati, bukan gagal), dan `mypy` terhadap versi dependensi yang berbeda. Runner
+  juga memberi tahu bahwa label `ubuntu-latest` berpindah ke Ubuntu 26 mulai 19 Oktober 2026.
 - Tambahkan job yang membangun wheel, memasangnya ke lingkungan bersih, lalu menjalankan
   `clite --version`, `clite doctor`, dan satu giliran dengan provider `mock`.
 
@@ -50,7 +51,10 @@ yang diperiksa Hermes saat memasang.
 
 **Bergantung pada.** -
 
-**Butuh dari Anda.** Akses dorong ke repositori GitHub dengan Actions aktif.
+**Butuh dari Anda.** Akses dorong ke repositori GitHub dengan Actions aktif. Saat scaffolding
+ini dibuat, workflow sudah terpicu di setiap push tetapi GitHub menolak semua job sebelum
+berjalan, dengan pesan "account is locked due to a billing issue". Kunci itu dibuka di
+pengaturan penagihan akun GitHub pemilik repositori; sebelum itu task ini tidak bisa selesai.
 
 ---
 

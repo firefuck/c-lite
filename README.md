@@ -82,7 +82,9 @@ python scripts/rename_project.py --name namabaru --display "Nama Baru" --dry-run
 ```
 
 Buang `--dry-run` untuk menerapkannya, lalu ikuti langkah lanjutan yang dicetak skrip itu
-(membuat ulang kontrak TypeScript dan bundle TUI) sebelum menjalankan `scripts/run_tests.sh`.
+(membuat ulang kontrak TypeScript, halaman referensi, dan bundle TUI, lalu mengurutkan ulang
+import) sebelum menjalankan `scripts/run_tests.sh`. URL repositori di README tidak ikut
+diganti.
 
 ## Lisensi
 
