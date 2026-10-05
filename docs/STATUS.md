@@ -1,68 +1,99 @@
-# Status pengerjaan C-lite
+# Status
 
-Checkpoint: 2026-10-05. Dokumen ini mencatat apa yang sudah ada, apa yang sudah diuji, dan apa
-yang belum, supaya sesi berikutnya (manusia atau AI) bisa langsung melanjutkan.
+Diperbarui 5 Oktober 2026. Halaman ini memisahkan tiga hal yang mudah tertukar: apa yang
+**dijaga tes**, apa yang **ditulis tetapi belum pernah bertemu hal yang sebenarnya**, dan apa
+yang **belum ada**.
 
-## Sudah ada dan lulus pemeriksaan
+## Dijaga tes
 
-- **Backend Python** (`src/clite`): `core`, `state`, `providers`, `plugins` (termasuk shell
-  hooks), `tools` (termasuk klien MCP stdio dan persetujuan `smart`), `skills`, `agent`,
-  `cron`, `runtime`, `cli`, `rpc`, `server` (dashboard statis), `gateway` (adapter `local`
-  dan `telegram`). 612 tes lulus, `ruff check` bersih, `mypy` bersih.
-- **TypeScript**: `apps/shared` (klien protokol, 21 tes), `ui-tui` (TUI berbasis teks, 18
-  tes), `apps/desktop` (logika peluncur backend, 7 tes). `tsc --noEmit` bersih untuk
-  `apps/shared` dan `ui-tui`.
-- **Penjaga arsitektur** (`tests/test_architecture.py`): arah import antar-lapisan, setiap
-  kunci `DEFAULT_CONFIG` punya pembaca, kontrak TypeScript sama dengan kontrak Python, bundle
-  TUI di dalam paket sesuai dengan source-nya.
-- **Skrip**: `scripts/run_tests.sh` (semua pemeriksaan), `scripts/rename_project.py` (sudah
-  dicoba dua kali berturut-turut pada salinan repositori, seluruh tes lulus setelahnya),
-  `scripts/gen_rpc_contracts.py`.
-- **Bedah Hermes**: `docs/hermes/01` sampai `13`.
+Dijalankan di mesin pembuatan: Linux, Python 3.13, Node 22.22.
 
-## Belum selesai
+| Pemeriksaan | Hasil |
+|---|---|
+| `ruff check src tests scripts` | Bersih |
+| `mypy` (159 file sumber) | Bersih |
+| Tes Python (`pytest tests`) | 662 lulus |
+| Tes TypeScript `apps/shared` | 21 lulus; `tsc --noEmit` bersih |
+| Tes TypeScript `ui-tui` | 18 lulus; `tsc --noEmit` bersih |
+| Tes TypeScript `apps/desktop` | 7 lulus; type check dilewati (Electron tidak terpasang) |
+| Rujukan ke file Hermes di semua dokumen | Semuanya ada di clone pada commit rujukan (skrip pemeriksanya ada di bagian "Menjalankan pemeriksaan") |
 
-- Dokumen kerja untuk AI: `AGENTS.md` (root dan per area), `docs/arsitektur/`,
-  `docs/spesifikasi/`, `docs/roadmap/`, `docs/prompts/`, `docs/hermes/99-peta-file.md`,
-  `README.md` yang sebenarnya, `NOTICE.md`.
-- Server ACP (`src/clite/acp`) baru berupa paket kosong berisi penjelasan.
+Yang tercakup tes Python itu, selain perilaku tiap modul:
 
-## Belum diverifikasi
+- **Ujung jauh ditiru dengan server sungguhan, bukan tambalan.** Provider diuji terhadap server
+  HTTP lokal, Telegram terhadap Bot API tiruan, MCP terhadap proses server (termasuk server
+  dari SDK MCP resmi), dashboard di Chromium lewat Playwright. Di mesin tanpa Playwright atau
+  SDK MCP, tes itu dilewati, tidak gagal.
+- **Bentuk kode.** Arah import antar-lapisan, pembaca untuk setiap kunci config, tidak ada
+  nama vendor di luar profilnya, nama direktori home hanya dieja di satu tempat, pembacaan
+  variabel lingkungan hanya di file yang terdaftar, tidak ada `print` di luar CLI.
+- **File turunan.** Kontrak TypeScript, halaman referensi, dan bundle TUI sama dengan
+  sumbernya.
+- **Dokumen.** Tautan, path, nama modul, nama tes, dan nomor task yang disebut dokumen
+  semuanya ada.
 
-- `apps/desktop/src/main.ts` dan `preload.ts`: ditulis tanpa Electron terpasang, belum pernah
-  dijalankan. Lihat `apps/desktop/README.md`.
-- `npm install` di root belum pernah dijalankan (registry npm tidak terjangkau saat
-  pembuatan). Tes TypeScript dijalankan langsung dengan `node --test` (Node 22) memakai
-  TypeScript 6.0, esbuild 0.28 dan `@types/node` 26 yang sudah terpasang di mesin pembuatan.
-- `pip install -e ".[dev]"` belum pernah dijalankan (PyPI tidak terjangkau saat pembuatan).
-  Yang sudah dicoba: build wheel, lalu memasang wheel itu ke venv.
-- `.github/workflows/ci.yml` belum pernah berjalan di GitHub Actions.
-- Adapter Telegram hanya diuji terhadap Bot API tiruan; provider sungguhan hanya diuji
-  terhadap server HTTP tiruan lokal; `GitHubSource` (pasang skill dari GitHub) belum diuji ke
-  jaringan.
+Spesifikasi tiap modul (`docs/spesifikasi/`) menandai fitur yang dijaga tes dengan ✅.
+
+## Ditulis, belum diverifikasi
+
+Semua butir ini punya kode, dan sebagian punya tes terhadap tiruan, tetapi belum pernah
+dijalankan terhadap hal yang sebenarnya. Anggap belum berfungsi sampai terbukti.
+
+| Hal | Keadaan | Task |
+|---|---|---|
+| `pip install -e ".[dev]"` dari PyPI | Belum pernah dijalankan (registry tidak terjangkau saat pembuatan). Yang sudah dicoba: membangun wheel dan memasangnya ke lingkungan virtual | F1-T1 |
+| `npm install` dan skrip `npm` di root | Belum pernah dijalankan; `package-lock.json` belum ada. Tes TypeScript dijalankan langsung dengan `node --test` memakai TypeScript 6.0, esbuild 0.28, dan `@types/node` 26 yang sudah terpasang | F1-T1 |
+| `.github/workflows/ci.yml` | Belum pernah berjalan di GitHub Actions | F1-T1 |
+| Panggilan ke provider sungguhan | Belum pernah. Transport `anthropic_messages` dan `chat_completions` hanya diuji terhadap server tiruan. Ini termasuk pemutaran ulang blok penalaran bertanda tangan pada model Claude generasi 5, yang aturannya diambil dari dokumentasi, bukan dari pengamatan | F1-T2 |
+| Teks penalaran model generasi 5 (`thinking.display`) | Belum diterapkan; `display.show_reasoning` kemungkinan tidak menampilkan apa pun pada model itu | F1-T2 |
+| Persetujuan `smart` dengan model sungguhan | Hanya diuji dengan model berskrip | F1-T2 |
+| Adapter Telegram | Hanya terhadap Bot API tiruan | F1-T3 |
+| Pengiriman cron ke `<platform>:<chat id>` | Jalurnya ada, belum punya tes | F1-T3 |
+| Pasang skill dari GitHub | Belum pernah diuji ke jaringan | F1-T4 |
+| Windows | Belum pernah dijalankan. Kunci file memori dan penyimpanan job tidak mengunci di sana | F1-T5 |
+| macOS | Belum pernah dijalankan | F1-T1 |
+| Plugin lewat entry point pip | Jalur muatnya ada; belum diuji dengan paket yang benar-benar terpasang | F6-T5 |
+| Cangkang Electron (`apps/desktop/src/main.ts`, `preload.ts`, `build.mjs`) | Ditulis tanpa Electron terpasang; belum pernah dijalankan | F5-T1 |
+| Skill dan subagent Claude Code di `.claude/`, dan pemuatan `CLAUDE.md` per direktori | Ditulis mengikuti dokumentasi Claude Code; belum pernah dimuat oleh Claude Code | Coba dengan `/orientasi` |
+
+Hal lain yang perlu diketahui:
+
+- **Beban dan skala belum diuji.** Tidak ada tes untuk sesi yang sangat panjang, banyak sesi
+  gateway bersamaan, atau database yang besar.
+- **Bedah Hermes** (`docs/hermes/`) ditulis dari membaca kode pada satu commit. Keberadaan
+  setiap file yang dirujuk sudah diperiksa mesin; uraian perilakunya tidak diperiksa ulang
+  satu per satu.
+- **Ukuran task di roadmap adalah perkiraan.**
+
+## Belum ada
+
+Yang ada di Hermes dan belum ada di sini didaftar di
+[arsitektur/07-beda-dengan-hermes.md](arsitektur/07-beda-dengan-hermes.md#yang-belum-dibawa),
+dan setiap butirnya punya task di [roadmap](roadmap/README.md). Yang paling terasa bagi
+pemakaian harian: pencarian web, backend terminal bersandbox, render Markdown, TUI layar
+penuh, dan platform pesan selain Telegram.
+
+Celah keamanan yang diketahui didaftar tersendiri di
+[arsitektur/06-keamanan.md](arsitektur/06-keamanan.md#celah-yang-diketahui). Yang terpenting:
+**tidak ada sandbox**. Perintah yang lolos gerbang persetujuan berjalan dengan hak penuh
+pengguna.
 
 ## Menjalankan pemeriksaan
 
-    pip install -e ".[dev]"
-    npm install                 # opsional: untuk type check TypeScript
-    scripts/run_tests.sh        # lint, mypy, tes Python, tes TypeScript
+```bash
+pip install -e ".[dev]"
+npm install                                                  # opsional: type check dan build TypeScript
+scripts/run_tests.sh                                         # lint, mypy, tes Python, tes TypeScript
+python scripts/check_hermes_refs.py --hermes ../hermes-ref   # butuh clone Hermes
+```
 
-## Checkpoint 5 Oktober 2026, 03.30 WIB (pekerjaan terhenti di sini)
+## Catatan verifikasi
 
-Sudah ditulis sejak checkpoint sebelumnya: `docs/arsitektur/` (lengkap, 8 dokumen),
-`docs/hermes/99-peta-file.md`, `docs/roadmap/README.md` dan `docs/roadmap/fase-1-fondasi.md`,
-`tests/test_docs.py`, `scripts/doc_refs.py`, `scripts/check_hermes_refs.py`, empat penjaga baru
-di `tests/test_architecture.py`, dan pengerasan keamanan (redirect `web_fetch`, perintah yang
-menjangkau pengaturan agent sendiri, baca dan redaksi kredensial di tool file, kunci provider
-dari shell, pemindaian skill proyek, pemeriksaan origin dan host di server).
+| Tanggal | Yang diverifikasi | Di mana |
+|---|---|---|
+| 5 Oktober 2026 | Seluruh tabel "Dijaga tes" di atas | Linux, Python 3.13, Node 22.22 |
+| 5 Oktober 2026 | Wheel dibangun dan dipasang ke lingkungan virtual bersih; dari sana `clite --version`, `clite doctor`, satu giliran dengan provider `mock`, `clite tui --help`, dan satu giliran lewat TUI | Linux, Python 3.13, Node 22.22 |
+| 5 Oktober 2026 | `scripts/rename_project.py` pada salinan repositori: tidak ada nama lama yang tersisa, dan seluruh tes Python lulus setelah langkah lanjutannya | Linux, Python 3.13 |
 
-Yang tersisa, berurutan:
-
-1. Roadmap fase 2 sampai 6 (lima file `fase-*.md`; nomor dan judul task sudah ada di indeks
-   roadmap).
-2. `docs/prompts/` (README dan prompt siap pakai).
-3. `AGENTS.md` di root, `CLAUDE.md` di root dan di samping setiap `AGENTS.md`, `README.md`,
-   `NOTICE.md`, peta dokumen di folder `docs`.
-4. Tulis ulang halaman ini (angka tes, daftar belum diverifikasi), lalu hapus syarat sementara
-   di awal `tests/test_docs.py` dan buat seluruh tesnya lulus.
-5. Verifikasi akhir (`scripts/run_tests.sh`), bangun wheel, kirim.
+Setiap task yang memverifikasi sesuatu menambah baris di tabel ini dan memindahkan butirnya
+dari "belum diverifikasi".

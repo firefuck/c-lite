@@ -24,11 +24,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DOCS = REPO_ROOT / "docs"
 
-# TEMPORARY (checkpoint 2026-10-05): the roadmap phases 2-6, docs/prompts and the root AGENTS.md are
-# still being written, so these checks cannot pass yet. They switch on by themselves once
-# docs/prompts/README.md exists; remove this second condition then.
-pytestmark = pytest.mark.skipif(not DOCS.is_dir() or not (DOCS / "prompts" / "README.md").is_file(),
-                                reason="not a source checkout, or the working documents are unfinished")
+pytestmark = pytest.mark.skipif(not DOCS.is_dir(), reason="not a source checkout")
 
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 try:

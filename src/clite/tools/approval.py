@@ -24,6 +24,7 @@ a file and run in a second step is outside what it can see.
 from __future__ import annotations
 
 import fnmatch
+import functools
 import logging
 import re
 import threading
@@ -136,13 +137,32 @@ SELF_ACCESS = DangerMatch("agent_settings_access", "reaches for this agent's own
 NEVER_REMEMBERED = frozenset({SELF_ACCESS.key})
 
 _PROTECTED_NAME = re.compile(r"(?<![\w.\-])(?:" + "|".join(re.escape(name) for name in PROTECTED_NAMES) + r")(?![\w.\-])")
-# The agent's own command line, used to change what it is allowed to do. Read-only uses are
-# caught as well; the model has tools and slash commands for those.
-_OWN_CLI = re.compile(
-    r"(?:^|[\s;&|(`])(?:" + "|".join(sorted({re.escape(APP_NAME), re.escape(DISPLAY_NAME.lower())}))
-    + rf"|python[\d.]*\s+-m\s+{re.escape(APP_NAME)})\s+(?:(?:-p|--profile)[\s=]+\S+\s+|-\S+\s+)*"
-    r"(?:config|hooks|plugins|setup|gateway|profile|tools|model|skills|cron|sessions)\b"
-)
+# Subcommands of the agent's own command line that change what it is allowed to do or what
+# it stores. Read-only uses are caught as well; the model has tools and slash commands for those.
+OWN_CLI_SUBCOMMANDS = ("config", "hooks", "plugins", "setup", "gateway", "profile", "tools", "model", "skills", "cron", "sessions")
+
+
+def own_command_names() -> set[str]:
+    """Names this agent's command line can be started under: the package name, the display
+    name in lower case, and every console script the installed distribution declares."""
+    names = {APP_NAME, DISPLAY_NAME.lower()}
+    try:
+        from importlib.metadata import entry_points
+
+        names.update(entry.name for entry in entry_points(group="console_scripts")
+                     if entry.value.split(":")[0].startswith(f"{APP_NAME}."))
+    except Exception:  # noqa: BLE001 - metadata of some other package may be broken
+        logger.debug("could not list console scripts", exc_info=True)
+    return names
+
+
+@functools.lru_cache(maxsize=1)
+def _own_cli() -> re.Pattern[str]:
+    commands = "|".join(re.escape(name) for name in sorted(own_command_names()))
+    return re.compile(
+        rf"(?:^|[\s;&|(`])(?:{commands}|python[\d.]*\s+-m\s+{re.escape(APP_NAME)})\s+"
+        r"(?:(?:-p|--profile)[\s=]+\S+\s+|-\S+\s+)*(?:" + "|".join(OWN_CLI_SUBCOMMANDS) + r")\b"
+    )
 
 
 def _home_spellings() -> list[str]:
@@ -168,7 +188,7 @@ def detect_self_access(command: str, cwd: str = "") -> DangerMatch | None:
     one of the protected files by a path into the agent's home (or by bare name while working
     inside that home), or it runs the agent's own management command."""
     text = normalize_command(command)
-    if _OWN_CLI.search(text):
+    if _own_cli().search(text):
         return SELF_ACCESS
     if _PROTECTED_NAME.search(text) and (_inside_agent_home(cwd) or any(spelling in text for spelling in _home_spellings())):
         return SELF_ACCESS
@@ -182,6 +202,7 @@ _LOCK = threading.Lock()
 def reset_approval_state() -> None:
     with _LOCK:
         _SESSION_APPROVED.clear()
+    _own_cli.cache_clear()
 
 
 def normalize_command(command: str) -> str:

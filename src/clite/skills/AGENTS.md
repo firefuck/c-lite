@@ -13,7 +13,9 @@ Tes: `pytest tests/skills -q`
 2. **Indeks tetap ringkas.** Hanya nama dan deskripsi. Apa pun yang ditambahkan ke indeks
    dibayar di setiap permintaan semua sesi.
 3. **Konten dari luar dipindai sebelum dimuat atau ditulis.** Skill berakhir di depan model
-   dengan wibawa system prompt.
+   dengan wibawa system prompt. Skill dari tingkat proyek dan eksternal dipindai setiap kali
+   ditemukan (`catalog.SCANNED_TIERS`); tingkat baru yang isinya datang dari luar masuk ke
+   daftar itu.
 4. **Hanya tingkat lokal yang ditulis.** Jangan menulis ke direktori bawaan paket.
 5. **Tidak ada yang dieksekusi saat memasang.**
 6. **Hanya mengimpor `core` dan `plugins.hooks`.** Tool skill untuk model ada di

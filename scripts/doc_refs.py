@@ -23,12 +23,25 @@ import os
 import re
 from pathlib import Path
 
+
+def _brand() -> tuple[str, str]:
+    """``(package name, display name)`` as ``src/<package>/core/brand.py`` states them, so a
+    renamed project needs no change here."""
+    found = sorted((Path(__file__).resolve().parents[1] / "src").glob("*/core/brand.py"))
+    text = found[0].read_text(encoding="utf-8") if found else ""
+    name = re.search(r'^APP_NAME = "([^"]+)"', text, re.MULTILINE)
+    display = re.search(r'^DISPLAY_NAME = "([^"]+)"', text, re.MULTILINE)
+    return (name.group(1) if name else "app"), (display.group(1) if display else "App")
+
+
+PACKAGE, DISPLAY = _brand()
+
 LINK = re.compile(r"(?<!\!)\[[^\]]*\]\(([^)\s]+)\)")
 TOKEN = re.compile(r"`([^`\n]+)`")
-MODULE = re.compile(r"clite(?:\.[A-Za-z_]\w*)+")
+MODULE = re.compile(rf"{re.escape(PACKAGE)}(?:\.[A-Za-z_]\w*)+")
 TEST_NAME = re.compile(r"test_[a-z0-9_]+")
 HERMES_WORD = re.compile(r"\bHermes\b")
-LOCAL_WORD = re.compile(r"\bC-lite\b")
+LOCAL_WORD = re.compile(rf"(?<!\w){re.escape(DISPLAY)}(?!\w)")
 
 SKIP_DIRS = frozenset({
     ".git", "node_modules", "build", "dist", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
@@ -41,7 +54,7 @@ ROOT_PREFIXES = ("src/", "tests/", "scripts/", "docs/", "apps/", "ui-tui/", ".gi
 BUILD_OUTPUT = ("ui-tui/dist/", "apps/desktop/dist/", "apps/shared/dist/")
 CODE_SUFFIXES = (".py", ".ts", ".tsx", ".mjs", ".cjs", ".js", ".sh")
 FILE_SUFFIXES = (*CODE_SUFFIXES, ".md", ".json", ".yaml", ".yml", ".toml", ".txt", ".lock", ".ps1", ".nix", ".example")
-ALWAYS_LOCAL = ("src/clite/", "docs/")
+ALWAYS_LOCAL = (f"src/{PACKAGE}/", "docs/")
 
 _FENCE = re.compile(r"^\s*(```|~~~)")
 _LIST_ITEM = re.compile(r"^\s*(?:[-*+]|\d+\.)\s+")
@@ -195,7 +208,7 @@ def check_local_path(token: str, files: set[str], root: Path) -> str | None:
         return None
     if path.startswith(BUILD_OUTPUT) or path.startswith("dist/") or "/dist/" in path:
         return None
-    if path.startswith(ROOT_PREFIXES) and not (path.startswith("src/") and not path.startswith("src/clite")):
+    if path.startswith(ROOT_PREFIXES) and not (path.startswith("src/") and not path.startswith(f"src/{PACKAGE}")):
         return None if path.rstrip("/") in files else "not in the repository"
     if path.startswith("src/"):
         return None if _ends_with(path.rstrip("/"), files) else "no package has this path"

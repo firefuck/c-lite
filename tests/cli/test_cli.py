@@ -314,6 +314,7 @@ def test_status_version_doctor_logs_memory(cli, clite_home):
     assert "mock-1 via mock" in status and "Cron:      0 active job(s)" in status
     doctor = cli("doctor")
     assert "[ok  ] Model provider is configured: mock-1 via mock" in doctor and "Everything needed is in place." in doctor
+    assert "[ok  ] Shell hooks are approved\n" in doctor  # nothing is waiting, so nothing is said about waiting
     cli("logs", "--errors", "-n", "5")
     assert "entries" in cli("memory")
     cli("acp", expect=2)

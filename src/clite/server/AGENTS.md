@@ -9,7 +9,10 @@ dilewati).
 
 1. **Tindakan lewat WebSocket, bukan REST.** Jangan menambah rute REST yang mengubah sesuatu.
    Kemampuan baru adalah method RPC, sehingga TUI dan desktop ikut mendapatkannya.
-2. **Setiap rute `/api` selain health memeriksa token.** Bungkus dengan `guarded(...)`.
+2. **Setiap rute `/api` selain health memeriksa token.** Bungkus dengan `guarded(...)`, yang
+   juga menolak permintaan ke server loopback bila header `Host`-nya bukan nama loopback.
+   WebSocket dari browser hanya diterima dari origin dashboard sendiri (`origin_allowed`).
+   Jangan melonggarkan keduanya untuk "memudahkan pengembangan".
 3. **Token tidak pernah masuk log, baris perintah, atau query string yang dicetak.**
 4. **Default hanya loopback.** Jangan mengubah host default.
 5. **Dashboard tidak pernah memasang HTML dari model atau tool.** Pakai `textContent` dan

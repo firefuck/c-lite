@@ -18,9 +18,12 @@ Tes: `pytest tests/tools -q`
    percakapan. `check_fn` hanya untuk ketersediaan yang stabil (kunci API ada, biner ada).
 5. **Setiap jalan menuju shell lewat `check_command`.** Tool baru yang menjalankan perintah
    harus memanggil gerbang persetujuan lebih dulu.
-6. **Setiap jalan menuju penulisan file lewat `write_denied_reason`.**
+6. **Setiap jalan menuju penulisan file lewat `write_denied_reason`, dan setiap jalan menuju
+   pembacaan file lewat `read_denied_reason`.** Yang dibaca model dikirim ke provider dan
+   disimpan di database sesi.
 7. **Rahasia tidak masuk ke proses anak dan tidak masuk ke hasil.** Pakai `build_child_env`
-   untuk subprocess dan `redact` untuk keluaran yang berasal dari luar.
+   untuk subprocess, dan `redact` untuk apa pun yang berasal dari luar: keluaran perintah, isi
+   file, hasil pencarian.
 8. **Tidak ada import dari `agent` di tingkat modul.** Tool yang butuh agent memakai
    `ctx.agent`. Dua pengecualian yang diizinkan tercatat di `tests/test_architecture.py`.
 
@@ -48,6 +51,12 @@ Tambahkan `(regex, kunci, deskripsi)` ke `DANGEROUS_PATTERNS` di `approval.py`, 
 baris ke tes parametris `test_dangerous_commands_are_detected` dan satu perintah mirip yang
 tidak boleh kena ke `test_ordinary_commands_are_not_flagged`. `kunci` adalah yang diingat
 ketika pengguna menjawab "always", jadi pola yang sejenis memakai kunci yang sama.
+
+Pola di `DANGEROUS_PATTERNS` bisa disetujui untuk satu sesi atau selamanya. Perintah yang
+menjangkau pengaturan atau kredensial agent sendiri ditangani `detect_self_access` dan tidak
+pernah diingat. Sub-perintah `clite` baru yang mengubah pengaturan ditambahkan ke daftar di
+`OWN_CLI_SUBCOMMANDS`, dengan satu baris di
+`test_commands_that_reach_for_the_agents_own_settings_are_flagged`.
 
 ### Menambah backend terminal
 

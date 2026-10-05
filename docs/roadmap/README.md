@@ -9,14 +9,16 @@ menjadi task yang bisa dikerjakan satu per satu oleh AI. Keadaan sekarang dicata
 1. Pilih task dengan status ⬜ yang semua ketergantungannya sudah ✅. Bila tidak ada alasan
    lain, ikuti urutan nomor.
 2. Berikan task itu ke AI dengan prompt di
-   [prompts/02-kerjakan-task.md](../prompts/02-kerjakan-task.md). Satu task, satu sesi, satu
-   commit atau lebih.
+   [prompts/02-kerjakan-task.md](../prompts/02-kerjakan-task.md). Di Claude Code:
+   `/kerjakan-task F1-T1`.
 3. Setelah selesai, AI memperbarui status di tabel indeks di bawah dan di spesifikasi modul.
-   Anda memeriksa hasilnya dengan [prompts/03-tinjau.md](../prompts/03-tinjau.md), sebaiknya
-   di sesi baru.
+   Periksa hasilnya dengan [prompts/03-tinjau.md](../prompts/03-tinjau.md) (`/tinjau F1-T1`),
+   di konteks yang bersih.
 
-Jangan memberi dua task sekaligus dalam satu sesi. Task dirancang supaya muat dalam satu
-jendela konteks beserta dokumen yang perlu dibaca.
+Satu task per sesi adalah default yang aman: riwayat sesi tetap relevan dan hasilnya mudah
+ditinjau. Model yang sanggup memegang sesi panjang boleh mengerjakan task L dalam satu sesi,
+dan beberapa task S yang berkaitan boleh digabung. Cara menyiapkan alatnya ada di
+[prompts/README.md](../prompts/README.md).
 
 ## Fase
 
@@ -50,8 +52,8 @@ ketergantungan tiap task dipenuhi.
 |---|---|---|
 | S | Sampai 300 baris berubah | Satu sesi, satu commit |
 | M | 300 sampai 1.000 baris | Satu sesi; rencanakan dulu, commit bertahap |
-| L | 1.000 sampai 3.000 baris | Beberapa sesi. Pecah menjadi sub-langkah di awal dan catat kemajuannya di task ini |
-| XL | Lebih dari itu | Jangan dimulai sebagai satu task. Sesi pertama hanya memecahnya menjadi task baru di file fase |
+| L | 1.000 sampai 3.000 baris | Satu sesi panjang atau beberapa sesi. Pecah menjadi sub-langkah di awal, commit per sub-langkah, dan catat kemajuannya di task ini |
+| XL | Lebih dari itu | Jangan dimulai sebagai satu task. Pecah dulu menjadi task baru di file fase dengan [prompts/10-pecah-task.md](../prompts/10-pecah-task.md) |
 
 ## Selesai itu apa
 
@@ -162,7 +164,7 @@ Status: ⬜ belum, 🟡 sedang dikerjakan atau selesai sebagian, ✅ selesai.
 ## Menambah atau memecah task
 
 - Task baru mendapat nomor berikutnya di fasenya. Nomor tidak pernah dipakai ulang.
-- Judul task ditulis sebagai `### F2-T15 Judul` di file fase, dengan semua bagian wajib, lalu
+- Judul task ditulis sebagai `### F<fase>-T<nomor> Judul` di file fase, dengan semua bagian wajib, lalu
   didaftarkan di indeks. `tests/test_docs.py` menggagalkan suite bila salah satunya terlewat.
 - Task XL dipecah menjadi task baru sebelum dikerjakan. Task induknya tetap ada sebagai payung
   dan mendaftar anak-anaknya.

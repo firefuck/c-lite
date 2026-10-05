@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from clite.core.brand import DISPLAY_NAME
 from clite.core.config import load_config
 from clite.plugins.hooks import get_hook_bus
 from clite.providers.testing import ScriptedClient, mock_route, text_response
@@ -179,11 +180,24 @@ def test_commands_that_reach_for_the_agents_own_settings_are_flagged(clite_home)
         f"cd {clite_home} && sed -i s/manual/off/ config.yaml",
         "printf '{}' > ~/.clite/shell-hooks-allowlist.json",
         "clite config set approvals.mode off",
-        "c-lite hooks approve --yes",
+        f"{DISPLAY_NAME.lower()} hooks approve --yes",
         "cd /tmp && python3 -m clite plugins enable something",
         "clite -p work gateway pair approve telegram ABCD2345",
     ):
         assert detect_self_access(command) is not None, command
+
+
+def test_every_installed_console_script_counts_as_the_agents_own_command(monkeypatch):
+    """A renamed or aliased install must not leave a second name the gate does not know."""
+    from types import SimpleNamespace
+
+    from clite.tools import approval
+
+    scripts = [SimpleNamespace(name="helper", value="clite.cli.main:main"), SimpleNamespace(name="other", value="otherpkg.cli:main")]
+    monkeypatch.setattr("importlib.metadata.entry_points", lambda **_kwargs: scripts)
+    approval.reset_approval_state()
+    assert detect_self_access("helper config set approvals.mode off") is not None
+    assert detect_self_access("other config set something") is None
 
 
 def test_ordinary_use_of_similar_names_is_not_flagged(clite_home):

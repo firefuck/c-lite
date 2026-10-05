@@ -27,7 +27,9 @@ Tes: `pytest tests/providers -q`
 
 1. Buat `src/clite/bundled/plugins/model-providers/<nama>/__init__.py`.
 2. Isi dengan `register_provider(ProviderProfile(name=..., env_vars=(...), base_url=..., ...))`.
-   Contoh paling sederhana: `deepseek/`. Contoh dengan keanehan: `openrouter/`.
+   Contoh paling sederhana: `deepseek/`. Contoh dengan keanehan: `openrouter/`. Nama di
+   `env_vars` otomatis terdaftar sebagai kredensial: dibuang dari lingkungan perintah yang
+   dijalankan agent dan diredaksi dari apa yang dibaca model.
 3. Tambahkan nama provider ke tes `test_bundled_providers_are_discovered`.
 4. Jalankan `python scripts/gen_docs.py` (katalog provider ikut berubah).
 

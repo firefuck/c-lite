@@ -256,7 +256,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | Tools: the registry, toolsets, the dispatch entry points and the built-in tools. |  |
-| `approval.py` | Command approval: the gate between the model and a destructive shell command. | `DangerMatch`, `ApprovalDecision`, `detect_self_access()`, `reset_approval_state()`, `normalize_command()`, `detect_dangerous_command()`, `detect_hardline()`, `smart_verdict()`, `check_command()` |
+| `approval.py` | Command approval: the gate between the model and a destructive shell command. | `DangerMatch`, `ApprovalDecision`, `own_command_names()`, `detect_self_access()`, `reset_approval_state()`, `normalize_command()`, `detect_dangerous_command()`, `detect_hardline()`, `smart_verdict()`, `check_command()` |
 | `context.py` | ``ToolContext``: what a tool handler may know about the call it is serving. | `ToolContext` |
 | `dispatch.py` | The two entry points the agent loop uses: tool definitions in, tool results out. | `reset_definition_cache()`, `resolve_enabled_tools()`, `get_tool_definitions()`, `coerce_args()`, `cap_result()`, `handle_function_call()` |
 | `file_safety.py` | Path guards for the file tools. | `write_denied_reason()`, `read_denied_reason()` |

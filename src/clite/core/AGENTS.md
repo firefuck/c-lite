@@ -41,7 +41,9 @@ Tes: `pytest tests/core -q`
 ### Mendaftarkan rahasia baru
 
 `register_secret(SecretSpec(NAMA, deskripsi, category=..., url=...))` di modul yang
-memakainya. Alur setup menampilkan daftar ini.
+memakainya. Alur setup menampilkan daftar ini, dan `secret_names()` memakainya: nama yang
+terdaftar dibuang dari lingkungan perintah yang dijalankan agent dan nilainya diredaksi dari
+apa yang dibaca model. Kredensial yang tidak didaftarkan tidak mendapat perlindungan itu.
 
 ## Jebakan
 
