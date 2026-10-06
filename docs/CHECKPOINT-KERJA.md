@@ -49,7 +49,7 @@ membutuhkan otorisasi tersendiri.
   menghubungi API publik; pemeriksa otomatis menghentikannya. Tes kegagalan startup TUI
   kini memakai profil yang tidak ada, tetap berlaku saat paket sudah terpasang, memiliki
   timeout dan cleanup. Kedua tes tetap memeriksa kontrak kegagalan aslinya.
-- Berkas lama yang belum terlacak: `package-lock.json`; simpan untuk diperiksa pada F1-T1.
+- `package-lock.json` sudah diperiksa, di-commit, dan dipakai `npm ci` di CI.
 - Backup fase audit berhasil: snapshot source di `main` dan
   `codex/checkpoint-2026-10-05` pada GitHub commit `a9f7b550c4d86f29624cef23f0a3b40f3ae5d66c`.
   Tree `4b3ef181801b77a16f4032e1fb931622a80b531f` identik dengan commit lokal `9ac1d63`.
@@ -66,7 +66,9 @@ membutuhkan otorisasi tersendiri.
   baru dari registry; `scripts/run_tests.sh` lulus dan kedua build Node berhasil.
   Smoke wheel di luar checkout lulus, serta menolak salinan instalasi dengan satu aset
   skill dihilangkan. Lockfile lama telah diperiksa dan cocok dengan ketiga workspace.
-  Perubahan berikutnya siap dikirim untuk memverifikasi job wheel dan `npm ci` di CI.
+  CI run `37356398420` pada `6e6669c` hijau di semua job, termasuk `npm ci` dan wheel.
+  F1-T1 selesai. Tugas berikutnya menurut urutan: F1-T2 (butuh kunci API dari pemilik);
+  bila belum tersedia, F1-T4.
 
 ## Riwayat checkpoint
 
@@ -82,3 +84,4 @@ membutuhkan otorisasi tersendiri.
 | 5 Oktober 2026 | RPC, desktop, dan cron | Tipe handler, stderr startup, advisory lock | `5048066`, `e578c5d`, `239da31` |
 | 5 Oktober 2026 | F11: batas privasi trusted gateway | Dokumentasi shared profile data | `c5b2d12` |
 | 6 Oktober 2026 | F08/F09: scope dan redaksi | Sembilan regresi dibuktikan; suite Python, tipe, dan Node lulus | Lihat log Git |
+| 6 Oktober 2026 | F1-T1: pasang dan CI | CI run `37356398420` hijau: Python 3.11–3.13, Node, wheel | Lihat log Git |

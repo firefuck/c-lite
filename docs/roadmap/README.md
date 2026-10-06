@@ -86,7 +86,7 @@ dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
 
 | Task | Judul | Ukuran | Bergantung pada | Status |
 |---|---|---|---|---|
-| F1-T1 | Pasang di lingkungan nyata dan hijaukan CI | S | - | 🟡 |
+| F1-T1 | Pasang di lingkungan nyata dan hijaukan CI | S | - | ✅ |
 | F1-T2 | Uji provider sungguhan | M | F1-T1 | ⬜ |
 | F1-T3 | Uji Telegram sungguhan | S | F1-T1 | ⬜ |
 | F1-T4 | Pasang skill dari GitHub | S | F1-T1 | ⬜ |

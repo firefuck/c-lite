@@ -41,11 +41,11 @@ yang diperiksa Hermes saat memasang.
 
 **Selesai bila.**
 - [x] CI hijau di ketiga versi Python dan di job Node, pada commit di `main`.
-- [ ] `package-lock.json` ada dan `npm ci` berhasil di CI.
-- [ ] Job wheel membuktikan paket terpasang membawa plugin bawaan, skill bawaan, dashboard,
+- [x] `package-lock.json` ada dan `npm ci` berhasil di CI.
+- [x] Job wheel membuktikan paket terpasang membawa plugin bawaan, skill bawaan, dashboard,
       dan bundle TUI (`clite tui --help` jalan dari wheel).
 - [x] Komentar "NOT VERIFIED" di `ci.yml` dihapus.
-- [ ] Butir pemasangan dan CI di `docs/STATUS.md` dipindah dari "belum diverifikasi".
+- [x] Butir pemasangan dan CI di `docs/STATUS.md` dipindah dari "belum diverifikasi".
 
 **Ukuran.** S
 
@@ -62,7 +62,12 @@ tambahan setelah aktivasi virtualenv, diikuti build TUI dan desktop. Wheel diban
 source, dipasang ke virtualenv bersih, lalu CLI, doctor, giliran mock, plugin, skill,
 aset dashboard, dan TUI lulus smoke di luar checkout. Menghapus satu aset skill pada
 salinan instalasi membuat smoke gagal sebagaimana mestinya. Workflow diperluas untuk
-menjalankan pemeriksa kanonis dan smoke wheel itu; tunggu hasil CI sebelum menutup task.
+menjalankan pemeriksa kanonis dan smoke wheel itu.
+
+**Selesai 6 Oktober 2026.** Run `37356398420` pada commit `6e6669c` lulus di semua job:
+Python 3.11/3.12/3.13, Node 22 (`npm ci`, `scripts/run_tests.sh`, `npm run build`), dan wheel
+(dibangun, dipasang ke virtualenv bersih, lalu `scripts/check_wheel_install.py` lulus di luar
+checkout).
 
 ---
 

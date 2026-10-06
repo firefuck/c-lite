@@ -39,17 +39,16 @@ Spesifikasi tiap modul (`docs/spesifikasi/`) menandai fitur yang dijaga tes deng
 
 ## Pemasangan yang sudah diverifikasi
 
-Pada 6 Oktober 2026 CI repo `https://github.com/dragovics/clite` run `37355514348`
-berhasil memasang paket dari registry dan menjalankan Ruff, mypy, serta seluruh tes Python
-pada 3.11, 3.12, dan 3.13. Job Node 22 berhasil memasang dependensi, memeriksa tipe,
-menjalankan tes, dan membangun TUI. Pemasangan editable serta `npm ci` dengan lockfile
-juga sudah berhasil pada lingkungan lokal baru. Pemeriksa kanonis lulus setelah aktivasi
-virtualenv tanpa pengaturan tambahan, dan build TUI serta desktop berhasil. Wheel yang
-dibangun lalu dipasang ke virtualenv lain lulus `scripts/check_wheel_install.py` di luar
-checkout; aset skill yang sengaja dihilangkan ditolak oleh pemeriksa tersebut.
-Kendala penagihan yang tercatat pada
-repo sebelumnya tidak muncul di repo tujuan ini. F1-T1 masih menunggu CI untuk lockfile
-dan job wheel yang baru ditambahkan.
+Pada 6 Oktober 2026 CI repo `https://github.com/dragovics/clite` run `37356398420` pada
+commit `6e6669c` lulus di semua job. Job Python memasang paket dari registry dan
+menjalankan Ruff, mypy, serta seluruh tes Python pada 3.11, 3.12, dan 3.13. Job Node 22
+memasang dependensi dengan `npm ci` dari `package-lock.json`, menjalankan
+`scripts/run_tests.sh` (termasuk pemeriksaan tipe), dan `npm run build`. Job wheel
+membangun wheel, memasangnya ke virtualenv bersih, lalu `scripts/check_wheel_install.py`
+lulus di luar checkout: CLI, doctor, giliran mock, plugin dan skill bawaan, aset dashboard,
+dan TUI. Aset skill yang sengaja dihilangkan ditolak oleh pemeriksa tersebut (dicoba lokal).
+Kendala penagihan yang tercatat pada repo sebelumnya tidak muncul di repo tujuan ini.
+F1-T1 selesai.
 
 ## Ditulis, belum diverifikasi
 
@@ -58,7 +57,6 @@ dijalankan terhadap hal yang sebenarnya. Anggap belum berfungsi sampai terbukti.
 
 | Hal | Keadaan | Task |
 |---|---|---|
-| CI untuk lockfile dan job wheel baru | Implementasi siap; menunggu run CI pada commit berikutnya | F1-T1 |
 | Panggilan ke provider sungguhan | Belum pernah. Transport `anthropic_messages` dan `chat_completions` hanya diuji terhadap server tiruan. Ini termasuk pemutaran ulang blok penalaran bertanda tangan pada model Claude generasi 5, yang aturannya diambil dari dokumentasi, bukan dari pengamatan | F1-T2 |
 | Teks penalaran model generasi 5 (`thinking.display`) | Belum diterapkan; `display.show_reasoning` kemungkinan tidak menampilkan apa pun pada model itu | F1-T2 |
 | Persetujuan `smart` dengan model sungguhan | Hanya diuji dengan model berskrip | F1-T2 |

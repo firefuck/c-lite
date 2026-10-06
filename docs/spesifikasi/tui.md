@@ -77,7 +77,7 @@ mengetik selagi agent bekerja.
 | Klien bersama, reducer transkrip | ✅ | |
 | TUI berbasis baris | ✅ | Diuji ujung ke ujung terhadap backend sungguhan dengan provider `mock` |
 | Bundle di dalam wheel | ✅ | |
-| `npm install` dan skrip `npm` di root | ⬜ belum diverifikasi | Tes dijalankan langsung dengan `node --test`: F1-T1 |
+| `npm ci` dan skrip `npm` di root | ✅ | Job Node di CI menjalankan `npm ci`, tes, dan `npm run build` |
 | TUI layar penuh (Ink/React): panel, status bar, diff | ⬜ | Memakai ulang `backend.ts`, `render.ts`, dan reducer: F3-T3 |
 | Pelengkapan slash command, riwayat input | ⬜ | `complete.slash` dan `commands.catalog` sudah ada di protokol: F3-T3 |
 | Render Markdown | ⬜ | F3-T2 |
