@@ -74,7 +74,7 @@ def test_a_dry_run_reports_the_changes_and_makes_none(tmp_path):
     before = _snapshot(copy)
     result = _rename(copy, NEW_NAME, NEW_DISPLAY, "--dry-run")
     assert result.returncode == 0, result.stderr
-    assert f"would move   src/{APP_NAME} -> {NEW_NAME}" in result.stdout
+    assert f"would move   {Path('src') / APP_NAME} -> {NEW_NAME}" in result.stdout
     assert "would edit   pyproject.toml" in result.stdout
     assert _snapshot(copy) == before
 

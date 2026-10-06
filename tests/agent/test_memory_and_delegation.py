@@ -22,7 +22,7 @@ def test_entries_are_stored_delimited_and_bounded(clite_home):
     store = MemoryStore(memory_char_limit=60)
     assert store.add("memory", "Project uses pnpm")["success"] is True
     assert store.add("memory", "CI runs on push to main")["success"] is True
-    assert (clite_home / "memories" / "MEMORY.md").read_text() == "Project uses pnpm\n§\nCI runs on push to main\n"
+    assert (clite_home / "memories" / "MEMORY.md").read_text(encoding="utf-8") == "Project uses pnpm\n§\nCI runs on push to main\n"
 
     full = store.add("memory", "A third fact that does not fit in the remaining space")
     assert full["success"] is False and "Replace or remove" in full["error"]

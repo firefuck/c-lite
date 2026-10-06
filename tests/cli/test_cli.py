@@ -124,10 +124,10 @@ def test_repl_shows_tools_and_asks_for_approval(clite_home, tmp_path):
     target.mkdir()
     out, _ = _repl(
         ["clean up", "s", "clean again"],  # "s" answers the approval prompt: approve for this session
-        [tool_call_response(("terminal", {"command": f"rm -rf {target}"})), text_response("Done."),
-         tool_call_response(("terminal", {"command": f"rm -rf {target}"})), text_response("Done again.")],
+        [tool_call_response(("terminal", {"command": f'rm -rf "{target.as_posix()}"'})), text_response("Done."),
+         tool_call_response(("terminal", {"command": f'rm -rf "{target.as_posix()}"'})), text_response("Done again.")],
     )
-    assert "needs your approval" in out and f"rm -rf {target}" in out
+    assert "needs your approval" in out and f'rm -rf "{target.as_posix()}"' in out
     assert out.count("needs your approval") == 1  # the second identical command was covered by "session"
     assert "✓ terminal" in out and "Done again." in out and not target.exists()
 
@@ -175,11 +175,11 @@ def test_config_commands(cli, clite_home):
     assert "already current" in cli("config", "migrate")
 
 
-def test_setup_without_questions(clite_home, capsys):
+def test_setup_without_questions(clite_home, capsys, assert_private_file):
     assert main(["setup", "--provider", "deepseek", "--api-key", "sk-ds-123456789012", "--model", "deepseek-chat"]) == 0
     assert load_config()["model"]["provider"] == "deepseek" and load_config()["model"]["default"] == "deepseek-chat"
     assert "DEEPSEEK_API_KEY=sk-ds-123456789012" in (clite_home / ".env").read_text()
-    assert oct((clite_home / ".env").stat().st_mode & 0o777) == "0o600"
+    assert_private_file(clite_home / ".env")
     capsys.readouterr()
     assert main(["setup", "--provider", "imaginary"]) == 1
     assert main(["setup"]) == 1  # not a terminal: the interactive wizard refuses to guess
@@ -261,7 +261,7 @@ def test_sessions_commands(cli, tmp_path):
 def test_profile_commands_and_the_profile_flag(cli, clite_home, tmp_path):
     assert "* default" in cli("profile", "list")
     assert "Created profile work" in cli("profile", "create", "work", "--clone-from", "default")
-    work_home = tmp_path / ".clite" / "profiles" / "work"
+    work_home = clite_home / "profiles" / "work"
     assert (work_home / "config.yaml").read_text() == MOCK
     cli("profile", "create", "Bad Name", expect=1)
 

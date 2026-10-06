@@ -5,6 +5,7 @@ from __future__ import annotations
 import codecs
 import io
 import os
+import shlex
 import shutil
 import signal
 import subprocess
@@ -45,8 +46,17 @@ def build_child_env(extra: dict[str, str] | None = None, passthrough: list[str] 
 
 def find_shell() -> list[str]:
     if sys.platform == "win32":
-        bash = shutil.which("bash")
-        return [bash, "-c"] if bash else [os.environ.get("COMSPEC", "cmd.exe"), "/c"]
+        # System32/bash.exe is a WSL launcher, not Git Bash. Do not pick it.
+        candidates = [shutil.which("bash")]
+        git = shutil.which("git")
+        if git:
+            candidates.append(str(Path(git).parent.parent / "bin" / "bash.exe"))
+        for variable in ("ProgramFiles", "ProgramFiles(x86)"):
+            if os.environ.get(variable):
+                candidates.append(str(Path(os.environ[variable]) / "Git" / "bin" / "bash.exe"))
+        bash = next((path for path in candidates if path and Path(path).is_file()
+                     and "system32" not in path.lower().replace("\\", "/").split("/")), None)
+        return [bash, "-c"] if bash else [os.environ.get("COMSPEC", "cmd.exe"), "/d", "/s", "/c"]
     return [shutil.which("bash") or "/bin/sh", "-c"]
 
 
@@ -104,19 +114,33 @@ class LocalEnvironment(BaseEnvironment):
         limit = 50_000 if max_output_chars is None else max(0, max_output_chars)
         deadline = time.monotonic() + (timeout or self.default_timeout)
         shell = find_shell()
-        track_cwd = cwd is None and sys.platform != "win32"
-        cwd_file = None
+        track_cwd = cwd is None
+        cwd_file = batch_file = None
         script = command
+        is_cmd = Path(shell[0]).name.lower() in {"cmd", "cmd.exe"}
         if track_cwd:
             # Record where the command left the shell so a later call starts there: `cd src`
             # in one call and `ls` in the next behave like one terminal.
             handle, cwd_file = tempfile.mkstemp(prefix="clite-cwd-")
             os.close(handle)
-            script = f"{command}\n__clite_ec=$?\npwd -P > '{cwd_file}' 2>/dev/null\nexit $__clite_ec"
+            if not is_cmd:
+                pwd = "pwd -W" if sys.platform == "win32" else "pwd -P"
+                script = (f"{command}\n__clite_ec=$?\n{pwd} > "
+                          f"{shlex.quote(Path(cwd_file).as_posix())} 2>/dev/null\nexit $__clite_ec")
+        if is_cmd:
+            # A batch file expands ERRORLEVEL/CD on separate lines, after the user command.
+            # /d disables AutoRun; UTF-8 covers non-ASCII paths and output on Windows.
+            handle, batch_file = tempfile.mkstemp(prefix="clite-command-", suffix=".cmd")
+            with os.fdopen(handle, "w", encoding="utf-8", newline="\r\n") as batch:
+                batch.write(f"@echo off\n{command}\nset \"__clite_ec=%errorlevel%\"\n")
+                if cwd_file:
+                    batch.write(f'cd > "{cwd_file}"\n')
+                batch.write("exit /b %__clite_ec%\n")
+            script = f'chcp 65001 >nul & call "{batch_file}"'
 
         try:
             process = subprocess.Popen(  # noqa: S603 - running the model's command is this tool's job
-                [*shell, script],
+                subprocess.list2cmdline(shell) + " " + script if is_cmd else [*shell, script],
                 cwd=workdir,
                 env=build_child_env(),
                 stdin=subprocess.PIPE if stdin_data is not None else subprocess.DEVNULL,
@@ -129,6 +153,7 @@ class LocalEnvironment(BaseEnvironment):
             )
         except OSError as exc:
             _remove(cwd_file)
+            _remove(batch_file)
             return ExecResult(f"could not start command: {exc}", 126)
 
         chunks: list[str] = []
@@ -185,6 +210,7 @@ class LocalEnvironment(BaseEnvironment):
             except OSError:
                 pass
         _remove(cwd_file)
+        _remove(batch_file)
 
         output = "".join(chunks)
         if truncated:

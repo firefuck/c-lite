@@ -109,6 +109,38 @@ def test_server_environment_excludes_secrets_unless_listed(fake_server, clite_ho
     assert json.loads(handle_function_call("mcp_envy_env", {"name": "SERVER_SETTING"}))["result"] == "explicit"
 
 
+def test_startup_failure_waits_for_stderr_before_reporting(tmp_path, monkeypatch):
+    import threading
+
+    script = tmp_path / "crash.py"
+    script.write_text("import sys; print('startup diagnostic', file=sys.stderr); sys.exit(3)")
+    server = McpServer("crash", {"command": sys.executable, "args": [str(script)]})
+    release = threading.Event()
+    read_stderr, send, hint = server._read_stderr, server._send, server._stderr_hint
+
+    def delayed_stderr():
+        assert release.wait(10)
+        read_stderr()
+
+    def after_exit(message):
+        server.process.wait(timeout=10)
+        send(message)
+
+    def release_diagnostic():
+        release.set()
+        return hint()
+
+    monkeypatch.setattr(server, "_read_stderr", delayed_stderr)
+    monkeypatch.setattr(server, "_send", after_exit)
+    monkeypatch.setattr(server, "_stderr_hint", release_diagnostic)
+    try:
+        with pytest.raises(McpError, match="startup diagnostic"):
+            server.start()
+    finally:
+        release.set()
+        server.stop()
+
+
 def test_broken_servers_are_skipped_not_fatal(tmp_path, fake_server, clite_home):
     crash = tmp_path / "crash.py"
     crash.write_text("import sys; print('boom: missing dependency', file=sys.stderr); sys.exit(3)\n")

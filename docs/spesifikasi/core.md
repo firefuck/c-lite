@@ -35,7 +35,7 @@ logging, penulisan file atomik, redaksi, dan pemindaian teks yang akan masuk ke 
 | Path | Isi | Ditulis oleh |
 |---|---|---|
 | `config.yaml` | Pengaturan | `core.config` |
-| `.env` | Rahasia (izin 0600) | `core.env` |
+| `.env` | Rahasia (0600 pada POSIX; DACL hanya pemilik pada Windows) | `core.env` |
 | `SOUL.md` | Identitas agent, mengganti identitas bawaan | Pengguna |
 | `state.db` | Sesi dan pesan (SQLite + FTS5) | `state` |
 | `memories/MEMORY.md`, `memories/USER.md` | Memori bawaan | `agent.memory` |
@@ -114,7 +114,7 @@ logging, penulisan file atomik, redaksi, dan pemindaian teks yang akan masuk ke 
 | Rahasia, cakupan rahasia | ✅ | |
 | Logging berputar | ✅ | |
 | Redaksi, pemindaian ancaman | ✅ | Daftar pola pendek; Hermes jauh lebih luas (`agent/redact.py`) |
-| Path Windows (`%LOCALAPPDATA%`) | 🟡 | Kodenya ada, belum pernah dijalankan di Windows: F1-T5 |
+| Path Windows (`%LOCALAPPDATA%`) | 🟡 | Home mengikuti `%LOCALAPPDATA%`; fixture mengisolasi home Windows. ACL `.env` diterapkan sebelum menulis rahasia; kegagalan izin membatalkan penulisan. Pending CI Windows hijau: F1-T5 |
 | Validasi skema config | ⬜ | Nilai bertipe salah baru ketahuan di pembacanya |
 
 ## Celah yang diketahui

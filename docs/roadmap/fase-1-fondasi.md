@@ -224,13 +224,22 @@ fixture dari respons asli, dan perbarui tabel aturan model Claude dengan pengama
 **Selesai bila.**
 - [ ] Job CI Windows hijau.
 - [ ] Tes dua proses membuktikan kunci file benar-benar mengunci, di Linux dan di Windows.
-- [ ] Baris Windows di spesifikasi core, tools, agent, dan cron diperbarui.
+- [x] Baris Windows di spesifikasi core, tools, agent, dan cron diperbarui (pending CI hijau).
 
 **Ukuran.** M
 
 **Bergantung pada.** F1-T1
 
 **Butuh dari Anda.** Tidak wajib. Mesin Windows membantu untuk mencoba REPL dengan tangan.
+
+**Kemajuan 6 Oktober 2026.** Run `37494875409` mencapai 705 lulus, 25 gagal dan 59
+terlewati pada Windows. Patch lanjutan memperbaiki isolasi home/profil, encoding fixture,
+asumsi path POSIX, basis zona waktu Windows, race diagnostik MCP, dan pelacakan cwd
+cmd.exe/Git Bash. `.env` memakai DACL terlindungi hanya untuk pemilik di Windows, bukan
+berpura-pura bahwa chmod 0600 bekerja; tes membaca ACL aktual. Tes tambahan memeriksa
+mutasi memori/job saat proses lain memegang kunci, stdin, exit code, dan penghentian anak
+pada timeout/interupsi. **Belum selesai:** patch lanjutan belum dijalankan pada Windows;
+status tetap pending sampai CI nyata hijau. Tidak ada tes Windows yang dinonaktifkan.
 
 ---
 

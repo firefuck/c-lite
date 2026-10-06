@@ -118,7 +118,7 @@ def get_secret(name: str, default: str | None = None) -> str | None:
 
 
 def save_secret(name: str, value: str, path: Path | None = None) -> None:
-    """Write ``NAME=value`` into ``.env`` (mode 0600), replacing an existing line."""
+    """Write ``NAME=value`` into owner-private ``.env``, replacing an existing line."""
     if not _NAME_RE.match(name):
         raise ValueError(f"invalid environment variable name: {name!r}")
     if "\n" in value or "\r" in value:

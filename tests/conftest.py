@@ -59,8 +59,12 @@ def clite_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """An empty home under ``tmp_path``; ``Path.home()`` is redirected too so the default
     root and every profile land in the same sandbox."""
     saved_environ = dict(os.environ)
-    home = tmp_path / ".clite"
-    home.mkdir()
+    local = tmp_path / "AppData" / "Local"
+    monkeypatch.setenv("LOCALAPPDATA", str(local))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    home = local / "clite" if sys.platform == "win32" else tmp_path / ".clite"
+    home.mkdir(parents=True)
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
     monkeypatch.setenv("CLITE_HOME", str(home))
     monkeypatch.setenv("TZ", "UTC")
@@ -74,6 +78,34 @@ def clite_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     # Code under test writes to os.environ directly (load_env, save_secret); undo all of it.
     os.environ.clear()
     os.environ.update(saved_environ)
+
+
+@pytest.fixture
+def assert_private_file():
+    """Check the native security model, not Windows' synthetic POSIX mode bits."""
+    def check(path):
+        if os.name != "nt":
+            assert path.stat().st_mode & 0o777 == 0o600
+            return
+        import json
+        import subprocess
+
+        script = (
+            "$a = Get-Acl -LiteralPath $env:CLITE_TEST_ACL_PATH; "
+            "$rules = @($a.Access | ForEach-Object { "
+            "@{sid=$_.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value; "
+            "rights=[int]$_.FileSystemRights; inherited=$_.IsInherited; type=[int]$_.AccessControlType} }); "
+            "@{protected=$a.AreAccessRulesProtected; rules=$rules} | ConvertTo-Json -Depth 4 -Compress"
+        )
+        result = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+            env={**os.environ, "CLITE_TEST_ACL_PATH": str(path)}, capture_output=True, text=True, timeout=20,
+            check=True,
+        )
+        acl = json.loads(result.stdout)
+        assert acl["protected"] is True
+        assert acl["rules"] == [{"sid": "S-1-3-4", "rights": 2032127, "inherited": False, "type": 0}]
+    return check
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:

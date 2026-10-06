@@ -63,7 +63,7 @@ dijalankan terhadap hal yang sebenarnya. Anggap belum berfungsi sampai terbukti.
 | Persetujuan `smart` dengan model sungguhan | Hanya diuji dengan model berskrip | F1-T2 |
 | Adapter Telegram | Hanya terhadap Bot API tiruan. Daftar periksa bot sungguhan di F1-T3 belum dijalankan: menunggu token bot dan grup uji | F1-T3 |
 | Pengiriman cron ke `<platform>:<chat id>` | Diuji dengan adapter `local` dan divalidasi saat job dibuat; ke Telegram sungguhan belum | F1-T3 |
-| Windows | Belum pernah dijalankan. Kunci file memori dan penyimpanan job tidak mengunci di sana | F1-T5 |
+| Windows | Pending: run `37494875409` gagal (25 gagal). Patch portabilitas, ACL `.env`, terminal cmd/Git Bash dan tes dua proses tersedia; belum ada CI Windows hijau untuk patch lanjutan | F1-T5 |
 | macOS | Belum pernah dijalankan | F1-T1 |
 | Plugin lewat entry point pip | Jalur muatnya ada; belum diuji dengan paket yang benar-benar terpasang | F6-T5 |
 | Cangkang Electron (`apps/desktop/src/main.ts`, `preload.ts`, `build.mjs`) | Ditulis tanpa Electron terpasang; belum pernah dijalankan | F5-T1 |

@@ -85,8 +85,12 @@ class ProcessRegistry:
             running = [p for p in self._processes.values() if p.exit_code is None]
             if len(running) >= _MAX_PROCESSES:
                 raise RuntimeError(f"too many background processes ({_MAX_PROCESSES}); kill one first")
+        shell = find_shell()
+        # list2cmdline quotes argv using CRT rules, which cmd.exe does not follow for /c.
+        is_cmd = shell[0].replace("\\", "/").rsplit("/", 1)[-1].lower() in {"cmd", "cmd.exe"}
+        argv = subprocess.list2cmdline(shell) + " chcp 65001 >nul & " + command if is_cmd else [*shell, command]
         process = subprocess.Popen(  # noqa: S603
-            [*find_shell(), command], cwd=cwd, env=build_child_env(), stdin=subprocess.PIPE,
+            argv, cwd=cwd, env=build_child_env(), stdin=subprocess.PIPE,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8",
             errors="replace", start_new_session=sys.platform != "win32",
         )
