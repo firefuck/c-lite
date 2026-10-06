@@ -89,7 +89,7 @@ dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
 | F1-T1 | Pasang di lingkungan nyata dan hijaukan CI | S | - | ✅ |
 | F1-T2 | Uji provider sungguhan | M | F1-T1 | 🟡 |
 | F1-T3 | Uji Telegram sungguhan | S | F1-T1 | 🟡 |
-| F1-T4 | Pasang skill dari GitHub | S | F1-T1 | ⬜ |
+| F1-T4 | Pasang skill dari GitHub | S | F1-T1 | ✅ |
 | F1-T5 | Windows | M | F1-T1 | ⬜ |
 | F1-T6 | Penulis config yang mempertahankan komentar | S | F1-T1 | ⬜ |
 | F1-T7 | Rilis pertama | S | F1-T1, F1-T2 | ⬜ |

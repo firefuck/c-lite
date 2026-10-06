@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -21,6 +22,7 @@ from typing import Any
 
 from clite import __version__
 from clite.core.constants import get_skills_dir
+from clite.core.env import SecretSpec, get_secret, register_secret
 from clite.core.io import atomic_write_json, atomic_write_text, read_json
 from clite.core.threats import describe, scan_text
 from clite.skills.catalog import TIER_LOCAL, get_skill
@@ -31,6 +33,12 @@ from clite.skills.usage import record_created
 MAX_BUNDLE_FILES = 200
 MAX_BUNDLE_BYTES = 5_000_000
 _TEXT_SUFFIXES = {".md", ".txt", ".py", ".sh", ".js", ".ts", ".json", ".yaml", ".yml", ".toml", ".html", ".css", ""}
+GITHUB_TOKEN_ENV = "GITHUB_TOKEN"
+# Where GitHub serves file bytes for the contents API. The token goes to these and the API host only.
+_GITHUB_DOWNLOAD_HOSTS = frozenset({"raw.githubusercontent.com"})
+
+register_secret(SecretSpec(GITHUB_TOKEN_ENV, "GitHub token: private skill repositories and a higher rate limit",
+                           category="tool", url="https://github.com/settings/tokens"))
 
 
 @dataclass
@@ -71,34 +79,65 @@ class LocalDirSource(SkillSource):
 
 
 class GitHubSource(SkillSource):
-    """Install from ``owner/repo/path/to/skill`` using the GitHub contents API."""
+    """Install from ``owner/repo/path/to/skill[@ref]`` using the GitHub contents API.
+
+    ``GITHUB_TOKEN`` in ``.env`` is used when set: private repositories, and 5000 requests an
+    hour instead of 60. It is sent only to the API host and GitHub's download host.
+    """
 
     source_id = "github"
-    api = "https://api.github.com"
 
-    def _get(self, url: str) -> Any:
-        request = urllib.request.Request(url, headers={  # noqa: S310 - fixed https host
-            "User-Agent": f"clite/{__version__}", "Accept": "application/vnd.github+json"})
+    def __init__(self, api: str = "https://api.github.com", download_hosts: frozenset[str] = _GITHUB_DOWNLOAD_HOSTS) -> None:
+        self.api = api.rstrip("/")
+        self._token_hosts = {urllib.parse.urlsplit(self.api).netloc, *download_hosts}
+
+    def _open(self, url: str, accept: str, limit: int | None = None) -> bytes:
+        headers = {"User-Agent": f"clite/{__version__}", "Accept": accept}
+        token = get_secret(GITHUB_TOKEN_ENV)
+        if token and urllib.parse.urlsplit(url).netloc in self._token_hosts:
+            headers["Authorization"] = f"Bearer {token}"
+        request = urllib.request.Request(url, headers=headers)  # noqa: S310 - https hosts from the API
         try:
             with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
-                return json.loads(response.read())
-        except (urllib.error.URLError, OSError, ValueError) as exc:
-            raise SkillError(f"GitHub request failed: {exc}") from exc
+                return response.read() if limit is None else response.read(limit + 1)
+        except urllib.error.HTTPError as exc:
+            raise SkillError(self._http_error(exc, has_token=bool(token))) from None
+        except (urllib.error.URLError, OSError) as exc:
+            raise SkillError(f"GitHub request failed: {exc}") from None
 
-    def _download(self, url: str) -> bytes:
-        request = urllib.request.Request(url, headers={"User-Agent": f"clite/{__version__}"})  # noqa: S310
-        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
-            return response.read(MAX_BUNDLE_BYTES + 1)
+    @staticmethod
+    def _http_error(exc: urllib.error.HTTPError, *, has_token: bool) -> str:
+        if exc.code in (403, 429) and exc.headers.get("X-RateLimit-Remaining") == "0":
+            reset = exc.headers.get("X-RateLimit-Reset", "")
+            when = time.strftime("%H:%M", time.localtime(int(reset))) if reset.isdigit() else "within the hour"
+            hint = "" if has_token else f" Set {GITHUB_TOKEN_ENV} in .env for 5000 requests an hour instead of 60."
+            return f"GitHub rate limit reached; it resets at {when}.{hint}"
+        if exc.code == 404:
+            hint = "" if has_token else f" If the repository is private, set {GITHUB_TOKEN_ENV} in .env."
+            return f"not found on GitHub (check owner, repository, path and ref).{hint}"
+        if exc.code == 401:
+            return f"GitHub refused {GITHUB_TOKEN_ENV}: it is invalid or expired"
+        return f"GitHub request failed: HTTP {exc.code}"
+
+    def _get(self, url: str) -> Any:
+        try:
+            return json.loads(self._open(url, "application/vnd.github+json"))
+        except ValueError as exc:
+            raise SkillError(f"GitHub sent a response that is not JSON: {exc}") from None
 
     def fetch(self, identifier: str) -> SkillBundle:
-        parts = identifier.strip("/").split("/")
+        spec, _, ref = identifier.strip().partition("@")
+        parts = spec.strip("/").split("/")
         if len(parts) < 3:
-            raise SkillError("a GitHub skill identifier looks like owner/repo/path/to/skill")
+            raise SkillError("a GitHub skill identifier looks like owner/repo/path/to/skill (optionally @branch-or-tag)")
         owner, repo, path = parts[0], parts[1], "/".join(parts[2:])
+        query = f"?ref={urllib.parse.quote(ref, safe='')}" if ref else ""
         files: dict[str, bytes] = {}
+        total = 0
 
         def walk(remote: str, prefix: str) -> None:
-            listing = self._get(f"{self.api}/repos/{owner}/{repo}/contents/{remote}")
+            nonlocal total
+            listing = self._get(f"{self.api}/repos/{owner}/{repo}/contents/{urllib.parse.quote(remote)}{query}")
             if not isinstance(listing, list):
                 raise SkillError(f"{identifier} is not a directory in {owner}/{repo}")
             for entry in listing:
@@ -107,7 +146,14 @@ class GitHubSource(SkillSource):
                 if entry.get("type") == "dir":
                     walk(entry["path"], prefix + entry["name"] + "/")
                 elif entry.get("type") == "file" and entry.get("download_url"):
-                    files[prefix + entry["name"]] = self._download(entry["download_url"])
+                    # Check the listed size first so an oversized skill is refused before downloading it.
+                    total += int(entry.get("size") or 0)
+                    if total > MAX_BUNDLE_BYTES:
+                        raise SkillError(f"skill is larger than {MAX_BUNDLE_BYTES} bytes")
+                    content = self._open(entry["download_url"], "application/octet-stream", MAX_BUNDLE_BYTES)
+                    if len(content) > MAX_BUNDLE_BYTES:
+                        raise SkillError(f"skill is larger than {MAX_BUNDLE_BYTES} bytes")
+                    files[prefix + entry["name"]] = content
 
         walk(path, "")
         if "SKILL.md" not in files:

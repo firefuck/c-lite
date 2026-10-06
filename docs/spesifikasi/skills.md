@@ -112,7 +112,7 @@ skill.
 | `skill_manage` (memori prosedural) | ✅ | |
 | Skill sebagai slash command | ✅ | |
 | Pasang dari direktori lokal | ✅ | |
-| Pasang dari GitHub (`GitHubSource`) | ⬜ belum diverifikasi | Kode ada, belum pernah diuji ke jaringan: F1-T4 |
+| Pasang dari GitHub (`GitHubSource`) | ✅ | `owner/repo/path[@ref]`; `GITHUB_TOKEN` opsional dan hanya dikirim ke host API dan host unduhan GitHub; ukuran dicek dari daftar sebelum mengunduh; galat batas laju menyebut waktu reset. Diuji terhadap tiruan lokal dan ke repositori publik sungguhan (`test_install_a_skill_from_a_real_public_github_repository`, `-m network`) |
 | Kurator | ✅ | Dijalankan manual (`clite skills curate`). Penjadwalan otomatis: F2-T12 |
 | Skill bawaan | 🟡 | 4 skill. Hermes mengirim 58: F6-T2 |
 | Hub: indeks registry, pencarian, pembaruan | ⬜ | F6-T1 |

@@ -16,7 +16,7 @@ file hasil generate).
 2. **Tidak ada tes yang memakai jaringan.** Yang ditiru adalah ujung jauhnya, bukan kode kita:
    provider diuji terhadap server HTTP lokal sungguhan (`fake_api`), Telegram terhadap Bot API
    tiruan lokal, MCP terhadap proses server sungguhan. Tes yang benar-benar butuh jaringan
-   diberi `@pytest.mark.network` dan tidak jalan di CI.
+   diberi `@pytest.mark.network` dan dilewati kecuali dipilih dengan `-m network`.
 3. **Model ditiru dengan `ScriptedClient`, bukan dengan menambal fungsi.** Tes menyatakan apa
    yang "dikatakan" model dan memeriksa apa yang dilakukan loop.
 4. **Nama tes adalah kalimat tentang perilaku.**
@@ -52,7 +52,7 @@ Pembantu di `clite.providers.testing`: `ScriptedClient`, `text_response`,
 | Penanda | Arti |
 |---|---|
 | `@pytest.mark.platforms("linux", "macos")` | Hanya jalan di host itu (`posix` = linux dan macos) |
-| `@pytest.mark.network` | Butuh jaringan sungguhan; tidak jalan di CI |
+| `@pytest.mark.network` | Butuh jaringan sungguhan; dilewati kecuali dijalankan dengan `-m network` |
 | `@pytest.mark.browser` | Mengendalikan dashboard di Chromium (butuh `playwright`) |
 
 Tes yang dependensi opsionalnya tidak ada dilewati dengan `pytest.importorskip`, tidak gagal.

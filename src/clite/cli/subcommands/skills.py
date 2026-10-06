@@ -74,7 +74,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     view = actions.add_parser("view", help="print a skill")
     view.add_argument("name")
     view.set_defaults(handler=run_view)
-    install = actions.add_parser("install", help="install from a directory or owner/repo/path on GitHub")
+    install = actions.add_parser("install", help="install from a directory or owner/repo/path[@ref] on GitHub")
     install.add_argument("source")
     install.add_argument("--source-type", choices=["local", "github"])
     install.add_argument("--category")

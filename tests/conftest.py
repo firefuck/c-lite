@@ -77,8 +77,15 @@ def clite_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Honour ``@pytest.mark.platforms("linux", "macos")``: skip on any other host."""
+    """Honour ``@pytest.mark.platforms("linux", "macos")``, and keep ``network`` tests opt-in.
+
+    A ``network`` test runs only when the marker is selected (``-m network``), so neither CI nor
+    a plain ``pytest tests`` ever reaches a real service.
+    """
+    wants_network = "network" in (config.option.markexpr or "")
     for item in items:
+        if not wants_network and item.get_closest_marker("network") is not None:
+            item.add_marker(pytest.mark.skip(reason="needs the network; run with -m network"))
         markers = list(item.iter_markers(name="platforms"))
         if len(markers) > 1:
             raise pytest.UsageError(f"{item.nodeid}: use ONE platforms() marker with several specs")

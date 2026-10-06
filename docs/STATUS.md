@@ -63,7 +63,6 @@ dijalankan terhadap hal yang sebenarnya. Anggap belum berfungsi sampai terbukti.
 | Persetujuan `smart` dengan model sungguhan | Hanya diuji dengan model berskrip | F1-T2 |
 | Adapter Telegram | Hanya terhadap Bot API tiruan. Daftar periksa bot sungguhan di F1-T3 belum dijalankan: menunggu token bot dan grup uji | F1-T3 |
 | Pengiriman cron ke `<platform>:<chat id>` | Diuji dengan adapter `local` dan divalidasi saat job dibuat; ke Telegram sungguhan belum | F1-T3 |
-| Pasang skill dari GitHub | Belum pernah diuji ke jaringan | F1-T4 |
 | Windows | Belum pernah dijalankan. Kunci file memori dan penyimpanan job tidak mengunci di sana | F1-T5 |
 | macOS | Belum pernah dijalankan | F1-T1 |
 | Plugin lewat entry point pip | Jalur muatnya ada; belum diuji dengan paket yang benar-benar terpasang | F6-T5 |
@@ -160,6 +159,7 @@ python scripts/check_hermes_refs.py --hermes ../hermes-ref   # butuh clone Herme
 | 5 Oktober 2026 | Wheel dibangun dan dipasang ke lingkungan virtual bersih. Dari sana: `clite --version`, `clite doctor`, satu giliran dengan provider `mock`, `clite tui --help`, satu giliran lewat TUI, daftar plugin dan skill bawaan, dan `clite serve` (file dashboard, pemeriksaan token, satu giliran lewat WebSocket). Dependensi diambil dari paket sistem dan `websockets` dari clone, bukan dari PyPI | Linux, Python 3.13, Node 22.22 |
 | 5 Oktober 2026 | `scripts/rename_project.py` pada salinan repositori, diikuti langkah lanjutan yang dicetaknya: `scripts/run_tests.sh` lulus seluruhnya dan program hasil ganti nama berjalan. Yang tersisa dari nama lama hanya URL repositori di README | Linux, Python 3.13, Node 22.22 |
 | 5 Oktober 2026 | Workflow CI terpicu di GitHub pada setiap push; semua job ditolak sebelum berjalan karena akun terkunci masalah penagihan | GitHub Actions |
+| 6 Oktober 2026 | `install_skill("anthropics/skills/skills/pdf")` memasang skill dari GitHub sungguhan tanpa token (`pytest tests/skills -m network`) | Linux, Python 3.13 |
 
 Setiap task yang memverifikasi sesuatu menambah baris di tabel ini dan memindahkan butirnya
 dari "belum diverifikasi".

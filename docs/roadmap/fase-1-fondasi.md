@@ -184,10 +184,10 @@ fixture dari respons asli, dan perbarui tabel aturan model Claude dengan pengama
 **Rujukan Hermes.** `tools/skills_hub_github.py`, `tools/skills_hub_install.py`.
 
 **Selesai bila.**
-- [ ] Memasang satu skill dari repositori publik sungguhan berhasil (tes `network`).
-- [ ] Jalur unduh, batas ukuran, dan galat batas laju diuji tanpa jaringan.
-- [ ] Token GitHub tidak pernah dikirim ke host selain `api.github.com` dan host unduhannya.
-- [ ] Baris "Pasang dari GitHub" di spesifikasi skills menjadi ✅.
+- [x] Memasang satu skill dari repositori publik sungguhan berhasil (tes `network`).
+- [x] Jalur unduh, batas ukuran, dan galat batas laju diuji tanpa jaringan.
+- [x] Token GitHub tidak pernah dikirim ke host selain `api.github.com` dan host unduhannya.
+- [x] Baris "Pasang dari GitHub" di spesifikasi skills menjadi ✅.
 
 **Ukuran.** S
 
