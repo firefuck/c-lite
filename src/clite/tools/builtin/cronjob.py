@@ -15,7 +15,8 @@ CRONJOB_SCHEMA = {
         "'create' (prompt, schedule), 'list', 'update' (job_id plus fields to change), 'pause', 'resume', "
         "'run' (make it due now), 'remove'. Schedules: a delay ('30m', '2h'), an interval ('every 1d'), a "
         "cron expression ('0 9 * * 1-5') or a timestamp ('2026-01-31T09:00'). deliver: 'local' saves the "
-        "output to a file; 'origin' sends it back to the chat this job was created from."
+        "output to a file; 'origin' sends it back to the chat this job was created from; "
+        "'<platform>:<chat id>' (for example 'telegram:123456') sends it to that chat."
     ),
     "parameters": {
         "type": "object",
@@ -25,7 +26,7 @@ CRONJOB_SCHEMA = {
             "prompt": {"type": "string", "description": "What the agent should do on each run. Self-contained."},
             "schedule": {"type": "string", "description": "When to run: '30m', 'every 2h', '0 9 * * *', or an ISO timestamp."},
             "name": {"type": "string", "description": "Short label for the job."},
-            "deliver": {"type": "string", "description": "'local' (default) or 'origin'."},
+            "deliver": {"type": "string", "description": "'local' (default), 'origin', or '<platform>:<chat id>'."},
             "repeat": {"type": "integer", "description": "Stop after this many runs. Omit to run until removed."},
             "skills": {"type": "array", "items": {"type": "string"}, "description": "Skills to load into each run."},
         },

@@ -458,3 +458,30 @@ def test_telegram_needs_a_valid_token(clite_home, monkeypatch):
     finally:
         api.httpd.shutdown()
         api.httpd.server_close()
+
+
+def test_a_network_error_never_puts_the_bot_token_in_the_log(clite_home, monkeypatch, caplog):
+    token = "123456789:secret-token-that-must-stay-hidden"
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", token)
+    # A base URL without a scheme makes urllib quote the full request URL, token included.
+    (clite_home / "config.yaml").write_text(
+        "model: {provider: mock, default: mock-1}\ngateway:\n  platforms:\n"
+        "    telegram: {enabled: true, base_url: 'api-telegram-without-scheme'}\n")
+    with caplog.at_level("WARNING", logger="clite"):
+        runner = GatewayRunner()
+        assert runner.start(with_cron=False) == []
+        runner.stop()
+    assert "failed to start" in caplog.text
+    assert "secret-token" not in caplog.text
+
+
+def test_cron_output_reaches_a_named_chat_through_the_gateway(gateway):
+    from clite.cron.jobs import get_job_store
+    from clite.cron.scheduler import tick
+
+    runner, local, _ = gateway()
+    job = get_job_store().create("check the disk", "every 1h", name="disk", deliver="local:ops-room", now=1_000)
+    outcome = tick(1_000 + 3600, client=ScriptedClient([text_response("Disk at 91%.")]), deliver=runner.deliver)
+    assert outcome[0]["job_id"] == job["id"] and outcome[0]["delivered"] is True
+    assert local.wait_for_messages(1) == ["[disk]\nDisk at 91%."]
+    assert local.outbox[0]["chat_id"] == "ops-room"

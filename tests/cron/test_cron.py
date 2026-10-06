@@ -327,3 +327,18 @@ def make_cron_agent(clite_home):
     yield factory
     for agent in created:
         agent.close()
+
+
+def test_the_delivery_target_is_checked_when_a_job_is_created_or_changed():
+    store = get_job_store()
+    assert store.create("a", "30m", deliver="telegram: -100123 ", now=NOW)["deliver"] == "telegram:-100123"
+    assert store.create("b", "30m", deliver="origin", now=NOW)["deliver"] == "origin"
+    assert store.create("c", "30m", deliver="", now=NOW)["deliver"] == "local"
+    for bad in ("telegram", "telegram:", ":123", "my chat:1", "slack"):
+        with pytest.raises(JobError):
+            store.create("d", "30m", deliver=bad, now=NOW)
+    job = store.list()[0]
+    with pytest.raises(JobError):
+        store.update(job["id"], deliver="nowhere")
+    assert store.update(job["id"], deliver="local:ops")["deliver"] == "local:ops"
+    assert len(store.list()) == 3

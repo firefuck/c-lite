@@ -51,6 +51,17 @@ def _check_prompt(prompt: str) -> str:
     return prompt
 
 
+def _check_deliver(deliver: str | None) -> str:
+    """``local``, ``origin``, or ``<platform>:<chat id>``; anything else is refused at creation."""
+    target = (deliver or "local").strip()
+    if target in ("local", "origin"):
+        return target
+    platform, _, chat_id = target.partition(":")
+    if not platform.strip() or not chat_id.strip() or " " in platform:
+        raise JobError(f"deliver must be 'local', 'origin', or '<platform>:<chat id>' (got {target!r})")
+    return f"{platform.strip()}:{chat_id.strip()}"
+
+
 class JobStore:
     def __init__(self, directory: Path | None = None) -> None:
         self.directory = Path(directory) if directory is not None else get_cron_dir()
@@ -102,6 +113,7 @@ class JobStore:
                skills: list[str] | None = None, origin: dict[str, Any] | None = None, now: float | None = None) -> dict[str, Any]:
         current = time.time() if now is None else now
         prompt = _check_prompt(prompt)
+        deliver = _check_deliver(deliver)
         try:
             parsed = parse_schedule(schedule, now=current, timezone=self._timezone())
             first_run = next_run(parsed, current, timezone=self._timezone())
@@ -116,7 +128,7 @@ class JobStore:
             "schedule": parsed.to_dict(),
             "schedule_display": parsed.display,
             "enabled": True,
-            "deliver": deliver or "local",
+            "deliver": deliver,
             "repeat": repeat,
             "model": model, "provider": provider, "toolsets": toolsets, "skills": list(skills or []),
             "origin": origin,
@@ -145,6 +157,8 @@ class JobStore:
             raise JobError(f"cannot update field(s): {', '.join(sorted(unknown))}")
         if "prompt" in fields:
             fields["prompt"] = _check_prompt(fields["prompt"])
+        if "deliver" in fields:
+            fields["deliver"] = _check_deliver(fields["deliver"])
         current = time.time() if now is None else now
 
         def change(job: dict[str, Any]) -> None:

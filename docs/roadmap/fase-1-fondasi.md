@@ -154,8 +154,8 @@ fixture dari respons asli, dan perbarui tabel aturan model Claude dengan pengama
 
 **Selesai bila.**
 - [ ] Daftar periksa di atas dijalankan dan hasilnya dicatat di `docs/STATUS.md`.
-- [ ] `deliver: <platform>:<chat id>` punya tes, dan nilainya divalidasi saat job dibuat.
-- [ ] Ada tes bahwa galat jaringan adapter tidak menulis token ke log.
+- [x] `deliver: <platform>:<chat id>` punya tes, dan nilainya divalidasi saat job dibuat.
+- [x] Ada tes bahwa galat jaringan adapter tidak menulis token ke log.
 - [ ] Baris adapter Telegram di spesifikasi gateway menjadi ✅.
 
 **Ukuran.** S

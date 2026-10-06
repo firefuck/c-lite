@@ -22,6 +22,7 @@ import urllib.request
 from typing import Any
 
 from clite.core.env import SecretSpec, get_secret, register_secret
+from clite.core.redact import redact
 from clite.core.threads import start_thread
 from clite.gateway.event import CHAT_CHANNEL, CHAT_DM, CHAT_GROUP, MessageEvent, SendResult, SessionSource
 from clite.gateway.platforms.base import BasePlatformAdapter, register_platform
@@ -52,10 +53,10 @@ class TelegramAdapter(BasePlatformAdapter):
         self._thread: threading.Thread | None = None
 
     def _call(self, method: str, payload: dict[str, Any] | None = None, timeout: float = 30.0) -> Any:
-        request = urllib.request.Request(  # noqa: S310 - the scheme comes from configuration
-            f"{self.base_url}/bot{self.token}/{method}", data=json.dumps(payload or {}).encode(),
-            headers={"Content-Type": "application/json"}, method="POST")
         try:
+            request = urllib.request.Request(  # noqa: S310 - the scheme comes from configuration
+                f"{self.base_url}/bot{self.token}/{method}", data=json.dumps(payload or {}).encode(),
+                headers={"Content-Type": "application/json"}, method="POST")
             with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
                 body = json.loads(response.read())
         except urllib.error.HTTPError as exc:
@@ -63,8 +64,11 @@ class TelegramAdapter(BasePlatformAdapter):
                 body = json.loads(exc.read())
             except ValueError:
                 body = {"ok": False, "description": f"HTTP {exc.code}"}
+        except (OSError, ValueError) as exc:
+            # The request URL carries the token; some network errors quote it back.
+            raise RuntimeError(f"Telegram {method} failed: {redact(str(exc))}") from None
         if not body.get("ok"):
-            raise RuntimeError(f"Telegram {method} failed: {body.get('description', 'unknown error')}")
+            raise RuntimeError(f"Telegram {method} failed: {redact(str(body.get('description', 'unknown error')))}")
         return body.get("result")
 
     def connect(self) -> None:
@@ -85,7 +89,7 @@ class TelegramAdapter(BasePlatformAdapter):
                 updates = self._call("getUpdates", {"offset": self._offset, "timeout": self.poll_timeout,
                                                    "allowed_updates": ["message"]}, timeout=self.poll_timeout + 10)
             except Exception as exc:  # noqa: BLE001 - keep polling through network trouble
-                logger.warning("Telegram polling failed: %s", exc)
+                logger.warning("Telegram polling failed: %s", redact(str(exc)))
                 self._stop.wait(5)
                 continue
             for update in updates or []:

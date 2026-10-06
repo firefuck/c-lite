@@ -71,7 +71,7 @@ menjalankan `clite cron tick`.
 | Tick dengan kunci, paling banyak sekali | ✅ | |
 | Tool `cronjob`, `clite cron`, `/cron` | ✅ | |
 | Pengiriman ke chat asal | ✅ | Diuji dengan adapter `local` |
-| Pengiriman ke `<platform>:<chat id>` | 🟡 | Jalurnya ada di `GatewayRunner.deliver`, belum punya tes; nilainya tidak divalidasi saat job dibuat |
+| Pengiriman ke `<platform>:<chat id>` | ✅ | Diuji dengan adapter `local` (`test_cron_output_reaches_a_named_chat_through_the_gateway`); nilainya divalidasi saat job dibuat dan diubah (`test_the_delivery_target_is_checked_when_a_job_is_created_or_changed`). Ke Telegram sungguhan belum: F1-T3 |
 | Home channel, pengiriman ke beberapa tujuan | ⬜ | F4-T9 |
 | Skrip pra-jalan (data dikumpulkan skrip, lalu diberikan ke agent) | ⬜ | Hermes: `cron/scheduler_script.py`. F4-T9 |
 | Riwayat eksekusi dan antrean pengiriman ulang | ⬜ | F4-T9 |
