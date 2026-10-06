@@ -75,7 +75,7 @@ menjalankan `clite cron tick`.
 | Home channel, pengiriman ke beberapa tujuan | ⬜ | F4-T9 |
 | Skrip pra-jalan (data dikumpulkan skrip, lalu diberikan ke agent) | ⬜ | Hermes: `cron/scheduler_script.py`. F4-T9 |
 | Riwayat eksekusi dan antrean pengiriman ulang | ⬜ | F4-T9 |
-| Kunci file di Windows | 🟡 | Penyimpanan job memakai `core.locking` (`fcntl`/`msvcrt`), diuji dengan proses kedua; dependensi bersyarat `tzdata` memasok zona IANA Windows. Pending CI Windows hijau: F1-T5 |
+| Kunci file di Windows | ✅ | Penyimpanan job memakai `core.locking` (`fcntl`/`msvcrt`); tes dua proses lulus pada Linux/Windows. `tzdata` bersyarat memasok zona IANA Windows. CI `37499972911`, F1-T5 |
 
 ## Yang sengaja berbeda dari Hermes
 

@@ -63,7 +63,7 @@ dijalankan terhadap hal yang sebenarnya. Anggap belum berfungsi sampai terbukti.
 | Persetujuan `smart` dengan model sungguhan | Hanya diuji dengan model berskrip | F1-T2 |
 | Adapter Telegram | Hanya terhadap Bot API tiruan. Daftar periksa bot sungguhan di F1-T3 belum dijalankan: menunggu token bot dan grup uji | F1-T3 |
 | Pengiriman cron ke `<platform>:<chat id>` | Diuji dengan adapter `local` dan divalidasi saat job dibuat; ke Telegram sungguhan belum | F1-T3 |
-| Windows | Pending: run `37494875409` gagal (25 gagal). Patch portabilitas, ACL `.env`, terminal cmd/Git Bash dan tes dua proses tersedia; belum ada CI Windows hijau untuk patch lanjutan | F1-T5 |
+| Windows | Terverifikasi CI `37499972911` pada `6360a9a`: 765 lulus, 59 terlewati. ACL `.env`, cmd/Git Bash, penghentian pohon proses, home/path, dan kunci dua proses lulus; REPL manual belum dicoba | F1-T5 ✅ |
 | macOS | Belum pernah dijalankan | F1-T1 |
 | Plugin lewat entry point pip | Jalur muatnya ada; belum diuji dengan paket yang benar-benar terpasang | F6-T5 |
 | Cangkang Electron (`apps/desktop/src/main.ts`, `preload.ts`, `build.mjs`) | Ditulis tanpa Electron terpasang; belum pernah dijalankan | F5-T1 |
@@ -101,7 +101,7 @@ penutupan WebSocket membawa scope yang sama. Redaksi juga mencakup rahasia scope
 mendahulukan nilai terpanjang agar awalan bersama tidak menyisakan potongan rahasia.
 Sembilan regresi gagal pada snapshot sebelum perbaikan. Tes katalog yang tanpa sengaja
 mengakses endpoint publik diganti dengan server lokal, dan tes startup TUI dibuat mandiri
-terhadap keadaan pemasangan paket. Provider asli, Windows, dan UI Electron tetap belum
+terhadap keadaan pemasangan paket. Provider asli dan UI Electron tetap belum
 terverifikasi. Perkembangan berikutnya dicatat di [checkpoint](CHECKPOINT-KERJA.md).
 
 Tinjauan tambahan pada 5 Oktober 2026 menemukan empat celah prioritas tinggi pada rotasi

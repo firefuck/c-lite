@@ -114,7 +114,7 @@ logging, penulisan file atomik, redaksi, dan pemindaian teks yang akan masuk ke 
 | Rahasia, cakupan rahasia | ✅ | |
 | Logging berputar | ✅ | |
 | Redaksi, pemindaian ancaman | ✅ | Daftar pola pendek; Hermes jauh lebih luas (`agent/redact.py`) |
-| Path Windows (`%LOCALAPPDATA%`) | 🟡 | Home mengikuti `%LOCALAPPDATA%`; fixture mengisolasi home Windows. ACL `.env` diterapkan sebelum menulis rahasia; kegagalan izin membatalkan penulisan. Pending CI Windows hijau: F1-T5 |
+| Path Windows (`%LOCALAPPDATA%`) | ✅ | Home mengikuti `%LOCALAPPDATA%`; ACL `.env` diterapkan sebelum menulis rahasia dan dibaca kembali dalam tes Windows. CI `37499972911`, F1-T5 |
 | Validasi skema config | ⬜ | Nilai bertipe salah baru ketahuan di pembacanya |
 
 ## Celah yang diketahui

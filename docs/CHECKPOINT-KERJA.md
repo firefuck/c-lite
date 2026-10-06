@@ -30,6 +30,21 @@ membutuhkan otorisasi tersendiri.
 
 ## Status aktif
 
+### Pembaruan F1-T5 — 6 Oktober 2026
+
+- F1-T5 selesai di branch `f1-t5-windows`, draft PR #1; belum merge ke `main`.
+- Commit kode: `f884c73`, `b6c7288`, `6360a9a`. CI `37499972911` pada
+  `6360a9a` hijau di semua job: Windows 765 lulus/59 skip; Linux Python 3.11–3.13
+  masing-masing 798 lulus/26 skip; Node dan wheel hijau. Ruff dan mypy bersih.
+- Terverifikasi Windows nyata: kunci dua proses serta integrasi memori/job, cmd.exe/Git
+  Bash, cwd, stdin, exit code, timeout/interupsi pohon proses, home/path dan ACL `.env`.
+- Tambahan dependensi: `tzdata>=2024.1,<2027` hanya Windows. REPL manual belum dicoba.
+- F1-T2/F1-T3 tetap parsial menunggu layanan asli sesuai penundaan pemilik; F1-T4 selesai.
+  Task sesudah F1-T5 adalah F1-T6, tetapi belum dimulai. Tunggu pilihan pemilik; jangan merge
+  PR atau pindah task otomatis.
+
+### Riwayat status sebelumnya
+
 - Tanggal: 6 Oktober 2026.
 - Tahap: audit F01–F10 selesai diuji. Batas F11 tetap gateway dengan pengguna tepercaya
   yang berbagi data profil; isolasi multi-tenant membutuhkan keputusan produk tersendiri.

@@ -165,7 +165,7 @@ Setiap butir dijaga oleh tes di `tests/agent/`.
 | Input gambar | ⬜ | Konten berstruktur sudah lolos ke transport, belum ada jalur masuknya: F2-T6 |
 | Review latar belakang (memori dan skill) | ⬜ | F2-T12 |
 | Checkpoint dan rollback file | ⬜ | F2-T8 |
-| Kunci file memori di Windows | 🟡 | `core.locking` memakai `fcntl`/`msvcrt`; tes dua proses mencakup mutasi memori. Pending CI Windows hijau: F1-T5 |
+| Kunci file memori di Windows | ✅ | `core.locking` memakai `fcntl`/`msvcrt`; tes dua proses dan mutasi memori lulus pada Linux/Windows. CI `37499972911`, F1-T5 |
 
 ## Yang sengaja berbeda dari Hermes
 
