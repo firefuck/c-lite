@@ -482,7 +482,12 @@ def detect_hardline(command: str, cwd: str = "") -> str | None:
         for pattern, description in _COMPILED_HARDLINE:
             if pattern.search(text):
                 return description
-    return _recursive_delete_victim(shell_plain(command), cwd)
+    # Preserve Windows separators as well as the POSIX escape reading.
+    for text in (shell_plain(command), normalize_command(command).replace("\\", "/").translate(_QUOTES)):
+        victim = _recursive_delete_victim(text, cwd)
+        if victim:
+            return victim
+    return None
 
 
 def _non_interactive_policy(ctx: ToolContext) -> str:

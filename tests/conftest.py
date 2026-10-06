@@ -91,15 +91,19 @@ def assert_private_file():
         import subprocess
 
         script = (
+            "$ErrorActionPreference = 'Stop'; "
             "$a = Get-Acl -LiteralPath $env:CLITE_TEST_ACL_PATH; "
             "$rules = @($a.Access | ForEach-Object { "
             "@{sid=$_.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value; "
             "rights=[int]$_.FileSystemRights; inherited=$_.IsInherited; type=[int]$_.AccessControlType} }); "
             "@{protected=$a.AreAccessRulesProtected; rules=$rules} | ConvertTo-Json -Depth 4 -Compress"
         )
+        # CI starts Python under pwsh 7; its module path breaks powershell.exe 5.1 autoloading.
+        child_env = {key: value for key, value in os.environ.items() if key.lower() != "psmodulepath"}
+        child_env["CLITE_TEST_ACL_PATH"] = str(path)
         result = subprocess.run(
             ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
-            env={**os.environ, "CLITE_TEST_ACL_PATH": str(path)}, capture_output=True, text=True, timeout=20,
+            env=child_env, capture_output=True, text=True, timeout=20,
             check=True,
         )
         acl = json.loads(result.stdout)
