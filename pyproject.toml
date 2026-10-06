@@ -13,6 +13,7 @@ dependencies = [
   # goes in an extra. Every dependency carries an upper bound.
   "pydantic>=2.7,<3",
   "PyYAML>=6.0,<7",
+  "ruamel.yaml>=0.18.6,<0.19",
   "python-dotenv>=1.0,<2",
   # `clite serve` / `clite dashboard`: the JSON-RPC backend for the desktop app and web UI.
   "starlette>=0.40,<2",

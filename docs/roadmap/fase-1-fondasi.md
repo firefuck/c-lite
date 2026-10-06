@@ -262,14 +262,21 @@ dan urutan kunci di `config.yaml` milik pengguna.
 **Rujukan Hermes.** `hermes_yaml.py`, `scripts/check_config_yaml_writers.py`.
 
 **Selesai bila.**
-- [ ] Tes: file dengan komentar, baris kosong, dan urutan kunci tertentu tetap sama setelah
+- [x] Tes: file dengan komentar, baris kosong, dan urutan kunci tertentu tetap sama setelah
       `config_set`, `config_unset`, dan persetujuan `always`, kecuali baris yang diubah.
-- [ ] File yang rusak tetap tidak pernah ditimpa.
-- [ ] Baris "Penulis config yang mempertahankan komentar" di spesifikasi core menjadi ✅.
+- [x] File yang rusak tetap tidak pernah ditimpa.
+- [x] Baris "Penulis config yang mempertahankan komentar" di spesifikasi core menjadi ✅.
 
 **Ukuran.** S
 
 **Bergantung pada.** F1-T1
+
+**Kemajuan 6 Oktober 2026.** Jalur tulis kini memakai `ruamel.yaml>=0.18.6,<0.19` dengan
+`preserve_quotes` dan resolver YAML 1.1 yang sama dengan pembaca PyYAML. Tiga tes
+round-trip gagal pada salinan `57c5794`; lima tes kompatibilitas skalar juga gagal pada
+implementasi ruamel awal sebelum resolver disamakan. Sesudah patch, 146 tes `tests/core`
+dan persetujuan lulus; Ruff dan mypy berkas config bersih. Suite penuh dan CI menunggu
+runner induk, sehingga task belum ditutup.
 
 ---
 

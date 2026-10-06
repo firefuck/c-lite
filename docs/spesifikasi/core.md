@@ -68,6 +68,9 @@ logging, penulisan file atomik, redaksi, dan pemindaian teks yang akan masuk ke 
   file, dan setiap pemanggil mendapat salinannya sendiri.
 - File yang rusak melempar `ConfigError` dan **tidak pernah ditimpa**.
 - Semua penulisan lewat `config_set`, `config_unset`, atau `atomic_config_update`.
+  Penulis memakai round-trip `ruamel.yaml`: komentar, baris kosong, urutan kunci, dan gaya
+  kutip di luar nilai yang diubah dipertahankan. Skalar dibaca dan ditulis dengan aturan
+  YAML 1.1 agar tetap sama dengan pembaca PyYAML.
 - Kunci baru cukup ditambahkan ke `DEFAULT_CONFIG`. `_config_version` hanya dinaikkan untuk
   mengubah file yang sudah ada (ganti nama kunci, ubah struktur), dengan fungsi di
   `MIGRATIONS`.
@@ -110,7 +113,7 @@ logging, penulisan file atomik, redaksi, dan pemindaian teks yang akan masuk ke 
 |---|---|---|
 | Home, profil, profil lengket | ✅ | |
 | Config: baca, tulis, migrasi, ekspansi env | ✅ | |
-| Penulis config yang mempertahankan komentar | ⬜ | PyYAML menulis ulang file tanpa komentar: F1-T6 |
+| Penulis config yang mempertahankan komentar | ✅ | `ruamel.yaml`; dijaga tes `config_set`, `config_unset`, persetujuan `always`, dan file rusak. F1-T6 |
 | Rahasia, cakupan rahasia | ✅ | |
 | Logging berputar | ✅ | |
 | Redaksi, pemindaian ancaman | ✅ | Daftar pola pendek; Hermes jauh lebih luas (`agent/redact.py`) |

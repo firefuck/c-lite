@@ -30,6 +30,17 @@ membutuhkan otorisasi tersendiri.
 
 ## Status aktif
 
+### F1-T6 — selesai lokal
+
+- Branch `f1-t6-config-comments`, titik awal `57c5794`; commit lokal, belum push/merge.
+- Penulis config memakai `ruamel.yaml>=0.18.6,<0.19`, mempertahankan komentar, baris
+  kosong, urutan, dan gaya kutip; resolver YAML 1.1 menjaga string seperti `yes` dan `012`.
+- Bukti merah: 3 tes round-trip gagal pada salinan `57c5794` (`/tmp/clite-f1t6-red.log`);
+  5 tes kompatibilitas skalar gagal sebelum resolver disamakan.
+- Bukti hijau: `pytest tests/core tests/tools/test_approval.py -q` 146 lulus; Ruff dan mypy
+  `src/clite/core/config.py` bersih. Suite penuh Linux: 811 lulus, 26 skip; Ruff dan mypy
+  160 file bersih; tes Node 47 lulus dan tiga typecheck hijau. CI belum jalan (belum push).
+
 ### Pembaruan F1-T5 — 6 Oktober 2026
 
 - F1-T5 selesai di branch `f1-t5-windows`, draft PR #1; belum merge ke `main`.
@@ -40,8 +51,7 @@ membutuhkan otorisasi tersendiri.
   Bash, cwd, stdin, exit code, timeout/interupsi pohon proses, home/path dan ACL `.env`.
 - Tambahan dependensi: `tzdata>=2024.1,<2027` hanya Windows. REPL manual belum dicoba.
 - F1-T2/F1-T3 tetap parsial menunggu layanan asli sesuai penundaan pemilik; F1-T4 selesai.
-  Task sesudah F1-T5 adalah F1-T6, tetapi belum dimulai. Tunggu pilihan pemilik; jangan merge
-  PR atau pindah task otomatis.
+  Jangan merge PR tanpa perintah pemilik.
 
 ### Riwayat status sebelumnya
 

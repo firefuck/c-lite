@@ -10,9 +10,8 @@ Readers:
 Writers: every write goes through :func:`config_set`, :func:`config_unset` or
 :func:`atomic_config_update`. Nothing else may dump YAML onto the config path.
 
-Known limitation: the writer re-serialises with PyYAML, so comments in a hand-edited file are
-lost on the first programmatic write (key order is kept). Hermes solves this with a ruamel
-round-trip behind the same seam; see roadmap task F1-T6.
+Writes round-trip through ruamel.yaml to retain comments, blank lines, key order and quotes.
+Readers continue to use PyYAML and return plain dictionaries.
 """
 
 from __future__ import annotations
@@ -22,10 +21,15 @@ import os
 import re
 import threading
 from collections.abc import Callable, Mapping, MutableMapping
+from io import StringIO
 from pathlib import Path
 from typing import Any
 
 import yaml
+from ruamel.yaml import YAML
+from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.error import YAMLError
+from ruamel.yaml.resolver import VersionedResolver
 
 from clite.core.config_defaults import CONFIG_VERSION, DEFAULT_CONFIG
 from clite.core.constants import get_config_path, home_key
@@ -166,21 +170,45 @@ def _apply_migrations(raw: MutableMapping[str, Any]) -> bool:
 # ── writers ──────────────────────────────────────────────────────────────────────────────
 
 
-def _load_for_write(target: Path) -> dict[str, Any]:
-    """The user file for a write-back. Fails closed on an unreadable file: saving over a file
-    we could not parse would replace the user's settings with whatever we happened to hold."""
-    return load_user_config_raw(target)
+class _ConfigResolver(VersionedResolver):
+    def get_loader_version(self, version: Any) -> Any:
+        # Match the PyYAML reader without adding a %YAML directive to ordinary files.
+        return super().get_loader_version(version) or (1, 1)
+
+
+def _load_for_write(target: Path, writer: YAML) -> dict[str, Any]:
+    """Load round-trip metadata; never treat an unreadable or invalid file as empty."""
+    try:
+        text = target.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return CommentedMap()
+    except (OSError, UnicodeError) as exc:
+        raise ConfigError(f"cannot read {target}: {exc}. Fix the file before saving.") from exc
+    try:
+        document = writer.load(text)
+    except YAMLError as exc:
+        raise ConfigError(f"{target} is not valid YAML: {exc}. Fix the file before saving.") from exc
+    if document is None:
+        return CommentedMap()
+    if not isinstance(document, dict):
+        raise ConfigError(f"{target} must contain a mapping at the top level")
+    return document
 
 
 def atomic_config_update(mutate: Callable[[dict[str, Any]], None], path: Path | None = None) -> None:
     """The one writer seam: load the user file, apply ``mutate``, write atomically."""
     target = path or get_config_path()
-    document = _load_for_write(target)
+    # Parser/emitter state belongs to this update, not to concurrent callers or profiles.
+    writer = YAML(typ="rt")
+    writer.preserve_quotes = True
+    writer.Resolver = _ConfigResolver
+    document = _load_for_write(target, writer)
     mutate(document)
     if "_config_version" not in document:
         document["_config_version"] = CONFIG_VERSION
-    text = yaml.safe_dump(document, sort_keys=False, allow_unicode=True, default_flow_style=False)
-    atomic_write_text(target, text)
+    stream = StringIO()
+    writer.dump(document, stream)
+    atomic_write_text(target, stream.getvalue())
     reset_config_cache()
 
 
