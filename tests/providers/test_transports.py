@@ -226,6 +226,22 @@ def test_the_profile_decides_whether_a_temperature_is_sent():
         assert body("open-model")["temperature"] == 0.3
 
 
+def test_both_transports_tell_the_profile_whether_reasoning_is_shown():
+    seen = []
+
+    class Recording(ProviderProfile):
+        def build_extra_body(self, *, show_reasoning=False, **kwargs):
+            seen.append(show_reasoning)
+            return {}
+
+    profile = Recording(name="p", base_url="https://api.test")
+    for mode in ("anthropic_messages", "chat_completions"):
+        route = RuntimeRoute(provider="p", model="m", api_mode=mode, base_url="https://api.test", profile=profile)
+        get_transport(mode).build_request(route, HISTORY, None, RequestParams(show_reasoning=True), stream=False)
+        get_transport(mode).build_request(route, HISTORY, None, RequestParams(), stream=False)
+    assert seen == [True, False, True, False]
+
+
 def test_anthropic_response_is_normalised():
     response = get_transport("anthropic_messages").parse_response({
         "model": "claude-x", "stop_reason": "tool_use",

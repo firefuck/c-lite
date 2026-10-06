@@ -11,9 +11,14 @@ Current models also fix the sampling parameters (a ``temperature`` is rejected),
 each thinking block to the model and to the conversation before it: a request whose earlier
 turns were edited is refused with "Invalid signature in thinking block".
 
+Adaptive models return thinking blocks with an empty ``thinking`` field unless the request
+sets ``thinking.display: "summarized"`` (the default is ``"omitted"``); the signature is
+replayed the same either way, and billing does not change. Manual-budget models already
+default to summarized text.
+
 Checked against the Anthropic docs on 2026-10-05 (model overviews and the Fable 5.1 migration
-guide). When a new model family ships, this file is the only place that needs to learn about
-it.
+guide) and 2026-10-06 (thinking display). When a new model family ships, this file is the only
+place that needs to learn about it.
 """
 
 from __future__ import annotations
@@ -32,18 +37,21 @@ _EFFORTS = {"minimal": "low", "none": "low", "low": "low", "medium": "medium", "
 
 
 class AnthropicProfile(ProviderProfile):
-    def build_extra_body(self, *, model: str, reasoning_effort: str = "", session_id: str = "") -> dict[str, Any]:
-        if not reasoning_effort:
-            return {}  # the model's own default
+    def build_extra_body(self, *, model: str, reasoning_effort: str = "", session_id: str = "",
+                         show_reasoning: bool = False) -> dict[str, Any]:
         if _MANUAL_BUDGET_MODELS.search(model):
-            budget = _BUDGETS.get(reasoning_effort)
+            budget = _BUDGETS.get(reasoning_effort) if reasoning_effort else None
             return {"thinking": {"type": "enabled", "budget_tokens": budget}} if budget else {}
-        effort = _EFFORTS.get(reasoning_effort)
+        thinking: dict[str, Any] = {"type": "adaptive"}
+        if show_reasoning:
+            thinking["display"] = "summarized"
+        effort = _EFFORTS.get(reasoning_effort) if reasoning_effort else None
         if effort is None:
-            return {}
+            # No effort chosen: the model's own default, plus the reasoning text if asked.
+            return {"thinking": thinking} if show_reasoning else {}
         # "none" cannot be expressed as disabled thinking (some models reject that), so it
         # maps to the lowest effort and lets the model skip thinking on simple requests.
-        return {"thinking": {"type": "adaptive"}, "output_config": {"effort": effort}}
+        return {"thinking": thinking, "output_config": {"effort": effort}}
 
     def wants_cache_markers(self, model: str) -> bool:
         return True

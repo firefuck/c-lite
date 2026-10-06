@@ -117,6 +117,7 @@ Dari dokumentasi Anthropic (model overview dan panduan migrasi Fable 5.1), dibac
 | Keluaran maksimum | 128 ribu token | 64 ribu (Haiku 4.5) |
 | Blok penalaran | Terikat ke model dan ke percakapan sebelumnya | Tidak terikat ke awalan |
 | `tool_choice` paksa, prefill asisten | Ditolak (400). C-lite tidak memakai keduanya | - |
+| Teks penalaran | Disembunyikan secara default (`display: omitted`); C-lite mengirim `thinking.display: summarized` bila `display.show_reasoning` aktif (dokumentasi dibaca 6 Oktober 2026) | Ringkasan dikirim secara default |
 
 Akibat untuk C-lite: riwayat yang dikirim tidak boleh berubah (lihat
 [agent](agent.md), bagian Prompt dan cache), dan `provider_data` dibuang saat kompresi, saat
@@ -134,7 +135,8 @@ ganti model, dan saat provider menolaknya (`FailoverReason.THINKING_SIGNATURE`).
 | Profil bawaan | 🟡 | 8: anthropic, openai, openrouter, gemini, deepseek, ollama, custom, mock. Tambahan: F2-T2 |
 | Harga dan estimasi biaya | ⬜ | F2-T3 |
 | OAuth, `clite auth`, kredensial di luar `.env` | ⬜ | F2-T14 |
-| Tampilan progres penalaran (`thinking.display`) | ⬜ | Model 5-series menyembunyikan teks di antara tool call secara default: F1-T2 |
+| Tampilan teks penalaran (`thinking.display`) | 🟡 | Profil `anthropic` meminta `summarized` bila `display.show_reasoning` aktif; dijaga `test_anthropic_asks_for_summarized_thinking_only_when_reasoning_is_shown`. Belum dicoba ke API asli: F1-T2 |
+| Tes terhadap API asli (`tests/providers/test_live.py`) | 🟡 | Ditulis; dilewati tanpa kunci. Belum pernah dijalankan: F1-T2 |
 | Bedrock, Vertex, Azure | ⬜ | F2-T2 |
 
 ## Yang sengaja berbeda dari Hermes

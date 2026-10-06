@@ -187,6 +187,19 @@ def test_anthropic_profile_knows_what_each_model_generation_accepts(monkeypatch)
     assert profile.build_extra_body(model="claude-fable-5-1") == {}
 
 
+def test_anthropic_asks_for_summarized_thinking_only_when_reasoning_is_shown(clite_home, monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    profile = get_provider("anthropic")
+    # Current models hide thinking text by default ("omitted"); showing it needs an opt-in.
+    assert profile.build_extra_body(model="claude-fable-5-1", show_reasoning=True) == {
+        "thinking": {"type": "adaptive", "display": "summarized"}}
+    assert profile.build_extra_body(model="claude-opus-5-5", reasoning_effort="low", show_reasoning=True) == {
+        "thinking": {"type": "adaptive", "display": "summarized"}, "output_config": {"effort": "low"}}
+    assert "display" not in profile.build_extra_body(model="claude-opus-5-5", reasoning_effort="low")["thinking"]
+    # Manual-budget models already return summarized text; nothing extra is sent.
+    assert profile.build_extra_body(model="claude-haiku-4-5-20251001", show_reasoning=True) == {}
+
+
 def test_a_provider_key_is_not_sent_to_another_host(clite_home, monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
     (clite_home / "config.yaml").write_text(

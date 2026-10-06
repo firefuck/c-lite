@@ -80,8 +80,12 @@ class ProviderProfile:
         """Last-chance rewrite of the outgoing messages (already a copy). Default: unchanged."""
         return messages
 
-    def build_extra_body(self, *, model: str, reasoning_effort: str = "", session_id: str = "") -> dict[str, Any]:
-        """Extra top-level request fields (reasoning config, routing preferences)."""
+    def build_extra_body(self, *, model: str, reasoning_effort: str = "", session_id: str = "",
+                         show_reasoning: bool = False) -> dict[str, Any]:
+        """Extra top-level request fields (reasoning config, routing preferences).
+
+        ``show_reasoning`` is true when the user will see reasoning text; a provider that
+        hides it by default asks for it here."""
         return {}
 
     def wants_cache_markers(self, model: str) -> bool:

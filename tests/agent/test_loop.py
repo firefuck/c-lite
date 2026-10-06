@@ -740,3 +740,16 @@ def test_custom_endpoint_without_spare_key_never_uses_vendor_credentials(make_ag
     agent, client = make_agent([_http_error(status)] * 5, route=route)
     agent.run_conversation("go")
     assert {call["route"].api_key for call in client.calls} == {"synthetic-proxy-key"}
+
+
+def test_the_show_reasoning_setting_reaches_every_model_call(make_agent):
+    from clite.core.config import load_config
+
+    config = load_config()
+    config["display"]["show_reasoning"] = True
+    shown, _ = make_agent([text_response("ok")], config=config)
+    shown.run_conversation("hi")
+    hidden, _ = make_agent([text_response("ok")])
+    hidden.run_conversation("hi")
+    assert shown.client.calls[0]["params"].show_reasoning is True
+    assert hidden.client.calls[0]["params"].show_reasoning is False

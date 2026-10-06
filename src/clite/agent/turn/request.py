@@ -101,6 +101,7 @@ def _recover(agent: AIAgent, state: TurnState, error: ClassifiedError) -> str:
 def call_model(agent: AIAgent, state: TurnState) -> Verdict:
     params = RequestParams(
         reasoning_effort=agent.reasoning_effort, session_id=agent.session_id,
+        show_reasoning=bool(get_path(agent.config, "display.show_reasoning", False)),
         timeout=float(get_path(agent.config, "agent.api_timeout", 600) or 600),
     )
     while True:

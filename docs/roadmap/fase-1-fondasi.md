@@ -119,6 +119,16 @@ jaringan.
 **Butuh dari Anda.** `ANTHROPIC_API_KEY`, satu kunci provider kompatibel OpenAI (OpenRouter
 atau OpenAI), dan anggaran beberapa dolar untuk panggilan uji.
 
+**Kemajuan 6 Oktober 2026.** Kode tanpa jaringan selesai: `display.show_reasoning` diteruskan
+lewat `RequestParams.show_reasoning` ke `build_extra_body`, dan profil `anthropic` meminta
+`thinking.display: summarized` pada model adaptif (dokumentasi thinking dibaca 6 Oktober 2026).
+Tes jaringan ditulis di `tests/providers/test_live.py`: teks streaming, satu ronde tool dan
+ronde paralel, cache baca, pembatalan, pemutaran ulang penalaran bertanda tangan melewati
+beberapa ronde tool, giliran kedua, `/compress`, dan ganti model, serta klasifikasi galat (kunci
+salah, model tidak ada, konteks meluap, permintaan tidak sah). Batas laju dan penolakan tidak
+bisa dipicu sesuka hati dan tidak dites. Sisa: jalankan tes jaringan dengan kunci, simpan
+fixture dari respons asli, dan perbarui tabel aturan model Claude dengan pengamatan.
+
 ---
 
 ### F1-T3 Uji Telegram sungguhan

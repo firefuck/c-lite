@@ -11,7 +11,8 @@ _EFFORTS = {"minimal", "low", "medium", "high"}
 
 
 class OpenAIProfile(ProviderProfile):
-    def build_extra_body(self, *, model: str, reasoning_effort: str = "", session_id: str = "") -> dict[str, Any]:
+    def build_extra_body(self, *, model: str, reasoning_effort: str = "", session_id: str = "",
+                         show_reasoning: bool = False) -> dict[str, Any]:
         return {"reasoning_effort": reasoning_effort} if reasoning_effort in _EFFORTS else {}
 
 

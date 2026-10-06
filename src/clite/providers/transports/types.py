@@ -72,6 +72,7 @@ class RequestParams:
     max_tokens: int | None = None
     temperature: float | None = None
     reasoning_effort: str = ""
+    show_reasoning: bool = False  # the surface will display reasoning text, so ask for it
     session_id: str = ""
     timeout: float = 600.0
     extra_body: dict[str, Any] = field(default_factory=dict)

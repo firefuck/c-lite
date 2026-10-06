@@ -265,7 +265,8 @@ class AnthropicMessagesTransport(ProviderTransport):
         if wire_tools:
             body["tools"] = wire_tools
         extras = profile.build_extra_body(model=route.model, reasoning_effort=params.reasoning_effort,
-                                          session_id=params.session_id) if profile is not None else {}
+                                          session_id=params.session_id,
+                                          show_reasoning=params.show_reasoning) if profile is not None else {}
         # Thinking fixes the sampling temperature server-side; sending one is an error.
         temperature = profile.resolve_temperature(route.model, params.temperature) if profile else params.temperature
         if temperature is not None and "thinking" not in extras:

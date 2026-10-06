@@ -157,7 +157,8 @@ class ChatCompletionsTransport(ProviderTransport):
             body["stream_options"] = {"include_usage": True}
         if profile is not None:
             body.update(profile.build_extra_body(model=route.model, reasoning_effort=params.reasoning_effort,
-                                                 session_id=params.session_id))
+                                                 session_id=params.session_id,
+                                                 show_reasoning=params.show_reasoning))
         body.update(params.extra_body)
         headers = {"Content-Type": "application/json", **route.headers}
         return HttpRequest(url=route.base_url.rstrip("/") + "/chat/completions", headers=headers, body=body)

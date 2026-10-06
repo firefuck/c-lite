@@ -58,7 +58,8 @@ dijalankan terhadap hal yang sebenarnya. Anggap belum berfungsi sampai terbukti.
 | Hal | Keadaan | Task |
 |---|---|---|
 | Panggilan ke provider sungguhan | Belum pernah. Transport `anthropic_messages` dan `chat_completions` hanya diuji terhadap server tiruan. Ini termasuk pemutaran ulang blok penalaran bertanda tangan pada model Claude generasi 5, yang aturannya diambil dari dokumentasi, bukan dari pengamatan | F1-T2 |
-| Teks penalaran model generasi 5 (`thinking.display`) | Belum diterapkan; `display.show_reasoning` kemungkinan tidak menampilkan apa pun pada model itu | F1-T2 |
+| Teks penalaran model generasi 5 (`thinking.display`) | Diterapkan: profil `anthropic` meminta `display: summarized` bila `display.show_reasoning` aktif. Belum dicoba ke API asli | F1-T2 |
+| Tes jaringan provider (`tests/providers/test_live.py`) | Ditulis, belum pernah dijalankan: menunggu kunci Anthropic dan satu provider kompatibel OpenAI | F1-T2 |
 | Persetujuan `smart` dengan model sungguhan | Hanya diuji dengan model berskrip | F1-T2 |
 | Adapter Telegram | Hanya terhadap Bot API tiruan | F1-T3 |
 | Pengiriman cron ke `<platform>:<chat id>` | Jalurnya ada, belum punya tes | F1-T3 |
