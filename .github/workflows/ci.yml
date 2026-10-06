@@ -34,6 +34,22 @@ jobs:
       - run: mypy
       - run: pytest tests -q
 
+  windows:
+    # The suite on Windows: file locks, cmd.exe and Git Bash, taskkill, %LOCALAPPDATA% home.
+    # Lint and type checks are platform-independent and stay in the python job.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pip install -e ".[dev]"
+      - run: pytest tests -q
+
   node:
     runs-on: ubuntu-latest
     steps:

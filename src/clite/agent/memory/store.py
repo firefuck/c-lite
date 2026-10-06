@@ -19,6 +19,7 @@ from typing import Any
 
 from clite.core.constants import ensure_dir, get_memories_dir
 from clite.core.io import atomic_write_text
+from clite.core.locking import exclusive_lock
 from clite.core.threats import describe, scan_text
 
 ENTRY_DELIMITER = "\n§\n"
@@ -27,11 +28,6 @@ _HEADINGS = {
     "memory": "MEMORY (your personal notes)",
     "user": "USER PROFILE (who the user is)",
 }
-
-try:
-    import fcntl
-except ImportError:  # Windows: single-writer by convention; see the roadmap for a portable lock
-    fcntl = None  # type: ignore[assignment]
 
 _PROCESS_LOCK = threading.RLock()
 
@@ -79,16 +75,8 @@ class MemoryStore:
     @contextlib.contextmanager
     def _locked(self):
         ensure_dir(self.directory)
-        with _PROCESS_LOCK:
-            if fcntl is None:
-                yield
-                return
-            with open(self.directory / ".lock", "a+") as handle:  # noqa: PTH123
-                fcntl.flock(handle, fcntl.LOCK_EX)
-                try:
-                    yield
-                finally:
-                    fcntl.flock(handle, fcntl.LOCK_UN)
+        with _PROCESS_LOCK, exclusive_lock(self.directory / ".lock"):
+            yield
 
     def _result(self, target: str, entries: list[str], message: str) -> dict[str, Any]:
         used, limit = len(ENTRY_DELIMITER.join(entries)), self.limits[target]
