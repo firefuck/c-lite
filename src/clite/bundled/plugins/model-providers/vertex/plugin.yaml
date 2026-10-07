@@ -1,0 +1,5 @@
+name: vertex
+kind: model-provider
+version: 1.0.0
+description: Google Vertex service-account Chat Completions
+author: C-lite

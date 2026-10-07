@@ -86,7 +86,7 @@ pakai (argumen, profil tak dikenal), 130 Ctrl+C.
 | Mengetik saat agent bekerja | ⬜ | Hanya TUI yang bisa. REPL klasik membaca input setelah giliran selesai: F3-T1 |
 | Input multi-baris, tempel gambar | ⬜ | F3-T1, F2-T6 |
 | Render Markdown dan diff | ⬜ | Teks polos: F3-T2 |
-| `clite setup` | 🟡 | Satu alur: provider, kunci, model. Sepuluh profil tambahan F2-T2 tampil lewat registry tanpa perubahan kode setup, dijaga `tests/providers/test_additional_profiles.py`. Wizard bertahap: F3-T5 |
+| `clite setup` | 🟡 | Satu alur: provider, kunci, model. Tiga belas profil tambahan F2-T2 tampil lewat registry tanpa perubahan kode setup, dijaga `tests/providers/test_additional_profiles.py` dan `tests/providers/test_cloud_profiles.py`. Wizard bertahap: F3-T5 |
 | `clite acp` | ⬜ | Hanya mencetak penunjuk ke roadmap: F6-T4 |
 | `clite update`, `backup`, `uninstall`, pelengkapan shell | ⬜ | F3-T6, F3-T7 |
 | `clite auth`, `clite mcp`, `clite webhook` | ⬜ | F2-T14, F2-T10, F4-T10 |

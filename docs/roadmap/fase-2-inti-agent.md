@@ -85,10 +85,10 @@ sepadan), `providers/base.py`, `agent/bedrock_adapter.py`, `agent/vertex_adapter
 `website/docs/developer-guide/model-provider-plugin.md`.
 
 **Selesai bila.**
-- [ ] Setiap profil baru punya tes resolusi rute dan bentuk permintaan terhadap `fake_api`.
-- [ ] `test_vendors_are_named_only_in_their_provider_profiles` tetap lulus: tidak ada nama
+- [x] Setiap profil baru punya tes resolusi rute dan bentuk permintaan terhadap `fake_api`.
+- [x] `test_vendors_are_named_only_in_their_provider_profiles` tetap lulus: tidak ada nama
       provider baru di luar direktori profilnya.
-- [ ] `clite setup` menampilkan provider baru tanpa perubahan di kode setup.
+- [x] `clite setup` menampilkan provider baru tanpa perubahan di kode setup.
 - [x] Tabel status per profil jujur tentang mana yang sudah dipanggil sungguhan.
 
 **Kemajuan 7 Oktober 2026 — parsial.** Gelombang pertama menambah `xai`, `groq`, `mistral`,
@@ -97,8 +97,9 @@ sepadan), `providers/base.py`, `agent/bedrock_adapter.py`, `agent/vertex_adapter
 permintaan streaming dan nonstreaming terhadap `fake_api`, serta menu `clite setup`.
 Model dipilih pengguna, bukan default diam-diam. Profil lokal tidak mengarang katalog atau
 ukuran konteks deployment. K2.6 menghilangkan suhu yang dibatasi oleh mode penalarannya.
-Azure OpenAI, AWS Bedrock, dan Google Vertex belum dikerjakan; checklist menyeluruh tetap
-terbuka. Tidak ada API asli yang dipanggil. Clone rujukan Hermes tidak tersedia; sumber
+Gelombang cloud menambah `azure`, `bedrock`, dan `vertex`; resolusi, autentikasi offline,
+bentuk HTTP, extra opsional, dan discovery setup dijaga `tests/providers/test_cloud_profiles.py`.
+Task tetap parsial karena tidak ada API asli yang dipanggil. Clone rujukan Hermes tidak tersedia; sumber
 resmi yang dibaca dan tanggalnya dicatat di docstring tiap profil.
 
 **Ukuran.** M

@@ -1,0 +1,5 @@
+name: bedrock
+kind: model-provider
+version: 1.0.0
+description: AWS Bedrock SigV4 Chat Completions
+author: C-lite

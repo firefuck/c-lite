@@ -49,6 +49,14 @@ tes Node shared/TUI/desktop masing-masing 21/18/8 lulus dan ketiga typecheck lul
 Run final `scripts/run_tests.sh` lulus termasuk Ruff: /tmp/clite-f2t2-full-final.log.
 F2-T2 tetap parsial, tanpa klaim API asli atau CI baru. Clone rujukan Hermes tidak tersedia.
 
+Gelombang cloud lokal menambah Azure OpenAI, AWS Bedrock SigV4, dan Google Vertex akun
+layanan. Bukti memakai HTTP loopback, pemeriksaan tanda tangan dan JWT dengan kredensial
+sintetis, extra opsional, serta discovery setup; layanan cloud asli tidak dipanggil.
+Snapshot `35ff0b0` dengan tes baru: 39 gagal (/tmp/clite-f2t2-cloud-red.log); sesudah
+implementasi 39 lulus (/tmp/clite-f2t2-cloud-green.log). Suite Python penuh 908 lulus,
+28 terlewati (/tmp/clite-f2t2-cloud-full.log); Ruff dan mypy 161 file bersih. Node tidak
+disentuh dan tidak dijalankan ulang pada batch ini.
+
 ## Pemasangan yang sudah diverifikasi
 
 Pada 6 Oktober 2026 CI repo `https://github.com/dragovics/clite` run `37356398420` pada
@@ -97,7 +105,7 @@ dijalankan terhadap hal yang sebenarnya. Anggap belum berfungsi sampai terbukti.
 | Panggilan ke provider sungguhan | Belum pernah. Transport `anthropic_messages` dan `chat_completions` hanya diuji terhadap server tiruan. Ini termasuk pemutaran ulang blok penalaran bertanda tangan pada model Claude generasi 5, yang aturannya diambil dari dokumentasi, bukan dari pengamatan | F1-T2 |
 | Teks penalaran model generasi 5 (`thinking.display`) | Diterapkan: profil `anthropic` meminta `display: summarized` bila `display.show_reasoning` aktif. Belum dicoba ke API asli | F1-T2 |
 | Transport `responses` | Diuji terhadap server HTTP lokal untuk streaming/nonstreaming dan dua ronde tool; `test_openai_responses_replays_reasoning_across_two_tool_rounds` belum dijalankan karena pemilik menunda uji API asli | F2-T1 |
-| Sepuluh profil tambahan gelombang pertama | Rute, bentuk HTTP streaming/nonstreaming, dan discovery setup diuji dengan server lokal. API asli (termasuk server LM Studio/vLLM sungguhan) belum pernah dipanggil; Azure/Bedrock/Vertex tetap berikutnya | F2-T2 🟡 |
+| Sepuluh profil tambahan gelombang pertama | Rute, bentuk HTTP streaming/nonstreaming, dan discovery setup diuji dengan server lokal. API asli (termasuk server LM Studio/vLLM sungguhan) belum pernah dipanggil; profil cloud Azure/Bedrock/Vertex juga hanya diuji lokal | F2-T2 🟡 |
 | Tes jaringan provider (`tests/providers/test_live.py`) | Ditulis, belum pernah dijalankan: menunggu kunci Anthropic dan satu provider kompatibel OpenAI | F1-T2 |
 | Persetujuan `smart` dengan model sungguhan | Hanya diuji dengan model berskrip | F1-T2 |
 | Adapter Telegram | Hanya terhadap Bot API tiruan. Daftar periksa bot sungguhan di F1-T3 belum dijalankan: menunggu token bot dan grup uji | F1-T3 |

@@ -195,6 +195,8 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | Provider | Alias | `api_mode` | Variabel kunci | Base URL | Model default |
 | --- | --- | --- | --- | --- | --- |
 | `anthropic` | `claude` | `anthropic_messages` | `ANTHROPIC_API_KEY` | https://api.anthropic.com |  |
+| `azure` |  | `chat_completions` | `AZURE_OPENAI_API_KEY` |  |  |
+| `bedrock` |  | `chat_completions` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` |  |  |
 | `custom` |  | `chat_completions` | `CUSTOM_API_KEY` |  |  |
 | `deepseek` |  | `chat_completions` | `DEEPSEEK_API_KEY` | https://api.deepseek.com/v1 |  |
 | `fireworks` |  | `chat_completions` | `FIREWORKS_API_KEY` | https://api.fireworks.ai/inference/v1 |  |
@@ -209,6 +211,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `openai` |  | `chat_completions` | `OPENAI_API_KEY` | https://api.openai.com/v1 |  |
 | `openrouter` |  | `chat_completions` | `OPENROUTER_API_KEY` | https://openrouter.ai/api/v1 |  |
 | `together` |  | `chat_completions` | `TOGETHER_API_KEY` | https://api.together.ai/v1 |  |
+| `vertex` |  | `chat_completions` | `GOOGLE_SERVICE_ACCOUNT_JSON` |  |  |
 | `vllm` |  | `chat_completions` |  | http://localhost:8000/v1 |  |
 | `xai` |  | `chat_completions` | `XAI_API_KEY` | https://api.x.ai/v1 |  |
 | `zai` |  | `chat_completions` | `ZAI_API_KEY` | https://api.z.ai/api/paas/v4 |  |

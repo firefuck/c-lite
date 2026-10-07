@@ -46,7 +46,7 @@ def test_openai_profile_selects_responses_and_model_switch_reselects_without_los
 def test_bundled_providers_are_discovered():
     names = {profile.name for profile in list_providers()}
     assert {
-        "openrouter", "openai", "anthropic", "ollama", "custom", "mock",
+        "openrouter", "openai", "anthropic", "ollama", "custom", "mock", "azure", "bedrock", "vertex",
         "xai", "groq", "mistral", "together", "fireworks", "nvidia", "zai", "moonshot", "lmstudio", "vllm",
     } <= names
 

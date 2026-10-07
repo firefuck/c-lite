@@ -30,6 +30,20 @@ membutuhkan otorisasi tersendiri.
 
 ## Status aktif
 
+### F2-T2 — gelombang cloud teruji lokal, task tetap parsial
+
+- Branch `f2-t2-providers`, titik awal `35ff0b0`; tanpa commit/push/merge dan tanpa API asli.
+- Lingkup: profil `azure`, `bedrock`, dan `vertex`; extra `c-lite[bedrock]` dan
+  `c-lite[vertex]`; tes rute/HTTP loopback, autentikasi offline, dan discovery setup.
+- Hook profil kecil menangani URL akhir dan autentikasi sesudah pemeriksaan origin;
+  transport chat, setup, dan model/runtime Hermes tidak diubah.
+- Rujukan Hermes di direktori saudara tidak tersedia dan tidak dibaca. Sumber resmi
+  dicatat di docstring profil.
+- Merah snapshot `35ff0b0`: 39 gagal (/tmp/clite-f2t2-cloud-red.log). Hijau: 39 lulus
+  (/tmp/clite-f2t2-cloud-green.log). Suite Python penuh 908 lulus, 28 terlewati
+  (/tmp/clite-f2t2-cloud-full.log); Ruff/mypy bersih. Node tidak dijalankan ulang.
+- Dependensi uji lokal dipasang ke venv: botocore 1.43.108 dan google-auth 2.60.0.
+
 ### F2-T2 — gelombang pertama teruji lokal, task tetap parsial
 
 - Branch `f2-t2-providers`, titik awal `49eecd7`; tanpa commit/push/merge dan tanpa API asli.

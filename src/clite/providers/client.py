@@ -59,6 +59,8 @@ class LLMClient:
             return transport.run(route, messages, tools, params, on_delta=on_delta, cancel=cancel)  # type: ignore[attr-defined]
 
         request = transport.build_request(route, messages, tools, params, stream=stream)
+        if route.profile is not None:
+            request = route.profile.prepare_request(route, request)
         route.validate_credential_origin(request.url)
         handle = CancelHandle()
         watcher_done = threading.Event()
@@ -71,6 +73,11 @@ class LLMClient:
 
             threading.Thread(target=watch, name="clite-cancel-watch", daemon=True).start()
         try:
+            if route.profile is not None:
+                request = route.profile.authenticate_request(
+                    route, request, self.http, timeout=params.timeout, cancel=handle,
+                )
+                route.validate_credential_origin(request.url)
             if not stream:
                 payload = self.http.post_json(request.url, request.body, request.headers,
                                               timeout=params.timeout, cancel=handle)
