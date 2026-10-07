@@ -76,6 +76,7 @@ markers = [
   "platforms(*specs): run only on the named host platforms (linux, macos, windows, posix)",
   "network: needs real network access (never run in CI)",
   "browser: drives the dashboard in a real browser (needs playwright and Chromium)",
+  "docker: needs a working Docker daemon; skipped when Docker is absent",
 ]
 
 [tool.mypy]

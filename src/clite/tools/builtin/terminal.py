@@ -72,7 +72,13 @@ def terminal_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
 
         cwd = environment.resolve_path(workdir) if workdir else environment.cwd
         try:
-            managed = process_registry.spawn(command, cwd=cwd, task_id=ctx.task_id or ctx.session_id)
+            managed = process_registry.spawn(command, cwd=cwd, task_id=ctx.task_id or ctx.session_id,
+                                             environment=environment)
+        except NotImplementedError:
+            return tool_error(
+                f"the {environment.name} backend cannot keep a background process; "
+                "run the command in the foreground instead."
+            )
         except (OSError, RuntimeError) as exc:
             return tool_error(f"could not start background process: {exc}")
         return tool_result(process_id=managed.id, status="running", hint="Use the process tool to poll, wait or kill it.")

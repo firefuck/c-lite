@@ -22,7 +22,7 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 | Konteks | `context.py` | `ToolContext`: apa yang boleh diketahui handler tentang panggilannya |
 | Persetujuan | `approval.py` | Pola berbahaya, pola terlarang mutlak, mode `manual` / `smart` / `off` |
 | Penjaga file | `file_safety.py` | Path yang tidak boleh ditulis atau dibaca tool file; `PROTECTED_PATHS` adalah daftar file terlindung di tiap home agent, dipakai juga oleh gerbang persetujuan |
-| Lingkungan | `environments/` | `BaseEnvironment`, backend `local` |
+| Lingkungan | `environments/` | `BaseEnvironment` + operasi file, backend `local`, `docker`, `ssh` |
 | Tool bawaan | `builtin/` | 16 tool (lihat [katalog](../referensi/katalog.md)) |
 | MCP | `mcp/client.py` | Klien MCP stdio tanpa SDK |
 
@@ -89,12 +89,33 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
   kali.
 
 **Terminal dan lingkungan**
-- Satu lingkungan per `task_id`. `cd` bertahan antar-panggilan, dan tool file menyelesaikan
-  path relatif terhadap direktori kerja yang sama.
+- Satu lingkungan per `task_id`, dibuat saat pertama dipakai dan dipilih lewat
+  `terminal.backend`. Backend terdaftar dengan `register_environment_backend`: `local`
+  (bawaan), `docker`, `ssh`. `cd` bertahan antar-panggilan, dan tool file menyelesaikan path
+  relatif terhadap direktori kerja yang sama.
+- `BaseEnvironment` punya empat operasi file — `read_file`, `write_file`, `list_dir`, `stat`
+  — dan `spawn_background`. `read_file`, `write_file`, `patch`, dan `search_files`
+  mengarahkan setiap pembacaan dan penulisan lewat sana, bukan lewat `pathlib` langsung, jadi
+  perilakunya sama di semua backend. `LocalEnvironment` mengimplementasikannya dengan
+  `pathlib` (perilaku lama, tak berubah). Penjaga file (`read_denied_reason`,
+  `write_denied_reason`) dan redaksi berjalan sebelum operasi apa pun.
+- Backend `docker`: satu container per `task_id` (`docker run -d`), direktori kerja
+  di-bind-mount pada path yang sama, container dihapus saat sesi ditutup
+  (`terminal.docker.keep_container` membiarkannya hidup). Container mulai tanpa variabel
+  lingkungan host: tidak ada kunci provider atau isi `.env` yang diteruskan; yang masuk hanya
+  apa yang disebut `terminal.docker.mounts`. Kunci config lain: `image` (wajib), `network`
+  (bawaan `none`), `user`, `memory`.
+- Backend `ssh`: satu koneksi per `task_id` (`ControlMaster`) ke `terminal.ssh.host`, dengan
+  `key`, `port`, `known_hosts`, `cwd` dari config. Operasi file ditransportasi lewat `ssh`
+  (`cat`, `tee`-style atomic write, `ls`, `stat`); tidak ada kredensial dari `.env` yang
+  diteruskan.
 - Kredensial yang dikenal dibuang dari lingkungan perintah kecuali terdaftar di
   `terminal.env_passthrough`: setiap nama dari `.env`, dan setiap kunci provider atau
   platform (`core.env.secret_names`) juga bila ia di-`export` di shell pengguna. Keluaran
-  diredaksi (`core.redact`).
+  diredaksi (`core.redact`). `env_passthrough` berlaku untuk backend `local` saja: Docker dan
+  SSH tidak mewarisi apa pun.
+- Gerbang persetujuan (`check_command`) tetap dipanggil di semua backend sebelum perintah
+  dijalankan, di `terminal_tool`, tidak di dalam backend.
 - Batas waktu mematikan seluruh grup proses. Interupsi menghentikan perintah yang berjalan.
 - Pembaca pipe memakai potongan berukuran tetap dan tetap menguras keluaran setelah batas
   penyimpanan tercapai. Foreground menyimpan paling banyak batas karakter yang diminta;
@@ -177,7 +198,8 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 | Registry, toolset, dispatch, hook | ✅ | |
 | Persetujuan `manual`, `smart`, `off` | ✅ | |
 | Backend terminal `local` | ✅ | |
-| Backend terminal Docker, SSH, lainnya | ⬜ | Antarmukanya ada (`register_environment_backend`): F2-T7 |
+| Backend terminal Docker, SSH | 🟡 | Diimplementasikan dan diuji: Docker bertanda khusus (terlewati tanpa daemon), SSH lewat transport tiruan; keduanya belum dijalankan terhadap daemon/host sungguhan. F2-T7 |
+| Backend terminal lainnya | ⬜ | Antarmukanya ada (`register_environment_backend`); cloud (Modal, Daytona) bisa menyusul sebagai plugin |
 | `terminal`, `process` | ✅ | |
 | `read_file`, `write_file`, `patch`, `search_files` | ✅ | Patch toleran (rantai pencocokan dengan cek unik per tingkat) dan patch multi-file V4A atomic |
 | `web_fetch` | ✅ | |
@@ -215,6 +237,8 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 - Persetujuan yang diingat (`session`, `always`) berlaku untuk seluruh pola, bukan untuk
   perintah yang ditanyakan saja.
 - Tool file tidak dibatasi ke direktori kerja. Yang dibatasi hanya daftar path terlarang.
+  Backend `docker` dan `ssh` memberi batas nyata: berkas di luar mount tidak terlihat dari
+  dalam container.
 - `web_fetch` memeriksa alamat dengan me-resolve nama host lebih dulu, lalu pustaka HTTP
   me-resolve lagi saat menyambung. Server DNS yang menjawab berbeda di antara keduanya (DNS
   rebinding) bisa lolos.

@@ -18,8 +18,9 @@ from pathlib import Path
 
 from clite.core.config import config_get
 from clite.core.env import secret_names
+from clite.core.io import atomic_write_text
 from clite.core.threads import start_thread
-from clite.tools.environments.base import BaseEnvironment, ExecResult
+from clite.tools.environments.base import BaseEnvironment, DirEntry, ExecResult, FileInfo, FileRead
 
 _POLL_SECONDS = 0.05
 _KILL_GRACE_SECONDS = 2.0
@@ -96,6 +97,46 @@ class LocalEnvironment(BaseEnvironment):
     def resolve_path(self, path: str) -> str:
         expanded = Path(os.path.expanduser(path))
         return str(expanded if expanded.is_absolute() else Path(self.cwd) / expanded)
+
+    # ── file operations ──────────────────────────────────────────────────────────────────
+    # The host filesystem is the workspace, so these are plain reads and writes. They are the
+    # reference behaviour the Docker and SSH backends mirror over their own transport.
+
+    def read_file(self, path: str, *, max_bytes: int | None = None) -> FileRead:
+        target = Path(path)
+        size = target.stat().st_size
+        with target.open("rb") as handle:
+            raw = handle.read() if max_bytes is None else handle.read(max_bytes)
+        return FileRead(raw.decode("utf-8", errors="replace"), size=size, binary=b"\x00" in raw[:4096])
+
+    def write_file(self, path: str, content: str) -> None:
+        atomic_write_text(path, content)
+
+    def list_dir(self, path: str) -> list[DirEntry]:
+        entries = []
+        for child in Path(path).iterdir():
+            entries.append(DirEntry(child.name, child.is_dir(), child.is_file(),
+                                    child.stat().st_size if child.is_file() else 0))
+        return entries
+
+    def stat(self, path: str) -> FileInfo:
+        target = Path(path)
+        if not target.exists():
+            return FileInfo()
+        is_dir, is_file = target.is_dir(), target.is_file()
+        return FileInfo(exists=True, is_dir=is_dir, is_file=is_file,
+                        size=target.stat().st_size if is_file else 0)
+
+    def spawn_background(self, command: str, *, cwd: str) -> object:
+        shell = find_shell()
+        # list2cmdline quotes argv using CRT rules, which cmd.exe does not follow for /c.
+        is_cmd = shell[0].replace("\\", "/").rsplit("/", 1)[-1].lower() in {"cmd", "cmd.exe"}
+        argv = subprocess.list2cmdline(shell) + " chcp 65001 >nul & " + command if is_cmd else [*shell, command]
+        return subprocess.Popen(  # noqa: S603 - running the model's command is this tool's job
+            argv, cwd=cwd, env=build_child_env(), stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8",
+            errors="replace", start_new_session=sys.platform != "win32",
+        )
 
     def execute(
         self,

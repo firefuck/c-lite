@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import atexit
 import subprocess
-import sys
 import threading
 import time
 import uuid
@@ -15,7 +14,8 @@ from clite.core.constants import home_key
 from clite.core.redact import redact
 from clite.core.threads import start_thread
 from clite.tools.context import ToolContext
-from clite.tools.environments.local import build_child_env, find_shell, kill_process_tree, read_output_chunks
+from clite.tools.environments import get_environment
+from clite.tools.environments.local import kill_process_tree, read_output_chunks
 from clite.tools.registry import registry, tool_error, tool_result
 
 _BUFFER_CHARS = 200_000
@@ -80,20 +80,14 @@ class ProcessRegistry:
         self._lock = threading.Lock()
         self._processes: dict[str, ManagedProcess] = {}
 
-    def spawn(self, command: str, *, cwd: str, task_id: str = "") -> ManagedProcess:
+    def spawn(self, command: str, *, cwd: str, task_id: str = "", environment=None) -> ManagedProcess:
         with self._lock:
             running = [p for p in self._processes.values() if p.exit_code is None]
             if len(running) >= _MAX_PROCESSES:
                 raise RuntimeError(f"too many background processes ({_MAX_PROCESSES}); kill one first")
-        shell = find_shell()
-        # list2cmdline quotes argv using CRT rules, which cmd.exe does not follow for /c.
-        is_cmd = shell[0].replace("\\", "/").rsplit("/", 1)[-1].lower() in {"cmd", "cmd.exe"}
-        argv = subprocess.list2cmdline(shell) + " chcp 65001 >nul & " + command if is_cmd else [*shell, command]
-        process = subprocess.Popen(  # noqa: S603
-            argv, cwd=cwd, env=build_child_env(), stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8",
-            errors="replace", start_new_session=sys.platform != "win32",
-        )
+        if environment is None:
+            environment = get_environment(task_id, cwd=cwd)
+        process = environment.spawn_background(command, cwd=cwd)
         managed = ManagedProcess(id="proc_" + uuid.uuid4().hex[:8], command=command, cwd=cwd, task_id=task_id, process=process)
 
         def pump() -> None:

@@ -1,20 +1,20 @@
 """File tools: read_file, write_file, patch, search_files.
 
 Relative paths resolve against the session's execution environment, so they follow ``cd``
-in the terminal. These are the local implementations; a remote backend would route the same
-four operations through its own environment.
+in the terminal. Every read and write goes through that environment's file operations
+(``read_file``, ``write_file``, ``list_dir``, ``stat``) rather than touching the host
+filesystem directly, so the same four tools work whether the session runs locally, in a
+container, or on another machine.
 """
 
 from __future__ import annotations
 
 import difflib
 import fnmatch
-import os
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
-from clite.core.io import atomic_write_text
 from clite.core.redact import redact
 from clite.tools.context import ToolContext
 from clite.tools.environments import get_environment
@@ -26,20 +26,24 @@ DEFAULT_READ_LIMIT = 500
 REDACTION_NOTE = "Credentials in this text were replaced with [REDACTED]. Do not copy that marker into a patch or a file."
 MAX_LINE_CHARS = 2000
 MAX_SEARCH_FILE_BYTES = 2_000_000
+# A file bigger than this is read from its first slice only: the tools page through large text,
+# and reading a multi-gigabyte file whole to show 500 lines would exhaust memory.
+MAX_READ_BYTES = 8_000_000
 SKIP_DIRS = frozenset({".git", "node_modules", "__pycache__", ".venv", "venv", ".mypy_cache", ".pytest_cache",
                        ".ruff_cache", "dist", "build", ".tox", ".idea", ".next", "target"})
 
 
-def _resolve(path: str, ctx: ToolContext) -> Path:
-    return Path(get_environment(ctx.task_id or ctx.session_id, cwd=ctx.cwd).resolve_path(path))
+def _env(ctx: ToolContext):
+    return get_environment(ctx.task_id or ctx.session_id, cwd=ctx.cwd)
 
 
-def _looks_binary(path: Path) -> bool:
-    try:
-        with path.open("rb") as handle:
-            return b"\x00" in handle.read(4096)
-    except OSError:
-        return False
+def _resolve(path: str, ctx: ToolContext) -> str:
+    return _env(ctx).resolve_path(path)
+
+
+def _join(parent: str, name: str) -> str:
+    """Join a directory path and a child name using the backend's path spelling."""
+    return str(PurePosixPath(parent) / name)
 
 
 # ── read_file ────────────────────────────────────────────────────────────────────────────
@@ -68,27 +72,30 @@ def read_file_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
     raw_path = args.get("path")
     if not raw_path:
         return tool_error("path is required")
-    path = _resolve(str(raw_path), ctx)
-    if not path.exists():
-        return tool_error(f"File not found: {path}", suggestions=_similar_names(path))
-    if path.is_dir():
+    environment = _env(ctx)
+    path = environment.resolve_path(str(raw_path))
+    info = environment.stat(path)
+    if not info.exists:
+        return tool_error(f"File not found: {path}", suggestions=_similar_names(path, ctx))
+    if info.is_dir:
         return tool_error(f"{path} is a directory. Use search_files(target='files') to list it.")
-    if not path.is_file():
+    if not info.is_file:
         return tool_error(f"{path} is not a regular file (a device, pipe or socket) and cannot be read.")
     denied = read_denied_reason(path)
     if denied:
         return tool_error(f"Refused to read {path}: {denied}.")
-    if _looks_binary(path):
-        return tool_error(f"{path} looks like a binary file ({path.stat().st_size} bytes) and cannot be read as text.")
     try:
         offset = max(1, int(args.get("offset") or 1))
         limit = max(1, int(args.get("limit") or DEFAULT_READ_LIMIT))
     except (TypeError, ValueError):
         return tool_error("offset and limit must be integers")
     try:
-        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        read = environment.read_file(path, max_bytes=MAX_READ_BYTES)
     except OSError as exc:
         return tool_error(f"could not read {path}: {exc}")
+    if read.binary:
+        return tool_error(f"{path} looks like a binary file ({read.size} bytes) and cannot be read as text.")
+    lines = read.content.splitlines()
 
     budget = int(ctx.setting("file_read_max_chars", 100_000) or 100_000)
     selected: list[str] = []
@@ -115,12 +122,14 @@ def read_file_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
     return tool_result(payload)
 
 
-def _similar_names(path: Path) -> list[str]:
+def _similar_names(path: str, ctx: ToolContext) -> list[str]:
+    parent = str(PurePosixPath(path).parent)
     try:
-        siblings = [entry.name for entry in path.parent.iterdir()]
+        siblings = [entry.name for entry in _env(ctx).list_dir(parent)]
     except OSError:
         return []
-    return [str(path.parent / name) for name in difflib.get_close_matches(path.name, siblings, n=3, cutoff=0.6)]
+    name = PurePosixPath(path).name
+    return [str(PurePosixPath(parent) / match) for match in difflib.get_close_matches(name, siblings, n=3, cutoff=0.6)]
 
 
 # ── write_file ───────────────────────────────────────────────────────────────────────────
@@ -149,15 +158,14 @@ def write_file_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str
         return tool_error("path is required")
     if not isinstance(content, str):
         return tool_error("content is required and must be a string")
-    path = _resolve(str(raw_path), ctx)
+    environment = _env(ctx)
+    path = environment.resolve_path(str(raw_path))
     denied = write_denied_reason(path)
     if denied:
         return tool_error(f"Refused to write {path}: {denied}.")
-    existed = path.exists()
-    if existed and path.is_dir():
-        return tool_error(f"{path} is a directory")
+    existed = environment.stat(path).is_file
     try:
-        atomic_write_text(path, content)
+        environment.write_file(path, content)
     except OSError as exc:
         return tool_error(f"could not write {path}: {exc}")
     return tool_result(path=str(path), bytes_written=len(content.encode("utf-8")), created=not existed)
@@ -212,7 +220,7 @@ def _patch_mode(args: dict[str, Any], ctx: ToolContext) -> str:
         return tool_error("mode='patch' requires a non-empty `patch` argument with V4A text")
 
     def resolve(path_str: str) -> Path:
-        return _resolve(path_str, ctx)
+        return Path(_resolve(path_str, ctx))
 
     result = apply_v4a_patch(patch_text, resolve)
     if result.error:
@@ -250,15 +258,16 @@ def patch_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
         return tool_error("new_string is required")
     if old == new:
         return tool_error("old_string and new_string are identical; nothing to change")
-    path = _resolve(str(raw_path), ctx)
+    environment = _env(ctx)
+    path = environment.resolve_path(str(raw_path))
     denied = write_denied_reason(path)
     if denied:
         return tool_error(f"Refused to edit {path}: {denied}.")
-    if not path.is_file():
+    if not environment.stat(path).is_file:
         return tool_error(f"File not found: {path}")
     try:
-        content = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError) as exc:
+        content = environment.read_file(path).content
+    except OSError as exc:
         return tool_error(f"could not read {path}: {exc}")
 
     count = content.count(old)
@@ -288,12 +297,12 @@ def patch_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
         replaced, level = 1, match.level
 
     try:
-        atomic_write_text(path, updated)
+        environment.write_file(path, updated)
     except OSError as exc:
         return tool_error(f"could not write {path}: {exc}")
     diff = "".join(
         difflib.unified_diff(content.splitlines(keepends=True), updated.splitlines(keepends=True),
-                             fromfile=f"a/{path.name}", tofile=f"b/{path.name}", n=2)
+                             fromfile=f"a/{PurePosixPath(path).name}", tofile=f"b/{PurePosixPath(path).name}", n=2)
     )
     return tool_result(path=str(path), replacements=replaced, match_level=level, diff=redact(diff[:8000]))
 
@@ -322,14 +331,49 @@ SEARCH_FILES_SCHEMA = {
 }
 
 
-def _walk(root: Path):
-    if root.is_file():
+def _ancestors(directory: str) -> list[str]:
+    """Every parent of ``directory``, immediate parent first, root last."""
+    parents: list[str] = []
+    current = PurePosixPath(directory)
+    while True:
+        parent = current.parent
+        if str(parent) == str(current):
+            break
+        parents.append(str(parent))
+        current = parent
+    return parents
+
+
+def _walk(environment, root: str, *, max_depth: int = 40):
+    """Yield files under ``root`` in sorted order, skipping dependency/vcs directories.
+
+    Files directly under a directory come before files in its subdirectories, both sorted by
+    name (depth-first, directories after files). Cycles (a symlink to an ancestor) are dropped
+    by never descending into a directory that is its own ancestor; ``max_depth`` bounds a
+    pathologically deep tree.
+    """
+    if environment.stat(root).is_file:
         yield root
         return
-    for directory, subdirs, files in os.walk(root):
-        subdirs[:] = sorted(d for d in subdirs if d not in SKIP_DIRS)
-        for name in sorted(files):
-            yield Path(directory) / name
+    stack: list[tuple[str, int, frozenset[str]]] = [(root, 0, frozenset(_ancestors(root)))]
+    while stack:
+        directory, depth, ancestors = stack.pop()
+        try:
+            entries = environment.list_dir(directory)
+        except OSError:
+            continue
+        subdirs: list[str] = []
+        for entry in sorted(entries, key=lambda item: item.name):
+            if entry.is_dir:
+                if entry.name in SKIP_DIRS or depth >= max_depth:
+                    continue
+                child = _join(directory, entry.name)
+                if child not in ancestors:
+                    subdirs.append(child)
+            elif entry.is_file:
+                yield _join(directory, entry.name)
+        for child in reversed(subdirs):
+            stack.append((child, depth + 1, ancestors | {child}))
 
 
 def search_files_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
@@ -338,26 +382,27 @@ def search_files_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> s
     if not isinstance(pattern, str) or not pattern:
         return tool_error("pattern is required")
     target = args.get("target") or "content"
-    root = _resolve(str(args.get("path") or "."), ctx)
-    if not root.exists():
+    environment = _env(ctx)
+    root = environment.resolve_path(str(args.get("path") or "."))
+    root_info = environment.stat(root)
+    if not root_info.exists:
         return tool_error(f"Path not found: {root}")
     try:
         limit = max(1, min(int(args.get("limit") or 50), 500))
     except (TypeError, ValueError):
         return tool_error("limit must be an integer")
     file_glob = args.get("file_glob")
-    base = root if root.is_dir() else root.parent
+    base = root if root_info.is_dir else str(PurePosixPath(root).parent)
 
-    def display(path: Path) -> str:
-        try:
-            return path.relative_to(base).as_posix()
-        except ValueError:
-            return str(path)
+    def display(path: str) -> str:
+        prefix = base.rstrip("/") + "/"
+        return path[len(prefix):] if path.startswith(prefix) else path
 
     if target == "files":
         matches = []
-        for path in _walk(root):
-            if fnmatch.fnmatch(path.name, pattern) or fnmatch.fnmatch(display(path), pattern):
+        for path in _walk(environment, root):
+            name = PurePosixPath(path).name
+            if fnmatch.fnmatch(name, pattern) or fnmatch.fnmatch(display(path), pattern):
                 matches.append(display(path))
                 if len(matches) >= limit:
                     break
@@ -371,17 +416,20 @@ def search_files_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> s
         return tool_error(f"invalid regular expression: {exc}")
     results: list[str] = []
     files_with_matches = 0
-    for path in _walk(root):
-        if file_glob and not fnmatch.fnmatch(path.name, str(file_glob)):
+    for path in _walk(environment, root):
+        if file_glob and not fnmatch.fnmatch(PurePosixPath(path).name, str(file_glob)):
+            continue
+        info = environment.stat(path)
+        if info.size > MAX_SEARCH_FILE_BYTES or read_denied_reason(path):
             continue
         try:
-            if path.stat().st_size > MAX_SEARCH_FILE_BYTES or _looks_binary(path) or read_denied_reason(path):
-                continue
-            text = path.read_text(encoding="utf-8", errors="replace")
+            read = environment.read_file(path, max_bytes=MAX_SEARCH_FILE_BYTES + 1)
         except OSError:
             continue
+        if read.binary:
+            continue
         hit = False
-        for number, line in enumerate(text.splitlines(), start=1):
+        for number, line in enumerate(read.content.splitlines(), start=1):
             if regex.search(line):
                 hit = True
                 results.append(f"{display(path)}:{number}: {redact(line.strip()[:300])}")

@@ -331,13 +331,32 @@ plugin.
 `website/docs/developer-guide/terminal-environment-plugin.md`.
 
 **Selesai bila.**
-- [ ] Suite tool file dan terminal yang ada lulus terhadap `LocalEnvironment` lewat antarmuka
+- [x] Suite tool file dan terminal yang ada lulus terhadap `LocalEnvironment` lewat antarmuka
       baru, tanpa perubahan perilaku.
-- [ ] Suite yang sama dijalankan terhadap Docker (tes bertanda khusus, terlewati tanpa
+- [x] Suite yang sama dijalankan terhadap Docker (tes bertanda khusus, terlewati tanpa
       Docker) dan lulus.
-- [ ] Tes: file di luar mount tidak terbaca dari dalam container.
-- [ ] Dokumen keamanan diperbarui: baris "Tidak ada sandbox" berubah menjadi penjelasan cara
+- [x] Tes: file di luar mount tidak terbaca dari dalam container.
+- [x] Dokumen keamanan diperbarui: baris "Tidak ada sandbox" berubah menjadi penjelasan cara
       mengaktifkannya.
+
+**Kemajuan 8 Oktober 2026.** `BaseEnvironment` diperluas dengan operasi file (`read_file`,
+`write_file`, `list_dir`, `stat`) dan `spawn_background`; `LocalEnvironment` mengimplementasikan
+file ops dengan `pathlib` (perilaku lama, tak berubah) dan `spawn_background` memakai kode spawn
+yang dulu ada di `process` registry. `read_file`, `write_file`, `patch`, dan `search_files` kini
+mengarahkan setiap pembacaan dan penulisan lewat lingkungan sesi, dengan penjaga file dan redaksi
+tetap di jalurnya. Dua backend baru: `DockerEnvironment` (satu container per `task_id` dari
+`terminal.docker.image`, direktori kerja di-bind-mount, container dihapus saat `cleanup`, container
+tanpa variabel host) dan `SSHEnvironment` (satu koneksi ControlMaster per `task_id` ke
+`terminal.ssh.host`, file ops lewat `cat`/atomic-write/`ls`/`stat`). Keduanya didaftarkan dengan
+`register_environment_backend` dan dipilih lewat `terminal.backend`. Dijaga
+`tests/tools/test_environments.py` (14 tes, 3 bertanda `docker` yang terlewati tanpa daemon) dan
+suite tool file + terminal lama yang lulus tanpa perubahan. **Docker dan SSH asli belum pernah
+dijalankan**: Docker CLI ada tetapi tidak ada daemon di mesin ini, dan SSH tidak diuji terhadap
+host sungguhan. Rujukan Hermes tidak tersedia.
+
+**Belum diverifikasi.** Docker: perintah sungguhan di dalam container, mount langsung, isolasi
+berkas di luar mount, dan pembersihan container. SSH: koneksi ControlMaster sungguhan, transfer
+berkas, dan interaksi dengan `~/.ssh/config`. Lihat `docs/STATUS.md`.
 
 **Ukuran.** L
 

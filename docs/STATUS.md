@@ -126,6 +126,27 @@ Belum diverifikasi: mengirim gambar ke provider berpenglihatan sungguhan dan mem
 lewat OpenAI Images sungguhan belum pernah dijalankan (butuh kunci API dan jaringan). Yang
 diuji adalah bentuk permintaan HTTP dan perakitan hasil terhadap server lokal, bukan API asli.
 Clone rujukan Hermes tidak tersedia, sehingga file rujukan belum dibaca.
+### F2-T7: backend terminal Docker dan SSH (8 Oktober 2026)
+
+`BaseEnvironment` diperluas dengan operasi file (`read_file`, `write_file`, `list_dir`,
+`stat`) dan `spawn_background`. `read_file`, `write_file`, `patch`, dan `search_files` kini
+mengarahkan setiap pembacaan dan penulisan lewat lingkungan sesi, bukan lewat `pathlib`
+langsung; penjaga file dan redaksi tetap di jalurnya. `LocalEnvironment` mengimplementasikan
+operasi itu dengan `pathlib` dan memindahkan kode spawn proses latar dari registry `process`.
+Dua backend baru didaftarkan dengan `register_environment_backend` dan dipilih lewat
+`terminal.backend`: `DockerEnvironment` (satu container per `task_id`, direktori kerja
+di-bind-mount, container dihapus saat `cleanup`, tanpa variabel lingkungan host) dan
+`SSHEnvironment` (satu koneksi ControlMaster per `task_id`, operasi file lewat `ssh`). Kunci
+config baru di bawah `terminal.docker.*` dan `terminal.ssh.*`.
+
+Bukti regresi pada salinan bercabang dari `1a6cdab` dengan tes baru saja (dan shim sementara
+supaya koleksi berhasil): 10 tes gagal dan 1 error, termasuk `FileInfo`/`DirEntry` yang tidak
+ada, backend `docker`/`ssh` yang tidak terdaftar, dan operasi file yang belum ada di
+`BaseEnvironment`; sesudah implementasi, 14 tes lulus dan 3 tes bertanda `docker` terlewati
+(tidak ada daemon di mesin ini). Suite tool file + terminal lama (56 tes) lulus lewat
+antarmuka baru tanpa perubahan perilaku. Suite Python penuh: 1010 lulus, 29 terlewati, satu
+tes server gagal yang sudah gagal sebelum tugas ini (versi pustaka `websockets`). Ruff dan
+mypy bersih. Docker dan SSH asli belum pernah dijalankan. Rujukan Hermes tidak tersedia.
 
 ## Pemasangan yang sudah diverifikasi
 
@@ -179,6 +200,9 @@ dijalankan terhadap hal yang sebenarnya. Anggap belum berfungsi sampai terbukti.
 | Provider pencarian web (`web-search-ddg`, `web-search-tavily`) | Diuji terhadap server HTTP lokal yang meniru API pencarian. DuckDuckGo dan Tavily asli belum pernah dipanggil | F2-T5 ✅ |
 | Masukan dan analisis gambar ke provider sungguhan | Bentuk konten dan permintaan `vision_analyze` diuji terhadap transport dan terhadap HTTP loopback, bukan API asli. Mengirim gambar ke provider berpenglihatan sungguhan (dan perilaku model tanpa penglihatan terhadap gambar yang ditahan) belum pernah dijalankan | F2-T6 ✅ (uji asli belum) |
 | Pembuatan gambar lewat OpenAI Images (`image-gen-openai`) | Bentuk permintaan (`/v1/images/generations`, `model`/`prompt`/`size`/`n`) dan dekode `b64_json` diuji terhadap server lokal. API asli belum pernah dipanggil | F2-T6 ✅ (uji asli belum) |
+| Masukan gambar ke provider sungguhan | Bentuk konten diuji terhadap transport dan terhadap HTTP loopback, bukan API asli. Mengirim gambar ke provider berpenglihatan sungguhan (dan perilaku model tanpa penglihatan terhadap gambar yang ditahan) belum pernah dijalankan | F2-T6 🟡 |
+| Backend terminal Docker | Kode ada dan diuji: pemilihan lewat `terminal.backend`, penolakan tanpa `terminal.docker.image`, penyusunan argv `docker run`/`docker exec`, dan env klien Docker. Tiga tes bertanda `docker` terlewati di mesin ini (tidak ada daemon). Menjalankan container sungguhan, mount, isolasi berkas di luar mount, dan pembersihan belum pernah | F2-T7 🟡 |
+| Backend terminal SSH | Kode ada dan diuji lewat transport tiruan: resolusi path, `read_file`/`write_file`/`list_dir`/`stat`, dan penolakan tanpa `terminal.ssh.host`. Koneksi ControlMaster, transfer berkas, dan `~/.ssh/config` sungguhan belum pernah dijalankan | F2-T7 🟡 |
 | Tes jaringan provider (`tests/providers/test_live.py`) | Ditulis, belum pernah dijalankan: menunggu kunci Anthropic dan satu provider kompatibel OpenAI | F1-T2 |
 | Persetujuan `smart` dengan model sungguhan | Hanya diuji dengan model berskrip | F1-T2 |
 | Adapter Telegram | Hanya terhadap Bot API tiruan. Daftar periksa bot sungguhan di F1-T3 belum dijalankan: menunggu token bot dan grup uji | F1-T3 |
@@ -284,6 +308,7 @@ python scripts/check_hermes_refs.py --hermes ../hermes-ref   # butuh clone Herme
 | 6 Oktober 2026 | `install_skill("anthropics/skills/skills/pdf")` memasang skill dari GitHub sungguhan tanpa token (`pytest tests/skills -m network`) | Linux, Python 3.13 |
 | 8 Oktober 2026 | F2-T6 langkah 1: 14 regresi merah pada salinan `5ae95cd` dengan tes baru saja, 46 tes baru lulus sesudah implementasi; suite Python penuh 995 lulus/26 terlewati, Ruff dan mypy 164 file bersih; 21 tes Node `apps/shared` dan 18 tes `ui-tui` lulus, bundle TUI dibangun ulang | Linux, Python 3.11.16, Node 26.7.0 |
 | 8 Oktober 2026 | F2-T6 langkah 2 dan 3: regresi merah pada worktree bersih dari `1a6cdab` (2 `ImportError` + 2 kegagalan arsitektur), 20 tes baru + arsitektur lulus sesudah implementasi; suite Python penuh 1016 lulus/26 terlewati (1 gagal sudah-ada di `tests/server`), Ruff bersih, mypy 167 file bersih | Linux, Python 3.11.16 |
+| 8 Oktober 2026 | F2-T7: 10 gagal + 1 error pada salinan `1a6cdab` dengan tes baru saja, 14 lulus / 3 terlewati (tanpa Docker) sesudah implementasi; suite tool file + terminal lama 56 lulus lewat antarmuka baru; suite Python penuh 1010 lulus/29 terlewati (satu tes server gagal sebelum tugas ini), Ruff dan mypy bersih. Docker dan SSH asli belum dijalankan | Linux, Python 3.11.16 (Docker CLI ada, daemon tidak) |
 
 Setiap task yang memverifikasi sesuatu menambah baris di tabel ini dan memindahkan butirnya
 dari "belum diverifikasi".
