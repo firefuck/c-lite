@@ -92,12 +92,24 @@ def classify_api_error(exc: BaseException) -> ClassifiedError:
 
 def _classify_http(error: ProviderHTTPError) -> ClassifiedError:
     status = error.status
-    text = f"{error.message} {error.error_type}".lower()
+    payload_error = error.payload.get("error") or {}
+    code = str(payload_error.get("code") or "") if isinstance(payload_error, dict) else ""
+    text = f"{error.message} {error.error_type} {code}".lower()
     message = error.message or f"HTTP {status}"
     retry_after = _retry_after(error)
 
     def result(reason: FailoverReason, **hints: bool) -> ClassifiedError:
         return ClassifiedError(reason, message, status, retry_after=retry_after, **hints)
+
+    # Symbolic codes also occur inside successful HTTP responses and SSE error events.
+    if code == "invalid_encrypted_content":
+        return result(FailoverReason.THINKING_SIGNATURE, should_drop_replay=True)
+    if code in ("invalid_api_key", "authentication_error"):
+        return result(FailoverReason.AUTH, should_rotate_credential=True, should_fallback=True)
+    if code in ("rate_limit_exceeded", "rate_limit_error"):
+        return result(FailoverReason.RATE_LIMIT, retryable=True, should_rotate_credential=True, should_fallback=True)
+    if code == "server_error":
+        return result(FailoverReason.SERVER_ERROR, retryable=True, should_fallback=True)
 
     # Message checks first: providers disagree on which status carries which problem.
     if _has(text, _CONTEXT_PHRASES) and status in (400, 413, 422, 429):

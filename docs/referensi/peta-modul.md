@@ -188,6 +188,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `base.py` | ``ProviderTransport``: one class per wire protocol (``api_mode``). | `StreamAccumulator`, `ProviderTransport`, `register_transport()`, `get_transport()`, `transport_modes()` |
 | `chat_completions.py` | OpenAI Chat Completions: the protocol most providers speak. | `wire_messages()`, `parse_usage()`, `ChatCompletionsAccumulator`, `ChatCompletionsTransport` |
 | `mock.py` | Offline provider: deterministic answers without a network or an API key. | `MockTransport` |
+| `responses.py` | Responses wire conversion and streaming, with stateless replay of complete output items. | `convert_messages()`, `parse_response()`, `ResponsesAccumulator`, `ResponsesTransport` |
 | `types.py` | Provider-neutral shapes the agent loop works with. | `ToolCall`, `Usage`, `NormalizedResponse`, `RequestParams`, `HttpRequest` |
 
 ## `clite/rpc/`
@@ -296,4 +297,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `__init__.py` | MCP (Model Context Protocol) client: tools served by external processes. |  |
 | `client.py` | A small MCP client over stdio. | `McpError`, `safe_name()`, `McpServer`, `connect_mcp_servers()`, `shutdown_mcp_servers()` |
 
-Jumlah: 160 modul.
+Jumlah: 161 modul.

@@ -33,7 +33,7 @@ itu tool, sesi, atau giliran.
 **Profil dan registry**
 - Menambah provider adalah menambah satu direktori berisi profil. Tidak ada
   `if provider == ...` di kode inti. Keanehan provider masuk ke method yang di-override:
-  `get_headers`, `prepare_messages`, `build_extra_body`, `wants_cache_markers`,
+  `resolve_api_mode`, `get_headers`, `prepare_messages`, `build_extra_body`, `wants_cache_markers`,
   `resolve_temperature`, `replay_is_prefix_bound`, `get_max_tokens`,
   `get_model_context_length`.
 - Lapisan registry, yang belakangan menang: bawaan paket, plugin umum
@@ -69,6 +69,13 @@ itu tool, sesi, atau giliran.
 - `anthropic_messages`: system dipisah, hasil tool dibungkus, pesan berperan sama yang
   berurutan digabung, blok penalaran bertanda tangan diputar ulang apa adanya dari
   `provider_data["anthropic_blocks"]`, tool memakai `input_schema`.
+- `responses`: pesan internal menjadi item `input`, tool menjadi fungsi Responses, dan stream
+  dirakit dari event berindeks. Item `output` lengkap (penalaran terenkripsi, pesan, dan
+  `function_call`) disimpan di `provider_data["responses_output"]`, lalu diputar ulang apa
+  adanya tanpa `previous_response_id`; permintaan memakai `store: false`. Respons tidak lengkap
+  tidak menjalankan argumen tool yang mungkin terpotong.
+- Profil `openai` memilih `responses` untuk `gpt-5-codex` lewat `resolve_api_mode`.
+  `model.api_mode` eksplisit tetap menang, juga sesudah `/model`.
 - `mock`: jawaban deterministik tanpa jaringan untuk demo dan tes ujung ke ujung.
 
 **Panggilan**
@@ -81,6 +88,9 @@ itu tool, sesi, atau giliran.
 - Loop tidak pernah melihat kode status. Ia menerima `ClassifiedError` dengan petunjuk:
   `retryable`, `should_compress`, `should_rotate_credential`, `should_fallback`,
   `should_drop_replay`, `retry_after`.
+- Kode galat Responses (`invalid_encrypted_content`, `invalid_api_key`, `rate_limit_exceeded`,
+  `server_error`, dan kode yang sudah dikenali lewat frasa) diklasifikasikan meskipun `type`
+  bersifat umum. Event `response.failed`, `error`, dan stream terputus menjadi galat.
 - Pemeriksaan isi pesan didahulukan dari kode status, karena provider tidak sepakat status
   mana membawa masalah apa.
 
@@ -131,7 +141,7 @@ ganti model, dan saat provider menolaknya (`FailoverReason.THINKING_SIGNATURE`).
 | Resolusi rute, fallback, kumpulan kredensial | ✅ | |
 | Transport `chat_completions`, `anthropic_messages`, `mock` | ✅ | Diuji terhadap server HTTP tiruan lokal |
 | Panggilan ke provider sungguhan | ⬜ belum diverifikasi | F1-T2 |
-| Transport `responses` (OpenAI Responses API) | ⬜ | Konstanta `API_MODE_RESPONSES` sudah ada: F2-T1 |
+| Transport `responses` (OpenAI Responses API) | 🟡 | Streaming dan nonstreaming, replay dua ronde tool, awalan kawat, pemilihan profil, dan galat diuji terhadap `fake_api`. Tes jaringan ditulis, belum dijalankan: F2-T1 |
 | Profil bawaan | 🟡 | 8: anthropic, openai, openrouter, gemini, deepseek, ollama, custom, mock. Tambahan: F2-T2 |
 | Harga dan estimasi biaya | ⬜ | F2-T3 |
 | OAuth, `clite auth`, kredensial di luar `.env` | ⬜ | F2-T14 |

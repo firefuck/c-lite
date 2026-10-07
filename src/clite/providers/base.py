@@ -66,6 +66,10 @@ class ProviderProfile:
 
     # ── hooks: override in a subclass for a provider with real quirks ────────────────────
 
+    def resolve_api_mode(self, model: str) -> str:
+        """Select the wire protocol for a model unless the route explicitly overrides it."""
+        return self.api_mode
+
     def get_hostname(self) -> str:
         return urlsplit(self.base_url).hostname or ""
 
