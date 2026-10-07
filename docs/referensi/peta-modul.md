@@ -263,6 +263,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `context.py` | ``ToolContext``: what a tool handler may know about the call it is serving. | `ToolContext` |
 | `dispatch.py` | The two entry points the agent loop uses: tool definitions in, tool results out. | `reset_definition_cache()`, `resolve_enabled_tools()`, `get_tool_definitions()`, `coerce_args()`, `cap_result()`, `handle_function_call()` |
 | `file_safety.py` | Path guards for the file tools. | `protected_path()`, `write_denied_reason()`, `read_denied_reason()` |
+| `image_gen.py` | ``ImageProvider``: a pluggable backend for the ``image_generate`` tool. | `GeneratedImage`, `ImageProvider`, `register_image_provider()`, `unregister_image_provider()`, `reset_image_providers()`, `provider_names()`, `has_image_provider()`, `get_image_provider()` |
 | `patching.py` | Tolerant patch matching and V4A multi-file patch application. | `MatchResult`, `find_tolerant_match()`, `apply_replacement()`, `PatchHunk`, `ParsedPatch`, `parse_v4a_patch()`, `MultiFileResult`, `apply_v4a_patch()` |
 | `registry.py` | Tool registry: one process-wide table of every tool the model can call. | `ToolEntry`, `ToolRegistry`, `get_background_loop()`, `run_async()`, `tool_error()`, `tool_result()`, `discover_builtin_tools()`, `reset_check_cache()` |
 | `toolsets.py` | Toolsets: named groups of tools, composable through ``includes``. | `register_toolset()`, `toolset_exists()`, `resolve_toolset()`, `resolve_toolsets()`, `all_toolsets()`, `toolset_for_tool()` |
@@ -277,12 +278,14 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `cronjob.py` | ``cronjob``: let the agent schedule its own future work. | `cronjob_tool()` |
 | `delegate.py` | ``delegate_task``: hand focused work to subagents with isolated context. | `delegate_tool()` |
 | `file_tools.py` | File tools: read_file, write_file, patch, search_files. | `read_file_tool()`, `write_file_tool()`, `patch_tool()`, `search_files_tool()` |
+| `image_gen.py` | ``image_generate``: draw or edit a picture through a configured ``ImageProvider``. | `image_generate_tool()` |
 | `memory.py` | ``memory``: persistent notes across sessions (MEMORY.md and USER.md). | `memory_tool()` |
 | `process.py` | Background processes: start with ``terminal(background=true)``, manage with ``process``. | `ManagedProcess`, `ProcessRegistry`, `reset_process_registry()`, `process_tool()` |
 | `session_search.py` | ``session_search``: recall past conversations from the session database. | `session_search_tool()` |
 | `skills.py` | Skill tools: list, view (progressive disclosure), and manage (procedural memory). | `skills_list_tool()`, `skill_view_tool()`, `skill_manage_tool()` |
 | `terminal.py` | ``terminal``: run a shell command in the session's execution environment. | `clip_lines()`, `terminal_tool()` |
 | `todo.py` | ``todo``: the agent's task list for multi-step work. | `todo_tool()` |
+| `vision.py` | ``vision_analyze``: let a text-only model look at an image through a helper model. | `vision_analyze_tool()` |
 | `web.py` | ``web_fetch``: download a page and return readable text. | `html_to_text()`, `private_address_reason()`, `web_fetch_tool()`, `web_search_tool()` |
 
 ## `clite/tools/environments/`
@@ -300,4 +303,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `__init__.py` | MCP (Model Context Protocol) client: tools served by external processes. |  |
 | `client.py` | A small MCP client over stdio. | `McpError`, `safe_name()`, `McpServer`, `connect_mcp_servers()`, `shutdown_mcp_servers()` |
 
-Jumlah: 164 modul.
+Jumlah: 167 modul.

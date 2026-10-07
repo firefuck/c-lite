@@ -255,7 +255,7 @@ Hermes tidak tersedia, sehingga file rujukan belum dibaca.
       pesan itu dikirim ulang persis sama di giliran berikutnya.
 - [x] Tes: model yang dinyatakan tanpa penglihatan tidak pernah menerima bagian gambar.
 - [x] Tes: gambar tersimpan di database tanpa membengkakkan pencarian teks.
-- [ ] Baris "Input gambar" dan "Analisis gambar, pembuatan gambar" di spesifikasi menjadi ✅.
+- [x] Baris "Input gambar" dan "Analisis gambar, pembuatan gambar" di spesifikasi menjadi ✅.
 
 **Kemajuan 8 Oktober 2026 — langkah 1 selesai, langkah 2 dan 3 belum.** Langkah 1 (masukan)
 selesai di branch `f2-t6-images`: `clite chat --image`, `/image` (alias `/attach`) di semua
@@ -269,14 +269,31 @@ dan membangun ulang indeks. Baris "Input gambar" di spesifikasi agent menjadi �
 (`vision_analyze`) dan langkah 3 (`image_generate`) belum dikerjakan. Rujukan Hermes tidak
 tersedia. Lihat sisa di bawah.
 
+**Kemajuan 8 Oktober 2026 — langkah 2 dan 3 selesai.** Langkah 2: `src/clite/tools/builtin/vision.py`
+menambah tool `vision_analyze`, yang mengirim gambar ke rute `auxiliary.vision` (kunci config
+baru) dan mengembalikan teks model bantu sebagai hasil tool. Model utama tidak pernah menerima
+bagian gambar; rute buta ditolak dengan pesan yang menyebut cara mengarahkannya ke model
+berpenglihatan. Profil provider menyatakan model mana yang menerima gambar lewat
+`supports_vision`/`vision_models`/`no_vision_prefixes`; profil `deepseek` mengisi daftar izin
+(sumber 2026-10-07). Langkah 3: `src/clite/tools/image_gen.py` menambah antarmuka
+`ImageProvider` dengan registry dan `ctx.register_image_provider`; tool `image_generate`
+(`src/clite/tools/builtin/image_gen.py`) hanya ditawarkan bila ada provider (`check_fn`),
+menyimpan byte gambar ke `<cwd>/generated-images/` lewat `write_denied_reason`, dan plugin
+bawaan `image-gen-openai` (`kind: backend`, butuh `OPENAI_API_KEY`) menyediakan backend.
+Kunci config baru `image.provider`. Dijaga `tests/tools/test_vision.py` (8 tes),
+`tests/tools/test_image_gen.py` (11 tes), dan satu giliran ujung-ke-ujung di
+`tests/agent/test_loop.py` (model utama buta memanggil `vision_analyze`, gambarnya hanya pergi
+ke rute bantu). Bukti regresi merah/hijau ada di `docs/STATUS.md`.
+Baris "Analisis gambar, pembuatan gambar" di spesifikasi tools menjadi ✅; uji terhadap API
+asli belum dijalankan. Rujukan Hermes tidak tersedia.
+
 **Sisa untuk penyelesaian penuh F2-T6.**
-- Langkah 2: tool `vision_analyze` lewat rute `auxiliary.vision`, untuk model utama yang tidak
-  menerima gambar. Profil provider menyatakan model mana yang menerima gambar (mekanisme
-  `supports_vision` sudah ada, pengisian per profil menyusul).
-- Langkah 3: antarmuka `ImageProvider` dengan registry, tool `image_generate`, dan satu plugin
-  provider.
 - Kompresi membuang gambar lama lebih dulu daripada teks (F2-T11).
-- Uji terhadap API asli: mengirim gambar ke provider sungguhan belum pernah dijalankan.
+- Uji terhadap API asli: mengirim gambar ke provider sungguhan dan membuat gambar lewat
+  OpenAI Images sungguhan belum pernah dijalankan.
+- Pengisian `vision_models`/`no_vision_prefixes` untuk provider lain masih kosong (default
+  "semua model menerima gambar"); dilengkapi saat ada provider yang terbukti punya model
+  teks-saja.
 
 **Ukuran.** L
 

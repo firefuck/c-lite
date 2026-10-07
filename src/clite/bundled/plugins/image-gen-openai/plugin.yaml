@@ -1,0 +1,5 @@
+name: image-gen-openai
+version: 1.0.0
+description: Image generation via the OpenAI Images API (requires OPENAI_API_KEY)
+author: C-lite
+kind: backend

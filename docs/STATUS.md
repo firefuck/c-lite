@@ -90,6 +90,43 @@ lulus; bundle TUI dibangun ulang dengan `node build.mjs` karena kontrak TypeScri
 Clone rujukan Hermes tidak tersedia, sehingga file rujukan belum dibaca. Langkah 2
 (`vision_analyze`) dan 3 (`image_generate`) belum dikerjakan; F2-T6 tetap 🟡.
 
+### F2-T6 langkah 2 dan 3: analisis dan pembuatan gambar (8 Oktober 2026)
+
+Langkah 2 selesai. `src/clite/tools/builtin/vision.py` menambah tool `vision_analyze`, yang
+memuat gambar lewat `agent.attachments` dan mengirimnya ke rute `auxiliary.vision` (kunci
+config baru `auxiliary.vision.provider`/`.model`). Model utama tidak pernah menerima bagian
+gambar: ia hanya menerima teks jawaban model bantu sebagai hasil tool. Rute yang buta (`route
+.profile.supports_vision(route.model)` bernilai salah) ditolak dengan pesan yang menyebut cara
+mengarahkan `auxiliary.vision` ke model berpenglihatan. Profil provider menyatakan model mana
+yang menerima gambar lewat `vision_models`/`no_vision_prefixes`; profil `deepseek` mengisi
+daftar izin (`deepseek-v4-flash-vision-exp`, sumber 2026-10-07).
+
+Langkah 3 selesai. `src/clite/tools/image_gen.py` menambah antarmuka `ImageProvider` dengan
+registry dan `ctx.register_image_provider`; tool `image_generate`
+(`src/clite/tools/builtin/image_gen.py`) hanya ditawarkan bila ada provider (`check_fn`),
+memvalidasi ukuran terhadap `supported_sizes`, menyimpan byte gambar ke
+`<cwd>/generated-images/` lewat `write_denied_reason`, dan mengembalikan path-nya. Plugin
+bawaan `image-gen-openai` (`kind: backend`) menyediakan backend OpenAI Images; `OPENAI_API_KEY`
+didaftarkan sebagai kredensial. Kunci config baru `image.provider`.
+
+Bukti regresi merah/hijau pada salinan bercabang dari `1a6cdab` (worktree bersih) dengan tes
+baru saja: `tests/tools/test_vision.py` dan `tests/tools/test_image_gen.py` gagal saat
+koleksi dengan `ImportError: cannot import name 'vision'/'image_gen' from
+'clite.tools.builtin'`, dan `tests/test_architecture.py` gagal dengan
+`test_imports_point_down_the_layers` (import ke `agent.attachments`) serta
+`test_indirect_reader_table_has_no_stale_entries` (kunci `auxiliary.vision.*` belum ada).
+Sesudah implementasi, 20 tes baru lulus (8 vision + 11 image_gen + 1 giliran ujung-ke-ujung di
+`tests/agent/test_loop.py`) dan `tests/test_architecture.py` lulus.
+Suite Python penuh: 1016 lulus, 26 terlewati, 1 gagal — kegagalan itu
+`tests/server/test_server.py::test_a_loopback_server_ignores_requests_addressed_to_another_name`,
+yang sudah gagal sebelum tugas ini (versi pustaka `websockets`); diverifikasi dengan `git
+stash`. Ruff bersih, mypy 167 file bersih.
+
+Belum diverifikasi: mengirim gambar ke provider berpenglihatan sungguhan dan membuat gambar
+lewat OpenAI Images sungguhan belum pernah dijalankan (butuh kunci API dan jaringan). Yang
+diuji adalah bentuk permintaan HTTP dan perakitan hasil terhadap server lokal, bukan API asli.
+Clone rujukan Hermes tidak tersedia, sehingga file rujukan belum dibaca.
+
 ## Pemasangan yang sudah diverifikasi
 
 Pada 6 Oktober 2026 CI repo `https://github.com/dragovics/clite` run `37356398420` pada
@@ -140,7 +177,8 @@ dijalankan terhadap hal yang sebenarnya. Anggap belum berfungsi sampai terbukti.
 | Transport `responses` | Diuji terhadap server HTTP lokal untuk streaming/nonstreaming dan dua ronde tool; `test_openai_responses_replays_reasoning_across_two_tool_rounds` belum dijalankan karena pemilik menunda uji API asli | F2-T1 |
 | Sepuluh profil tambahan gelombang pertama | Rute, bentuk HTTP streaming/nonstreaming, dan discovery setup diuji dengan server lokal. API asli (termasuk server LM Studio/vLLM sungguhan) belum pernah dipanggil; profil cloud Azure/Bedrock/Vertex juga hanya diuji lokal | F2-T2 🟡 |
 | Provider pencarian web (`web-search-ddg`, `web-search-tavily`) | Diuji terhadap server HTTP lokal yang meniru API pencarian. DuckDuckGo dan Tavily asli belum pernah dipanggil | F2-T5 ✅ |
-| Masukan gambar ke provider sungguhan | Bentuk konten diuji terhadap transport dan terhadap HTTP loopback, bukan API asli. Mengirim gambar ke provider berpenglihatan sungguhan (dan perilaku model tanpa penglihatan terhadap gambar yang ditahan) belum pernah dijalankan | F2-T6 🟡 |
+| Masukan dan analisis gambar ke provider sungguhan | Bentuk konten dan permintaan `vision_analyze` diuji terhadap transport dan terhadap HTTP loopback, bukan API asli. Mengirim gambar ke provider berpenglihatan sungguhan (dan perilaku model tanpa penglihatan terhadap gambar yang ditahan) belum pernah dijalankan | F2-T6 ✅ (uji asli belum) |
+| Pembuatan gambar lewat OpenAI Images (`image-gen-openai`) | Bentuk permintaan (`/v1/images/generations`, `model`/`prompt`/`size`/`n`) dan dekode `b64_json` diuji terhadap server lokal. API asli belum pernah dipanggil | F2-T6 ✅ (uji asli belum) |
 | Tes jaringan provider (`tests/providers/test_live.py`) | Ditulis, belum pernah dijalankan: menunggu kunci Anthropic dan satu provider kompatibel OpenAI | F1-T2 |
 | Persetujuan `smart` dengan model sungguhan | Hanya diuji dengan model berskrip | F1-T2 |
 | Adapter Telegram | Hanya terhadap Bot API tiruan. Daftar periksa bot sungguhan di F1-T3 belum dijalankan: menunggu token bot dan grup uji | F1-T3 |
@@ -245,6 +283,7 @@ python scripts/check_hermes_refs.py --hermes ../hermes-ref   # butuh clone Herme
 | 6 Oktober 2026 | F1-T6 lokal: penulis config `ruamel.yaml` mempertahankan format; suite penuh 811 lulus, 26 skip; CI belum jalan | Linux, Python 3.11 |
 | 6 Oktober 2026 | `install_skill("anthropics/skills/skills/pdf")` memasang skill dari GitHub sungguhan tanpa token (`pytest tests/skills -m network`) | Linux, Python 3.13 |
 | 8 Oktober 2026 | F2-T6 langkah 1: 14 regresi merah pada salinan `5ae95cd` dengan tes baru saja, 46 tes baru lulus sesudah implementasi; suite Python penuh 995 lulus/26 terlewati, Ruff dan mypy 164 file bersih; 21 tes Node `apps/shared` dan 18 tes `ui-tui` lulus, bundle TUI dibangun ulang | Linux, Python 3.11.16, Node 26.7.0 |
+| 8 Oktober 2026 | F2-T6 langkah 2 dan 3: regresi merah pada worktree bersih dari `1a6cdab` (2 `ImportError` + 2 kegagalan arsitektur), 20 tes baru + arsitektur lulus sesudah implementasi; suite Python penuh 1016 lulus/26 terlewati (1 gagal sudah-ada di `tests/server`), Ruff bersih, mypy 167 file bersih | Linux, Python 3.11.16 |
 
 Setiap task yang memverifikasi sesuatu menambah baris di tabel ini dan memindahkan butirnya
 dari "belum diverifikasi".
