@@ -5,6 +5,15 @@ Semua perubahan yang berarti bagi pemakai dicatat di sini. Format mengikuti
 [Semantic Versioning](https://semver.org/lang/id/). Bagian sebuah versi menjadi isi rilis
 GitHub-nya (`python scripts/release.py notes`).
 
+## [Unreleased]
+
+### Ditambahkan
+
+- Sepuluh profil provider gelombang pertama F2-T2: xAI, Groq, Mistral, Together,
+  Fireworks, NVIDIA, Z.ai, Moonshot, LM Studio, dan vLLM. Resolusi rute, permintaan
+  streaming/nonstreaming dan discovery setup diuji lokal; API asli belum diverifikasi.
+  Azure OpenAI, AWS Bedrock, dan Google Vertex belum termasuk.
+
 ## [0.1.0] - 2026-10-07
 
 Rilis pertama, berlisensi MIT. Distribusi `c-lite` diterbitkan sebagai wheel dan sdist

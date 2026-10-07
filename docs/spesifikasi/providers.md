@@ -35,7 +35,9 @@ itu tool, sesi, atau giliran.
   `if provider == ...` di kode inti. Keanehan provider masuk ke method yang di-override:
   `resolve_api_mode`, `get_headers`, `prepare_messages`, `build_extra_body`, `wants_cache_markers`,
   `resolve_temperature`, `replay_is_prefix_bound`, `get_max_tokens`,
-  `get_model_context_length`.
+  `get_model_context_length`, `resolve_base_url`, `resolve_credential`, `prepare_request`,
+  dan `authenticate_request`. Dua method terakhir berjalan pada permintaan akhir; origin
+  diperiksa sebelum autentikasi dan diperiksa lagi sesudahnya.
 - Lapisan registry, yang belakangan menang: bawaan paket, plugin umum
   (`ctx.register_provider`), `<home>/plugins/model-providers/` (per profil), bagian
   `providers:` di config (per profil).
@@ -133,6 +135,72 @@ Akibat untuk C-lite: riwayat yang dikirim tidak boleh berubah (lihat
 [agent](agent.md), bagian Prompt dan cache), dan `provider_data` dibuang saat kompresi, saat
 ganti model, dan saat provider menolaknya (`FailoverReason.THINKING_SIGNATURE`).
 
+## Profil tambahan F2-T2: kontrak dan bukti API asli
+
+Gelombang pertama memakai transport `chat_completions` yang ada. Endpoint dan model
+cadangan diambil dari dokumentasi resmi yang dibaca 7 Oktober 2026; URL sumber ada di
+docstring masing-masing profil. Ini bukan hasil panggilan API. Daftar pendek cadangan
+bisa usang atau membutuhkan akses akun/deployment tertentu; pilih model dari katalog
+langsung bila tersedia. Semua profil baru mempertahankan `default_model` kosong.
+
+| Profil | Variabel kunci | Base URL | Diuji terhadap API asli pada tanggal |
+|---|---|---|---|
+| `xai` | `XAI_API_KEY` | https://api.x.ai/v1 | Belum pernah |
+| `groq` | `GROQ_API_KEY` | https://api.groq.com/openai/v1 | Belum pernah |
+| `mistral` | `MISTRAL_API_KEY` | https://api.mistral.ai/v1 | Belum pernah |
+| `together` | `TOGETHER_API_KEY` | https://api.together.ai/v1 | Belum pernah |
+| `fireworks` | `FIREWORKS_API_KEY` | https://api.fireworks.ai/inference/v1 | Belum pernah |
+| `nvidia` | `NVIDIA_API_KEY` | https://integrate.api.nvidia.com/v1 | Belum pernah |
+| `zai` | `ZAI_API_KEY` | https://api.z.ai/api/paas/v4 | Belum pernah |
+| `moonshot` | `MOONSHOT_API_KEY` | https://api.moonshot.ai/v1 | Belum pernah |
+| `lmstudio` | Tidak ada (lokal tanpa autentikasi) | http://localhost:1234/v1 | Belum pernah |
+| `vllm` | Tidak ada (lokal tanpa autentikasi) | http://localhost:8000/v1 | Belum pernah |
+
+- Masing-masing menyediakan variabel override dengan nama profil huruf besar diikuti
+  `_BASE_URL` (misalnya `LMSTUDIO_BASE_URL`). Kunci vendor tidak ikut berpindah origin;
+  endpoint lain yang berkunci membutuhkan `model.api_key_env` eksplisit.
+- LM Studio/vLLM harus dipilih eksplisit (`auto_select=False`), lalu pilih ID model yang
+  benar-benar dilayani. `env_vars`, `fallback_models`, dan `context_lengths` sengaja kosong:
+  server lokal tidak punya katalog universal. Isi `model.context_length` sesuai konfigurasi
+  server; jangan menganggap nilai fallback generik sebagai kemampuan deployment.
+- Profil lokal ini khusus server tanpa autentikasi. Untuk server yang memakai token,
+  gunakan profil kustom melalui bagian `providers:` dengan `api_key_env`; rahasia di `.env`.
+- Z.ai memakai endpoint umum, bukan endpoint langganan Coding Plan. Base URL bisa diganti
+  eksplisit mengikuti aturan origin dan kredensial di atas.
+- Untuk `kimi-k2.6`, profil Moonshot tidak mengirim `temperature`; server menentukan nilai
+  tetap berdasarkan mode thinking. Model lain tidak diubah. Pengaturan penalaran khusus dan
+  replay reasoning per vendor tidak ditambahkan dalam gelombang deklaratif ini.
+- Profil lama `anthropic`, `openai`, `openrouter`, `gemini`, `deepseek`, `ollama`, dan `custom`
+  juga belum pernah diuji terhadap layanan asli dalam proyek ini; `mock` tidak memakai API.
+  Gelombang cloud di bawah juga belum pernah dipanggil sungguhan, sehingga **F2-T2 tetap
+  parsial** sampai bukti API asli tersedia.
+
+### Gelombang cloud F2-T2
+
+Sumber resmi dibaca 7 Oktober 2026 dan dicatat di docstring profil. Semua bukti di bawah
+berasal dari HTTP loopback dan kredensial sintetis, bukan API asli.
+
+| Profil | Rahasia | Endpoint | Autentikasi | Diuji terhadap API asli pada tanggal |
+|---|---|---|---|---|
+| `azure` | `AZURE_OPENAI_API_KEY` | `AZURE_OPENAI_ENDPOINT` atau `model.base_url`, root resource dengan `?api-version=` opsional | Header `api-key`; model adalah nama deployment | Belum pernah |
+| `bedrock` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` opsional | `https://bedrock-runtime.REGION.amazonaws.com/openai/v1` lewat `model.base_url` | SigV4 layanan `bedrock` per permintaan; extra `c-lite[bedrock]` | Belum pernah |
+| `vertex` | `GOOGLE_SERVICE_ACCOUNT_JSON` | Endpoint OpenAI-compatible regional Vertex lewat `model.base_url` | Token OAuth akun layanan, scope cloud-platform; extra `c-lite[vertex]` | Belum pernah |
+
+- Azure membangun `/openai/deployments/<deployment>/chat/completions?api-version=...`,
+  menghapus `model` dari body, dan memakai versi default `2024-10-21` bila URL tidak
+  menyebutnya. URL dengan path, fragmen, parameter lain, atau versi kosong/ganda ditolak.
+- Bedrock menandatangani byte UTF-8 yang sama dengan yang dikirim, termasuk token sesi.
+  Kredensial dari lingkungan hanya diberikan ke host HTTPS `bedrock-runtime` resmi; endpoint
+  lain membutuhkan JSON kredensial eksplisit. Profil ini hanya Chat Completions, bukan
+  Converse/InvokeModel.
+- Vertex memvalidasi JSON akun layanan dan token URI standar. Tukar token memakai seam
+  `HttpClient` dan sinyal batal yang sama, dilakukan sebelum setiap permintaan inferensi, dan
+  galatnya tidak memuat isi respons token. Tidak ada credential chain SDK atau file kunci
+  eksternal.
+- Ketiganya tidak dipilih otomatis, tidak mengambil katalog, dan tidak mengarang model atau
+  ukuran konteks. Tanpa extra, profil tetap muncul di setup; pemakaian SigV4/token gagal
+  sebelum HTTP dengan perintah instalasi extra.
+
 ## Status fitur
 
 | Fitur | Status | Catatan |
@@ -142,12 +210,12 @@ ganti model, dan saat provider menolaknya (`FailoverReason.THINKING_SIGNATURE`).
 | Transport `chat_completions`, `anthropic_messages`, `mock` | ✅ | Diuji terhadap server HTTP tiruan lokal |
 | Panggilan ke provider sungguhan | ⬜ belum diverifikasi | F1-T2 |
 | Transport `responses` (OpenAI Responses API) | 🟡 | Streaming dan nonstreaming, replay dua ronde tool, awalan kawat, pemilihan profil, dan galat diuji terhadap `fake_api`. Tes jaringan ditulis, belum dijalankan: F2-T1 |
-| Profil bawaan | 🟡 | 8: anthropic, openai, openrouter, gemini, deepseek, ollama, custom, mock. Tambahan: F2-T2 |
+| Profil bawaan | 🟡 | 21 profil; tiga profil cloud F2-T2 dijaga `tests/providers/test_cloud_profiles.py`; sepuluh tambahan gelombang pertama F2-T2 dijaga tes rute/HTTP lokal dan discovery setup. API asli semua profil tersebut belum diuji |
 | Harga dan estimasi biaya | ⬜ | F2-T3 |
 | OAuth, `clite auth`, kredensial di luar `.env` | ⬜ | F2-T14 |
 | Tampilan teks penalaran (`thinking.display`) | 🟡 | Profil `anthropic` meminta `summarized` bila `display.show_reasoning` aktif; dijaga `test_anthropic_asks_for_summarized_thinking_only_when_reasoning_is_shown`. Belum dicoba ke API asli: F1-T2 |
 | Tes terhadap API asli (`tests/providers/test_live.py`) | 🟡 | Ditulis; dilewati tanpa kunci. Belum pernah dijalankan: F1-T2 |
-| Bedrock, Vertex, Azure | ⬜ | F2-T2 |
+| Bedrock, Vertex, Azure | ⬜ | Gelombang kedua F2-T2; task tetap parsial |
 
 ## Yang sengaja berbeda dari Hermes
 

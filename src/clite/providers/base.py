@@ -11,8 +11,12 @@ core code.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
+
+if TYPE_CHECKING:
+    from clite.providers.runtime import RuntimeRoute
+    from clite.providers.transports.types import HttpRequest
 
 API_MODE_CHAT_COMPLETIONS = "chat_completions"
 API_MODE_ANTHROPIC = "anthropic_messages"
@@ -65,6 +69,25 @@ class ProviderProfile:
             self.display_name = self.name
 
     # ── hooks: override in a subclass for a provider with real quirks ────────────────────
+
+    def resolve_base_url(self) -> str:
+        """The configured endpoint before explicit route overrides."""
+        from clite.core.env import get_secret
+
+        return (get_secret(self.base_url_env) if self.base_url_env else "") or self.base_url
+
+    def prepare_request(self, route: RuntimeRoute, request: HttpRequest) -> HttpRequest:
+        """Pure final wire shaping; authentication happens only after origin validation."""
+        return request
+
+    def resolve_credential(self, base_url: str, explicit: str) -> str:
+        """Snapshot non-API-key credentials without network access."""
+        return explicit
+
+    def authenticate_request(self, route: RuntimeRoute, request: HttpRequest,
+                             http: Any, *, timeout: float, cancel: Any) -> HttpRequest:
+        """Authenticate the final, origin-validated request immediately before sending."""
+        return request
 
     def resolve_api_mode(self, model: str) -> str:
         """Select the wire protocol for a model unless the route explicitly overrides it."""

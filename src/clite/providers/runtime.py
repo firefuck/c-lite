@@ -11,7 +11,6 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from clite.core.config import get_path, load_config
-from clite.core.env import get_secret
 from clite.core.errors import AuthError, ProviderError
 from clite.providers.base import API_MODE_ANTHROPIC, ProviderProfile
 from clite.providers.credentials import Credential, CredentialPool, get_credential_pool
@@ -135,12 +134,8 @@ def resolve_runtime_provider(
             owner = _auto_select(cfg)
         config_applies = owner is not None and owner.name == profile.name
     config_base_url = str(section.get("base_url") or "") if config_applies else ""
-    resolved_base_url = (
-        base_url
-        or config_base_url
-        or (get_secret(profile.base_url_env) if profile.base_url_env else "")
-        or profile.base_url
-    )
+    native_base_url = profile.resolve_base_url()
+    resolved_base_url = base_url or config_base_url or native_base_url
     if not resolved_base_url and profile.api_mode != "mock":
         raise ProviderError(
             f"Provider {profile.name!r} has no base URL. Set model.base_url in config.yaml "
@@ -154,7 +149,7 @@ def resolve_runtime_provider(
     if not key and profile.auth_type == "api_key":
         # A vendor key stays on its original scheme, host and port. A custom endpoint
         # needs an explicitly selected credential pool, including during recovery.
-        same_origin = not profile.base_url or _origin(resolved_base_url) == _origin(profile.base_url)
+        same_origin = not (profile.base_url or native_base_url) or _origin(resolved_base_url) == _origin(profile.base_url or native_base_url)
         override_env = str(section.get("api_key_env") or "") if config_applies else ""
         if override_env:
             credential_env_vars = (override_env,)
@@ -173,6 +168,9 @@ def resolve_runtime_provider(
                 f"Provider {profile.display_name!r} needs {names} in .env{hint}. Run `clite setup` to add it.",
                 provider=profile.name, code="missing_key",
             )
+
+    if profile.auth_type not in ("api_key", "none"):
+        key = profile.resolve_credential(resolved_base_url, key)
 
     resolved_model = (model or (str(section.get("default") or "") if config_applies else "") or profile.default_model).strip()
     if not resolved_model:

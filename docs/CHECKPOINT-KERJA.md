@@ -30,6 +30,44 @@ membutuhkan otorisasi tersendiri.
 
 ## Status aktif
 
+### F2-T2 — gelombang cloud teruji lokal, task tetap parsial
+
+- Branch `f2-t2-providers`, titik awal `35ff0b0`; tanpa commit/push/merge dan tanpa API asli.
+- Lingkup: profil `azure`, `bedrock`, dan `vertex`; extra `c-lite[bedrock]` dan
+  `c-lite[vertex]`; tes rute/HTTP loopback, autentikasi offline, dan discovery setup.
+- Hook profil kecil menangani URL akhir dan autentikasi sesudah pemeriksaan origin;
+  transport chat, setup, dan model/runtime Hermes tidak diubah.
+- Rujukan Hermes di direktori saudara tidak tersedia dan tidak dibaca. Sumber resmi
+  dicatat di docstring profil.
+- Merah snapshot `35ff0b0`: 39 gagal (/tmp/clite-f2t2-cloud-red.log). Hijau: 39 lulus
+  (/tmp/clite-f2t2-cloud-green.log). Suite Python penuh 908 lulus, 28 terlewati
+  (/tmp/clite-f2t2-cloud-full.log); Ruff/mypy bersih. Node tidak dijalankan ulang.
+- Dependensi uji lokal dipasang ke venv: botocore 1.43.108 dan google-auth 2.60.0.
+
+### F2-T2 — gelombang pertama teruji lokal, task tetap parsial
+
+- Branch `f2-t2-providers`, titik awal `49eecd7`; tanpa commit/push/merge dan tanpa API asli.
+- Lingkup: sepuluh profil kompatibel OpenAI, tes rute/HTTP lokal dan discovery setup;
+  Azure, Bedrock, Vertex tetap gelombang berikutnya. F2-T2 tetap parsial.
+- Langkah: tes merah → deklarasi profil minimum → tes hijau → dokumen dan turunannya.
+- Clone rujukan Hermes di direktori saudara tidak tersedia. Log worker sebelumnya hanya
+  memuat cuplikan riset; sumber resmi endpoint/model diperiksa ulang pada 7 Oktober 2026.
+- Sepuluh direktori profil ditambahkan; inti, transport, setup, dan dependensi tidak diubah.
+  Hanya Moonshot K2.6 membutuhkan override suhu, sesuai batas resmi server. Profil lokal
+  tanpa autentikasi, tanpa katalog/konteks rekaan; model selalu dipilih pengguna.
+- Merah awal: 21 gagal sebelum profil ada (/tmp/clite-f2t2-red.log); regresi suhu gagal
+  terpisah (/tmp/clite-f2t2-sampling-red.log). Snapshot terpisah `49eecd7` dengan timeout
+  menggagalkan seluruh 23 kasus baru/diperluas (/tmp/clite-f2t2-baseline-red.log).
+- Hijau: 22 kasus baru lulus (/tmp/clite-f2t2-green.log); suite terarah providers,
+  arsitektur, docs, rilis dan rename 197 lulus, 15 terlewati (/tmp/clite-f2t2-targeted.log).
+- Suite penuh: 870 lulus, 28 terlewati; Node shared 21, TUI 18, desktop 8 lulus dan ketiga
+  typecheck lulus. Mypy 161 file bersih. Run pertama mendeteksi satu pemformatan import
+  Moonshot; diperbaiki tanpa perubahan perilaku. Run final seluruh suite lulus, Ruff bersih:
+  /tmp/clite-f2t2-full-final.log (run awal: /tmp/clite-f2t2-full.log).
+- Handoff: patch belum di-commit; parent runner meninjau hasil verifikasi dan diff.
+  Tidak ada API asli atau CI lintas platform baru. F2-T2 tetap 🟡: Azure/Bedrock/Vertex
+  belum dikerjakan dan semua profil baru belum diuji terhadap layanan sungguhan.
+
 ### F2-T1 — implementasi lokal, API asli ditunda
 
 - Branch `f2-t1-responses`, titik awal `12a8dbe`. Tanpa commit/push/tag/merge.

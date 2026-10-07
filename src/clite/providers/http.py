@@ -163,12 +163,12 @@ class HttpClient:
     def __init__(self, timeout: float = DEFAULT_TIMEOUT) -> None:
         self.timeout = timeout
 
-    def _send(self, method: str, url: str, body: dict[str, Any] | None, headers: dict[str, str],
+    def _send(self, method: str, url: str, body: dict[str, Any] | bytes | None, headers: dict[str, str],
               timeout: float | None, cancel: CancelHandle | None, accept: str) -> tuple[http.client.HTTPConnection, http.client.HTTPResponse]:
         # Connecting gets a short timeout of its own; the (long) read timeout only bounds the
         # silence between bytes once the request is on its way.
         connection, target = _open_connection(url, CONNECT_TIMEOUT)
-        payload = json.dumps(body, ensure_ascii=False).encode("utf-8") if body is not None else None
+        payload = body if isinstance(body, bytes) else (json.dumps(body, ensure_ascii=False).encode("utf-8") if body is not None else None)
         request_headers = {"User-Agent": USER_AGENT, "Accept": accept, **headers}
         request_headers.update(getattr(connection, "_clite_proxy_headers", {}))
         try:
@@ -199,7 +199,7 @@ class HttpClient:
             raise ProviderHTTPError(response.status, f"unexpected redirect to {location}", {}, url)
         return connection, response
 
-    def request_json(self, method: str, url: str, body: dict[str, Any] | None = None, headers: dict[str, str] | None = None,
+    def request_json(self, method: str, url: str, body: dict[str, Any] | bytes | None = None, headers: dict[str, str] | None = None,
                      *, timeout: float | None = None, cancel: CancelHandle | None = None) -> dict[str, Any]:
         connection, response = self._send(method, url, body, headers or {}, timeout, cancel, "application/json")
         try:
