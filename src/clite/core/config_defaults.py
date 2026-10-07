@@ -24,6 +24,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "api_mode": "",  # chat_completions | anthropic_messages; empty = from the provider
         "context_length": None,  # explicit override always wins over catalog lookups
         "max_tokens": None,
+        # Force image support on (true) or off (false) regardless of what the profile
+        # declares. Empty = ask the provider profile. F2-T6.
+        "vision": None,
     },
     # Named custom providers: {name: {base_url, api_key_env, api_mode, models: [..]}}
     "providers": {},
@@ -60,6 +63,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
     # web_fetch refuses loopback, private and link-local addresses unless this is true.
     # web.search.provider selects a search backend plugin (empty = first available).
     "web": {"allow_private_urls": False, "timeout": 30, "search": {"provider": ""}},
+    # Images the user attaches to a message. `max_bytes` is the ceiling on one image after
+    # downscaling; `max_images` is the ceiling per message; `max_edge` is the longest side in
+    # pixels an oversized image is shrunk to (needs the `images` extra, Pillow).
+    "attachments": {"max_bytes": 5_000_000, "max_images": 8, "max_edge": 1568},
     # ── Context ──────────────────────────────────────────────────────────────────────────
     "compression": {
         "enabled": True,

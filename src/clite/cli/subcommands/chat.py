@@ -21,6 +21,8 @@ def add_chat_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--max-turns", type=int, help="limit tool-calling iterations per turn")
     parser.add_argument("--json", action="store_true", help="with -q: print the full result as JSON")
     parser.add_argument("--quiet", action="store_true", help="with -q: print nothing but the answer")
+    parser.add_argument("--image", action="append", metavar="PATH",
+                        help="attach an image to the prompt (repeat for more than one)")
     interface = parser.add_mutually_exclusive_group()
     interface.add_argument("--tui", dest="interface", action="store_const", const="tui",
                            help="use the terminal UI for this chat (default: display.interface)")
@@ -72,13 +74,14 @@ def run_chat(args: argparse.Namespace) -> int:
     from clite.cli.repl import Repl, run_single_query
 
     options = session_options(args)
+    images = list(getattr(args, "image", None) or [])
     if args.query is not None:
-        return run_single_query(args.query, as_json=args.json, quiet=args.quiet, **options)
+        return run_single_query(args.query, as_json=args.json, quiet=args.quiet, images=images, **options)
     if wants_tui(args, options):
         from clite.cli.subcommands.tui import launch_tui, tui_arguments
 
         return launch_tui(tui_arguments(options), fallback_options=options)
-    return Repl(**options).run()
+    return Repl(images=images, **options).run()
 
 
 def register(subparsers: argparse._SubParsersAction) -> None:

@@ -166,6 +166,33 @@ def test_a_turn_is_a_stream_of_events_ending_with_turn_complete(client, tmp_path
     assert usage["usage"]["input_tokens"] == 20 and usage["context"]["messages"] == 4
 
 
+def test_prompt_submit_carries_image_attachments_into_the_turn(client, tmp_path):
+    image = tmp_path / "chart.png"
+    image.write_bytes(b"\x89PNG\r\n\x1a\n" + b"body")
+    rpc = client([text_response("I see a chart.")])
+    sid = rpc.call("session.create", {"cwd": str(tmp_path)})["session_id"]
+
+    rpc.run_turn(sid, "what is this?", attachments=[str(image)])
+    sent = rpc.scripted.calls[0]["messages"][1]
+    assert sent["content"][0] == {"type": "text", "text": "what is this?"}
+    assert sent["content"][1]["image_url"]["url"].startswith("data:image/png;base64,")
+
+
+def test_prompt_submit_reports_a_bad_attachment_as_an_error_not_a_failed_turn(client, tmp_path):
+    rpc = client()
+    sid = rpc.call("session.create", {"cwd": str(tmp_path)})["session_id"]
+    error = rpc.error("prompt.submit", {"session_id": sid, "text": "hi",
+                                        "attachments": [str(tmp_path / "missing.png")]})
+    assert error["code"] == 4004 and "no file at" in error["message"]
+    assert rpc.transport.events("turn.complete") == []  # the turn never started
+
+
+def test_prompt_submit_rejects_an_empty_prompt_with_no_attachments(client, tmp_path):
+    rpc = client()
+    sid = rpc.call("session.create", {"cwd": str(tmp_path)})["session_id"]
+    assert rpc.error("prompt.submit", {"session_id": sid, "text": "  "})["code"] == 4004
+
+
 def test_resume_lists_and_reopens_a_stored_session(client):
     rpc = client()
     first = rpc.call("session.create")

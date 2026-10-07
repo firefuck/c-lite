@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from clite.agent import AgentCallbacks, AIAgent, TurnResult
+from clite.agent.attachments import AttachmentError, build_content, load_images
 from clite.agent.messages import content_text, is_internal
 from clite.core.config import load_config
 from clite.plugins.hooks import invoke_hook
@@ -65,6 +66,8 @@ class ChatSession:
             "system_message": system_message, "session_meta": session_meta, "max_turns": max_turns,
         }
         self.agent: AIAgent = self._build(session_id)
+        # Image paths the user queued with /image, waiting for the next submitted message.
+        self._pending_images: list[str] = []
 
     # ── construction ─────────────────────────────────────────────────────────────────────
 
@@ -90,18 +93,70 @@ class ChatSession:
 
     # ── turns ────────────────────────────────────────────────────────────────────────────
 
-    def submit(self, text: Any) -> TurnResult:
-        """Run one turn with ``text`` as the user's message."""
-        return self.agent.run_conversation(text)
+    def submit(self, text: Any, *, images: list[str] | None = None,
+               image_parts: list[dict[str, Any]] | None = None) -> TurnResult:
+        """Run one turn with ``text`` as the user's message.
 
-    def handle_input(self, text: str) -> SlashResult | TurnResult:
+        ``images`` are local paths attached to this message; ``image_parts`` are already
+        loaded content parts (surfaces that validate on their own thread, like RPC, use this
+        so a bad path is an error there rather than mid-turn). Paths queued earlier with
+        ``/image`` are prepended and cleared: the pictures join the message sent next.
+        """
+        queued = self._take_pending_images()
+        paths = [*queued, *(images or [])]
+        parts = [*self.load_attachments(paths), *(image_parts or [])]
+        content = text
+        if parts:
+            text_value = text if isinstance(text, str) else content_text(text)
+            content = build_content(text_value, parts)
+        return self.agent.run_conversation(content)
+
+    def queue_image(self, path: str) -> str:
+        """Remember an image for the next message. Returns a line to show the user.
+
+        The path is checked here so `/image typo.png` fails at once, while the (expensive)
+        decode and downscaling still happen when the message is actually sent.
+        """
+        from pathlib import Path
+
+        target = Path(path).expanduser()
+        if not target.exists():
+            raise AttachmentError(f"no file at {target}")
+        if not target.is_file():
+            raise AttachmentError(f"{target} is not a file")
+        self._pending_images.append(str(path))
+        return f"Image queued: {target} ({len(self._pending_images)} waiting)"
+
+    @property
+    def pending_image_count(self) -> int:
+        return len(self._pending_images)
+
+    def _take_pending_images(self) -> list[str]:
+        queued, self._pending_images = self._pending_images, []
+        return queued
+
+    def load_attachments(self, paths: list[str]) -> list[dict[str, Any]]:
+        """Load, bound and shrink images. Raises ``AttachmentError`` on a bad or oversized one."""
+        if not paths:
+            return []
+        from clite.core.config import get_path
+
+        config = self.agent.config
+        return load_images(
+            paths,
+            max_count=int(get_path(config, "attachments.max_images", 8) or 8),
+            max_bytes=int(get_path(config, "attachments.max_bytes", 5_000_000) or 5_000_000),
+            max_edge=int(get_path(config, "attachments.max_edge", 1568) or 1568),
+        )
+
+    def handle_input(self, text: str, *, images: list[str] | None = None) -> SlashResult | TurnResult:
         """Dispatch a line of input: a slash command, or a prompt for the model."""
         name, _ = split_command(text)
         if not name:
-            return self.submit(text)
+            return self.submit(text, images=images)
         result = self.run_slash(text)
         if result.action == ACTION_SUBMIT:
-            return self.submit(result.text)
+            return self.submit(result.text, images=images)
         return result
 
     def interrupt(self) -> None:

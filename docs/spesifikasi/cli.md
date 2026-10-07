@@ -39,6 +39,9 @@ pakai (argumen, profil tak dikenal), 130 Ctrl+C.
 **Satu pertanyaan (`-q`)**
 - Hanya jawaban yang ke stdout. Progres tool ke stderr. `--json` mencetak `TurnResult`
   lengkap. `--quiet` mematikan progres.
+- `--image <path>` (boleh berulang) melampirkan gambar pada prompt. Path yang salah atau
+  gambar yang terlalu besar menghasilkan galat di stderr dan kode keluar 1, bukan giliran yang
+  gagal separuh.
 - Tidak ada yang bisa ditanya: perintah berbahaya mengikuti `approvals.single_query_mode`
   (default tolak).
 
@@ -84,7 +87,7 @@ pakai (argumen, profil tak dikenal), 130 Ctrl+C.
 | Distribusi `c-lite` melalui GitHub Releases | ✅ | F1-T7: workflow `37563420757`, aset terbit/pipx/doctor lulus |
 | REPL klasik, `-q`, `--json`, lanjut sesi (`-r`, `-c`) | ✅ | |
 | Mengetik saat agent bekerja | ⬜ | Hanya TUI yang bisa. REPL klasik membaca input setelah giliran selesai: F3-T1 |
-| Input multi-baris, tempel gambar | ⬜ | F3-T1, F2-T6 |
+| Input multi-baris, tempel gambar | 🟡 | `clite chat --image` dan `/image` ada (F2-T6); input multi-baris dan tempel di terminal: F3-T1 |
 | Render Markdown dan diff | ⬜ | Teks polos: F3-T2 |
 | `clite setup` | 🟡 | Satu alur: provider, kunci, model. Tiga belas profil tambahan F2-T2 tampil lewat registry tanpa perubahan kode setup, dijaga `tests/providers/test_additional_profiles.py` dan `tests/providers/test_cloud_profiles.py`. Wizard bertahap: F3-T5 |
 | `clite acp` | ⬜ | Hanya mencetak penunjuk ke roadmap: F6-T4 |

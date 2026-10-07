@@ -251,11 +251,32 @@ Hermes tidak tersedia, sehingga file rujukan belum dibaca.
 `agent/image_gen_registry.py`, `plugins/image_gen/`, `tui_gateway/prompt_attachments.py`.
 
 **Selesai bila.**
-- [ ] Tes: giliran dengan gambar mengirim bagian konten yang benar di kedua transport, dan
+- [x] Tes: giliran dengan gambar mengirim bagian konten yang benar di kedua transport, dan
       pesan itu dikirim ulang persis sama di giliran berikutnya.
-- [ ] Tes: model yang dinyatakan tanpa penglihatan tidak pernah menerima bagian gambar.
-- [ ] Tes: gambar tersimpan di database tanpa membengkakkan pencarian teks.
+- [x] Tes: model yang dinyatakan tanpa penglihatan tidak pernah menerima bagian gambar.
+- [x] Tes: gambar tersimpan di database tanpa membengkakkan pencarian teks.
 - [ ] Baris "Input gambar" dan "Analisis gambar, pembuatan gambar" di spesifikasi menjadi ✅.
+
+**Kemajuan 8 Oktober 2026 — langkah 1 selesai, langkah 2 dan 3 belum.** Langkah 1 (masukan)
+selesai di branch `f2-t6-images`: `clite chat --image`, `/image` (alias `/attach`) di semua
+surface, bidang opsional `attachments` pada `prompt.submit`, `src/clite/agent/attachments.py`
+(muat, sniff tipe, batas ukuran/jumlah, pengecilan lewat ekstra opsional `images`), dan
+penyaringan gambar untuk model tanpa penglihatan (`ProviderProfile.supports_vision` atau
+override `model.vision`). Pencarian teks pindah dari kolom `content` ke `search_text` supaya
+base64 gambar tidak masuk indeks FTS; skema naik ke versi 2 dengan migrasi yang mengisi ulang
+dan membangun ulang indeks. Baris "Input gambar" di spesifikasi agent menjadi ✅; baris
+"Analisis gambar, pembuatan gambar" di spesifikasi tools tetap ⬜ karena langkah 2
+(`vision_analyze`) dan langkah 3 (`image_generate`) belum dikerjakan. Rujukan Hermes tidak
+tersedia. Lihat sisa di bawah.
+
+**Sisa untuk penyelesaian penuh F2-T6.**
+- Langkah 2: tool `vision_analyze` lewat rute `auxiliary.vision`, untuk model utama yang tidak
+  menerima gambar. Profil provider menyatakan model mana yang menerima gambar (mekanisme
+  `supports_vision` sudah ada, pengisian per profil menyusul).
+- Langkah 3: antarmuka `ImageProvider` dengan registry, tool `image_generate`, dan satu plugin
+  provider.
+- Kompresi membuang gambar lama lebih dulu daripada teks (F2-T11).
+- Uji terhadap API asli: mengirim gambar ke provider sungguhan belum pernah dijalankan.
 
 **Ukuran.** L
 

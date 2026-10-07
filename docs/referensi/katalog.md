@@ -50,6 +50,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | Perintah | Alias | Kategori | Argumen | Saat sibuk | Hanya CLI | Deskripsi |
 | --- | --- | --- | --- | --- | --- | --- |
 | `/new` | `/reset` | Session |  | queue |  | Start a fresh session |
+| `/image` | `/attach` | Session | `<path>` | queue |  | Attach an image file to your next message |
 | `/retry` |  | Session |  | queue |  | Remove the last exchange and send your last message again |
 | `/undo` |  | Session |  | queue |  | Remove the last exchange |
 | `/history` |  | Session | `[count]` | queue |  | Show the conversation so far |
@@ -122,7 +123,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `session.delete` | `stored_session_id` | `ok?` |  |
 | `session.compress` | `session_id`, `focus?` | `compressed`, `message_count` |  |
 | `session.usage` | `session_id` | `usage`, `context` |  |
-| `prompt.submit` | `session_id`, `text`, `busy_mode?` | `accepted`, `turn_id?`, `queued?` | Start a turn. Returns at once; the answer arrives as events ending with turn.complete. |
+| `prompt.submit` | `session_id`, `text`, `busy_mode?`, `attachments?` | `accepted`, `turn_id?`, `queued?` | Start a turn. Returns at once; the answer arrives as events ending with turn.complete. |
 | `slash.exec` | `session_id`, `command` | `text?`, `action?`, `turn_id?`, `data?` | Run a slash command. |
 | `commands.catalog` | `session_id?` | `commands` | Every command available now, for help and autocomplete. |
 | `complete.slash` | `prefix`, `session_id?` | `items` | Commands starting with a prefix. |
@@ -254,6 +255,7 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `model.api_mode` | `""` |
 | `model.context_length` | `null` |
 | `model.max_tokens` | `null` |
+| `model.vision` | `null` |
 | `providers` | `{}` |
 | `fallback_providers` | `[]` |
 | `toolsets` | `["clite-cli"]` |
@@ -276,6 +278,9 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `web.allow_private_urls` | `false` |
 | `web.timeout` | `30` |
 | `web.search.provider` | `""` |
+| `attachments.max_bytes` | `5000000` |
+| `attachments.max_images` | `8` |
+| `attachments.max_edge` | `1568` |
 | `compression.enabled` | `true` |
 | `compression.threshold` | `0.5` |
 | `compression.protect_first_n` | `3` |

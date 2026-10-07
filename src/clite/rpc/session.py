@@ -44,7 +44,7 @@ class RpcSession:
             client=server.client_factory() if server.client_factory else None,
         )
         self._lock = threading.Lock()
-        self._queue: list[tuple[str, str]] = []  # (turn id, text) waiting for the running turn
+        self._queue: list[tuple[str, str, list[dict[str, Any]] | None]] = []  # (turn id, text, loaded image parts)
         self._worker: threading.Thread | None = None
 
     # ── callbacks -> events ──────────────────────────────────────────────────────────────
@@ -122,11 +122,15 @@ class RpcSession:
 
     # ── turns ────────────────────────────────────────────────────────────────────────────
 
-    def submit(self, text: str, busy_mode: str | None = None) -> schema.PromptSubmitResult:
+    def submit(self, text: str, busy_mode: str | None = None,
+               attachments: list[str] | None = None) -> schema.PromptSubmitResult:
         from clite.rpc.server import SESSION_BUSY, RpcError
 
         mode = busy_mode or str(config_get("display.busy_input_mode", "interrupt"))
         turn_id = uuid.uuid4().hex[:12]
+        # Load images here, on the caller's thread, so a missing or oversized file is a clean
+        # error reply instead of a turn that fails after it has already started.
+        image_parts = self.chat.load_attachments(list(attachments or [])) or None
         with self._lock:
             if self.busy:
                 if mode == "steer":
@@ -134,11 +138,11 @@ class RpcSession:
                     return schema.PromptSubmitResult(accepted=True, queued=False)
                 if mode == "reject":
                     raise RpcError(SESSION_BUSY, "a turn is running; interrupt it or wait for turn.complete")
-                self._queue.append((turn_id, text))
+                self._queue.append((turn_id, text, image_parts))
                 if mode == "interrupt":
                     self.chat.interrupt()
                 return schema.PromptSubmitResult(accepted=True, turn_id=turn_id, queued=True)
-            self._queue.append((turn_id, text))
+            self._queue.append((turn_id, text, image_parts))
             self._worker = start_thread(self._drain, name=f"clite-turn-{self.id}")
         return schema.PromptSubmitResult(accepted=True, turn_id=turn_id)
 
@@ -148,13 +152,14 @@ class RpcSession:
                 if not self._queue:
                     self._worker = None
                     return
-                turn_id, text = self._queue.pop(0)
-            self._run_turn(turn_id, text)
+                turn_id, text, image_parts = self._queue.pop(0)
+            self._run_turn(turn_id, text, image_parts)
 
-    def _run_turn(self, turn_id: str, text: str) -> None:
+    def _run_turn(self, turn_id: str, text: str,
+                  image_parts: list[dict[str, Any]] | None = None) -> None:
         self._emit("turn.start", {"turn_id": turn_id, "text": text[:2000]})
         try:
-            result = self.chat.submit(text)
+            result = self.chat.submit(text, image_parts=image_parts or None)
             payload = result.to_dict()
             self._emit("turn.complete", {
                 "turn_id": turn_id, "final_response": payload["final_response"], "completed": payload["completed"],

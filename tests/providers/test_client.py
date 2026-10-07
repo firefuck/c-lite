@@ -100,9 +100,50 @@ def test_responses_every_request_repeats_the_previous_one_and_adds_to_its_end(fa
 
 MESSAGES = [{"role": "system", "content": "sys"}, {"role": "user", "content": "hi"}]
 
+IMAGE_CONTENT = [{"type": "text", "text": "what is this?"},
+                 {"type": "image_url", "image_url": {"url": "data:image/png;base64,QUJD"}}]
+
 
 def _route(fake_api, provider="openai", model="model-x"):
     return resolve_runtime_provider(provider, model, base_url=fake_api.url + "/v1", api_key="test-key")
+
+
+@pytest.mark.parametrize("stream", [False, True])
+def test_a_turn_with_an_image_reaches_the_provider_over_http_and_is_resent_unchanged(fake_api, stream):
+    """End to end through the real HTTP client: the image part is on the wire in both stream
+    modes, and the second turn repeats the first request byte for byte before appending."""
+    from clite.agent import AgentCallbacks
+    from clite.core.config import load_config
+    from clite.runtime import build_agent
+
+    reply = {"choices": [{"finish_reason": "stop", "message": {"content": "a red dot"}}],
+             "usage": {"prompt_tokens": 5, "completion_tokens": 3}}
+    if stream:
+        chunks = [
+            {"choices": [{"delta": {"content": "a red dot"}}]},
+            {"choices": [{"delta": {}, "finish_reason": "stop"}], "usage": reply["usage"]},
+        ]
+        fake_api.on("POST", "/v1/chat/completions",
+                    (200, fake_api.sse(*chunks, done=True)), (200, fake_api.sse(*chunks, done=True)))
+    else:
+        fake_api.on("POST", "/v1/chat/completions", (200, reply), (200, reply))
+
+    config = load_config()
+    config["fallback_providers"] = []
+    agent = build_agent(route=_route(fake_api), config=config, toolsets=[], auto_title=False,
+                        stream=stream, callbacks=AgentCallbacks())
+    try:
+        agent.run_conversation(IMAGE_CONTENT)
+        agent.run_conversation("and now?")
+    finally:
+        agent.close()
+
+    bodies = fake_api.bodies("/v1/chat/completions")
+    assert len(bodies) == 2
+    assert bodies[0]["messages"][1]["content"] == IMAGE_CONTENT
+    assert bodies[1]["messages"][:len(bodies[0]["messages"])] == bodies[0]["messages"]
+    assert bodies[1]["messages"][1]["content"] == IMAGE_CONTENT
+
 
 
 def test_non_streaming_call(fake_api):

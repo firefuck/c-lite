@@ -473,3 +473,55 @@ def test_anthropic_stream_assembles_thinking_text_and_tool_input():
     assert json.loads(response.tool_calls[0].arguments) == {"command": "ls"}
     assert response.provider_data[REPLAY_KEY][0] == {"type": "thinking", "thinking": "plan", "signature": "sig"}
     assert (response.usage.prompt_tokens, response.usage.output_tokens) == (10, 42)
+
+
+# ── image content parts reach every transport (F2-T6) ───────────────────────────────────────
+
+IMAGE_PART = {"type": "image_url", "image_url": {"url": "data:image/png;base64,QUJD", "detail": "high"}}
+IMAGE_HISTORY = [
+    {"role": "system", "content": "You are helpful."},
+    {"role": "user", "content": [{"type": "text", "text": "what is this?"}, IMAGE_PART], "_row_id": 1, "timestamp": 1.0},
+]
+
+
+@pytest.mark.parametrize("stream", [False, True])
+def test_chat_completions_sends_an_image_part_unchanged_whether_streaming_or_not(stream):
+    body = get_transport("chat_completions").build_request(_route(), IMAGE_HISTORY, None, RequestParams(),
+                                                           stream=stream).body
+    assert body["messages"][1]["content"] == IMAGE_HISTORY[1]["content"]
+    assert body.get("stream") is stream or ("stream" not in body and not stream)
+
+
+@pytest.mark.parametrize("stream", [False, True])
+def test_responses_sends_an_image_part_as_an_input_image_whether_streaming_or_not(stream):
+    body = get_transport("responses").build_request(_route(api_mode="responses"), IMAGE_HISTORY, None,
+                                                    RequestParams(), stream=stream).body
+    image = [part for part in body["input"][1]["content"] if part["type"] == "input_image"]
+    assert image == [{"type": "input_image", "image_url": "data:image/png;base64,QUJD", "detail": "high"}]
+    assert body["stream"] is stream
+
+
+@pytest.mark.parametrize("stream", [False, True])
+def test_anthropic_sends_an_image_part_as_a_base64_block_whether_streaming_or_not(stream):
+    body = get_transport("anthropic_messages").build_request(_route(api_mode="anthropic_messages"), IMAGE_HISTORY,
+                                                             None, RequestParams(), stream=stream).body
+    image = [block for block in body["messages"][0]["content"] if block["type"] == "image"]
+    assert image == [{"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "QUJD"}}]
+    assert body.get("stream") is (True if stream else None)
+
+
+@pytest.mark.parametrize("api_mode", ["chat_completions", "responses", "anthropic_messages"])
+def test_the_same_image_history_produces_the_same_request_every_time(api_mode):
+    """Re-sending a turn with an image is byte-identical, so a prompt cache stays warm."""
+    transport = get_transport(api_mode)
+    route = _route(api_mode=api_mode)
+    first = transport.build_request(route, IMAGE_HISTORY, None, RequestParams(), stream=False).body
+    second = transport.build_request(route, IMAGE_HISTORY, None, RequestParams(), stream=False).body
+    assert first == second
+
+
+@pytest.mark.parametrize("api_mode", ["chat_completions", "responses", "anthropic_messages"])
+def test_an_image_request_does_not_mutate_the_stored_history(api_mode):
+    snapshot = json.dumps(IMAGE_HISTORY)
+    get_transport(api_mode).build_request(_route(api_mode=api_mode), IMAGE_HISTORY, None, RequestParams(), stream=True)
+    assert json.dumps(IMAGE_HISTORY) == snapshot

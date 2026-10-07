@@ -83,10 +83,16 @@ class SessionDB:
             self._conn.execute("PRAGMA busy_timeout=30000")
             self._conn.executescript(SCHEMA_SQL)
             self._reconcile_columns()
-            self._run_migrations()
+            migrated = self._run_migrations()
+            if migrated:
+                self._backfill_search_text()
             try:
                 self._conn.executescript(FTS_SQL)
                 self.fts_enabled = True
+                if migrated:
+                    # A migration that dropped the FTS table left it empty; external-content
+                    # FTS only repopulates from its triggers or an explicit rebuild.
+                    self._conn.execute("INSERT INTO messages_fts(messages_fts) VALUES ('rebuild')")
             except sqlite3.OperationalError:
                 # SQLite built without FTS5: search falls back to LIKE.
                 self.fts_enabled = False
@@ -99,17 +105,40 @@ class SessionDB:
                 if column not in existing:
                     self._conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
-    def _run_migrations(self) -> None:
+    def _backfill_search_text(self) -> None:
+        """Fill ``search_text`` for rows a migration left NULL.
+
+        The migration handles plain-string content in SQL. A row whose content is a JSON list
+        takes more than SQL to interpret, so it is done here: the parts' text, if any. Rows
+        that had no text stay NULL and are simply not indexed.
+        """
+        rows = self._conn.execute(
+            "SELECT id, content FROM messages WHERE search_text IS NULL AND content IS NOT NULL"
+        ).fetchall()
+        for row in rows:
+            raw = row["content"]
+            try:
+                parsed = json.loads(raw)
+            except (TypeError, ValueError):
+                parsed = raw
+            self._conn.execute("UPDATE messages SET search_text = ? WHERE id = ?",
+                               (_search_text_of(parsed), row["id"]))
+
+    def _run_migrations(self) -> bool:
+        """Run pending migrations. Returns True when the schema was transformed."""
         row = self._conn.execute("SELECT version FROM schema_version LIMIT 1").fetchone()
         if row is None:
             self._conn.execute("INSERT INTO schema_version(version) VALUES (?)", (SCHEMA_VERSION,))
-            return
+            return False
         version = int(row["version"])
+        migrated = False
         while version < SCHEMA_VERSION:
             for statement in MIGRATIONS.get(version, []):
                 self._conn.execute(statement)
             version += 1
+            migrated = True
             self._conn.execute("UPDATE schema_version SET version = ?", (version,))
+        return migrated
 
     def close(self) -> None:
         with self._lock:
@@ -339,6 +368,7 @@ class SessionDB:
 
     def _insert_message(self, session_id: str, message: dict[str, Any]) -> int:
         content = message.get("content")
+        search_text = _search_text_of(content)
         content_is_json = 0
         if content is not None and not isinstance(content, str):
             content, content_is_json = json.dumps(content, ensure_ascii=False), 1
@@ -346,12 +376,13 @@ class SessionDB:
         provider_data = message.get("provider_data")
         cursor = self._conn.execute(
             """INSERT INTO messages
-               (session_id, role, content, content_is_json, tool_call_id, tool_calls, tool_name,
-                timestamp, token_count, finish_reason, reasoning, provider_data, turn_context,
-                display_kind, is_summary)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               (session_id, role, content, content_is_json, search_text, tool_call_id, tool_calls,
+                tool_name, timestamp, token_count, finish_reason, reasoning, provider_data,
+                turn_context, display_kind, is_summary)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                session_id, message["role"], content, content_is_json, message.get("tool_call_id"),
+                session_id, message["role"], content, content_is_json, search_text,
+                message.get("tool_call_id"),
                 json.dumps(tool_calls, ensure_ascii=False) if tool_calls else None,
                 message.get("name"), float(message.get("timestamp") or time.time()),
                 message.get("token_count"), message.get("finish_reason"), message.get("reasoning"),
@@ -474,9 +505,9 @@ class SessionDB:
                     pass  # malformed FTS expression: fall through to LIKE
             like = "%" + _escape_like(query) + "%"
             rows = self._conn.execute(
-                f"""SELECT {columns}, substr(m.content, 1, 200) AS snippet
+                f"""SELECT {columns}, substr(m.search_text, 1, 200) AS snippet
                     FROM messages m JOIN sessions s ON s.id = m.session_id
-                    WHERE m.content LIKE ? ESCAPE '\\'{extra}
+                    WHERE m.search_text LIKE ? ESCAPE '\\'{extra}
                     ORDER BY m.timestamp DESC LIMIT ?""",
                 (like, *params, limit),
             ).fetchall()
@@ -506,6 +537,23 @@ class SessionDB:
                 (key, value),
             )
             self._conn.commit()
+
+
+def _search_text_of(content: Any) -> str | None:
+    """The plain text of a message's content, for the search index.
+
+    A string is its own text. A list of parts contributes only its ``text`` parts: a user
+    message with an image would otherwise put a base64 blob into the FTS index, making it as
+    large as the picture for no benefit to search.
+    """
+    if content is None:
+        return None
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(part.get("text", "") for part in content
+                       if isinstance(part, dict) and part.get("type") == "text") or None
+    return None
 
 
 def _row_to_message(row: sqlite3.Row) -> dict[str, Any]:

@@ -31,6 +31,9 @@ dependencies = [
 [project.optional-dependencies]
 bedrock = ["botocore>=1.35,<2"]
 vertex = ["google-auth>=2.35,<3"]
+# Downscaling of oversized image attachments (F2-T6). Without it an image over the byte
+# ceiling is refused with a message instead of being shrunk.
+images = ["Pillow>=10,<13"]
 dev = [
   "pytest>=8,<10",
   "ruff>=0.6,<1",

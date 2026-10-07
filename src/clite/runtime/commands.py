@@ -30,6 +30,8 @@ class CommandDef:
 COMMAND_REGISTRY: list[CommandDef] = [
     # ── Session ──────────────────────────────────────────────────────────────────────────
     CommandDef("new", "Start a fresh session", aliases=("reset",)),
+    CommandDef("image", "Attach an image file to your next message", args_hint="<path>",
+               aliases=("attach",)),
     CommandDef("retry", "Remove the last exchange and send your last message again"),
     CommandDef("undo", "Remove the last exchange"),
     CommandDef("history", "Show the conversation so far", args_hint="[count]"),

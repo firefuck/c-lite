@@ -753,3 +753,73 @@ def test_the_show_reasoning_setting_reaches_every_model_call(make_agent):
     hidden.run_conversation("hi")
     assert shown.client.calls[0]["params"].show_reasoning is True
     assert hidden.client.calls[0]["params"].show_reasoning is False
+
+
+# ── image attachments (F2-T6) ─────────────────────────────────────────────────────────────
+
+
+def _image_part(data: bytes = b"AAAA") -> dict:
+    import base64
+
+    return {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64.b64encode(data).decode()}"}}
+
+
+def test_a_turn_with_an_image_sends_the_image_part_and_repeats_it_unchanged(make_agent):
+    """The image is part of the user message on the wire, and every later request repeats the
+    message byte for byte, so prompt caching and signed reasoning stay valid."""
+    agent, client = make_agent([text_response("I see a red square."), text_response("Still red.")])
+    content = [{"type": "text", "text": "what colour?"}, _image_part(b"red")]
+    agent.run_conversation(content)
+    agent.run_conversation("and now?")
+
+    first_wire = client.calls[0]["messages"]
+    assert first_wire[1]["role"] == "user"
+    assert first_wire[1]["content"] == content
+    # The stored message is the image content too, so it survives undo, resume and search.
+    assert agent.messages[0]["content"] == content
+
+    second_wire = client.calls[1]["messages"]
+    assert second_wire[:len(first_wire)] == first_wire
+    assert second_wire[1]["content"] == content
+
+
+def test_a_model_without_vision_never_receives_the_image_part(make_agent):
+    profile = ProviderProfile(name="mock", api_mode="mock", auth_type="none",
+                              no_vision_prefixes=("text-only",))
+    route = mock_route("text-only-model", profile=profile)
+    agent, client = make_agent([text_response("ok"), text_response("ok")], route=route)
+    agent.run_conversation([{"type": "text", "text": "what is this?"}, _image_part()])
+    agent.run_conversation("and now?")
+
+    wire = client.calls[0]["messages"]
+    assert not any(part.get("type") == "image_url"
+                   for message in wire for part in (message.get("content") if isinstance(message.get("content"), list) else []))
+    assert "what is this?" in wire[1]["content"]
+    assert "cannot see images" in wire[1]["content"]
+    # The withheld message repeats identically on the next request (rule A2).
+    second = client.calls[1]["messages"]
+    assert second[:len(wire)] == wire
+    # The picture stays in the stored history: a later vision model still gets it.
+    stored = agent.messages[0]["content"]
+    assert isinstance(stored, list) and any(part.get("type") == "image_url" for part in stored)
+
+
+def test_a_config_override_can_turn_image_support_off_regardless_of_the_profile(make_agent):
+    from clite.core.config import load_config
+
+    config = load_config()
+    config["model"]["vision"] = False
+    agent, client = make_agent([text_response("ok")], config=config)
+    agent.run_conversation([{"type": "text", "text": "hi"}, _image_part()])
+    assert all(not isinstance(part, dict) or part.get("type") != "image_url"
+               for message in client.calls[0]["messages"]
+               for part in (message.get("content") if isinstance(message.get("content"), list) else []))
+
+
+def test_a_vision_capable_model_keeps_the_image_part(make_agent):
+    agent, client = make_agent([text_response("ok")])
+    agent.run_conversation([{"type": "text", "text": "hi"}, _image_part()])
+    parts = client.calls[0]["messages"][1]["content"]
+    assert any(part.get("type") == "image_url" for part in parts)
+    assert "cannot see images" not in str(parts)
+

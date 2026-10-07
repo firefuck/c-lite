@@ -24,6 +24,7 @@ terminal, WebSocket, atau Telegram. Semua surface memakainya lewat `AIAgent` dan
 | Fase | `turn/context.py`, `turn/iteration.py`, `turn/request.py`, `turn/response.py`, `turn/finalize.py` | Satu fungsi per fase giliran |
 | Tool | `tool_executor.py` | Menjalankan satu ronde tool call, paralel bila aman |
 | Pesan | `messages.py` | Membersihkan riwayat sebelum dikirim, mem-parse argumen tool |
+| Lampiran | `attachments.py` | Gambar yang dilampirkan pengguna: muat, validasi, kecilkan, jadikan bagian konten |
 | Prompt | `prompt/` | Tiga tingkat prompt, file konteks, penanda cache |
 | Konteks | `context/` | `ContextEngine` dan kompresor bawaan |
 | Memori | `memory/` | `MemoryStore` bawaan, `MemoryProvider` eksternal, `MemoryManager` |
@@ -98,6 +99,21 @@ Setiap butir dijaga oleh tes di `tests/agent/`.
   `sanitize_for_api` memperbaiki salinan yang dikirim.
 - Kunci berawalan `_` dan `timestamp` tidak pernah dikirim ke provider.
 
+**Lampiran gambar**
+- Pesan pengguna tetap berupa teks sampai gambar dilampirkan. Dengan gambar, `content` menjadi
+  daftar bagian: `text` lalu satu `image_url` per gambar (data URL base64). Transport sudah
+  meneruskan bentuk berstruktur ini, jadi tidak ada perubahan di sana.
+- Batas: `attachments.max_bytes` per gambar dan `attachments.max_images` per pesan. Gambar
+  yang melewati batas byte dikecilkan dulu (`attachments.max_edge`, butuh ekstra `images`);
+  tanpa Pillow, gambar yang terlalu besar ditolak dengan pesan yang menyebut cara mengecilkannya.
+- Model yang tidak menerima gambar tidak pernah dikirimi bagian `image_url`. Yang dikirim
+  hanya teksnya, ditambah catatan bahwa gambar dilampirkan tetapi tidak terlihat. Riwayat
+  tersimpan tetap memuat gambarnya, jadi giliran berikutnya pada model berpenglihatan
+  mengirimnya lagi. Penentuan ini dari `ProviderProfile.supports_vision(model)` atau override
+  `model.vision`.
+- Karena riwayat tersimpan tidak berubah, pesan bergambar dikirim ulang persis sama di giliran
+  berikutnya (aturan A2 tetap berlaku).
+
 **Tool**
 - Hasil tool kembali sesuai urutan model, apa pun urutan selesainya.
 - Satu ronde berjalan paralel hanya jika semua tool di dalamnya `safe` atau `path`, dan tidak
@@ -162,7 +178,7 @@ Setiap butir dijaga oleh tes di `tests/agent/`.
 | Judul sesi otomatis | ✅ | |
 | Estimasi token | 🟡 | Perkiraan karakter/4 di `context/tokens.py`. Angka dari provider dipakai bila ada |
 | Estimasi biaya | ⬜ | Kolom `estimated_cost_usd` ada, belum diisi: F2-T3 |
-| Input gambar | ⬜ | Konten berstruktur sudah lolos ke transport, belum ada jalur masuknya: F2-T6 |
+| Input gambar | ✅ | `attachments.py`: bentuk konten, batas ukuran/jumlah, pengecilan, penyaringan model tanpa penglihatan; `clite chat --image` dan `/image`. Dijaga `tests/agent/test_attachments.py`, `test_loop.py`, `tests/runtime/test_session_and_slash.py`. Step 2 (analisis) dan 3 (pembuatan): F2-T6 |
 | Review latar belakang (memori dan skill) | ⬜ | F2-T12 |
 | Checkpoint dan rollback file | ⬜ | F2-T8 |
 | Kunci file memori di Windows | ✅ | `core.locking` memakai `fcntl`/`msvcrt`; tes dua proses dan mutasi memori lulus pada Linux/Windows. CI `37499972911`, F1-T5 |

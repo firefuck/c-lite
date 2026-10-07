@@ -191,6 +191,7 @@ export interface PromptSubmitParams {
   session_id: string;
   text: string;
   busy_mode?: "interrupt" | "queue" | "steer" | "reject" | null;
+  attachments?: string[] | null;
 }
 
 export interface PromptSubmitResult {
