@@ -67,11 +67,21 @@ pakai (argumen, profil tak dikenal), 130 Ctrl+C.
   (`--online` mencoba mengambil daftar model), backend terminal, plugin aktif bisa dimuat,
   shell hook yang menunggu persetujuan, dan Node.js. Kode keluar 1 bila ada masalah wajib.
 
+**Distribusi dan versi**
+- Distribusi bernama `c-lite` (MIT), sementara import dan perintah tetap `clite`.
+- `src/clite/__init__.py` adalah sumber versi tunggal; metadata `pyproject.toml` membaca
+  atribut itu. `scripts/release.py check --tag v0.1.0` memeriksa kecocokan calon tag dan
+  changelog; tes juga menjalankan `clite --version`.
+- Wheel/sdist ditujukan untuk GitHub Releases saja. Instalasi artefak lokal sudah diuji;
+  penerbitan dan unduhan aset GitHub privat belum diverifikasi (F1-T7).
+
 ## Status fitur
 
 | Fitur | Status | Catatan |
 |---|---|---|
 | 21 sub-perintah tingkat atas | ✅ | |
+| Versi CLI, metadata dinamis, dan calon tag konsisten | ✅ | `tests/test_release.py` |
+| Distribusi `c-lite` melalui GitHub Releases | 🟡 | F1-T7: wheel lokal/doctor lulus; rilis belum terbit |
 | REPL klasik, `-q`, `--json`, lanjut sesi (`-r`, `-c`) | ✅ | |
 | Mengetik saat agent bekerja | ⬜ | Hanya TUI yang bisa. REPL klasik membaca input setelah giliran selesai: F3-T1 |
 | Input multi-baris, tempel gambar | ⬜ | F3-T1, F2-T6 |
