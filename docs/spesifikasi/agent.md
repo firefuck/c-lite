@@ -141,10 +141,18 @@ Setiap butir dijaga oleh tes di `tests/agent/`.
 **Kompresi**
 - Ambang: `compression.threshold` (0,5) dari jendela, dengan batas bawah 0,75 untuk jendela di
   bawah 512 ribu token.
-- Langkah: pangkas keluaran tool lama, tentukan batas tanpa memisahkan tool call dari hasilnya,
-  ringkas bagian tengah dengan model bantu, sambung dengan peran yang tetap berselang.
-- Ringkasan lama diperbarui, bukan diringkas ulang. Peringkas yang gagal tetap membuang bagian
-  tengah dan meninggalkan penanda.
+- Langkah: pangkas gambar lama lebih dulu, lalu keluaran tool lama; tentukan batas tanpa
+  memisahkan tool call dari hasilnya; ringkas bagian tengah dengan model bantu; sambung dengan
+  peran yang tetap berselang.
+- Ringkasan berstruktur dengan lima bagian tetap: `Goal`, `Key Decisions`, `Files` (path
+  beserta keadaannya), `Failed Commands` (perintah gagal dan sebabnya), `Unfinished Work`.
+  Ringkasan lama diperbarui, bukan diringkas ulang. Prompt pembaruan menyebut bagian mana yang
+  belum ada di ringkasan lama.
+- Bila bagian tengah lebih besar dari jendela model bantu, ia diringkas bertahap: bagian demi
+  bagian diringkas lalu digabung dalam satu ringkasan akhir, bukan dipotong. Peringkas yang
+  gagal tetap membuang bagian tengah dan meninggalkan penanda.
+- Gambar lama dibuang lebih dulu daripada teks: bagian `image_url` di luar jendela terlindung
+  diganti penanda, teks sekitarnya tetap.
 - Kompresi menulis ulang riwayat di sesi yang sama: baris lama diarsipkan (`active=0`), tetap
   bisa dicari.
 
@@ -155,7 +163,9 @@ Setiap butir dijaga oleh tes di `tests/agent/`.
 - Entri yang lolos pemindaian ancaman saja yang disimpan. Duplikat ditolak.
 - Provider memori eksternal yang gagal tidak pernah menggagalkan giliran.
 - Setiap `memory.nudge_interval` giliran tanpa tulisan memori, satu pengingat ditempel ke
-  pesan pengguna (hanya bila tool `memory` tersedia).
+  pesan pengguna (hanya bila tool `memory` tersedia). Penghitung giliran tanpa tulisan disimpan
+  per sesi di `<home>/memories/nudge.json`, jadi sesi yang dilanjutkan tidak memulai ulang
+  hitungannya.
 
 **Delegasi**
 - Subagent mulai dengan percakapan kosong, tanpa memori, dan tanpa tool `delegate_task`,
@@ -172,11 +182,11 @@ Setiap butir dijaga oleh tes di `tests/agent/`.
 |---|---|---|
 | Loop berfase, pemulihan galat, fallback provider | ✅ | |
 | Prompt tiga tingkat, cache, file konteks | ✅ | |
-| Kompresor bawaan dan registry `ContextEngine` | ✅ | Peningkatan: F2-T11 |
+| Kompresor bawaan dan registry `ContextEngine` | ✅ | Ringkasan berstruktur, peringkasan bertahap, gambar dibuang lebih dulu (F2-T11) |
 | Memori bawaan, provider eksternal, pengingat | ✅ | Provider contoh: F6-T3 |
 | Delegasi sinkron | ✅ | Model per anak, progres rinci, delegasi asinkron: F2-T13 |
 | Judul sesi otomatis | ✅ | |
-| Estimasi token | 🟡 | Perkiraan karakter/4 di `context/tokens.py`. Angka dari provider dipakai bila ada |
+| Estimasi token | ✅ | `context/tokens.py`: perkiraan karakter/4 untuk pesan sesudah jangkar, `prompt_tokens` dari provider sebagai jangkar untuk bagian yang sudah diukur (F2-T11) |
 | Estimasi biaya | ⬜ | Kolom `estimated_cost_usd` ada, belum diisi: F2-T3 |
 | Input gambar | ✅ | `attachments.py`: bentuk konten, batas ukuran/jumlah, pengecilan, penyaringan model tanpa penglihatan; `clite chat --image` dan `/image`. Dijaga `tests/agent/test_attachments.py`, `test_loop.py`, `tests/runtime/test_session_and_slash.py`. Model bantu untuk melihat ada sebagai tool `vision_analyze` (spesifikasi tools) |
 | Review latar belakang (memori dan skill) | ⬜ | F2-T12 |
@@ -200,7 +210,10 @@ Setiap butir dijaga oleh tes di `tests/agent/`.
 
 ## Celah yang diketahui
 
-- Penghitung pengingat memori dimulai dari nol setiap kali agent dibuat (juga saat sesi
-  dilanjutkan).
-- Perkiraan token tidak memakai tokenizer provider, jadi kompresi pra-terbang bisa sedikit
-  terlalu cepat atau terlambat sebelum respons pertama memberi angka sebenarnya.
+- Perkiraan token tidak memakai tokenizer provider. Setelah respons pertama, angka
+  `prompt_tokens` dari provider dipakai sebagai jangkar dan hanya pesan sesudahnya yang
+  diperkirakan, jadi galatnya tidak menumpuk. Sebelum respons pertama (dan bila provider
+  melaporkan angka yang tidak masuk akal untuk transkrip ini) kompresi pra-terbang masih bisa
+  sedikit terlalu cepat atau terlambat.
+- Peringkasan bertahap memanggil model bantu beberapa kali untuk satu kompresi; biayanya
+  bertambah pada bagian tengah yang sangat besar, ditukar dengan detail yang tidak hilang.

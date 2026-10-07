@@ -33,9 +33,17 @@ class ContextEngine(ABC):
         self.protect_first_n = 3
         self.protect_last_n = 20
         self.last_prompt_tokens = 0
+        # How many messages the request carried when the provider reported the last real
+        # prompt size. Everything up to that point is measured, not estimated.
+        self.anchor_message_count = 0
+        # Window of the auxiliary model used to summarise. 0 means "unknown": summarisers
+        # then fall back to their own conservative bound.
+        self.auxiliary_context_length = 0
         self.compression_count = 0
+        self.last_compression_calls = 0
 
-    def configure(self, *, context_length: int, config: dict[str, Any]) -> None:
+    def configure(self, *, context_length: int, config: dict[str, Any],
+                  auxiliary_context_length: int | None = None) -> None:
         """Called at session start and whenever the model (hence the window) changes."""
         percent = float(get_path(config, "compression.threshold", 0.5) or 0.5)
         if context_length < SMALL_WINDOW_LIMIT:
@@ -45,10 +53,24 @@ class ContextEngine(ABC):
         self.threshold_tokens = int(context_length * percent)
         self.protect_first_n = int(get_path(config, "compression.protect_first_n", 3))
         self.protect_last_n = int(get_path(config, "compression.protect_last_n", 20))
+        if auxiliary_context_length is not None:
+            self.auxiliary_context_length = max(0, int(auxiliary_context_length))
 
-    def update_from_response(self, usage: Usage | None) -> None:
+    def update_from_response(self, usage: Usage | None, *, message_count: int | None = None) -> None:
         if usage is not None and usage.prompt_tokens:
             self.last_prompt_tokens = usage.prompt_tokens
+            if message_count is not None:
+                self.anchor_message_count = message_count
+
+    def anchored_prompt_tokens(self, messages: list[dict[str, Any]], *, system_prompt: str = "",
+                               tools: list[dict[str, Any]] | None = None) -> int:
+        """Prompt size using the provider's last number as an anchor, estimates only after."""
+        from clite.agent.context.tokens import estimate_prompt_tokens
+
+        return estimate_prompt_tokens(
+            messages, system_prompt=system_prompt, tools=tools,
+            anchor_tokens=self.last_prompt_tokens, anchor_message_count=self.anchor_message_count,
+        )
 
     def should_compress(self, prompt_tokens: int | None = None) -> bool:
         tokens = self.last_prompt_tokens if prompt_tokens is None else prompt_tokens
@@ -64,7 +86,9 @@ class ContextEngine(ABC):
 
     def on_session_reset(self) -> None:
         self.last_prompt_tokens = 0
+        self.anchor_message_count = 0
         self.compression_count = 0
+        self.last_compression_calls = 0
 
     def on_session_end(self, session_id: str, messages: list[dict[str, Any]]) -> None:
         """The session is closing."""

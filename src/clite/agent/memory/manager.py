@@ -14,11 +14,15 @@ from typing import Any
 from clite.agent.memory.provider import MemoryProvider
 from clite.agent.memory.store import MemoryStore
 from clite.core.config import get_path
+from clite.core.constants import ensure_dir, get_memories_dir
+from clite.core.io import atomic_write_json, read_json
+from clite.core.locking import exclusive_lock
 
 logger = logging.getLogger("clite.agent.memory")
 
 _PROVIDER_FACTORIES: dict[str, Callable[[], MemoryProvider]] = {}
 _CONTEXT_BLOCK = re.compile(r"<memory-context>.*?</memory-context>\s*", re.DOTALL)
+_NUDGE_STATE_FILENAME = "nudge.json"
 
 MEMORY_NUDGE = (
     "[System note: several turns have passed without a memory update. If this conversation "
@@ -63,6 +67,7 @@ class MemoryManager:
         # Turns between reminders to save durable knowledge; 0 turns the reminder off.
         self.nudge_interval = int(get_path(config, "memory.nudge_interval", 10) or 0)
         self._turns_since_write = 0
+        self._session_id = ""
         self.provider: MemoryProvider | None = None
         wanted = str(get_path(config, "memory.provider", "") or "") if enabled else ""
         if wanted:
@@ -95,7 +100,42 @@ class MemoryManager:
     # ── lifecycle ────────────────────────────────────────────────────────────────────────
 
     def initialize(self, session_id: str, **context: Any) -> None:
+        self._session_id = session_id
+        # A resumed session keeps the reminder count it had: the interval is about the
+        # conversation, not about this process.
+        self._turns_since_write = self._load_nudge_count(session_id)
         self._guard("initialize", None, lambda provider: provider.initialize(session_id, **context))
+
+    # ── the nudge counter, persisted per session ─────────────────────────────────────────
+
+    def _nudge_state_path(self):
+        return get_memories_dir() / _NUDGE_STATE_FILENAME
+
+    def _load_nudge_count(self, session_id: str) -> int:
+        data = read_json(self._nudge_state_path(), {})
+        counts = data.get("turns_since_write") if isinstance(data, dict) else None
+        if isinstance(counts, dict):
+            try:
+                return max(0, int(counts.get(session_id, 0)))
+            except (TypeError, ValueError):
+                return 0
+        return 0
+
+    def _save_nudge_count(self) -> None:
+        if not self._session_id:
+            return
+        path = self._nudge_state_path()
+        directory = path.parent
+        with exclusive_lock(directory / ".nudge.lock"):
+            data = read_json(path, {})
+            stored = data.get("turns_since_write") if isinstance(data, dict) else None
+            counts: dict[str, int] = dict(stored) if isinstance(stored, dict) else {}
+            if self._turns_since_write:
+                counts[self._session_id] = self._turns_since_write
+            else:
+                counts.pop(self._session_id, None)
+            ensure_dir(directory)
+            atomic_write_json(path, {"turns_since_write": counts})
 
     def reload(self) -> None:
         """Retake the built-in snapshot (after compression, when the prompt is rebuilt anyway)."""
@@ -131,8 +171,10 @@ class MemoryManager:
             return ""
         self._turns_since_write += 1
         if self._turns_since_write < self.nudge_interval:
+            self._save_nudge_count()
             return ""
         self._turns_since_write = 0
+        self._save_nudge_count()
         return MEMORY_NUDGE
 
     def after_turn(self, user_content: str, assistant_content: str, session_id: str) -> None:
@@ -163,6 +205,7 @@ class MemoryManager:
             return {"success": False, "error": f"Unknown action {action!r}. Use add, replace or remove."}
         if result.get("success"):
             self._turns_since_write = 0
+            self._save_nudge_count()
             self._guard("on_memory_write", None, lambda provider: provider.on_memory_write(action, target, content))
         return result
 

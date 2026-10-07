@@ -1,7 +1,9 @@
-"""Rough token estimates.
+"""Token estimates, anchored to the last number the provider reported.
 
-Used only to decide *when* to compress, before the provider has reported real usage. Four
-characters per token is close enough for that; exact counts come from the API response.
+Estimates decide *when* to compress, before the provider has reported real usage for the new
+messages. Four characters per token is close enough for that. Once a response has carried a
+real ``prompt_tokens`` count, that number is the anchor: everything it already measured is
+reused exactly, and only the messages appended after it are estimated.
 """
 
 from __future__ import annotations
@@ -32,3 +34,26 @@ def estimate_messages_tokens(messages: list[dict[str, Any]], *, system_prompt: s
     if tools:
         total += len(json.dumps(tools, default=str)) // CHARS_PER_TOKEN
     return total
+
+
+def estimate_prompt_tokens(messages: list[dict[str, Any]], *, system_prompt: str = "",
+                           tools: list[dict[str, Any]] | None = None,
+                           anchor_tokens: int = 0, anchor_message_count: int = 0) -> int:
+    """The prompt size, reusing the provider's last number where it still applies.
+
+    ``anchor_tokens`` is the last ``prompt_tokens`` the provider reported and
+    ``anchor_message_count`` is how many messages the request carried when it did. Those
+    counts already include the system prompt and tools as they were then, so only the messages
+    after ``anchor_message_count`` are estimated on top. With no anchor this is a plain
+    estimate, and ``system_prompt``/``tools`` are counted as usual.
+
+    The anchor is trusted only when it is at least as large as the messages it claims to cover
+    — otherwise the number does not describe this transcript (a stale count, or a provider that
+    reported something else) and the plain estimate is the safer answer.
+    """
+    if anchor_tokens and 0 < anchor_message_count <= len(messages):
+        covered = sum(estimate_message_tokens(message) for message in messages[:anchor_message_count])
+        if anchor_tokens >= covered:
+            trailing = sum(estimate_message_tokens(message) for message in messages[anchor_message_count:])
+            return anchor_tokens + trailing
+    return estimate_messages_tokens(messages, system_prompt=system_prompt, tools=tools)
