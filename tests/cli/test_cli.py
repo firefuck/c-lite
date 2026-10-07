@@ -58,6 +58,16 @@ def test_single_query_runs_tools_and_reports_progress_on_stderr(cli, tmp_path, c
     assert "✓ read_file data.txt" in captured.err and "✓" not in captured.out  # progress never pollutes stdout
 
 
+def test_single_query_attaches_an_image_with_the_flag(cli, tmp_path, capsys):
+    image = tmp_path / "shot.png"
+    image.write_bytes(b"\x89PNG\r\n\x1a\n" + b"body")
+    out = cli("-q", "what is this?", "--image", str(image))
+    # The mock provider echoes the caption it received; the picture travelled as a content part.
+    assert out == "You said: what is this?\n"
+    assert main(["-q", "hi", "--image", str(tmp_path / "missing.png")]) == 1
+    assert "no file at" in capsys.readouterr().err
+
+
 def test_single_query_refuses_dangerous_commands_with_nobody_to_ask(cli, tmp_path):
     victim = tmp_path / "victim"
     victim.mkdir()
@@ -102,7 +112,9 @@ def _repl(lines, responses=None, **options):
 
     out = io.StringIO()
     client = ScriptedClient(list(responses or []), default=text_response("ok"))
-    repl = Repl(display=Display(stream=out, color=False), input_fn=fake_input, client=client, **options)
+    images = options.pop("images", None)
+    repl = Repl(display=Display(stream=out, color=False), input_fn=fake_input, images=images,
+                client=client, **options)
     assert repl.run() == 0
     return out.getvalue(), client
 
@@ -378,3 +390,14 @@ def test_serve_prints_the_ready_line_as_a_real_process(clite_home):
     finally:
         process.terminate()
         process.wait(timeout=10)
+
+
+def test_a_repl_started_with_an_image_attaches_it_to_the_first_turn(clite_home, tmp_path):
+    (clite_home / "config.yaml").write_text(MOCK)
+    image = tmp_path / "shot.png"
+    image.write_bytes(b"\x89PNG\r\n\x1a\n" + b"body")
+    out, client = _repl(["/status", "what is this?", "/quit"], images=[str(image)])
+    assert "mock-1 via mock" in out  # the command did not consume the attachment
+    content = client.calls[0]["messages"][1]["content"]
+    assert content[0] == {"type": "text", "text": "what is this?"}
+    assert content[1]["image_url"]["url"].startswith("data:image/png;base64,")

@@ -25,6 +25,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | --- | --- | --- |
 | `__init__.py` | The agent: one conversation loop shared by every surface. |  |
 | `agent.py` | ``AIAgent``: one conversation, usable from any surface. | `AIAgent` |
+| `attachments.py` | Images a user attaches to a message: load, validate, shrink, and place into content. | `AttachmentError`, `detect_media_type()`, `image_part()`, `load_image()`, `load_images()`, `build_content()`, `image_parts()`, `has_images()`, `attachment_note()` |
 | `budget.py` | Iteration budget: how many model calls one turn may make. | `IterationBudget` |
 | `callbacks.py` | ``AgentCallbacks``: how a surface observes and answers the agent. | `AgentCallbacks` |
 | `delegation.py` | Delegation: run subagents with their own context and return only their reports. | `delegate()` |
@@ -299,4 +300,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `__init__.py` | MCP (Model Context Protocol) client: tools served by external processes. |  |
 | `client.py` | A small MCP client over stdio. | `McpError`, `safe_name()`, `McpServer`, `connect_mcp_servers()`, `shutdown_mcp_servers()` |
 
-Jumlah: 163 modul.
+Jumlah: 164 modul.

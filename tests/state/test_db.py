@@ -126,6 +126,151 @@ def test_search_falls_back_to_like_without_fts(db):
     assert db.search_messages("5_% d") == []  # LIKE wildcards in the query are literal
 
 
+def _image_message(caption: str, payload: str = "QUJDREVG") -> dict:
+    return {"role": "user", "content": [
+        {"type": "text", "text": caption},
+        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{payload}"}},
+    ]}
+
+
+def test_an_image_message_round_trips_with_its_parts_intact(db):
+    sid = _seed(db)
+    db.append_message(sid, _image_message("a chart of sales"))
+    stored = db.get_messages(sid)[0]["content"]
+    assert stored[0] == {"type": "text", "text": "a chart of sales"}
+    assert stored[1]["image_url"]["url"] == "data:image/png;base64,QUJDREVG"
+
+
+def test_an_image_is_searchable_by_its_caption(db):
+    sid = _seed(db)
+    db.append_message(sid, _image_message("a photo of a zebra"))
+    hits = db.search_messages("zebra")
+    assert [hit["session_id"] for hit in hits] == [sid]
+    assert "zebra" in hits[0]["snippet"]
+
+
+def test_the_search_index_does_not_carry_image_base64(db):
+    """The image lives in ``content``; the FTS index (and the LIKE fallback) hold only the
+    caption. Indexing the base64 would make the index as large as the picture."""
+    sid = _seed(db)
+    payload = "A" * 200_000
+    db.append_message(sid, _image_message("tiny caption", payload))
+
+    # The huge payload is nowhere in the indexed text.
+    assert db.search_messages("A" * 50) == []
+    stored_text = db.get_messages(sid)[0]["content"]
+    assert len(str(stored_text)) > 200_000  # the picture is stored, just not indexed
+
+    with db._lock:
+        indexed = db._conn.execute("SELECT search_text FROM messages WHERE session_id = ?", (sid,)).fetchone()
+    assert indexed["search_text"] == "tiny caption"
+
+
+def test_a_legacy_database_gains_the_search_text_column_and_stays_searchable(clite_home):
+    """A database written before image attachments (schema version 1) keeps its search."""
+    import sqlite3
+
+    path = clite_home / "legacy.db"
+    connection = sqlite3.connect(path)
+    connection.executescript(
+        """
+        CREATE TABLE schema_version (version INTEGER NOT NULL);
+        CREATE TABLE sessions (
+            id TEXT PRIMARY KEY, source TEXT NOT NULL, started_at REAL NOT NULL,
+            session_key TEXT, title TEXT, parent_session_id TEXT, last_activity_at REAL,
+            message_count INTEGER NOT NULL DEFAULT 0, hidden INTEGER NOT NULL DEFAULT 0,
+            archived INTEGER NOT NULL DEFAULT 0);
+        CREATE TABLE messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT,
+            content_is_json INTEGER NOT NULL DEFAULT 0, tool_call_id TEXT, tool_calls TEXT,
+            tool_name TEXT, timestamp REAL NOT NULL, token_count INTEGER, finish_reason TEXT,
+            reasoning TEXT, provider_data TEXT, turn_context TEXT, display_kind TEXT,
+            is_summary INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1,
+            compacted INTEGER NOT NULL DEFAULT 0);
+        """
+    )
+    connection.execute("INSERT INTO schema_version(version) VALUES (1)")
+    connection.execute("INSERT INTO sessions(id, source, started_at) VALUES ('old', 'cli', 1)")
+    connection.execute("INSERT INTO messages(session_id, role, content, timestamp) VALUES ('old', 'user', 'an old zebra note', 1)")
+    connection.commit()
+    connection.close()
+
+    upgraded = SessionDB(path)
+    try:
+        assert upgraded.search_messages("zebra")[0]["session_id"] == "old"
+    finally:
+        upgraded.close()
+
+
+def test_a_legacy_database_that_already_has_search_text_is_not_broken(clite_home):
+    """The column is reconciled on open, so a database that already has it still opens."""
+    import sqlite3
+
+    from clite.state.schema import SCHEMA_SQL
+
+    path = clite_home / "halfway.db"
+    connection = sqlite3.connect(path)
+    connection.executescript(SCHEMA_SQL)
+    connection.execute("INSERT INTO schema_version(version) VALUES (1)")
+    connection.execute("INSERT INTO sessions(id, source, started_at) VALUES ('h', 'cli', 1)")
+    connection.execute("INSERT INTO messages(session_id, role, content, search_text, timestamp) "
+                       "VALUES ('h', 'user', 'kept', 'kept', 1)")
+    connection.commit()
+    connection.close()
+
+    upgraded = SessionDB(path)
+    try:
+        assert upgraded.search_messages("kept")[0]["session_id"] == "h"
+    finally:
+        upgraded.close()
+
+
+def test_a_legacy_database_with_structured_content_backfills_its_text(clite_home):
+    """A version-1 database could already hold a JSON content list; migration keeps the words
+    searchable and still leaves the image out of the index."""
+    import json as jsonlib
+    import sqlite3
+
+    path = clite_home / "structured.db"
+    structured = [{"type": "text", "text": "an old zebra note"},
+                  {"type": "image_url", "image_url": {"url": "data:image/png;base64," + "B" * 5000}}]
+    connection = sqlite3.connect(path)
+    connection.executescript(
+        """
+        CREATE TABLE schema_version (version INTEGER NOT NULL);
+        CREATE TABLE sessions (
+            id TEXT PRIMARY KEY, source TEXT NOT NULL, started_at REAL NOT NULL,
+            session_key TEXT, title TEXT, parent_session_id TEXT, last_activity_at REAL,
+            message_count INTEGER NOT NULL DEFAULT 0, hidden INTEGER NOT NULL DEFAULT 0,
+            archived INTEGER NOT NULL DEFAULT 0);
+        CREATE TABLE messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT,
+            content_is_json INTEGER NOT NULL DEFAULT 0, tool_call_id TEXT, tool_calls TEXT,
+            tool_name TEXT, timestamp REAL NOT NULL, token_count INTEGER, finish_reason TEXT,
+            reasoning TEXT, provider_data TEXT, turn_context TEXT, display_kind TEXT,
+            is_summary INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1,
+            compacted INTEGER NOT NULL DEFAULT 0);
+        """
+    )
+    connection.execute("INSERT INTO schema_version(version) VALUES (1)")
+    connection.execute("INSERT INTO sessions(id, source, started_at) VALUES ('s', 'cli', 1)")
+    connection.execute("INSERT INTO messages(session_id, role, content, content_is_json, timestamp) VALUES (?, 'user', ?, 1, 1)",
+                       ("s", jsonlib.dumps(structured)))
+    connection.commit()
+    connection.close()
+
+    upgraded = SessionDB(path)
+    try:
+        assert upgraded.search_messages("zebra")[0]["session_id"] == "s"
+        with upgraded._lock:
+            text = upgraded._conn.execute("SELECT search_text FROM messages WHERE session_id = 's'").fetchone()["search_text"]
+        assert text == "an old zebra note" and "B" * 50 not in text
+    finally:
+        upgraded.close()
+
+
 def test_titles_are_unique(db):
     _seed(db, "s1")
     _seed(db, "s2")

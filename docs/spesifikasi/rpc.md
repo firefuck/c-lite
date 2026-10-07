@@ -61,6 +61,10 @@ Daftar lengkap method, event, dan permintaan server ada di
   database. `session.create` dengan `resume` membuka sesi tersimpan.
 - `prompt.submit` langsung kembali. Jawabannya datang sebagai event yang diakhiri
   `turn.complete`. Klien **selalu** menerima `turn.complete`, juga setelah galat.
+- `prompt.submit.attachments` (opsional) membawa daftar path gambar lokal. Server memuat dan
+  membatasinya di thread pemanggil sebelum mengantre giliran, sehingga path yang salah atau
+  gambar yang terlalu besar menjadi balasan galat 4004, bukan giliran yang gagal di tengah.
+  Klien lama yang tidak mengirim bidang ini tetap bekerja.
 - Mode sibuk (`busy_mode` atau `display.busy_input_mode`): `interrupt` menghentikan giliran
   berjalan lalu menjalankan pesan baru, `queue` mengantre, `steer` menyisipkan tanpa
   menghentikan, `reject` membalas galat 4002.
@@ -85,7 +89,7 @@ Daftar lengkap method, event, dan permintaan server ada di
 | Generator TypeScript dan pemeriksaan kesegaran | ✅ | |
 | Klien TypeScript bersama (`apps/shared`) | ✅ | 21 tes |
 | Pemutaran ulang event setelah sambung ulang | ⬜ | `seq` sudah ada di tiap event; belum ada penyangga: F5-T5 |
-| Lampiran (gambar, file) pada prompt | ⬜ | F2-T6 |
+| Lampiran gambar pada prompt | ✅ | `prompt.submit.attachments` (bidang opsional baru); path buruk menjadi galat 4004, bukan giliran gagal. Lampiran berkas lain: F2-T6 |
 | Method untuk profil, MCP, hook, log | ⬜ | F5-T2 |
 | Versi protokol dinegosiasikan | 🟡 | `gateway.ready` membawa `protocol_version`; klien belum menolak versi yang tidak cocok |
 

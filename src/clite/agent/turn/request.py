@@ -18,7 +18,8 @@ import logging
 import random
 from typing import TYPE_CHECKING, Any
 
-from clite.agent.messages import sanitize_for_api
+from clite.agent.attachments import attachment_note, has_images, image_parts
+from clite.agent.messages import content_text, sanitize_for_api
 from clite.agent.prompt.caching import apply_cache_markers
 from clite.agent.state import BREAK, CONTINUE, PROCEED, TurnState, Verdict
 from clite.core.config import get_path
@@ -36,11 +37,42 @@ MAX_BACKOFF_SECONDS = 30.0
 
 def assemble_api_messages(agent: AIAgent, state: TurnState) -> list[dict[str, Any]]:
     """The exact message list for this request, built on a copy of the stored history."""
-    request = [{"role": "system", "content": agent.system_prompt or ""}, *sanitize_for_api(agent.messages)]
+    history = sanitize_for_api(agent.messages)
+    if not _model_accepts_images(agent, state):
+        history = _withhold_images(history)
+    request = [{"role": "system", "content": agent.system_prompt or ""}, *history]
     profile = state.route.profile
     if profile is not None and profile.wants_cache_markers(state.route.model):
         request = apply_cache_markers(request, str(get_path(agent.config, "prompt_caching.cache_ttl", "5m")))
     return request
+
+
+def _model_accepts_images(agent: AIAgent, state: TurnState) -> bool:
+    """Whether the model for this turn accepts image content, from config override or profile."""
+    override = get_path(agent.config, "model.vision", None)
+    if override is not None:
+        return bool(override)
+    profile = state.route.profile
+    return profile is None or profile.supports_vision(state.route.model)
+
+
+def _withhold_images(history: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Drop image parts from a copy of the history, leaving a note where one was attached.
+
+    Deterministic, so the request still repeats itself exactly. The stored history keeps the
+    pictures: only what this non-vision model sees changes, and a later turn on a vision model
+    sends them again.
+    """
+    stripped: list[dict[str, Any]] = []
+    for message in history:
+        content = message.get("content")
+        if has_images(content):
+            note = attachment_note(len(image_parts(content)))
+            text = content_text(content)
+            replacement = f"{text}\n\n{note}".strip() if text else note
+            message = {**message, "content": replacement}
+        stripped.append(message)
+    return stripped
 
 
 def _backoff(attempt: int, retry_after: float | None) -> float:

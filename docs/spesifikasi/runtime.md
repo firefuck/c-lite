@@ -49,6 +49,9 @@ membutuhkan kode yang sama, kode itu tinggal di sini, bukan di salah satu surfac
 - `/undo` menonaktifkan giliran pengguna terakhir dan semua setelahnya. `/retry` adalah undo
   lalu kirim ulang. Keduanya melewati pesan `internal` yang ditulis agent sendiri.
 - `/model` mengganti model untuk sesi; `--global` juga menyimpannya ke config.
+- `/image <path>` (alias `/attach`) mengantre gambar untuk pesan berikutnya; dengan teks
+  setelah path, gambar dan teks dikirim dalam satu giliran. Path yang tidak ada dilaporkan
+  langsung, bukan saat giliran dikirim.
 - `/reload` memuat ulang config dan plugin, mempertahankan percakapan, dan membangun ulang
   system prompt (satu kali cache miss).
 - Quick command bertipe `exec` berjalan tanpa model dan tanpa gerbang persetujuan: pengguna
@@ -68,7 +71,7 @@ membutuhkan kode yang sama, kode itu tinggal di sini, bukan di salah satu surfac
 |---|---|---|
 | `build_agent`, toolset per platform | ✅ | |
 | `ChatSession` | ✅ | |
-| 27 slash command | ✅ | Hermes punya 102. Tambahan: F3-T4 |
+| 28 slash command | ✅ | Hermes punya 102. Tambahan: F3-T4 |
 | Quick command (`exec`, `alias`) | ✅ | |
 | Skill dan perintah plugin sebagai slash command | ✅ | |
 | Auto-prune sesi | ✅ | |

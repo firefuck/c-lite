@@ -33,7 +33,8 @@ FORCE_EXIT_WINDOW_SECONDS = 2.0
 
 
 class Repl:
-    def __init__(self, *, display: Display | None = None, input_fn=input, **session_options: Any) -> None:
+    def __init__(self, *, display: Display | None = None, input_fn=input, images: list[str] | None = None,
+                 **session_options: Any) -> None:
         config = load_config()
         self.display = display or Display(
             skin=str(get_path(config, "display.skin", "default")),
@@ -44,6 +45,8 @@ class Repl:
         self._prompting = False
         self._last_interrupt = 0.0
         self._streamed = False
+        # Images attached with --image; they join the first message of the session.
+        self._start_images = list(images or [])
         self.session = ChatSession(platform="cli", callbacks=self._callbacks(), **session_options)
 
     # ── callbacks ────────────────────────────────────────────────────────────────────────
@@ -155,13 +158,19 @@ class Repl:
             return True
         self._streamed = False
         try:
-            return self.show_result(self.session.handle_input(text))
+            outcome = self.session.handle_input(text, images=self._start_images)
         except KeyboardInterrupt:
             self.display.line("(interrupted)", "status")
             return True
         except CliteError as exc:
             self.display.error(f"error: {exc}")
             return True
+        else:
+            # --image applies to the first real turn; a slash command that runs nothing keeps
+            # the images for the message that actually goes to the model.
+            if isinstance(outcome, TurnResult):
+                self._start_images = []
+            return self.show_result(outcome)
 
     def run(self) -> int:
         self._setup_readline()
@@ -198,7 +207,8 @@ def _save_history(path) -> None:
         pass
 
 
-def run_single_query(query: str, *, as_json: bool = False, quiet: bool = False, **session_options: Any) -> int:
+def run_single_query(query: str, *, as_json: bool = False, quiet: bool = False,
+                     images: list[str] | None = None, **session_options: Any) -> int:
     """``clite chat -q``: one turn, the answer on stdout, everything else on stderr."""
     import json
 
@@ -209,7 +219,7 @@ def run_single_query(query: str, *, as_json: bool = False, quiet: bool = False, 
     )
     session = ChatSession(platform="cli", callbacks=callbacks, **session_options)
     try:
-        outcome = session.handle_input(query)
+        outcome = session.handle_input(query, images=list(images or []))
     finally:
         session.close("single_query")
     if isinstance(outcome, SlashResult):

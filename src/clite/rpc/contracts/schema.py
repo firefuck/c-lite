@@ -187,6 +187,9 @@ class PromptSubmitParams(Params):
     text: str
     # What to do when a turn is already running. Default: the server's display.busy_input_mode.
     busy_mode: Literal["interrupt", "queue", "steer", "reject"] | None = None
+    # Local image paths to attach to this message. The server loads and bounds them; a bad
+    # path is reported as an error, never as a partial turn. Optional: older clients omit it.
+    attachments: list[str] | None = None
 
 
 class PromptSubmitResult(Result):

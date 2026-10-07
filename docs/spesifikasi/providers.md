@@ -35,9 +35,9 @@ itu tool, sesi, atau giliran.
   `if provider == ...` di kode inti. Keanehan provider masuk ke method yang di-override:
   `resolve_api_mode`, `get_headers`, `prepare_messages`, `build_extra_body`, `wants_cache_markers`,
   `resolve_temperature`, `replay_is_prefix_bound`, `get_max_tokens`,
-  `get_model_context_length`, `resolve_base_url`, `resolve_credential`, `prepare_request`,
-  dan `authenticate_request`. Dua method terakhir berjalan pada permintaan akhir; origin
-  diperiksa sebelum autentikasi dan diperiksa lagi sesudahnya.
+  `get_model_context_length`, `supports_vision`, `resolve_base_url`, `resolve_credential`,
+  `prepare_request`, dan `authenticate_request`. Dua method terakhir berjalan pada permintaan
+  akhir; origin diperiksa sebelum autentikasi dan diperiksa lagi sesudahnya.
 - Lapisan registry, yang belakangan menang: bawaan paket, plugin umum
   (`ctx.register_provider`), `<home>/plugins/model-providers/` (per profil), bagian
   `providers:` di config (per profil).
@@ -79,6 +79,10 @@ itu tool, sesi, atau giliran.
 - Profil `openai` memilih `responses` untuk `gpt-5-codex` lewat `resolve_api_mode`.
   `model.api_mode` eksplisit tetap menang, juga sesudah `/model`.
 - `mock`: jawaban deterministik tanpa jaringan untuk demo dan tes ujung ke ujung.
+- Ketiga transport meneruskan bagian `image_url` (data URL base64 dari lampiran pengguna):
+  `chat_completions` apa adanya, `anthropic_messages` menjadi blok `image` base64,
+  `responses` menjadi `input_image`. Dijaga `tests/providers/test_transports.py` dan
+  `tests/providers/test_client.py` (streaming dan tidak).
 
 **Panggilan**
 - `cancel` (sebuah `threading.Event`) membatalkan panggilan dari thread lain dengan menutup

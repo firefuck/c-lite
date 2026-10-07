@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from clite import __version__
+from clite.agent.attachments import AttachmentError
 from clite.core.config import config_set, get_path, load_config
 from clite.core.constants import display_home
 from clite.core.errors import CliteError
@@ -147,9 +148,12 @@ def session_usage(server: RpcServer, params: schema.SessionRef) -> schema.Sessio
 
 @rpc_method("prompt.submit")
 def prompt_submit(server: RpcServer, params: schema.PromptSubmitParams) -> schema.PromptSubmitResult:
-    if not params.text.strip():
+    if not params.text.strip() and not params.attachments:
         raise RpcError(REQUEST_FAILED, "the prompt is empty")
-    return server.get_session(params.session_id).submit(params.text, params.busy_mode)
+    try:
+        return server.get_session(params.session_id).submit(params.text, params.busy_mode, params.attachments)
+    except AttachmentError as exc:
+        raise RpcError(REQUEST_FAILED, str(exc)) from exc
 
 
 @rpc_method("slash.exec")

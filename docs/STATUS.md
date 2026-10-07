@@ -69,6 +69,27 @@ salinan `54bdd45`: 12 tes baru gagal (`ModuleNotFoundError: No module named
 `tests/server`, yang punya satu kegagalan sudah-ada sebelum tugas ini): 927 lulus, 26
 terlewati. Ruff dan mypy bersih. Clone rujukan Hermes tidak tersedia.
 
+### F2-T6 langkah 1: masukan gambar (8 Oktober 2026)
+
+Masukan gambar selesai: `clite chat --image <path>`, `/image <path>` (alias `/attach`) di
+semua surface, dan bidang opsional `attachments` pada RPC `prompt.submit`. Modul baru
+`src/clite/agent/attachments.py` memuat, mengenali tipe dari byte awal, membatasi ukuran dan
+jumlah, dan mengecilkan gambar yang terlalu besar lewat ekstra opsional `images` (Pillow).
+Model yang dinyatakan tanpa penglihatan (`ProviderProfile.supports_vision` atau override
+`model.vision`) tidak pernah dikirimi bagian gambar; riwayat tetap menyimpannya. Pencarian teks
+pindah dari kolom `content` ke `search_text` supaya base64 gambar tidak masuk indeks FTS,
+dengan skema versi 2, `COLUMN_ADDITIONS`, dan pembangunan ulang indeks saat dibuka.
+
+Bukti regresi pada salinan bercabang dari `5ae95cd` dengan tes baru saja: 14 tes gagal
+(`ModuleNotFoundError: No module named 'clite.agent.attachments'`,
+`Extra inputs are not permitted` untuk `attachments`, `/image` tak dikenal, indeks FTS memuat
+base64); sesudah implementasi, 46 tes baru lulus. Suite Python penuh: 995 lulus, 26 terlewati
+(satu tes server yang sudah gagal sebelum tugas ini karena versi pustaka `websockets`, tidak
+dipilih). Ruff bersih, mypy 164 file bersih. Tes Node `apps/shared` 21 lulus dan `ui-tui` 18
+lulus; bundle TUI dibangun ulang dengan `node build.mjs` karena kontrak TypeScript berubah.
+Clone rujukan Hermes tidak tersedia, sehingga file rujukan belum dibaca. Langkah 2
+(`vision_analyze`) dan 3 (`image_generate`) belum dikerjakan; F2-T6 tetap 🟡.
+
 ## Pemasangan yang sudah diverifikasi
 
 Pada 6 Oktober 2026 CI repo `https://github.com/dragovics/clite` run `37356398420` pada
@@ -119,6 +140,7 @@ dijalankan terhadap hal yang sebenarnya. Anggap belum berfungsi sampai terbukti.
 | Transport `responses` | Diuji terhadap server HTTP lokal untuk streaming/nonstreaming dan dua ronde tool; `test_openai_responses_replays_reasoning_across_two_tool_rounds` belum dijalankan karena pemilik menunda uji API asli | F2-T1 |
 | Sepuluh profil tambahan gelombang pertama | Rute, bentuk HTTP streaming/nonstreaming, dan discovery setup diuji dengan server lokal. API asli (termasuk server LM Studio/vLLM sungguhan) belum pernah dipanggil; profil cloud Azure/Bedrock/Vertex juga hanya diuji lokal | F2-T2 🟡 |
 | Provider pencarian web (`web-search-ddg`, `web-search-tavily`) | Diuji terhadap server HTTP lokal yang meniru API pencarian. DuckDuckGo dan Tavily asli belum pernah dipanggil | F2-T5 ✅ |
+| Masukan gambar ke provider sungguhan | Bentuk konten diuji terhadap transport dan terhadap HTTP loopback, bukan API asli. Mengirim gambar ke provider berpenglihatan sungguhan (dan perilaku model tanpa penglihatan terhadap gambar yang ditahan) belum pernah dijalankan | F2-T6 🟡 |
 | Tes jaringan provider (`tests/providers/test_live.py`) | Ditulis, belum pernah dijalankan: menunggu kunci Anthropic dan satu provider kompatibel OpenAI | F1-T2 |
 | Persetujuan `smart` dengan model sungguhan | Hanya diuji dengan model berskrip | F1-T2 |
 | Adapter Telegram | Hanya terhadap Bot API tiruan. Daftar periksa bot sungguhan di F1-T3 belum dijalankan: menunggu token bot dan grup uji | F1-T3 |
@@ -222,6 +244,7 @@ python scripts/check_hermes_refs.py --hermes ../hermes-ref   # butuh clone Herme
 | 5 Oktober 2026 | Workflow CI terpicu di GitHub pada setiap push; semua job ditolak sebelum berjalan karena akun terkunci masalah penagihan | GitHub Actions |
 | 6 Oktober 2026 | F1-T6 lokal: penulis config `ruamel.yaml` mempertahankan format; suite penuh 811 lulus, 26 skip; CI belum jalan | Linux, Python 3.11 |
 | 6 Oktober 2026 | `install_skill("anthropics/skills/skills/pdf")` memasang skill dari GitHub sungguhan tanpa token (`pytest tests/skills -m network`) | Linux, Python 3.13 |
+| 8 Oktober 2026 | F2-T6 langkah 1: 14 regresi merah pada salinan `5ae95cd` dengan tes baru saja, 46 tes baru lulus sesudah implementasi; suite Python penuh 995 lulus/26 terlewati, Ruff dan mypy 164 file bersih; 21 tes Node `apps/shared` dan 18 tes `ui-tui` lulus, bundle TUI dibangun ulang | Linux, Python 3.11.16, Node 26.7.0 |
 
 Setiap task yang memverifikasi sesuatu menambah baris di tabel ini dan memindahkan butirnya
 dari "belum diverifikasi".

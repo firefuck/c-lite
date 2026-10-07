@@ -57,6 +57,11 @@ class ProviderProfile:
     default_model: str = ""
     default_aux_model: str = ""  # cheap model for side tasks; empty = use the main model
     context_lengths: dict[str, int] = field(default_factory=dict)  # exact id or prefix -> tokens
+    # Model ids or id prefixes that accept image content. Empty = the whole profile accepts
+    # images (the common case); a profile whose non-vision models share an id prefix lists it
+    # in ``no_vision_prefixes`` instead.
+    vision_models: tuple[str, ...] = ()
+    no_vision_prefixes: tuple[str, ...] = ()
 
     # ── request quirks ───────────────────────────────────────────────────────────────────
     default_headers: dict[str, str] = field(default_factory=dict)
@@ -133,6 +138,21 @@ class ProviderProfile:
 
     def get_max_tokens(self, model: str) -> int | None:
         return self.default_max_tokens
+
+    def supports_vision(self, model: str) -> bool:
+        """Whether ``model`` accepts image content parts.
+
+        Declared by the profile, never guessed from the model id in core code. A listed
+        ``no_vision_prefixes`` match means no; otherwise a non-empty ``vision_models`` is an
+        allow-list, and an empty one means the profile's models all accept images. A wrong
+        "yes" is caught by the provider's own error and reported to the user; the cost of a
+        wrong "no" is a picture the model never sees, so unknown leans towards yes.
+        """
+        if any(model.startswith(prefix) for prefix in self.no_vision_prefixes):
+            return False
+        if self.vision_models:
+            return any(model == mid or model.startswith(mid) for mid in self.vision_models)
+        return True
 
     def get_model_context_length(self, model: str) -> int | None:
         if model in self.context_lengths:

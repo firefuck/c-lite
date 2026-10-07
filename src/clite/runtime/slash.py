@@ -60,6 +60,22 @@ def _handle_retry(session: ChatSession, args: str) -> SlashResult:
     return SlashResult(text, ACTION_SUBMIT)
 
 
+def _handle_image(session: ChatSession, args: str) -> SlashResult:
+    """Queue an image for the next message, or submit one now with a caption after the path."""
+    stripped = args.strip().strip('"').strip("'")
+    if not stripped:
+        return SlashResult("Usage: /image <path> [prompt]. It is attached to your next message.")
+    path, _, caption = stripped.partition(" ")
+    try:
+        queued = session.queue_image(path)
+    except Exception as exc:  # noqa: BLE001 - report, never crash the surface
+        return SlashResult(f"Could not attach {path!r}: {exc}")
+    if caption.strip():
+        # The image is already queued; submitting the caption consumes it in the same turn.
+        return SlashResult(caption.strip(), ACTION_SUBMIT)
+    return SlashResult(f"{queued}. Now send your message.")
+
+
 def _handle_undo(session: ChatSession, args: str) -> SlashResult:
     text = session.undo()
     if text is None:

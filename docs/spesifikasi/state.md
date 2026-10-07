@@ -18,13 +18,14 @@ Penyimpanan sesi dan pesan yang tahan lama: satu file SQLite per profil
 |---|---|
 | `sessions` | Satu baris per sesi: sumber (platform), model, system prompt, induk, waktu, penghitung token, judul, bendera `archived` / `pinned` / `hidden` |
 | `messages` | Pesan dalam bentuk internal. Kolom `active` dan `compacted` menandai baris yang diarsipkan kompresi |
-| `messages_fts` | Indeks FTS5 atas `content`, `tool_name`, `tool_calls`, dijaga sinkron oleh trigger |
+| `messages_fts` | Indeks FTS5 atas `search_text`, `tool_name`, `tool_calls`, dijaga sinkron oleh trigger |
 | `state_meta` | Pasangan kunci-nilai (misalnya waktu auto-prune terakhir) |
 | `schema_version` | Versi skema |
 
-Kunci pesan yang disimpan: `role`, `content` (string atau JSON), `tool_calls`,
-`tool_call_id`, `name`, `reasoning`, `provider_data`, `turn_context`, `finish_reason`,
-`display_kind`, `is_summary`, `timestamp`. Kunci lain dibuang saat menulis.
+Kunci pesan yang disimpan: `role`, `content` (string atau JSON), `search_text` (teks polos
+yang diindeks), `tool_calls`, `tool_call_id`, `name`, `reasoning`, `provider_data`,
+`turn_context`, `finish_reason`, `display_kind`, `is_summary`, `timestamp`. Kunci lain dibuang
+saat menulis.
 
 ## Kontrak
 
@@ -41,6 +42,12 @@ Kunci pesan yang disimpan: `role`, `content` (string atau JSON), `tool_calls`,
 - `list_sessions` menyembunyikan sesi anak, tersembunyi, dan terarsip secara default.
 - Pencarian memperlakukan masukan pengguna sebagai teks biasa (setiap kata dikutip), jadi
   operator FTS tidak bisa disuntikkan. Tanpa FTS5 di SQLite, pencarian jatuh ke `LIKE`.
+- **Pencarian mengindeks `search_text`, bukan `content`.** Untuk pesan dengan konten
+  berstruktur (lampiran gambar), `search_text` hanya memuat bagian `text`-nya, sehingga indeks
+  FTS tidak ikut membawa base64 gambar. `content` tetap menyimpan bentuk lengkap untuk
+  pulang-pergi. Perubahan 1 ke 2 memindahkan indeks dari `content` ke `search_text`; basis
+  data lama mendapat kolomnya lewat `COLUMN_ADDITIONS` dan diisi ulang, indeks FTS dibangun
+  ulang saat dibuka.
 - `update_session` menolak kolom di luar `UPDATABLE_SESSION_COLUMNS`.
 - `prune_sessions` menghapus sesi tanpa aktivitas lebih lama dari batas, kecuali yang di-pin
   dan yang disebut di `keep`. Sesi anak dari sesi yang dihapus dilepas, tidak ikut dihapus.

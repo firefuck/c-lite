@@ -283,3 +283,52 @@ def test_plugin_commands_and_their_failures(make_session, clite_home):
     assert "mock-1 via mock" in session.run_slash("/status").text
     kinds = {entry["name"]: entry["kind"] for entry in command_catalog("cli")}
     assert kinds["shout"] == "plugin" and kinds["status"] == "builtin"
+
+
+# ── image attachments (F2-T6) ─────────────────────────────────────────────────────────────
+
+
+def _png(path):
+    path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"body")
+    return str(path)
+
+
+def test_the_image_command_queues_a_file_for_the_next_message(make_session, tmp_path):
+    session, client = make_session([text_response("nice picture")])
+    result = session.run_slash(f"/image {_png(tmp_path / 'shot.png')}")
+    assert "queued" in result.text.lower()
+    assert session.pending_image_count == 1
+
+    session.handle_input("what is this?")
+    user_message = client.calls[0]["messages"][1]
+    assert user_message["content"][0] == {"type": "text", "text": "what is this?"}
+    assert user_message["content"][1]["image_url"]["url"].startswith("data:image/png;base64,")
+    assert session.pending_image_count == 0  # consumed by the turn
+
+
+def test_the_image_command_with_a_caption_submits_in_one_step(make_session, tmp_path):
+    session, client = make_session([text_response("ok")])
+    outcome = session.handle_input(f"/image {_png(tmp_path / 'a.png')} what colour is it?")
+    assert not isinstance(outcome, type(None)) and client.calls
+    content = client.calls[0]["messages"][1]["content"]
+    assert content[0] == {"type": "text", "text": "what colour is it?"}
+    assert content[1]["type"] == "image_url"
+
+
+def test_the_image_command_reports_a_missing_file(make_session, tmp_path):
+    session, _ = make_session()
+    result = session.run_slash(f"/image {tmp_path / 'gone.png'}")
+    assert "no file at" in result.text
+    assert session.pending_image_count == 0
+
+
+def test_submit_attaches_images_passed_directly(make_session, tmp_path):
+    session, client = make_session([text_response("ok")])
+    session.submit("look", images=[_png(tmp_path / "direct.png")])
+    assert client.calls[0]["messages"][1]["content"][1]["type"] == "image_url"
+
+
+def test_an_image_command_is_not_available_without_a_path(make_session):
+    session, _ = make_session()
+    assert "Usage: /image" in session.run_slash("/image").text
+    assert "Usage: /image" in session.run_slash("/attach").text  # the alias works too

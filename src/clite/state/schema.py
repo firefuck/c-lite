@@ -7,7 +7,7 @@ transform goes in :data:`MIGRATIONS`. New nullable columns are added through
 
 from __future__ import annotations
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -58,6 +58,10 @@ CREATE TABLE IF NOT EXISTS messages (
     role TEXT NOT NULL,
     content TEXT,
     content_is_json INTEGER NOT NULL DEFAULT 0,
+    -- Plain text of this message, the only column FTS indexes. A message whose content is a
+    -- JSON list of parts (a user message with an image) keeps its base64 in `content`; this
+    -- column holds just the words, so a search index never carries megabytes of image data.
+    search_text TEXT,
     tool_call_id TEXT,
     tool_calls TEXT,
     tool_name TEXT,
@@ -87,38 +91,57 @@ CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, id);
 CREATE INDEX IF NOT EXISTS idx_messages_session_active ON messages(session_id, active, id);
 """
 
-# External-content FTS5 over the three searchable columns, kept in sync by triggers.
+# External-content FTS5 over the searchable text, kept in sync by triggers. The indexed column
+# is `search_text`, not `content`: a user message with an image stores its base64 in `content`,
+# and indexing that would make the FTS index as large as the picture.
 FTS_SQL = """
 CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
-    content, tool_name, tool_calls,
+    search_text, tool_name, tool_calls,
     content='messages', content_rowid='id'
 );
 
 CREATE TRIGGER IF NOT EXISTS messages_fts_insert AFTER INSERT ON messages BEGIN
-    INSERT INTO messages_fts(rowid, content, tool_name, tool_calls)
-    VALUES (new.id, new.content, new.tool_name, new.tool_calls);
+    INSERT INTO messages_fts(rowid, search_text, tool_name, tool_calls)
+    VALUES (new.id, new.search_text, new.tool_name, new.tool_calls);
 END;
 
 CREATE TRIGGER IF NOT EXISTS messages_fts_delete AFTER DELETE ON messages BEGIN
-    INSERT INTO messages_fts(messages_fts, rowid, content, tool_name, tool_calls)
-    VALUES ('delete', old.id, old.content, old.tool_name, old.tool_calls);
+    INSERT INTO messages_fts(messages_fts, rowid, search_text, tool_name, tool_calls)
+    VALUES ('delete', old.id, old.search_text, old.tool_name, old.tool_calls);
 END;
 
-CREATE TRIGGER IF NOT EXISTS messages_fts_update AFTER UPDATE OF content, tool_name, tool_calls ON messages BEGIN
-    INSERT INTO messages_fts(messages_fts, rowid, content, tool_name, tool_calls)
-    VALUES ('delete', old.id, old.content, old.tool_name, old.tool_calls);
-    INSERT INTO messages_fts(rowid, content, tool_name, tool_calls)
-    VALUES (new.id, new.content, new.tool_name, new.tool_calls);
+CREATE TRIGGER IF NOT EXISTS messages_fts_update AFTER UPDATE OF search_text, tool_name, tool_calls ON messages BEGIN
+    INSERT INTO messages_fts(messages_fts, rowid, search_text, tool_name, tool_calls)
+    VALUES ('delete', old.id, old.search_text, old.tool_name, old.tool_calls);
+    INSERT INTO messages_fts(rowid, search_text, tool_name, tool_calls)
+    VALUES (new.id, new.search_text, new.tool_name, new.tool_calls);
 END;
 """
 
 # {table: {column: "SQL type and default"}} for columns added after the first release.
 # `turn_context` is listed although the schema above has it: databases created before it was
-# added gain it here.
-COLUMN_ADDITIONS: dict[str, dict[str, str]] = {"messages": {"turn_context": "TEXT"}}
+# added gain it here. `search_text` is listed for the same reason: reconciled on open, then
+# backfilled by the 1 -> 2 migration.
+COLUMN_ADDITIONS: dict[str, dict[str, str]] = {
+    "messages": {"turn_context": "TEXT", "search_text": "TEXT"},
+}
 
 # {from_version: [sql, ...]} run in order to reach SCHEMA_VERSION.
-MIGRATIONS: dict[int, list[str]] = {}
+# 1 -> 2: FTS moved from `content` to `search_text`, so a database written before image
+# attachments does not index image base64. `search_text` itself is added by COLUMN_ADDITIONS
+# (idempotent, safe when the column is already there). The old FTS table and its triggers are
+# dropped here (FTS_SQL recreates them against `search_text` after the migrations run), the
+# plain text of every existing row is copied over, and the index is rebuilt from the external
+# content by `_init_schema`.
+MIGRATIONS: dict[int, list[str]] = {
+    1: [
+        "UPDATE messages SET search_text = content WHERE content_is_json = 0 AND search_text IS NULL",
+        "DROP TRIGGER IF EXISTS messages_fts_insert",
+        "DROP TRIGGER IF EXISTS messages_fts_delete",
+        "DROP TRIGGER IF EXISTS messages_fts_update",
+        "DROP TABLE IF EXISTS messages_fts",
+    ],
+}
 
 # Columns callers may set through SessionDB.update_session.
 UPDATABLE_SESSION_COLUMNS = frozenset(
