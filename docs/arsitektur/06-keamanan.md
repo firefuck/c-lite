@@ -6,13 +6,52 @@ itu berakhir.
 
 ## Yang perlu dipahami lebih dulu
 
-**C-lite tidak punya sandbox.** Perintah berjalan sebagai pengguna yang menjalankan agent,
-dengan hak penuh pengguna itu. Pagar di bawah ini mencegah dua hal: kekeliruan model yang
-merusak, dan jalur eskalasi paling langsung dari teks tak tepercaya. Pagar itu **tidak**
-menahan model yang sudah berhasil dibujuk untuk bekerja melawan pengguna dan bersedia
-melakukannya dalam beberapa langkah. Untuk pekerjaan yang membutuhkan jaminan semacam itu,
-jalankan agent di dalam container atau mesin virtual. Backend terminal Docker dan SSH ada di
-roadmap (F2-T7).
+**Secara default tidak ada sandbox.** Backend terminal `local` menjalankan perintah sebagai
+pengguna yang menjalankan agent, dengan hak penuh pengguna itu. Pagar di bawah ini mencegah
+dua hal: kekeliruan model yang merusak, dan jalur eskalasi paling langsung dari teks tak
+tepercaya. Pagar itu **tidak** menahan model yang sudah berhasil dibujuk untuk bekerja
+melawan pengguna dan bersedia melakukannya dalam beberapa langkah.
+
+Yang menahan model seperti itu adalah **backend terminal terisolasi**. Setel
+`terminal.backend` ke `docker` atau `ssh`; perintah dan tool file lalu berjalan di dalam
+container atau di mesin lain, bukan di mesin Anda.
+
+### Mengaktifkan sandbox Docker
+
+```yaml
+terminal:
+  backend: docker
+  docker:
+    image: python:3.12-slim   # wajib
+    network: none             # bawaan: container tanpa jaringan
+    mounts: []                # entri "-v host:container" tambahan, di luar direktori kerja
+```
+
+Satu container dibuat per `task_id`, direktori kerja di-bind-mount pada path yang sama, dan
+container dihentikan serta dihapus saat sesi ditutup (`terminal.docker.keep_container: true`
+membiarkannya hidup). Container mulai tanpa variabel lingkungan host: tidak ada kunci
+provider, tidak ada isi `.env`, dan `terminal.env_passthrough` tidak berlaku untuknya. Yang
+masuk ke container hanya apa yang disebut di `mounts`. Karena direktori kerja di-mount pada
+path yang sama, tool file melihat berkas yang sama seperti di dalam container; berkas di luar
+mount tidak terlihat dari dalam container.
+
+### Mengaktifkan sandbox SSH
+
+```yaml
+terminal:
+  backend: ssh
+  ssh:
+    host: me@build-box   # atau alias Host di ~/.ssh/config; wajib
+    key: ~/.ssh/id_ed25519
+    cwd: /srv/app
+```
+
+Satu koneksi per `task_id` dibuat lewat ssh (ControlMaster), dan kunci privat adalah *path*,
+bukan rahasia di config. Seperti Docker, tidak ada kredensial dari `.env` yang diteruskan ke
+perintah. Gerbang persetujuan (`check_command`) dan penjaga file (`read_denied_reason`,
+`write_denied_reason`) tetap berjalan di semua backend sebelum perintah atau penulisan
+dijalankan.
+
 
 ## Siapa yang dipercaya
 
@@ -239,7 +278,7 @@ Ditulis apa adanya supaya tidak ada yang mengandalkan pagar yang tidak ada.
 
 | Celah | Akibat | Rencana |
 |---|---|---|
-| Tidak ada sandbox | Perintah yang lolos gerbang berjalan dengan hak penuh pengguna | Backend Docker dan SSH: F2-T7 |
+| Backend `local` tidak punya sandbox | Perintah yang lolos gerbang berjalan dengan hak penuh pengguna | Setel `terminal.backend: docker` atau `ssh` (F2-T7) untuk menjalankannya di container atau mesin lain |
 | Gerbang persetujuan membaca teks **satu** perintah | Skrip yang ditulis ke file lalu dijalankan di langkah berikutnya tidak terlihat | Pemindaian yang lebih dalam tidak menggantikan sandbox |
 | Gerbang persetujuan tidak menjalankan shell | Nama yang baru terbentuk saat perintah berjalan tidak terbaca: `rm -rf $(echo /)`, `c=clite; $c config set ...`, `python -c "..."`. Yang pertama masih ditanyakan sebagai hapus rekursif; dua yang lain lolos tanpa pertanyaan | Deteksi muatan interpreter dan posisi perintah: F2-T15. Jaminan sungguhan hanya dari sandbox |
 | Persetujuan yang diingat berlaku per **pola**, bukan per perintah | Menjawab "session" atau "always" untuk satu `rm -rf build/` meloloskan setiap hapus rekursif berikutnya, kecuali yang terlarang mutlak | Jawab "once" untuk perintah yang tidak ingin digeneralkan |

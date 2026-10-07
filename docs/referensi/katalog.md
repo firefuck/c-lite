@@ -271,6 +271,17 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `terminal.cwd` | `""` |
 | `terminal.timeout` | `180` |
 | `terminal.env_passthrough` | `[]` |
+| `terminal.docker.image` | `""` |
+| `terminal.docker.mounts` | `[]` |
+| `terminal.docker.network` | `"none"` |
+| `terminal.docker.user` | `""` |
+| `terminal.docker.memory` | `""` |
+| `terminal.docker.keep_container` | `false` |
+| `terminal.ssh.host` | `""` |
+| `terminal.ssh.port` | `""` |
+| `terminal.ssh.key` | `""` |
+| `terminal.ssh.known_hosts` | `""` |
+| `terminal.ssh.cwd` | `""` |
 | `tool_output.max_chars` | `50000` |
 | `tool_output.max_lines` | `2000` |
 | `tool_result_max_chars` | `100000` |

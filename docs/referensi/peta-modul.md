@@ -290,8 +290,10 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | Environment registry: one execution environment per task, created on first use. | `register_environment_backend()`, `environment_backends()`, `get_environment()`, `cleanup_environment()`, `cleanup_all_environments()` |
-| `base.py` | Execution environments: where the ``terminal`` tool actually runs a command. | `ExecResult`, `BaseEnvironment` |
+| `base.py` | Execution environments: where the ``terminal`` tool actually runs a command. | `ExecResult`, `FileRead`, `DirEntry`, `FileInfo`, `BaseEnvironment` |
+| `docker.py` | Docker execution: one container per ``task_id``, the working directory bind-mounted in. | `DockerEnvironment`, `docker_factory()` |
 | `local.py` | Local execution: a subprocess on the host, in its own process group. | `build_child_env()`, `find_shell()`, `kill_process_tree()`, `read_output_chunks()`, `LocalEnvironment` |
+| `ssh.py` | SSH execution: one connection per ``task_id`` to a host named in config. | `SSHEnvironment`, `ssh_factory()` |
 
 ## `clite/tools/mcp/`
 
@@ -300,4 +302,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `__init__.py` | MCP (Model Context Protocol) client: tools served by external processes. |  |
 | `client.py` | A small MCP client over stdio. | `McpError`, `safe_name()`, `McpServer`, `connect_mcp_servers()`, `shutdown_mcp_servers()` |
 
-Jumlah: 164 modul.
+Jumlah: 166 modul.
