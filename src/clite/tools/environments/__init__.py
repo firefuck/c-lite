@@ -6,10 +6,16 @@ import threading
 from collections.abc import Callable
 
 from clite.core.config import config_get
-from clite.tools.environments.base import BaseEnvironment, ExecResult
+from clite.tools.environments.base import BaseEnvironment, DirEntry, ExecResult, FileInfo, FileRead
+from clite.tools.environments.docker import docker_factory
 from clite.tools.environments.local import LocalEnvironment
+from clite.tools.environments.ssh import ssh_factory
 
-_BACKENDS: dict[str, Callable[..., BaseEnvironment]] = {"local": LocalEnvironment}
+_BACKENDS: dict[str, Callable[..., BaseEnvironment]] = {
+    "local": LocalEnvironment,
+    "docker": docker_factory,
+    "ssh": ssh_factory,
+}
 _ACTIVE: dict[str, BaseEnvironment] = {}
 _LOCK = threading.Lock()
 
@@ -57,7 +63,10 @@ def cleanup_all_environments() -> None:
 
 __all__ = [
     "BaseEnvironment",
+    "DirEntry",
     "ExecResult",
+    "FileInfo",
+    "FileRead",
     "LocalEnvironment",
     "cleanup_all_environments",
     "cleanup_environment",

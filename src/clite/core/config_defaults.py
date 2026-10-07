@@ -48,13 +48,34 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "max_tool_workers": 8,
     },
     "terminal": {
-        "backend": "local",
+        "backend": "local",  # local | docker | ssh (see the docker:/ssh: blocks below)
         "cwd": "",  # empty = the directory the process was started in
         "timeout": 180,
         # Credentials that commands run by the agent may see. By default every known one is
         # stripped from their environment: each name in .env, and each provider or platform
         # key (OPENAI_API_KEY, ...) even when it was exported in your shell.
         "env_passthrough": [],
+        # Used when terminal.backend is "docker": one container per task_id, removed when the
+        # session closes. The working directory is bind-mounted at the same path, so the file
+        # tools see the same files. No host credential reaches the container: env_passthrough
+        # does not apply to it, and only mounts spelled here carry anything in.
+        "docker": {
+            "image": "",  # required; e.g. "python:3.12-slim"
+            "mounts": [],  # extra "-v host:container[:mode]" entries beyond the workspace
+            "network": "none",  # Docker network; "none" means the container has no network
+            "user": "",  # user inside the container; empty = the image's own
+            "memory": "",  # e.g. "2g"; empty = no limit
+            "keep_container": False,  # true = leave it running after the session closes
+        },
+        # Used when terminal.backend is "ssh": one connection per task_id over the system ssh
+        # binary (ControlMaster), no credential from .env is forwarded.
+        "ssh": {
+            "host": "",  # user@host, or a Host alias from ~/.ssh/config; required
+            "port": "",  # empty = 22 or the alias's own port
+            "key": "",  # private key path; empty = your ssh agent and ~/.ssh/config
+            "known_hosts": "",  # empty = the user's default known_hosts
+            "cwd": "",  # remote working directory; empty = the login directory
+        },
     },
     "tool_output": {"max_chars": 50_000, "max_lines": 2000},
     # Hard cap on any single tool result before it enters context.
