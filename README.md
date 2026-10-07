@@ -32,7 +32,7 @@ Daftar lengkap yang dihasilkan dari kode ada di
 Butuh Python 3.11 atau lebih baru. Node 22 hanya diperlukan untuk TUI. Distribusi bernama
 `c-lite`, dengan lisensi MIT; paket Python dan perintah tetap `clite`. Tujuan penerbitan
 adalah [GitHub Releases](https://github.com/dragovics/clite/releases), bukan PyPI.
-**Rilis `v0.1.0` belum terbit.** Wheel lokal sudah diuji dengan pipx dan virtualenv:
+**Rilis `v0.1.0` sudah terbit.** Wheel sudah diuji dengan pipx dan virtualenv:
 
 ```bash
 pipx install ./dist/c_lite-0.1.0-py3-none-any.whl
@@ -45,14 +45,14 @@ Wheel tersebut dibuat dengan `python scripts/release.py build` (pasang alat buil
 `python -m pip install 'build>=1.2,<2'`). Tanpa pipx, gunakan
 `pip install ./dist/c_lite-0.1.0-py3-none-any.whl` di dalam virtualenv.
 Pemasangan pipx lewat URL HTTP lokal juga sudah diuji; itu bukan bukti URL GitHub bekerja.
-Setelah rilis terbit, unduh aset dengan akun GitHub yang punya akses ke repositori privat:
+Unduh aset dengan akun GitHub yang punya akses ke repositori privat:
 
 ```bash
 gh release download v0.1.0 --repo dragovics/clite --pattern '*.whl' --dir dist
 pipx install ./dist/c_lite-0.1.0-py3-none-any.whl
 ```
 
-Langkah unduh GitHub di atas belum diverifikasi. URL aset privat tidak bisa dipasang
+Unduhan GitHub terautentikasi dan instalasi pipx telah diverifikasi. URL aset privat tidak bisa dipasang
 secara anonim; login GitHub di browser tidak otomatis mengautentikasi pip/pipx.
 
 Membuat rilis: naikkan versi berikutnya dengan `python scripts/release.py bump patch`

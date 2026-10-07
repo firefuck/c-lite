@@ -50,7 +50,7 @@ dan TUI. Aset skill yang sengaja dihilangkan ditolak oleh pemeriksa tersebut (di
 Kendala penagihan yang tercatat pada repo sebelumnya tidak muncul di repo tujuan ini.
 F1-T1 selesai.
 
-### F1-T7: artefak lokal, belum rilis GitHub
+### F1-T7: rilis GitHub terbit dan teruji
 
 Distribusi `c-lite` versi `0.1.0` memakai MIT; import dan CLI tetap `clite`.
 Pada 7 Oktober 2026 runner memverifikasi ulang build wheel/sdist, pemeriksaan versi
@@ -68,10 +68,11 @@ salinan terpisah: metadata lama menggagalkan dua tes; pelepasan pemeriksaan tag,
 versi, isi catatan rilis, dan pemeriksaan wheel masing-masing menggagalkan satu tes.
 Sesudah kode dipulihkan, sembilan tes lulus. Log lokal: /tmp/clite-f1t7-red.log.
 
-F1-T7 tetap parsial: belum ada tag/push/penerbitan pada pekerjaan ini, workflow rilis
-belum berjalan di GitHub, dan belum ada instalasi dari aset rilis terbit. Repositori privat
-memerlukan unduhan terautentikasi lalu pemasangan file lokal; autentikasi browser tidak
-otomatis berlaku bagi pipx. README membedakan bukti lokal dan langkah unduh yang belum diuji.
+F1-T7 selesai: workflow `37563420757` hijau pada `e65bb0c` (build, Python 3.11/3.13,
+publish). Rilis https://github.com/dragovics/clite/releases/tag/v0.1.0 memuat wheel dan
+sdist. Aset diunduh lewat `gh release download`, digest SHA-256 cocok dengan GitHub,
+wheel dipasang dengan pipx terisolasi dan lulus versi, doctor mock serta smoke test.
+Repositori tetap privat; unduhan perlu autentikasi. Main belum di-merge; F1-T2 tetap parsial.
 
 ## Ditulis, belum diverifikasi
 

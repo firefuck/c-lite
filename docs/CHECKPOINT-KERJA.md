@@ -30,7 +30,13 @@ membutuhkan otorisasi tersendiri.
 
 ## Status aktif
 
-### F1-T7 — artefak lokal teruji, belum diterbitkan
+### F1-T7 — selesai, rilis v0.1.0 terbit
+
+- Pembaruan penerbitan: branch dan tag sudah didorong, tag tetap di `e65bb0c`.
+  Workflow `37563420757` hijau; wheel/sdist tersedia pada
+  https://github.com/dragovics/clite/releases/tag/v0.1.0. Unduhan terautentikasi
+  dan digest SHA-256 cocok; instalasi pipx aset terbit lulus versi/doctor mock/smoke test.
+  Main belum merge. Catatan persiapan sebelum penerbitan di bawah bersifat historis.
 
 - Branch `f1-t7`, titik awal `0df6d09`. Melanjutkan patch worker yang terhenti HTTP 502;
   tidak memulai ulang. Patch diverifikasi runner untuk commit lokal; belum push/tag/merge.

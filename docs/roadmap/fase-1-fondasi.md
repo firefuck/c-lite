@@ -300,15 +300,15 @@ runner induk, sehingga task belum ditutup.
 **Rujukan Hermes.** `scripts/release.py`.
 
 **Selesai bila.**
-- [ ] `pipx install` dari artefak rilis menghasilkan `clite` yang lulus `clite doctor`.
+- [x] `pipx install` dari artefak rilis menghasilkan `clite` yang lulus `clite doctor`.
 - [x] Tes: versi di `pyproject.toml`, `clite --version`, dan tag sama.
-- [ ] Rilis GitHub pertama terbit dengan wheel dan sdist terlampir.
+- [x] Rilis GitHub pertama terbit dengan wheel dan sdist terlampir.
 
 **Ukuran.** S
 
 **Bergantung pada.** F1-T1, F1-T2
 
-**Butuh dari Anda.** Izin tag/push dan penerbitan GitHub; keputusan nama paket,
+**Keputusan pemilik.** Tag/push dan penerbitan GitHub diizinkan; keputusan nama paket,
 lisensi, serta kanal rilis sudah ditetapkan. Repositori privat memerlukan akun dengan akses.
 
 **Kemajuan 7 Oktober 2026.** Skrip menyediakan pemeriksaan versi/changelog/tag,
@@ -319,8 +319,9 @@ setelah kode dipulihkan. Distribusi dan lisensi tercantum di metadata wheel.
 
 Wheel dan sdist `0.1.0` lokal sudah dipasang ke lingkungan terpisah. Instalasi pipx melalui
 HTTP lokal menghasilkan `clite --version` dan `clite doctor` yang lulus dengan provider
-`mock`; pemeriksa instalasi wheel juga lulus di luar checkout. Ini **belum** memenuhi
-butir instalasi dari aset rilis GitHub: rilis belum terbit dan URL privat belum diuji.
+`mock`; pemeriksa instalasi wheel juga lulus di luar checkout. Sesudahnya aset GitHub
+terbit diunduh terautentikasi, dipasang melalui pipx, dan lulus doctor serta smoke test.
 Suite runner: 820 tes Python lulus, 26 terlewati, Ruff dan mypy 160 file bersih, 47 tes
-Node dan tiga pemeriksaan tipe lulus. Workflow rilis belum dijalankan di GitHub.
-Patch diverifikasi untuk commit lokal; belum tag, push, atau merge. F1-T2 tetap parsial.
+Node dan tiga pemeriksaan tipe lulus. Workflow rilis `37563420757` hijau (build,
+Python 3.11/3.13, publish). Tag `v0.1.0` menunjuk `e65bb0c`; wheel/sdist terlampir
+pada https://github.com/dragovics/clite/releases/tag/v0.1.0. Belum merge. F1-T2 tetap parsial.

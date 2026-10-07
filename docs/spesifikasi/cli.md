@@ -72,8 +72,8 @@ pakai (argumen, profil tak dikenal), 130 Ctrl+C.
 - `src/clite/__init__.py` adalah sumber versi tunggal; metadata `pyproject.toml` membaca
   atribut itu. `scripts/release.py check --tag v0.1.0` memeriksa kecocokan calon tag dan
   changelog; tes juga menjalankan `clite --version`.
-- Wheel/sdist ditujukan untuk GitHub Releases saja. Instalasi artefak lokal sudah diuji;
-  penerbitan dan unduhan aset GitHub privat belum diverifikasi (F1-T7).
+- Wheel/sdist diterbitkan melalui GitHub Releases saja. Rilis v0.1.0, unduhan
+  terautentikasi, instalasi pipx, doctor mock dan smoke test telah diverifikasi (F1-T7).
 
 ## Status fitur
 
@@ -81,7 +81,7 @@ pakai (argumen, profil tak dikenal), 130 Ctrl+C.
 |---|---|---|
 | 21 sub-perintah tingkat atas | ✅ | |
 | Versi CLI, metadata dinamis, dan calon tag konsisten | ✅ | `tests/test_release.py` |
-| Distribusi `c-lite` melalui GitHub Releases | 🟡 | F1-T7: wheel lokal/doctor lulus; rilis belum terbit |
+| Distribusi `c-lite` melalui GitHub Releases | ✅ | F1-T7: workflow `37563420757`, aset terbit/pipx/doctor lulus |
 | REPL klasik, `-q`, `--json`, lanjut sesi (`-r`, `-c`) | ✅ | |
 | Mengetik saat agent bekerja | ⬜ | Hanya TUI yang bisa. REPL klasik membaca input setelah giliran selesai: F3-T1 |
 | Input multi-baris, tempel gambar | ⬜ | F3-T1, F2-T6 |

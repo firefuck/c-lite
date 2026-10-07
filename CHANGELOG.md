@@ -5,11 +5,11 @@ Semua perubahan yang berarti bagi pemakai dicatat di sini. Format mengikuti
 [Semantic Versioning](https://semver.org/lang/id/). Bagian sebuah versi menjadi isi rilis
 GitHub-nya (`python scripts/release.py notes`).
 
-## [0.1.0] - belum diterbitkan
+## [0.1.0] - 2026-10-07
 
-Calon rilis pertama, berlisensi MIT. Distribusi `c-lite` disiapkan sebagai wheel dan sdist
+Rilis pertama, berlisensi MIT. Distribusi `c-lite` diterbitkan sebagai wheel dan sdist
 untuk GitHub Releases saja, tanpa PyPI; perintah dan paket Python tetap `clite`.
-Artefak lokal sudah dipasang dan diuji; tag dan rilis GitHub belum diterbitkan.
+Tag `v0.1.0` dan rilis GitHub telah terbit; wheel terbit sudah dipasang dengan pipx dan diuji.
 
 ### Ditambahkan
 
