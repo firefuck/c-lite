@@ -25,6 +25,21 @@ def _install_provider(home, name="acme", display="Acme"):
     (plugin / "__init__.py").write_text(PLUGIN.format(name=name, display=display))
 
 
+def test_openai_profile_selects_responses_and_model_switch_reselects_without_losing_overrides():
+    route = resolve_runtime_provider("openai", "gpt-5-codex", api_key="test-key", config={})
+    assert route.api_mode == "responses"
+    assert route.profile.replay_is_prefix_bound(route.model) is True
+    other = route.with_model("gpt-4.1")
+    assert other.api_mode == "chat_completions" and route.api_mode == "responses"
+    assert other.with_model("gpt-5-codex").api_mode == "responses"
+    for mode in ("responses", "chat_completions"):
+        explicit = resolve_runtime_provider("openai", "gpt-5-codex", api_key="test-key", config={
+            "model": {"provider": "openai", "api_mode": mode}})
+        assert explicit.api_mode == mode and explicit.with_model("gpt-4.1").api_mode == mode
+    assert resolve_runtime_provider("custom", "gpt-5-codex", base_url="https://test.invalid/v1",
+                                    api_key="test-key", config={}).api_mode == "chat_completions"
+
+
 # ── registry ─────────────────────────────────────────────────────────────────────────────
 
 

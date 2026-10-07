@@ -30,6 +30,23 @@ membutuhkan otorisasi tersendiri.
 
 ## Status aktif
 
+### F2-T1 — implementasi lokal, API asli ditunda
+
+- Branch `f2-t1-responses`, titik awal `12a8dbe`. Tanpa commit/push/tag/merge.
+- Lingkup: transport Responses streaming/nonstreaming, replay `provider_data`, pemilihan
+  protokol oleh profil, klasifikasi galat, tes HTTP lokal dua ronde tool dan awalan stabil.
+- Langkah: tes merah → implementasi minimum → tes terarah hijau → regenerasi dokumen.
+  Suite penuh diserahkan kepada runner; layanan asli tidak dipanggil atas instruksi pemilik.
+- Clone rujukan Hermes di direktori saudara tidak tersedia; file rujukan belum dibaca.
+  Kontrak kawat diperiksa dari dokumentasi resmi OpenAI pada 7 Oktober 2026.
+- Bukti merah: tes baru dijalankan pada salinan `12a8dbe` tanpa implementasi: 28 gagal,
+  2 tes jaringan dilewati (/tmp/clite-f2t1-red.log). Hijau sesudah implementasi: 28 lulus,
+  2 dilewati (/tmp/clite-f2t1-green.log).
+- Verifikasi terarah: tes docs, arsitektur, providers, dan agent 286 lulus, 15 dilewati;
+  Ruff dan mypy 161 file bersih. Suite penuh dan TypeScript diserahkan kepada runner.
+- Status F2-T1 🟡: tes `network` Responses ditulis tetapi tidak dijalankan; tidak ada API asli,
+  biaya, atau provider pengganti yang dipakai.
+
 ### F1-T7 — selesai, rilis v0.1.0 terbit
 
 - Pembaruan penerbitan: branch dan tag sudah didorong, tag tetap di `e65bb0c`.

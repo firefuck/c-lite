@@ -3,7 +3,7 @@
     ANTHROPIC_API_KEY=... OPENAI_API_KEY=... pytest tests/providers/test_live.py -m network
 
 ``CLITE_LIVE_ANTHROPIC_MODEL`` / ``CLITE_LIVE_OPENAI_MODEL`` / ``CLITE_LIVE_OPENAI_BASE_URL``
-pick other targets (the last one for any OpenAI-compatible endpoint). Each test spends a few
+/ ``CLITE_LIVE_OPENAI_RESPONSES_MODEL`` pick other targets (the last one for any OpenAI-compatible endpoint). Each test spends a few
 cents. CI sets no keys, so there everything here is skipped.
 
 Not covered here because they cannot be triggered on demand: rate limits and refusals.
@@ -34,6 +34,7 @@ _ANTHROPIC_MODEL = os.environ.get("CLITE_LIVE_ANTHROPIC_MODEL", "claude-fable-5-
 _ANTHROPIC_LEGACY_MODEL = "claude-haiku-4-5-20251001"
 _OPENAI_MODEL = os.environ.get("CLITE_LIVE_OPENAI_MODEL", "gpt-5-mini")
 _OPENAI_BASE_URL = os.environ.get("CLITE_LIVE_OPENAI_BASE_URL", "")
+_OPENAI_RESPONSES_MODEL = os.environ.get("CLITE_LIVE_OPENAI_RESPONSES_MODEL", "gpt-5-codex")
 
 TARGETS = [
     pytest.param("anthropic", _ANTHROPIC_MODEL, id="anthropic-current"),
@@ -140,6 +141,30 @@ def test_signed_thinking_survives_tool_rounds_a_second_turn_compress_and_model_s
         agent.switch_model(_route(provider, _ANTHROPIC_LEGACY_MODEL))
         assert not any(m.get("provider_data") for m in agent.messages)
         assert agent.run_conversation("Reply with: done").completed
+    finally:
+        agent.close()
+
+
+@pytest.mark.parametrize("stream", [False, True])
+def test_openai_responses_replays_reasoning_across_two_tool_rounds(stream, clite_home):
+    calls: list[dict] = []
+
+    def add(args, ctx=None):
+        calls.append(args)
+        return tool_result(sum=int(args["a"]) + int(args["b"]))
+
+    registry.register("add", "live-responses", ADD_TOOL["function"], add, origin="test")
+    config = load_config()
+    config["agent"]["reasoning_effort"] = "low"
+    config["fallback_providers"] = []
+    route = _route("openai", _OPENAI_RESPONSES_MODEL)
+    assert route.api_mode == "responses"
+    agent = build_agent(route=route, toolsets=["live-responses"], config=config, auto_title=False, stream=stream)
+    try:
+        result = agent.run_conversation("Use add for 2+3. After that result arrives, use add again to add 10. "
+                                        "Then reply with only the final number.")
+        assert result.completed and "15" in result.final_response and len(calls) >= 2
+        assert any(m.get("provider_data") for m in agent.messages if m.get("role") == "assistant")
     finally:
         agent.close()
 

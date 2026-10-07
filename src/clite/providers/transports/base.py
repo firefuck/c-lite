@@ -104,6 +104,6 @@ def _ensure_builtin() -> None:
         return
     _BUILTIN_LOADED = True
     registered_first = dict(_TRANSPORTS)  # a plugin may have registered before first use
-    from clite.providers.transports import anthropic_messages, chat_completions, mock  # noqa: F401
+    from clite.providers.transports import anthropic_messages, chat_completions, mock, responses  # noqa: F401
 
     _TRANSPORTS.update(registered_first)

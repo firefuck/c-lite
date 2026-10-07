@@ -37,12 +37,18 @@ penalaran dan tool call yang diputar ulang dengan benar antar-iterasi.
 `agent/transports/base.py`, `agent/transports/types.py`.
 
 **Selesai bila.**
-- [ ] Giliran dengan dua ronde tool lewat `fake_api` yang berbicara Responses lulus, streaming
+- [x] Giliran dengan dua ronde tool lewat `fake_api` yang berbicara Responses lulus, streaming
       dan tidak.
-- [ ] Tes awalan kawat (`test_every_request_repeats_the_previous_one_and_adds_to_its_end`)
-      punya padanan untuk transport ini.
-- [ ] Satu tes `network` terhadap API asli.
-- [ ] Baris "Transport `responses`" di spesifikasi providers menjadi ✅.
+- [x] Tes awalan kawat (`test_every_request_repeats_the_previous_one_and_adds_to_its_end`)
+      punya padanan untuk transport ini
+      (`test_responses_every_request_repeats_the_previous_one_and_adds_to_its_end`).
+- [ ] Satu tes `network` terhadap API asli. Sudah ditulis
+      (`test_openai_responses_replays_reasoning_across_two_tool_rounds`), belum dijalankan.
+- [ ] Baris "Transport `responses`" di spesifikasi providers menjadi ✅. Saat ini 🟡 sampai
+      tes jaringan lulus.
+
+**Kemajuan 7 Oktober 2026.** Implementasi lokal selesai di branch `f2-t1-responses`; API asli
+ditunda pemilik. Clone rujukan Hermes tidak tersedia, sehingga file rujukan belum dibaca.
 
 **Ukuran.** M
 

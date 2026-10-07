@@ -33,6 +33,7 @@ class RuntimeRoute:
     max_tokens: int | None = None
     credential_env_vars: tuple[str, ...] = ()
     credential_origin: tuple[str, str, int | None] | None = None
+    api_mode_override: str = ""
 
     def __post_init__(self) -> None:
         if self.api_key and self.credential_origin is None:
@@ -69,7 +70,8 @@ class RuntimeRoute:
         return RuntimeRoute(**{**self.__dict__, "api_key": credential.value, "headers": headers, "credential": credential})
 
     def with_model(self, model: str) -> RuntimeRoute:
-        return RuntimeRoute(**{**self.__dict__, "model": model})
+        mode = self.api_mode_override or (self.profile.resolve_api_mode(model) if self.profile else self.api_mode)
+        return RuntimeRoute(**{**self.__dict__, "model": model, "api_mode": mode})
 
 
 def _origin(url: str) -> tuple[str, str, int | None]:
@@ -180,14 +182,16 @@ def resolve_runtime_provider(
         )
     resolved_model = profile.model_aliases.get(resolved_model, resolved_model)
 
-    api_mode = (str(section.get("api_mode") or "") if config_applies else "") or profile.api_mode
+    api_mode_override = str(section.get("api_mode") or "") if config_applies else ""
     if resolved_base_url.endswith("/anthropic"):
-        api_mode = API_MODE_ANTHROPIC  # the convention for Anthropic-compatible proxies
+        api_mode_override = API_MODE_ANTHROPIC  # the convention for Anthropic-compatible proxies
+    api_mode = api_mode_override or profile.resolve_api_mode(resolved_model)
 
     return RuntimeRoute(
         provider=profile.name,
         model=resolved_model,
         api_mode=api_mode,
+        api_mode_override=api_mode_override,
         base_url=resolved_base_url,
         api_key=key,
         headers=profile.get_headers(key),

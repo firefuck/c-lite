@@ -15,6 +15,89 @@ from clite.providers.runtime import resolve_runtime_provider
 from clite.providers.testing import mock_route
 from clite.providers.transports.types import RequestParams
 
+
+@pytest.mark.parametrize("stream", [False, True])
+def test_responses_every_request_repeats_the_previous_one_and_adds_to_its_end(fake_api, stream):
+    from clite.agent import AgentCallbacks
+    from clite.core.config import load_config
+    from clite.runtime import build_agent
+    from clite.tools.registry import registry, tool_result
+
+    executed, deltas, thoughts = [], [], []
+
+    def probe(args, ctx=None):
+        executed.append(args["n"])
+        return tool_result(number=args["n"])
+
+    registry.register("probe", "responses-probe", {"name": "probe", "description": "Return a number",
+                      "parameters": {"type": "object", "properties": {"n": {"type": "integer"}}, "required": ["n"]}},
+                      probe, origin="test")
+    outputs = []
+    for n in (1, 2):
+        outputs.append([
+            {"type": "reasoning", "id": f"rs_{n}", "encrypted_content": f"opaque-{n}",
+             "summary": [{"type": "summary_text", "text": f"plan {n}"}]},
+            {"type": "function_call", "id": f"fc_{n}", "call_id": f"call_{n}", "name": "probe",
+             "arguments": json.dumps({"n": n}), "status": "completed"},
+        ])
+    for n in (3, 4, 5):
+        outputs.append([{"type": "message", "id": f"msg_{n}", "role": "assistant", "status": "completed",
+                         "phase": "final_answer", "content": [{"type": "output_text", "text": "done", "annotations": []}]}])
+    replies = []
+    for output in outputs:
+        payload = {"status": "completed", "model": "gpt-5-codex", "output": output,
+                   "usage": {"input_tokens": 10, "output_tokens": 4}}
+        if stream:
+            events = []
+            for index, item in enumerate(output):
+                events.append(("response.output_item.added", {"output_index": index, "item": item}))
+                if item["type"] == "message":
+                    events.append(("response.output_text.delta", {"output_index": index, "delta": "done"}))
+                elif item["type"] == "reasoning":
+                    events.append(("response.reasoning_summary_text.delta", {"output_index": index, "delta": item["summary"][0]["text"]}))
+                events.append(("response.output_item.done", {"output_index": index, "item": item}))
+            events.append(("response.completed", {"response": payload}))
+            replies.append((200, fake_api.sse(*events)))
+        else:
+            replies.append((200, payload))
+    fake_api.on("POST", "/v1/responses", *replies)
+    config = load_config()
+    config["agent"]["api_max_retries"] = 0
+    config["display"]["show_reasoning"] = True
+    config["fallback_providers"] = []
+    route = _route(fake_api, model="gpt-5-codex")
+    agent = build_agent(route=route, config=config, toolsets=["responses-probe"], auto_title=False,
+                        stream=stream, callbacks=AgentCallbacks(on_delta=deltas.append, on_reasoning=thoughts.append))
+    session_id = agent.session_id
+    try:
+        assert agent.run_conversation("Run probe twice.").final_response == "done"
+        assert executed == [1, 2]
+        assert agent.run_conversation("Again?").final_response == "done"
+    finally:
+        agent.close()
+    resumed = build_agent(route=route, config=config, toolsets=["responses-probe"], auto_title=False,
+                          stream=stream, session_id=session_id)
+    try:
+        assert resumed.run_conversation("Continue.").final_response == "done"
+    finally:
+        resumed.close()
+    requests = fake_api.bodies("/v1/responses")
+    assert len(requests) == 5
+    for earlier, later in zip(requests, requests[1:], strict=False):
+        assert later["input"][:len(earlier["input"])] == earlier["input"]
+        assert len(later["input"]) > len(earlier["input"])
+        assert later["tools"] == earlier["tools"]
+    for n, output in enumerate(outputs[:2]):
+        start = len(requests[n]["input"])
+        assert requests[n + 1]["input"][start:start + len(output)] == output
+        result = requests[n + 1]["input"][start + len(output)]
+        assert result["type"] == "function_call_output" and result["call_id"] == f"call_{n + 1}"
+        assert json.loads(result["output"])["number"] == n + 1
+    assert all(r["store"] is False and "previous_response_id" not in r for r in requests)
+    if stream:
+        assert deltas == ["done", "done"] and thoughts == ["plan 1", "plan 2"]
+
+
 MESSAGES = [{"role": "system", "content": "sys"}, {"role": "user", "content": "hi"}]
 
 
