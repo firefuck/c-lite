@@ -4,8 +4,9 @@ Maintenance never raises and never blocks a chat: every step is best effort. It 
 once per process and home, and steps that are expensive keep their own "last run" timestamp
 in the database so several processes do not repeat the work.
 
-Two steps today: pruning old sessions (``sessions.auto_prune``) and pruning the file-checkpoint
-store that goes with them (see ``clite.runtime.maintenance.prune_checkpoints``).
+Three steps today: pruning old sessions (``sessions.auto_prune``), pruning the file-checkpoint
+store that goes with them (see ``clite.runtime.maintenance.prune_checkpoints``), and the skill
+curator, which archives agent-created skills nobody uses (``curator.*``).
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ logger = logging.getLogger("clite.runtime.maintenance")
 
 AUTO_PRUNE_INTERVAL_SECONDS = 24 * 3600
 LAST_AUTO_PRUNE_KEY = "last_auto_prune"
+LAST_CURATOR_KEY = "last_curator_run"
 
 _DONE: set[str] = set()
 _LOCK = threading.Lock()
@@ -66,8 +68,53 @@ def run_startup_maintenance(config: dict[str, Any] | None = None, *, keep_sessio
         cfg = config if config is not None else load_config()
         auto_prune_sessions(cfg, keep=keep_sessions)
         prune_checkpoints(cfg)
+        run_curator_maintenance(cfg)
     except Exception:  # noqa: BLE001 - housekeeping must never stop a session from starting
         logger.warning("startup maintenance failed", exc_info=True)
+
+
+def _prune_curator_store(config: dict[str, Any], *, now: float | None = None) -> dict[str, Any]:
+    """Archive agent-created skills nobody uses. Archive only; nothing is ever deleted.
+
+    Kept as its own function so the curator step can be exercised without touching config, and
+    so a caller (a test) can stand in for the real archive pass.
+    """
+    stale_days = int(get_path(config, "curator.stale_days", 30) or 0)
+    from clite.skills.curator import run_curator
+
+    return run_curator(stale_days, dry_run=False, now=now)
+
+
+def run_curator_maintenance(config: dict[str, Any], *, now: float | None = None) -> dict[str, Any] | None:
+    """Run the curator at most once per ``curator.interval_hours``, like auto-prune.
+
+    Returns the curator report, or ``None`` when the curator is off or already ran within the
+    interval. The last-run timestamp lives in the database so several processes agree. Never
+    raises: a broken curator is a logged note, not a failed session.
+    """
+    if not get_path(config, "curator.enabled", True):
+        return None
+    interval_seconds = float(get_path(config, "curator.interval_hours", 24 * 7) or 0) * 3600
+    if interval_seconds <= 0:
+        return None
+    db = get_session_db()
+    moment = time.time() if now is None else now
+    try:
+        last = float(db.get_meta(LAST_CURATOR_KEY, "0") or 0)
+    except (TypeError, ValueError):
+        last = 0.0
+    if moment - last < interval_seconds:
+        return None
+    db.set_meta(LAST_CURATOR_KEY, str(moment))  # claimed first, so a concurrent process skips
+    try:
+        report = _prune_curator_store(config, now=moment)
+    except Exception:  # noqa: BLE001 - the curator must never hold up a surface
+        logger.warning("curator maintenance failed", exc_info=True)
+        return None
+    archived = report.get("archived") if isinstance(report, dict) else None
+    if archived:
+        logger.info("curator archived %d skill(s)", len(archived))
+    return report if isinstance(report, dict) else None
 
 
 def prune_checkpoints(config: dict[str, Any]) -> list[str]:

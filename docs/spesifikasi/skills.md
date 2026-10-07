@@ -103,6 +103,10 @@ skill.
 - Hanya menyentuh skill yang dibuat agent. Skill bawaan dan skill yang ditulis atau dipasang
   pengguna tidak pernah menjadi kandidat.
 - Mengarsipkan ke `<home>/skills/.archive/`, tidak pernah menghapus.
+- Dijalankan manual dengan `clite skills curate [--apply]` (bawaan laporan saja), dan otomatis
+  paling banyak sekali per `curator.interval_hours` dari `run_startup_maintenance`
+  (`curator.enabled`, `curator.stale_days`; pola yang sama dengan auto-prune sesi). Kegagalan
+  kurator tidak pernah menghalangi sesi.
 
 ## Status fitur
 
@@ -113,7 +117,7 @@ skill.
 | Skill sebagai slash command | ✅ | |
 | Pasang dari direktori lokal | ✅ | |
 | Pasang dari GitHub (`GitHubSource`) | ✅ | `owner/repo/path[@ref]`; `GITHUB_TOKEN` opsional dan hanya dikirim ke host API dan host unduhan GitHub; ukuran dicek dari daftar sebelum mengunduh; galat batas laju menyebut waktu reset. Diuji terhadap tiruan lokal dan ke repositori publik sungguhan (`test_install_a_skill_from_a_real_public_github_repository`, `-m network`) |
-| Kurator | ✅ | Dijalankan manual (`clite skills curate`). Penjadwalan otomatis: F2-T12 |
+| Kurator | ✅ | Manual (`clite skills curate`) dan otomatis paling banyak sekali per `curator.interval_hours` dari `run_startup_maintenance` (`curator.enabled`, `curator.stale_days`). Dijaga `tests/skills/test_skills.py` dan `tests/agent/test_review.py`. F2-T12 |
 | Skill bawaan | 🟡 | 4 skill. Hermes mengirim 58: F6-T2 |
 | Hub: indeks registry, pencarian, pembaruan | ⬜ | F6-T1 |
 | Pemindai keamanan skill yang lebih dalam | ⬜ | Hermes: `tools/skills_guard.py`. F6-T1 |

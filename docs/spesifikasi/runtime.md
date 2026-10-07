@@ -22,7 +22,7 @@ membutuhkan kode yang sama, kode itu tinggal di sini, bukan di salah satu surfac
 | `slash.py` | Handler slash command (`_handle_<nama>`) |
 | `presentation.py` | Pratinjau tool dan deteksi hasil gagal, dipakai semua surface |
 | `setup.py` | `apply_setup`: menyimpan pilihan provider dan kunci |
-| `maintenance.py` | Pekerjaan rumah saat surface mulai (auto-prune sesi) |
+| `maintenance.py` | Pekerjaan rumah saat surface mulai (auto-prune sesi, kurator skill) |
 
 ## Kontrak
 
@@ -35,7 +35,9 @@ membutuhkan kode yang sama, kode itu tinggal di sini, bukan di salah satu surfac
   mewarisi toolset terminal pengguna.
 - `yolo=True` berarti `approval_mode="off"` untuk agent itu.
 - Menjalankan `run_startup_maintenance` sekali per proses dan home; kegagalannya tidak pernah
-  menghalangi sesi.
+  menghalangi sesi. Langkahnya: auto-prune sesi, pangkas checkpoint, lalu kurator skill
+  (`run_curator_maintenance`, paling banyak sekali per `curator.interval_hours`, lewat cap
+  waktu di database seperti auto-prune; `curator.enabled` mematikannya).
 
 **`ChatSession`**
 - Memegang satu `AIAgent` dan semua yang dilakukan surface di sekitarnya: `submit`,
@@ -78,6 +80,7 @@ membutuhkan kode yang sama, kode itu tinggal di sini, bukan di salah satu surfac
 | Quick command (`exec`, `alias`) | ✅ | |
 | Skill dan perintah plugin sebagai slash command | ✅ | |
 | Auto-prune sesi | ✅ | |
+| Kurator skill terjadwal | ✅ | `run_curator_maintenance` mengarsipkan skill buatan agent yang basi paling banyak sekali per `curator.interval_hours`; kegagalannya tidak menghalangi sesi. Dijaga `tests/agent/test_review.py`. F2-T12 |
 | Checkpoint file: `/rollback`, `/checkpoints` | ✅ | `ChatSession.rollback_files` dan `list_file_checkpoints` memanggil `tools/checkpoints.py`; perintah tersedia di semua surface. Perubahan lewat perintah `terminal` tidak tercatat (lihat spesifikasi agent dan tools). Dijaga `tests/tools/test_checkpoints.py`. F2-T8 |
 | Percabangan sesi (`/branch`), `/background`, `/queue` | ⬜ | F3-T4 |
 | `/insights` | ⬜ | F3-T8 |

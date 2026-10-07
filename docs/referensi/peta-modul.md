@@ -31,6 +31,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `delegation.py` | Delegation: run subagents with their own context and return only their reports. | `delegate()` |
 | `loop.py` | The turn loop: a short driver over phase functions. | `run_turn()` |
 | `messages.py` | Message hygiene: keep the transcript in a shape every provider accepts. | `internal_user_message()`, `is_internal()`, `content_text()`, `append_to_content()`, `sanitize_for_api()`, `parse_tool_arguments()` |
+| `review.py` | Background review: learn from a long turn without touching it. | `ReviewOutcome`, `reset_review_state()`, `review_enabled()`, `turn_tool_calls()`, `should_review()`, `build_turn_transcript()`, `review_prompt()`, `run_review()`, `spawn_background_review()` |
 | `state.py` | Per-turn state and the verdicts phases return. | `Verdict`, `TurnState`, `TurnResult` |
 | `title.py` | Session titles: a short label generated after the first exchange. | `fallback_title()`, `clean_title()`, `generate_title()`, `generate_title_async()` |
 | `todo.py` | In-session task list, owned by the agent and edited through the ``todo`` tool. | `TodoStore` |
@@ -219,7 +220,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `__init__.py` | Runtime: what every surface shares on top of the agent. |  |
 | `commands.py` | The slash command registry: one table every surface reads. | `CommandDef`, `resolve_command()`, `commands_for()`, `split_command()`, `command_catalog()` |
 | `factory.py` | ``build_agent``: the one place a surface turns "what the user asked for" into an ``AIAgent``. | `default_toolsets()`, `build_agent()` |
-| `maintenance.py` | Housekeeping a surface runs when it starts. | `reset_maintenance_state()`, `auto_prune_sessions()`, `run_startup_maintenance()`, `prune_checkpoints()` |
+| `maintenance.py` | Housekeeping a surface runs when it starts. | `reset_maintenance_state()`, `auto_prune_sessions()`, `run_startup_maintenance()`, `run_curator_maintenance()`, `prune_checkpoints()` |
 | `presentation.py` | Small presentation helpers shared by every surface (terminal, RPC clients, gateway). | `tool_preview()`, `result_failed()` |
 | `session.py` | ``ChatSession``: one conversation as a surface sees it. | `SlashResult`, `ChatSession` |
 | `setup.py` | Applying a provider choice: shared by ``clite setup`` and the setup screens of the UIs. | `apply_setup()` |
@@ -309,4 +310,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 173 modul.
+Jumlah: 174 modul.

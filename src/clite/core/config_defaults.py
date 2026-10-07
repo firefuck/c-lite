@@ -137,6 +137,25 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "disabled": [],
         "auto_load": [],  # skill names loaded into every session's stable prompt tier
     },
+    # Background review: after a turn that used at least `min_tool_calls` tool calls, a small
+    # forked agent reads a copy of that turn and saves what it learned (memory and skills). It
+    # runs on its own thread and never touches the session's own history. `min_interval_seconds`
+    # is the per-session rate limit; a subagent, a cron run, or a busy session is never reviewed.
+    "background_review": {
+        "enabled": True,
+        "min_tool_calls": 8,  # a turn shorter than this is not worth reviewing
+        "min_interval_seconds": 900,  # at most one review per session per this many seconds
+        "max_turns": 3,  # the reviewer's own (small) turn budget
+        "timeout_seconds": 120,  # a review that overruns this is abandoned
+    },
+    # Curator: archive agent-created skills nobody uses (`clite skills curate` runs it by hand).
+    # `run_startup_maintenance` runs it automatically at most once per `interval_hours`, the way
+    # session auto-prune works. It archives to <home>/skills/.archive/; it never deletes.
+    "curator": {
+        "enabled": True,
+        "interval_hours": 168,  # 7 days, like Hermes' default
+        "stale_days": 30,  # unused for this many days = stale
+    },
     "delegation": {
         "model": "",
         "provider": "",

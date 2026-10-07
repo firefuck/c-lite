@@ -333,6 +333,14 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `skills.external_dirs` | `[]` |
 | `skills.disabled` | `[]` |
 | `skills.auto_load` | `[]` |
+| `background_review.enabled` | `true` |
+| `background_review.min_tool_calls` | `8` |
+| `background_review.min_interval_seconds` | `900` |
+| `background_review.max_turns` | `3` |
+| `background_review.timeout_seconds` | `120` |
+| `curator.enabled` | `true` |
+| `curator.interval_hours` | `168` |
+| `curator.stale_days` | `30` |
 | `delegation.model` | `""` |
 | `delegation.provider` | `""` |
 | `delegation.max_iterations` | `50` |

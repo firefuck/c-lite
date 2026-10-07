@@ -602,13 +602,34 @@ memori, prosedur yang berhasil menjadi skill, dan skill yang tidak terpakai diar
 `agent/review_idle_queue.py`, `agent/curator.py`.
 
 **Selesai bila.**
-- [ ] Tes: review menulis satu entri memori dari giliran yang dibuat-buat, dan riwayat serta
+- [x] Tes: review menulis satu entri memori dari giliran yang dibuat-buat, dan riwayat serta
       system prompt sesi utama tidak berubah.
-- [ ] Tes: review yang gagal atau kehabisan waktu tidak memengaruhi giliran berikutnya.
-- [ ] Tes: kurator berjalan paling banyak sekali per selang, dan kegagalannya tidak
+- [x] Tes: review yang gagal atau kehabisan waktu tidak memengaruhi giliran berikutnya.
+- [x] Tes: kurator berjalan paling banyak sekali per selang, dan kegagalannya tidak
       menghalangi sesi.
-- [ ] Baris "Review latar belakang" di spesifikasi agent dan baris kurator di spesifikasi
+- [x] Baris "Review latar belakang" di spesifikasi agent dan baris kurator di spesifikasi
       skills menjadi ✅.
+
+**Kemajuan 8 Oktober 2026.** Selesai di branch `f2-t12-review`. `src/clite/agent/review.py`
+(baru) menjalankan review di thread latar setelah giliran yang selesai dan memakai setidaknya
+`background_review.min_tool_calls` tool call (kunci config baru di bawah `background_review.*`).
+Reviewer adalah `AIAgent` terpisah dengan toolset sempit (`memory`, `skills`) dan anggaran
+`background_review.max_turns`; ia menerima salinan giliran sebagai satu pesan pengguna (teks
+saja) dan berjalan dengan `persist=False`, jadi ia tidak pernah menyentuh riwayat atau system
+prompt sesi utama — hanya menulis lewat tool memori dan skill. Gerbang: `enabled`, giliran
+selesai dan tidak terinterupsi, bukan subagent, bukan platform `cron`, sesi tidak sibuk, dan
+batas frekuensi per sesi (`min_interval_seconds`). Panggilan di `turn/finalize.py` memakai
+`ignore_busy=True` karena kunci giliran masih dipegang saat finalize. Gagal atau melewati
+`timeout_seconds` menjadi `error` pada hasil dan catatan log, bukan lemparan; hasilnya terlihat
+sebagai baris status `on_status("review", …)` dan catatan di log. Kurator dijalankan otomatis
+oleh `runtime/maintenance.py::run_curator_maintenance` (kunci baru `curator.enabled`,
+`curator.interval_hours`, `curator.stale_days`), paling banyak sekali per selang lewat cap
+waktu di database — pola yang sama dengan auto-prune sesi — dan kegagalannya ditelan sehingga
+tidak pernah menghalangi sesi. Dijaga `tests/agent/test_review.py` (23 tes). Bukti regresi
+merah/hijau ada di `docs/STATUS.md`. Clone rujukan tetap `../hermes-ref` (commit
+`1298c8e74baa73e1a2b90124228d017261ac6bc4`) tidak tersedia; perilaku diambil dari salinan
+Hermes Agent lain yang ada di mesin ini (`agent/background_review.py`, `agent/review_engine.py`,
+`agent/curator.py`), commit `a0a7d765`, bukan commit yang dipatok.
 
 **Ukuran.** M
 

@@ -50,6 +50,16 @@ def finalize_turn(agent: AIAgent, state: TurnState) -> TurnResult:
     if state.completed:
         agent.maybe_generate_title(user_text)
 
+    # A long turn is worth learning from, but never at the cost of the next one: the review
+    # runs on its own thread, on a copy of the turn, and only when every gate says so.
+    from clite.agent.review import should_review, spawn_background_review
+
+    if should_review(agent, state, ignore_busy=True):
+        try:
+            spawn_background_review(agent, state)
+        except Exception:  # noqa: BLE001 - a review is never worth failing a turn for
+            logger.debug("could not start a background review", exc_info=True)
+
     return TurnResult(
         final_response=state.final_response,
         completed=state.completed,
