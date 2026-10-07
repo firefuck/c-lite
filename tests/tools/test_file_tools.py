@@ -12,6 +12,7 @@ from clite.core.env import load_env
 from clite.tools.builtin.file_tools import patch_tool, read_file_tool, search_files_tool, write_file_tool
 from clite.tools.context import ToolContext
 from clite.tools.file_safety import read_denied_reason, write_denied_reason
+from clite.tools.patching import find_tolerant_match
 
 
 @pytest.fixture
@@ -220,3 +221,263 @@ def test_search_files_by_glob_and_limit(ctx):
 
 def test_search_rejects_a_bad_regex(ctx):
     assert "invalid regular expression" in json.loads(search_files_tool({"pattern": "("}, ctx))["error"]
+
+
+# ── tolerance chain: one unique-match and one ambiguous-rejected test per rung ──────────
+
+
+def test_exact_match_reports_the_exact_level(ctx):
+    """Level 0: a verbatim match is reported as 'exact', not via the fuzzy chain."""
+    target = _ws(ctx) / "app.py"
+    target.write_text("def a():\n    return 1\n")
+    result = json.loads(patch_tool({"path": "app.py", "old_string": "return 1", "new_string": "return 10"}, ctx))
+    assert result["replacements"] == 1
+    assert result["match_level"] == "exact"
+    assert "return 10" in target.read_text()
+
+
+def test_trailing_whitespace_match_is_unique_and_reports_the_level(ctx):
+    """Level 1: trailing whitespace on old_string still matches when the result is unique."""
+    target = _ws(ctx) / "app.py"
+    target.write_text("def a():\n    return 1\n")
+    # old_string has trailing spaces after 'return 1' that the file does not.
+    result = json.loads(patch_tool(
+        {"path": "app.py", "old_string": "return 1   ", "new_string": "return 10"}, ctx))
+    assert result["replacements"] == 1
+    assert result["match_level"] == "trailing_ws"
+    assert "return 10" in target.read_text()
+
+
+def test_trailing_whitespace_match_is_rejected_when_ambiguous(ctx):
+    """Two lines differing only in trailing whitespace must not be silently patched."""
+    target = _ws(ctx) / "app.py"
+    target.write_text("x = 1\nx = 1\n")
+    result = json.loads(patch_tool(
+        {"path": "app.py", "old_string": "x = 1   ", "new_string": "x = 2"}, ctx))
+    assert "error" in result
+    assert result.get("matches") == 2
+    assert target.read_text() == "x = 1\nx = 1\n"
+
+
+def test_indentation_match_is_unique_and_reports_the_level(ctx):
+    """Level 2: wrong indentation on old_string still matches when unique (the pre-existing
+    behaviour, now reported as 'indent')."""
+    target = _ws(ctx) / "app.py"
+    target.write_text("class A:\n    def run(self):\n        return 1\n")
+    result = json.loads(patch_tool(
+        {"path": "app.py", "old_string": "def run(self):\n    return 1", "new_string": "    def run(self):\n        return 2"}, ctx))
+    assert result["replacements"] == 1
+    assert result["match_level"] == "indent"
+    assert target.read_text() == "class A:\n    def run(self):\n        return 2\n"
+
+
+def test_indentation_match_is_rejected_when_ambiguous(ctx):
+    """Two blocks with the same stripped text must not be patched by the indent rung."""
+    target = _ws(ctx) / "app.py"
+    target.write_text("class A:\n    def run(self):\n        return 1\n\nclass B:\n    def run(self):\n        return 1\n")
+    # old_string without leading indentation; both blocks strip to the same text.
+    result = json.loads(patch_tool(
+        {"path": "app.py", "old_string": "def run(self):\n        return 1", "new_string": "def run(self):\n        return 9"}, ctx))
+    assert "error" in result
+    assert result.get("matches") == 2
+    assert "return 1" in target.read_text()
+
+
+def test_smart_quote_match_is_unique_and_reports_the_level(ctx):
+    """Level 3: typographic quotes in old_string match ASCII quotes in the file."""
+    target = _ws(ctx) / "note.md"
+    target.write_text('The quick "brown" fox\n')
+    # old_string uses smart quotes \u201c \u201d
+    result = json.loads(patch_tool(
+        {"path": "note.md", "old_string": "\u201cbrown\u201d fox", "new_string": "\u201cred\u201d fox"}, ctx))
+    assert result["replacements"] == 1
+    assert result["match_level"] == "smart_quotes"
+    assert "red" in target.read_text()
+
+
+def test_smart_quote_match_is_rejected_when_ambiguous(ctx):
+    """Two occurrences of the same smart-quote-normalised text must not be patched."""
+    target = _ws(ctx) / "note.md"
+    target.write_text('say "hi"\nsay "hi"\n')
+    result = json.loads(patch_tool(
+        {"path": "note.md", "old_string": "\u201chi\u201d", "new_string": "\u201cbye\u201d"}, ctx))
+    assert "error" in result
+    assert result.get("matches") == 2
+    assert target.read_text() == 'say "hi"\nsay "hi"\n'
+
+
+def test_blank_line_match_is_unique_and_reports_the_level(ctx):
+    """Level 4: a missing blank line in old_string still matches when unique."""
+    target = _ws(ctx) / "app.py"
+    target.write_text("import os\n\n\ndef main():\n    pass\n")
+    # old_string collapses the double blank line into one.
+    result = json.loads(patch_tool(
+        {"path": "app.py", "old_string": "import os\n\ndef main():", "new_string": "import sys\n\ndef main():"}, ctx))
+    assert result["replacements"] == 1
+    assert result["match_level"] == "blank_lines"
+    assert "import sys" in target.read_text()
+
+
+def test_blank_line_match_is_rejected_when_ambiguous(ctx):
+    """Two blocks whose only difference is blank-line count must not be patched."""
+    target = _ws(ctx) / "app.py"
+    # Each block has a double blank line between its two lines.
+    target.write_text("x = 1\n\n\ny = 2\nx = 1\n\n\ny = 2\n")
+    # old_string collapses the double blank to a single blank; both blocks match.
+    result = json.loads(patch_tool(
+        {"path": "app.py", "old_string": "x = 1\n\ny = 2", "new_string": "x = 1\n\ny = 3"}, ctx))
+    assert "error" in result
+    assert result.get("matches") == 2
+    assert "y = 3" not in target.read_text()
+
+
+def test_tolerance_chain_reports_matches_count_when_nothing_matches(ctx):
+    """When every rung sees zero candidates, the error says 'not found' and matches is 0."""
+    target = _ws(ctx) / "app.py"
+    target.write_text("a = 1\n")
+    result = json.loads(patch_tool({"path": "app.py", "old_string": "b = 2", "new_string": "c"}, ctx))
+    assert "not found" in result["error"]
+    assert result.get("matches") == 0
+    assert target.read_text() == "a = 1\n"
+
+
+# ── multi-file V4A patch mode ──────────────────────────────────────────────────────────
+
+
+def _v4a(*lines: str) -> str:
+    return "\n".join(lines)
+
+
+def test_multi_file_patch_updates_two_files_atomically(ctx):
+    a = _ws(ctx) / "a.py"
+    a.write_text("x = 1\n")
+    b = _ws(ctx) / "b.py"
+    b.write_text("y = 2\n")
+    patch = _v4a(
+        "*** Update File: a.py",
+        "-x = 1",
+        "+x = 10",
+        "*** Update File: b.py",
+        "-y = 2",
+        "+y = 20",
+    )
+    result = json.loads(patch_tool({"path": ".", "old_string": "", "new_string": "", "mode": "patch", "patch": patch}, ctx))
+    assert result["count"] == 2
+    assert a.read_text() == "x = 10\n"
+    assert b.read_text() == "y = 20\n"
+    assert any("+x = 10" in f["diff"] for f in result["files"])
+    assert any("+y = 20" in f["diff"] for f in result["files"])
+
+
+def test_multi_file_patch_rolls_back_when_the_third_file_fails(ctx):
+    """A failure on the third file must restore the first and second to their original state."""
+    a = _ws(ctx) / "a.py"
+    a.write_text("x = 1\n")
+    b = _ws(ctx) / "b.py"
+    b.write_text("y = 2\n")
+    c = _ws(ctx) / "c.py"
+    c.write_text("z = 3\n")
+    original_a, original_b, original_c = a.read_text(), b.read_text(), c.read_text()
+    patch = _v4a(
+        "*** Update File: a.py",
+        "-x = 1",
+        "+x = 10",
+        "*** Update File: b.py",
+        "-y = 2",
+        "+y = 20",
+        "*** Update File: c.py",
+        "-not_in_file",
+        "+z = 30",
+    )
+    result = json.loads(patch_tool({"path": ".", "old_string": "", "new_string": "", "mode": "patch", "patch": patch}, ctx))
+    assert "error" in result
+    assert result.get("rolled_back") is True
+    # First and second files are unchanged; the third was never written.
+    assert a.read_text() == original_a
+    assert b.read_text() == original_b
+    assert c.read_text() == original_c
+
+
+def test_multi_file_patch_adds_and_deletes_files(ctx):
+    target = _ws(ctx) / "old.py"
+    target.write_text("gone = True\n")
+    patch = _v4a(
+        "*** Add File: new.py",
+        "+created = True",
+        "*** Delete File: old.py",
+        "-gone = True",
+    )
+    result = json.loads(patch_tool({"path": ".", "old_string": "", "new_string": "", "mode": "patch", "patch": patch}, ctx))
+    assert result["count"] == 2
+    new_file = _ws(ctx) / "new.py"
+    assert new_file.read_text() == "created = True\n"
+    assert not target.exists()
+    added = next(f for f in result["files"] if f["path"].endswith("new.py"))
+    assert added["created"] is True
+
+
+def test_multi_file_patch_refuses_env_and_rolls_back_untouched(ctx, clite_home):
+    """A patch that names the agent's own .env is refused entirely; files already written are rolled back."""
+    a = _ws(ctx) / "a.py"
+    a.write_text("x = 1\n")
+    original_a = a.read_text()
+    env_path = clite_home / ".env"
+    env_path.write_text("KEY=value\n")
+    patch = _v4a(
+        "*** Update File: a.py",
+        "-x = 1",
+        "+x = 10",
+        f"*** Update File: {env_path}",
+        "-KEY=value",
+        "+KEY=hacked",
+    )
+    result = json.loads(patch_tool({"path": ".", "old_string": "", "new_string": "", "mode": "patch", "patch": patch}, ctx))
+    assert "error" in result
+    assert result.get("denied_path") == str(env_path)
+    # The .env was never modified, and the first file was rolled back.
+    assert env_path.read_text() == "KEY=value\n"
+    assert a.read_text() == original_a
+
+
+def test_multi_file_patch_requires_patch_argument(ctx):
+    result = json.loads(patch_tool({"path": ".", "old_string": "", "new_string": "", "mode": "patch"}, ctx))
+    assert "error" in result
+    assert "patch" in result["error"]
+
+
+def test_multi_file_patch_rejects_a_bad_format(ctx):
+    result = json.loads(patch_tool(
+        {"path": ".", "old_string": "", "new_string": "", "mode": "patch", "patch": "not v4a"}, ctx))
+    assert "error" in result
+    assert "no file headers" in result["error"]
+
+
+def test_multi_file_patch_diff_is_redacted(ctx, clite_home):
+    """The diff returned by multi-file patch mode is redacted, like single-file patch."""
+    (clite_home / ".env").write_text("DEPLOY_TOKEN=correct-horse-battery-staple\n")
+    load_env()
+    target = _ws(ctx) / "deploy.sh"
+    target.write_text("export DEPLOY=correct-horse-battery-staple\necho done\n")
+    patch = _v4a(
+        "*** Update File: deploy.sh",
+        "-echo done",
+        "+echo finished",
+    )
+    result = json.loads(patch_tool({"path": ".", "old_string": "", "new_string": "", "mode": "patch", "patch": patch}, ctx))
+    assert result["count"] == 1
+    diff = result["files"][0]["diff"]
+    assert "+echo finished" in diff
+    assert "correct-horse" not in diff
+
+
+# ── tolerance chain, unit-level ─────────────────────────────────────────────────────────
+
+
+def test_find_tolerant_match_returns_exact_for_a_verbatim_hit():
+    match = find_tolerant_match("hello world\n", "hello world")
+    assert match.found and match.level == "exact"
+
+
+def test_find_tolerant_match_returns_none_for_zero_candidates():
+    match = find_tolerant_match("a = 1\n", "b = 2")
+    assert not match.found and match.matches == 0

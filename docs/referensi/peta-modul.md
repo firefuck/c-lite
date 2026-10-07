@@ -262,6 +262,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `context.py` | ``ToolContext``: what a tool handler may know about the call it is serving. | `ToolContext` |
 | `dispatch.py` | The two entry points the agent loop uses: tool definitions in, tool results out. | `reset_definition_cache()`, `resolve_enabled_tools()`, `get_tool_definitions()`, `coerce_args()`, `cap_result()`, `handle_function_call()` |
 | `file_safety.py` | Path guards for the file tools. | `protected_path()`, `write_denied_reason()`, `read_denied_reason()` |
+| `patching.py` | Tolerant patch matching and V4A multi-file patch application. | `MatchResult`, `find_tolerant_match()`, `apply_replacement()`, `PatchHunk`, `ParsedPatch`, `parse_v4a_patch()`, `MultiFileResult`, `apply_v4a_patch()` |
 | `registry.py` | Tool registry: one process-wide table of every tool the model can call. | `ToolEntry`, `ToolRegistry`, `get_background_loop()`, `run_async()`, `tool_error()`, `tool_result()`, `discover_builtin_tools()`, `reset_check_cache()` |
 | `toolsets.py` | Toolsets: named groups of tools, composable through ``includes``. | `register_toolset()`, `toolset_exists()`, `resolve_toolset()`, `resolve_toolsets()`, `all_toolsets()`, `toolset_for_tool()` |
 
@@ -297,4 +298,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `__init__.py` | MCP (Model Context Protocol) client: tools served by external processes. |  |
 | `client.py` | A small MCP client over stdio. | `McpError`, `safe_name()`, `McpServer`, `connect_mcp_servers()`, `shutdown_mcp_servers()` |
 
-Jumlah: 161 modul.
+Jumlah: 162 modul.

@@ -164,10 +164,10 @@ bisa mengubah beberapa file dalam satu panggilan.
 `tools/file_operations.py`.
 
 **Selesai bila.**
-- [ ] Tes per tingkat pencocokan, masing-masing dengan kasus "cocok unik" dan "ambigu ditolak".
-- [ ] Tes: patch multi-file yang gagal di file ketiga tidak mengubah file pertama dan kedua.
-- [ ] Tes: patch multi-file yang menyebut `.env` milik agent ditolak seluruhnya.
-- [ ] Baris tool file di spesifikasi tools diperbarui.
+- [x] Tes per tingkat pencocokan, masing-masing dengan kasus "cocok unik" dan "ambigu ditolak".
+- [x] Tes: patch multi-file yang gagal di file ketiga tidak mengubah file pertama dan kedua.
+- [x] Tes: patch multi-file yang menyebut `.env` milik agent ditolak seluruhnya.
+- [x] Baris tool file di spesifikasi tools diperbarui.
 
 **Ukuran.** M
 

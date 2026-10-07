@@ -113,9 +113,15 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
   kredensial tidak bisa dibaca (`.env` dan `auth.json` milik agent, `~/.ssh`, `~/.aws`, dan
   sejenisnya), pencarian isi melewatinya, dan kredensial di file lain diredaksi dari hasil
   `read_file`, `search_files`, dan diff `patch`. File di disk tidak diubah.
-- `patch` mengganti tepat satu kecocokan (kecuali `replace_all`), mengembalikan diff, dan
-  mentoleransi indentasi yang salah bila kecocokannya unik.
-- `write_file` dan `patch` menolak `.env`, `config.yaml`, `auth.json`,
+- `patch` punya dua mode. Mode `replace` (default) mengganti tepat satu kecocokan
+  (kecuali `replace_all`), mengembalikan diff, dan bila kecocokan persis tidak ada,
+  mencoba rantai pencocokan toleran: spasi di ujung baris, indentasi, kutipan tipografis,
+  baris kosong. Setiap tingkat hanya diterima bila hasilnya unik; hasil menyebut tingkat
+  mana yang dipakai (`match_level`). Mode `patch` menerima teks berformat V4A
+  (`*** Update File`, `*** Add File`, `*** Delete File`) yang menyentuh beberapa file,
+  diterapkan seluruhnya atau tidak sama sekali (atomic: kegagalan di file ketiga mengembalikan
+  file pertama dan kedua ke keadaan semula).
+- `write_file` dan `patch` (kedua mode) menolak `.env`, `config.yaml`, `auth.json`,
   `shell-hooks-allowlist.json` milik agent, direktori kredensial (`~/.ssh`, `~/.aws`, ...) dan
   direktori sistem.
 
@@ -139,7 +145,7 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 | Backend terminal `local` | ✅ | |
 | Backend terminal Docker, SSH, lainnya | ⬜ | Antarmukanya ada (`register_environment_backend`): F2-T7 |
 | `terminal`, `process` | ✅ | |
-| `read_file`, `write_file`, `patch`, `search_files` | ✅ | Patch toleran dan patch multi-file: F2-T4 |
+| `read_file`, `write_file`, `patch`, `search_files` | ✅ | Patch toleran (rantai pencocokan dengan cek unik per tingkat) dan patch multi-file V4A atomic |
 | `web_fetch` | ✅ | |
 | `web_search` | ⬜ | F2-T5 |
 | `todo`, `memory`, `clarify`, `session_search` | ✅ | |
