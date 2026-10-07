@@ -113,16 +113,35 @@ def assert_private_file():
     return check
 
 
+def _docker_available() -> bool:
+    import shutil
+    import subprocess
+
+    if shutil.which("docker") is None:
+        return False
+    try:
+        return subprocess.run(["docker", "info"], capture_output=True, timeout=15, check=False).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Honour ``@pytest.mark.platforms("linux", "macos")``, and keep ``network`` tests opt-in.
 
     A ``network`` test runs only when the marker is selected (``-m network``), so neither CI nor
-    a plain ``pytest tests`` ever reaches a real service.
+    a plain ``pytest tests`` ever reaches a real service. A ``docker`` test is skipped unless a
+    working Docker daemon answers, so the suite stays green on a machine without Docker.
     """
     wants_network = "network" in (config.option.markexpr or "")
+    docker_ready = None
     for item in items:
         if not wants_network and item.get_closest_marker("network") is not None:
             item.add_marker(pytest.mark.skip(reason="needs the network; run with -m network"))
+        if item.get_closest_marker("docker") is not None:
+            if docker_ready is None:
+                docker_ready = _docker_available()
+            if not docker_ready:
+                item.add_marker(pytest.mark.skip(reason="needs a working Docker daemon"))
         markers = list(item.iter_markers(name="platforms"))
         if len(markers) > 1:
             raise pytest.UsageError(f"{item.nodeid}: use ONE platforms() marker with several specs")

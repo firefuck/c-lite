@@ -267,6 +267,7 @@ ENVIRONMENT_READERS: dict[str, str] = {
     "rpc/entry.py": "the platform name the parent process chose",
     "server/run.py": "the session token handed down by the parent process",
     "tools/environments/local.py": "builds the environment of a child command, minus the secrets",
+    "tools/environments/docker.py": "passes the Docker client's own DOCKER_* settings to the docker CLI, never a credential",
 }
 
 
