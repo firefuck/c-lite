@@ -58,6 +58,7 @@ COMMAND_REGISTRY: list[CommandDef] = [
     # ── Tools and skills ─────────────────────────────────────────────────────────────────
     CommandDef("skills", "List skills", "Tools & Skills", args_hint="[filter]"),
     CommandDef("plugins", "List plugins and their status", "Tools & Skills"),
+    CommandDef("mcp", "Show the status of the MCP servers", "Tools & Skills", args_hint="[name]"),
     CommandDef("memory", "Show what is in persistent memory", "Tools & Skills"),
     CommandDef("cron", "List scheduled jobs", "Tools & Skills"),
     # ── Info ─────────────────────────────────────────────────────────────────────────────
@@ -129,4 +130,11 @@ def command_catalog(surface: str = "cli", *, cwd: str | None = None) -> list[dic
         if name not in taken:
             catalog.append({"name": name, "description": skill.description[:80], "category": "Skills", "aliases": [],
                             "args_hint": "[instruction]", "subcommands": [], "kind": "skill"})
+            taken.add(name)
+    from clite.tools.mcp import mcp_prompt_catalog
+
+    for entry in mcp_prompt_catalog():
+        if entry["name"] not in taken:
+            catalog.append(entry)
+            taken.add(entry["name"])
     return catalog

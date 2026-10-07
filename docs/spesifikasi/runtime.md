@@ -43,7 +43,10 @@ membutuhkan kode yang sama, kode itu tinggal di sini, bukan di salah satu surfac
   `switch_model`, `set_yolo`, `undo`, `set_title`, `info`, `close`.
 - `handle_input` membedakan prompt dari perintah. Perintah yang menghasilkan prompt (skill,
   `/retry`) mengembalikan `action="submit"`.
-- Urutan resolusi perintah: bawaan, plugin, quick command dari config, skill.
+- Urutan resolusi perintah: bawaan, plugin, quick command dari config, skill, prompt MCP.
+- Prompt server MCP (`mcp-<server>-<prompt>`) dikirim sebagai pesan pengguna, seperti skill:
+  isinya diambil lewat `prompts/get` saat itu, jadi system prompt tidak pernah berubah.
+- `/mcp` menampilkan status tiap server MCP (transport, hidup/mati, jumlah tool/resources/prompts).
 - `/new` mempertahankan model yang sedang dipakai dan memulai sesi kosong.
 - `/resume` menerima id, awalan id, atau judul.
 - `/undo` menonaktifkan giliran pengguna terakhir dan semua setelahnya. `/retry` adalah undo
@@ -71,7 +74,7 @@ membutuhkan kode yang sama, kode itu tinggal di sini, bukan di salah satu surfac
 |---|---|---|
 | `build_agent`, toolset per platform | ✅ | |
 | `ChatSession` | ✅ | |
-| 30 slash command | ✅ | Hermes punya 102. Tambahan: F3-T4 |
+| 31 slash command | ✅ | Hermes punya 102. Tambahan: F3-T4 |
 | Quick command (`exec`, `alias`) | ✅ | |
 | Skill dan perintah plugin sebagai slash command | ✅ | |
 | Auto-prune sesi | ✅ | |

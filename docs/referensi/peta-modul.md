@@ -94,6 +94,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `cron.py` | ``clite cron``: scheduled agent tasks. | `run_list()`, `run_add()`, `run_tick()`, `run_daemon()`, `register()` |
 | `gateway.py` | ``clite gateway``: run the messaging gateway and manage who may talk to it. | `run_gateway()`, `run_status()`, `run_pair_list()`, `run_pair_approve()`, `run_pair_revoke()`, `register()` |
 | `hooks.py` | ``clite hooks``: review, approve, revoke and try the shell hooks from ``config.yaml``. | `run_list()`, `run_approve()`, `run_revoke()`, `run_test()`, `register()` |
+| `mcp.py` | ``clite mcp``: add, list, remove and test MCP servers without editing YAML. | `run_add()`, `run_list()`, `run_remove()`, `run_test()`, `register()` |
 | `misc.py` | Small commands: version, status, doctor, logs, memory, acp. | `run_version()`, `run_status()`, `run_doctor()`, `run_logs()`, `run_memory()`, `run_acp()`, `register()` |
 | `model.py` | ``clite model``: show, list and choose models. | `run_show()`, `run_list()`, `run_set()`, `run_providers()`, `register()` |
 | `plugins.py` | ``clite plugins``: list, enable, disable, install, remove. | `run_list()`, `run_install()`, `run_remove()`, `register()` |
@@ -222,7 +223,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `presentation.py` | Small presentation helpers shared by every surface (terminal, RPC clients, gateway). | `tool_preview()`, `result_failed()` |
 | `session.py` | ``ChatSession``: one conversation as a surface sees it. | `SlashResult`, `ChatSession` |
 | `setup.py` | Applying a provider choice: shared by ``clite setup`` and the setup screens of the UIs. | `apply_setup()` |
-| `slash.py` | Slash command handlers. |  |
+| `slash.py` | Slash command handlers. | `run_mcp_prompt()` |
 
 ## `clite/server/`
 
@@ -304,7 +305,8 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 
 | File | Isi | Simbol publik |
 | --- | --- | --- |
-| `__init__.py` | MCP (Model Context Protocol) client: tools served by external processes. |  |
-| `client.py` | A small MCP client over stdio. | `McpError`, `safe_name()`, `McpServer`, `connect_mcp_servers()`, `shutdown_mcp_servers()` |
+| `__init__.py` | MCP (Model Context Protocol) client: tools, resources and prompts from another program. |  |
+| `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
+| `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 171 modul.
+Jumlah: 173 modul.

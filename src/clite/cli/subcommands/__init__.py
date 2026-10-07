@@ -5,6 +5,6 @@ does not change.
 """
 
 SUBCOMMAND_MODULES = (
-    "chat", "setup", "model", "config", "tools", "skills", "plugins", "hooks", "sessions", "profile", "cron",
+    "chat", "setup", "model", "config", "tools", "skills", "plugins", "hooks", "mcp", "sessions", "profile", "cron",
     "gateway", "serve", "tui", "misc",
 )

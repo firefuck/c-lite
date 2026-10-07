@@ -11,8 +11,8 @@ Pemeriksaan terbaru F1-T7 dijalankan runner di Linux, Python 3.11.16, Node 26.7.
 | Pemeriksaan | Hasil |
 |---|---|
 | `ruff check src tests scripts` | Bersih |
-| `mypy` (160 file sumber) | Bersih |
-| Tes Python (`pytest tests`) | 820 lulus, 26 terlewati (jaringan, Windows, paket opsional) |
+| `mypy` (173 file sumber) | Bersih |
+| Tes Python (`pytest tests`) | 1092 lulus, 29 terlewati (jaringan, Windows, Docker, paket opsional), 1 gagal yang sudah ada sebelum F2-T10 (`tests/server`, `websockets`) |
 | Tes TypeScript `apps/shared` | 21 lulus; `tsc --noEmit` bersih |
 | Tes TypeScript `ui-tui` | 18 lulus; `tsc --noEmit` bersih |
 | Tes TypeScript `apps/desktop` | 8 lulus; `tsc --noEmit` bersih |
@@ -244,6 +244,64 @@ belum pernah dijalankan, jadi klaim "mewarisi sandbox" diuji lewat backend tirua
 dijalankan di host melainkan lewat backend yang dipilih `terminal.backend`. Rujukan Hermes
 tidak tersedia.
 
+### F2-T10: MCP lewat HTTP, resources, prompts, `clite mcp`
+
+`src/clite/tools/mcp/http.py` (baru) menambah transport **Streamable HTTP** di samping stdio:
+JSON-RPC dalam POST ke satu endpoint, dengan `Mcp-Session-Id` dari respons pertama diteruskan
+di setiap permintaan, dan balasan `text/event-stream` dibaca dari baris `data:`. Spec memilih
+transport: `url` memilih HTTP, `command` memilih stdio. Header autentikasi ditulis di
+`headers` dengan `${NAMA}` yang dibaca `get_secret`; nama itu didaftarkan lewat
+`register_secret`, jadi nilainya diredaksi dari apa yang dibaca model dan dibuang dari
+lingkungan perintah yang dijalankan agent. Variabel yang hilang adalah galat yang menyebut
+namanya, bukan header kosong yang berujung 401.
+
+Server yang mendeklarasikan kapabilitas `resources` mendapat tool
+`mcp_<server>_list_resources` dan `mcp_<server>_read_resource`. Prompt server menjadi slash
+command `mcp-<server>-<prompt>` di katalog perintah (kategori "MCP"); isinya diambil lewat
+`prompts/get` saat dipanggil dan dikirim sebagai **pesan pengguna**, seperti skill, sehingga
+system prompt tidak pernah berubah di tengah sesi.
+
+**Aturan A1.** `notifications/tools/list_changed` hanya menandai `tools_changed` pada server
+itu; ia tidak menyentuh registry tool sesi yang berjalan. Session diberi definisi tool saat
+`AIAgent` dibangun (`agent.tools` adalah potret), jadi daftar tool sesi itu tetap. Sesi
+berikutnya membaca ulang daftarnya ketika `connect_mcp_servers` dipanggil lagi. Server yang
+gagal start tidak dicoba ulang seketika: jeda membesar `5s * 2^(n-1)` sampai batas 300 detik,
+dan hanya sesi berikutnya (di luar jendela itu) yang mencoba lagi.
+
+`clite mcp add | list | remove | test` menulis `mcp_servers` lewat `atomic_config_update`
+(satu-satunya penulis config; komentar tetap utuh), dan `/mcp` menampilkan status tiap server.
+
+Bukti regresi merah/hijau pada worktree bersih dari `4156234` dengan tes baru saja
+(`PYTHONPATH` diarahkan ke salinan itu supaya import tidak jatuh ke paket terpasang):
+**13 kegagalan** — `test_http_transport_speaks_to_a_real_sdk_server`,
+`test_a_resource_server_gets_list_and_read_tools`, `test_auth_headers_come_from_dotenv`,
+`test_a_missing_dotenv_header_variable_is_a_clear_error`,
+`test_a_tool_list_change_does_not_alter_the_running_session`,
+`test_a_dead_server_is_retried_with_a_growing_delay`,
+`test_cli_add_writes_the_config_through_the_atomic_writer`,
+`test_cli_test_reports_the_tools_it_found`, `test_cli_remove_deletes_only_the_named_server`,
+`test_cli_add_rejects_a_spec_with_both_command_and_url`,
+`test_mcp_prompts_appear_as_slash_commands`, `test_an_mcp_prompt_runs_as_a_slash_command`, dan
+`test_slash_mcp_reports_no_servers_when_none_are_connected` — dan 8 tes lama lulus. Untuk
+membuktikan tiap guard secara terpisah, implementasi di salinan terisolasi diubah satu per
+satu:
+
+- **A1**: membuat `notifications/tools/list_changed` langsung memuat ulang dan mendaftar ulang
+  tool menggagalkan `test_a_tool_list_change_does_not_alter_the_running_session` (dan macet
+  karena permintaan bersarang dari thread pembaca — justru alasan menundanya benar).
+- **jeda membesar**: mengganti delay dengan nilai tetap menggagalkan
+  `test_a_dead_server_is_retried_with_a_growing_delay`.
+- **header dari .env**: melumpuhkan resolusi `${NAMA}` (mengirim nilai literal) menggagalkan
+  `test_auth_headers_come_from_dotenv` dan
+  `test_a_missing_dotenv_header_variable_is_a_clear_error`.
+- **tool resources**: melewatkan pendaftaran tool resource menggagalkan
+  `test_a_resource_server_gets_list_and_read_tools`.
+
+Sesudah implementasi, 21 tes di `tests/tools/test_mcp.py` lulus. `clite mcp add` diperiksa
+menulis config dengan komentar aslinya utuh dan `clite mcp test` melaporkan tool yang
+ditemukan. Rujukan Hermes tidak tersedia. Sampling dan OAuth sengaja tidak dikerjakan (di luar
+lingkup F2-T10).
+
 ## Pemasangan yang sudah diverifikasi
 
 Pada 6 Oktober 2026 CI repo `https://github.com/dragovics/clite` run `37356398420` pada
@@ -407,6 +465,7 @@ python scripts/check_hermes_refs.py --hermes ../hermes-ref   # butuh clone Herme
 | 8 Oktober 2026 | F2-T7: 10 gagal + 1 error pada salinan `1a6cdab` dengan tes baru saja, 14 lulus / 3 terlewati (tanpa Docker) sesudah implementasi; suite tool file + terminal lama 56 lulus lewat antarmuka baru; suite Python penuh 1010 lulus/29 terlewati (satu tes server gagal sebelum tugas ini), Ruff dan mypy bersih. Docker dan SSH asli belum dijalankan | Linux, Python 3.11.16 (Docker CLI ada, daemon tidak) |
 | 8 Oktober 2026 | F2-T8: 14 gagal pada salinan bercabang dengan tes baru saja tanpa penyambungan, 19 tes baru lulus sesudah implementasi; dua guard diuji terpisah (hapus penjaga `read_denied_reason`, lumpuhkan pemangkasan sesi) dan keduanya menggagalkan tesnya; suite `tests/tools`+`tests/runtime`+`tests/core` 393 lulus/13 terlewati, `tests/test_architecture.py` dan `tests/test_docs.py` lulus sesudah `python scripts/gen_docs.py` | Linux, Python 3.11.16 |
 | 8 Oktober 2026 | F2-T9: merah pada salinan `eb5f031` dengan tes baru saja (1 error koleksi, modul belum ada); 23 tes baru lulus sesudah implementasi; tiga guard diuji terpisah pada salinan terisolasi (batas waktu, gerbang persetujuan, kredensial) dan masing-masing menggagalkan tesnya; suite Python penuh 1073 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 171 file bersih | Linux, Python 3.11.16 |
+| 8 Oktober 2026 | F2-T10: 13 tes baru merah pada worktree bersih `4156234` dengan tes baru saja, 21 tes `tests/tools/test_mcp.py` lulus sesudah implementasi; empat guard diuji terpisah pada salinan terisolasi (A1, jeda membesar, header `.env`, tool resources) dan masing-masing menggagalkan tesnya; MCP HTTP diuji terhadap server Streamable HTTP dari SDK resmi (termasuk middleware bearer token), terlewati bila SDK tidak terpasang; suite Python penuh 1092 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini), Ruff bersih, mypy 173 file bersih. Sampling dan OAuth belum ada | Linux, Python 3.11.16 (SDK `mcp` 2.0.0) |
 
 Setiap task yang memverifikasi sesuatu menambah baris di tabel ini dan memindahkan butirnya
 dari "belum diverifikasi".

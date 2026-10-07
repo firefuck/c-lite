@@ -197,6 +197,12 @@ class ChatSession:
         skill = skill_commands(cwd=self.agent.cwd, config=self.agent.config).get(name)
         if skill is not None:
             return SlashResult(build_skill_message(skill, args), ACTION_SUBMIT, {"skill": skill.name})
+
+        from clite.runtime.slash import run_mcp_prompt
+        from clite.tools.mcp import mcp_prompt_commands
+
+        if name in mcp_prompt_commands():
+            return run_mcp_prompt(self, name, args)
         return SlashResult(f"Unknown command: /{name}. Type /help to list commands.")
 
     def _run_quick_command(self, name: str, spec: dict[str, Any], args: str) -> SlashResult:

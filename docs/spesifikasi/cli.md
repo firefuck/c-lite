@@ -82,7 +82,7 @@ pakai (argumen, profil tak dikenal), 130 Ctrl+C.
 
 | Fitur | Status | Catatan |
 |---|---|---|
-| 21 sub-perintah tingkat atas | ✅ | |
+| 22 sub-perintah tingkat atas | ✅ | |
 | Versi CLI, metadata dinamis, dan calon tag konsisten | ✅ | `tests/test_release.py` |
 | Distribusi `c-lite` melalui GitHub Releases | ✅ | F1-T7: workflow `37563420757`, aset terbit/pipx/doctor lulus |
 | REPL klasik, `-q`, `--json`, lanjut sesi (`-r`, `-c`) | ✅ | |
@@ -92,7 +92,9 @@ pakai (argumen, profil tak dikenal), 130 Ctrl+C.
 | `clite setup` | 🟡 | Satu alur: provider, kunci, model. Tiga belas profil tambahan F2-T2 tampil lewat registry tanpa perubahan kode setup, dijaga `tests/providers/test_additional_profiles.py` dan `tests/providers/test_cloud_profiles.py`. Wizard bertahap: F3-T5 |
 | `clite acp` | ⬜ | Hanya mencetak penunjuk ke roadmap: F6-T4 |
 | `clite update`, `backup`, `uninstall`, pelengkapan shell | ⬜ | F3-T6, F3-T7 |
-| `clite auth`, `clite mcp`, `clite webhook` | ⬜ | F2-T14, F2-T10, F4-T10 |
+| `clite auth`, `clite webhook` | ⬜ | F2-T14, F4-T10 |
+| `clite mcp` | ✅ | `add`, `list`, `remove`, `test`. `add` menulis `mcp_servers` lewat `atomic_config_update` (komentar config tetap utuh); `test` menyambung sekali dan melaporkan tool, resources, dan prompts yang ditemukan. Dijaga `tests/tools/test_mcp.py`. F2-T10 |
+| `/mcp` | ✅ | Menampilkan status tiap server MCP: transport, hidup/mati, jumlah tool/resources/prompts, dan catatan bila daftar toolnya berubah untuk sesi berikutnya. F2-T10 |
 
 ## Yang sengaja berbeda dari Hermes
 

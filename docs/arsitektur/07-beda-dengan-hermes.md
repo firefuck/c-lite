@@ -73,7 +73,7 @@ Hal-hal ini diambil dari Hermes dan dijaga dengan tes.
 | Hasil giliran | `dict` | `TurnResult`; `run_turn` tidak pernah melempar | Surface tidak perlu `try` di sekitar giliran |
 | HTTP ke provider | SDK `openai` dan `anthropic`, `httpx` | `http.client` dari pustaka standar | Pembatalan lewat soket, sedikit dependensi |
 | Vendor yang berbeda protokolnya | Adapter per vendor | Transport per `api_mode`; vendor adalah profil | Satu jalur kode per protokol |
-| Klien MCP | SDK `mcp` | Klien stdio sendiri | Tanpa dependensi; cakupan lebih sempit |
+| Klien MCP | SDK `mcp` | Klien sendiri untuk stdio dan Streamable HTTP | Tanpa dependensi; cakupan lebih sempit (tanpa sampling atau OAuth) |
 | Skill bawaan | Disalin ke home dan disinkronkan | Dibaca di tempat, sunting dengan copy-on-write | Pembaruan paket tidak menimpa suntingan |
 | Persetujuan shell hook | Saat pertama dipakai, atau lewat config | Perintah eksplisit `clite hooks approve` | Config bisa diubah agent lewat terminal |
 | Gateway | Seluruhnya asinkron | Thread; runner sinkron di atas `ChatSession` | Lebih sederhana; lihat catatan di bawah |
@@ -96,7 +96,7 @@ punya task di [roadmap](../roadmap/README.md).
 | Provider | Transport Responses API, Bedrock, Vertex, Azure, Gemini native, OAuth, harga dan biaya, puluhan profil lain |
 | Tool | Pencarian web, browser, eksekusi kode, gambar (analisis dan pembuatan), suara, `send_message`, checkpoint dan rollback, patch multi-file |
 | Lingkungan eksekusi | Docker, SSH, dan backend jarak jauh lain |
-| MCP | Transport HTTP, resources, prompts, sampling, OAuth, `hermes mcp` |
+| MCP | Sampling, OAuth, sinkronisasi otomatis daftar tool saat sesi berjalan |
 | Agent | Review latar belakang (memori dan skill), delegasi asinkron, mode campuran model |
 | CLI | Input saat agent bekerja, multi-baris, render Markdown, wizard setup, update, backup, pelengkapan shell, `/insights` |
 | TUI | Layar penuh dengan panel, pemilih model dan sesi, tema |
