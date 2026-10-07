@@ -1,6 +1,6 @@
 # Status
 
-Diperbarui 7 Oktober 2026. Halaman ini memisahkan tiga hal yang mudah tertukar: apa yang
+Diperbarui 8 Oktober 2026. Halaman ini memisahkan tiga hal yang mudah tertukar: apa yang
 **dijaga tes**, apa yang **ditulis tetapi belum pernah bertemu hal yang sebenarnya**, dan apa
 yang **belum ada**.
 
@@ -302,6 +302,61 @@ menulis config dengan komentar aslinya utuh dan `clite mcp test` melaporkan tool
 ditemukan. Rujukan Hermes tidak tersedia. Sampling dan OAuth sengaja tidak dikerjakan (di luar
 lingkup F2-T10).
 
+### F2-T11: kompresi yang lebih baik (8 Oktober 2026)
+
+Ringkasan kompresi kini berstruktur dengan lima bagian tetap (`SUMMARY_SECTIONS` di
+`src/clite/agent/context/compressor.py`: `Goal`, `Key Decisions`, `Files`, `Failed Commands`,
+`Unfinished Work`). `missing_summary_sections()` melaporkan bagian yang belum ada, dan prompt
+pembaruan ringkasan lama menyebut bagian yang hilang supaya model mengisinya. Saat bagian tengah
+lebih besar dari jendela model bantu, ia diringkas bertahap: excerpt dipecah pada batas pesan,
+tiap bagian diringkas dengan template tahap, lalu digabung lewat satu panggilan merge — bukan
+dipotong seperti sebelumnya. Jendela model bantu diisi agent lewat
+`resolve_auxiliary_route("compression", …)` + `get_context_length` dan diteruskan ke
+`ContextEngine.configure(..., auxiliary_context_length=…)`; `ContextCompressor._summary_input_budget`
+menurunkannya ke anggaran karakter.
+
+Perkiraan token `src/clite/agent/context/tokens.py::estimate_prompt_tokens` memakai
+`prompt_tokens` terakhir dari provider sebagai jangkar dan memperkirakan hanya pesan sesudahnya.
+Jangkar hanya dipercaya bila angkanya minimal sebesar perkiraan pesan yang diklaimnya; kalau
+tidak (angka basi atau provider melaporkan hal lain), perkiraan penuh yang dipakai — itu menjaga
+tes lama `test_preflight_compression_fires_before_the_window_is_exceeded` tetap benar, karena
+`ScriptedClient` melaporkan `usage` tetap 10. `ContextEngine.anchored_prompt_tokens` dan
+`iteration.prepare_iteration` memakainya.
+
+`prune_images()` membuang bagian `image_url` di luar jendela terlindung lebih dulu daripada
+`prune_tool_outputs()`, dan teks di sekitarnya tetap. Penghitung pengingat memori disimpan per
+sesi di `<home>/memories/nudge.json` (`MemoryManager.initialize`/`_load_nudge_count`/
+`_save_nudge_count`), jadi sesi yang dilanjutkan tidak memulai ulang hitungannya.
+
+`scripts/eval_compression.py` (baru) mengompres transkrip contoh lewat `ContextCompressor` dan
+melaporkan fakta mana yang hilang (5 fakta: dua path, satu keputusan, satu perintah gagal
+beserta sebabnya, satu pekerjaan tersisa) serta bagian ringkasan yang kosong. Dengan
+`--provider mock` seluruh jalur berjalan tanpa jaringan; `--json` untuk mesin, `--show-summary`
+untuk melihat ringkasannya.
+
+Bukti regresi merah/hijau pada worktree bersih dari `f119b29` dengan tes baru saja. Karena
+simbol baru belum ada, koleksi gagal dengan `ImportError: cannot import name 'SUMMARY_SECTIONS'`;
+supaya tiap guard terbukti terpisah, implementasi disalin ke salinan terisolasi lalu satu
+perilaku dikembalikan ke bentuk lamanya satu per satu (skrip bukti `/tmp/prove_guards.py`):
+
+- **bagian tetap dihapus**: `SUMMARY_SECTIONS` diganti daftar lama menggagalkan
+  `test_the_summary_template_asks_for_the_fixed_sections`.
+- **peringkasan bertahap dimatikan** (selalu satu panggilan): menggagalkan
+  `test_a_middle_larger_than_the_aux_window_is_summarised_in_stages`.
+- **pemangkasan gambar dimatikan** di `compress`: menggagalkan
+  `test_compression_drops_old_images_before_pruning_text`.
+- **jangkar diabaikan** (selalu perkiraan penuh): menggagalkan
+  `test_the_provider_number_wins_over_the_estimate_before_any_appended_message`.
+- **penghitung nudge tidak dipersistensi**: menggagalkan
+  `test_a_resumed_session_does_not_restart_the_nudge_count`.
+- **skrip pengukuran disingkirkan**: menggagalkan
+  `test_the_compression_eval_script_runs_against_the_mock_provider`.
+
+Sesudah implementasi, 10 tes baru lulus dan seluruh `tests/agent/test_compression.py` (33 tes)
+lulus. Log lokal: `/tmp/clite-f2t11-red-guards.log` (merah per guard) dan
+`/tmp/clite-f2t11-green.log` (hijau). Suite Python penuh dan status akhir ada di tabel catatan
+verifikasi di bawah. Rujukan Hermes tidak tersedia, sehingga file rujukan belum dibaca.
+
 ## Pemasangan yang sudah diverifikasi
 
 Pada 6 Oktober 2026 CI repo `https://github.com/dragovics/clite` run `37356398420` pada
@@ -466,6 +521,7 @@ python scripts/check_hermes_refs.py --hermes ../hermes-ref   # butuh clone Herme
 | 8 Oktober 2026 | F2-T8: 14 gagal pada salinan bercabang dengan tes baru saja tanpa penyambungan, 19 tes baru lulus sesudah implementasi; dua guard diuji terpisah (hapus penjaga `read_denied_reason`, lumpuhkan pemangkasan sesi) dan keduanya menggagalkan tesnya; suite `tests/tools`+`tests/runtime`+`tests/core` 393 lulus/13 terlewati, `tests/test_architecture.py` dan `tests/test_docs.py` lulus sesudah `python scripts/gen_docs.py` | Linux, Python 3.11.16 |
 | 8 Oktober 2026 | F2-T9: merah pada salinan `eb5f031` dengan tes baru saja (1 error koleksi, modul belum ada); 23 tes baru lulus sesudah implementasi; tiga guard diuji terpisah pada salinan terisolasi (batas waktu, gerbang persetujuan, kredensial) dan masing-masing menggagalkan tesnya; suite Python penuh 1073 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 171 file bersih | Linux, Python 3.11.16 |
 | 8 Oktober 2026 | F2-T10: 13 tes baru merah pada worktree bersih `4156234` dengan tes baru saja, 21 tes `tests/tools/test_mcp.py` lulus sesudah implementasi; empat guard diuji terpisah pada salinan terisolasi (A1, jeda membesar, header `.env`, tool resources) dan masing-masing menggagalkan tesnya; MCP HTTP diuji terhadap server Streamable HTTP dari SDK resmi (termasuk middleware bearer token), terlewati bila SDK tidak terpasang; suite Python penuh 1092 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini), Ruff bersih, mypy 173 file bersih. Sampling dan OAuth belum ada | Linux, Python 3.11.16 (SDK `mcp` 2.0.0) |
+| 8 Oktober 2026 | F2-T11: merah pada worktree bersih `f119b29` dengan tes baru saja (koleksi gagal: `cannot import name 'SUMMARY_SECTIONS'`); enam guard diuji terpisah pada salinan terisolasi (bagian tetap, peringkasan bertahap, pemangkasan gambar, jangkar token, persistensi penghitung nudge, skrip pengukuran) dan masing-masing menggagalkan tesnya; 10 tes baru lulus sesudah implementasi, seluruh `tests/agent/test_compression.py` 33 lulus; suite Python penuh 1109 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 173 file bersih. `scripts/eval_compression.py --provider mock` melaporkan 5/5 fakta bertahan | Linux, Python 3.11.16 |
 
 Setiap task yang memverifikasi sesuatu menambah baris di tabel ini dan memindahkan butirnya
 dari "belum diverifikasi".

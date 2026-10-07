@@ -26,7 +26,7 @@ from clite.core.config import get_path, load_config
 from clite.core.constants import get_home
 from clite.core.profiles import get_active_profile_name
 from clite.plugins.hooks import invoke_hook
-from clite.providers.auxiliary import call_auxiliary
+from clite.providers.auxiliary import call_auxiliary, resolve_auxiliary_route
 from clite.providers.client import LLMClient, ModelClient
 from clite.providers.models import get_context_length
 from clite.providers.runtime import RuntimeRoute, resolve_fallback_routes, resolve_runtime_provider
@@ -104,7 +104,11 @@ class AIAgent:
         self.stream: bool = bool(get_path(self.config, "display.streaming", True)) if stream is None else stream
 
         self.context_engine: ContextEngine = create_context_engine(str(get_path(self.config, "context.engine", "compressor") or "compressor"))
-        self.context_engine.configure(context_length=get_context_length(self.route, self.config), config=self.config)
+        self.context_engine.configure(
+            context_length=get_context_length(self.route, self.config),
+            auxiliary_context_length=self._auxiliary_context_length(),
+            config=self.config,
+        )
 
         self.todos = TodoStore()
         self.messages: list[dict[str, Any]] = []
@@ -138,6 +142,15 @@ class AIAgent:
         if row.get("ended_at") is not None:
             self.db.update_session(self.session_id, ended_at=None, end_reason=None)  # it is live again
         self.context_engine.on_session_start(self.session_id)
+
+    def _auxiliary_context_length(self) -> int:
+        """The window of the model that writes compression summaries. The compressor uses it to
+        decide whether one pass fits or the middle has to be summarised in stages."""
+        try:
+            route = resolve_auxiliary_route("compression", self.route, self.config)
+        except Exception:  # noqa: BLE001 - a bad auxiliary route must not break the agent
+            return 0
+        return get_context_length(route, self.config)
 
     def _prompt_inputs(self) -> PromptInputs:
         return PromptInputs(
@@ -270,7 +283,9 @@ class AIAgent:
             return taken
 
     def record_usage(self, state: TurnState, usage: Usage | None) -> None:
-        self.context_engine.update_from_response(usage)
+        with self._lock:
+            message_count = len(self.messages)
+        self.context_engine.update_from_response(usage, message_count=message_count)
         if usage is None:
             return
         for target in (state.usage, self.total_usage):
@@ -313,7 +328,11 @@ class AIAgent:
         the system prompt is rebuilt to name the new model."""
         self.route = route
         self.drop_replay_data()  # reasoning signed by the old model means nothing to the new one
-        self.context_engine.configure(context_length=get_context_length(route, self.config), config=self.config)
+        self.context_engine.configure(
+            context_length=get_context_length(route, self.config),
+            auxiliary_context_length=self._auxiliary_context_length(),
+            config=self.config,
+        )
         if self._session_ready:
             self.rebuild_system_prompt()
             if self.db is not None:

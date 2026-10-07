@@ -41,9 +41,9 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` |  |  |
-| `compressor.py` | The default context engine: summarise the middle, keep the ends. | `serialize_for_summary()`, `prune_tool_outputs()`, `repair_tool_pairs()`, `ContextCompressor` |
+| `compressor.py` | The default context engine: summarise the middle, keep the ends. | `missing_summary_sections()`, `serialize_for_summary()`, `prune_images()`, `prune_tool_outputs()`, `repair_tool_pairs()`, `ContextCompressor` |
 | `engine.py` | ``ContextEngine``: the strategy that keeps a conversation inside the model's window. | `ContextEngine`, `register_context_engine()`, `create_context_engine()` |
-| `tokens.py` | Rough token estimates. | `estimate_text_tokens()`, `estimate_message_tokens()`, `estimate_messages_tokens()` |
+| `tokens.py` | Token estimates, anchored to the last number the provider reported. | `estimate_text_tokens()`, `estimate_message_tokens()`, `estimate_messages_tokens()`, `estimate_prompt_tokens()` |
 
 ## `clite/agent/memory/`
 

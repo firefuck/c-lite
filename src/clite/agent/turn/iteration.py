@@ -6,7 +6,6 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
-from clite.agent.context.tokens import estimate_messages_tokens
 from clite.agent.messages import append_to_content, internal_user_message
 from clite.agent.state import BREAK, PROCEED, TurnState, Verdict
 from clite.core.config import get_path
@@ -93,10 +92,8 @@ def prepare_iteration(agent: AIAgent, state: TurnState) -> Verdict:
     if state.compression_attempts >= int(get_path(agent.config, "compression.max_attempts", 3)):
         return PROCEED
     engine = agent.context_engine
-    estimate = max(
-        engine.last_prompt_tokens,
-        estimate_messages_tokens(agent.messages, system_prompt=agent.system_prompt or "", tools=agent.tools),
-    )
+    # Anchor to the provider's last real prompt size; estimate only the messages appended since.
+    estimate = engine.anchored_prompt_tokens(agent.messages, system_prompt=agent.system_prompt or "", tools=agent.tools)
     if engine.should_compress(estimate):
         agent.compress_context(state, reason="threshold")
     return PROCEED

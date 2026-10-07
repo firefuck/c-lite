@@ -549,10 +549,29 @@ kompresi lebih jarang terjadi terlalu cepat atau terlambat.
 `website/docs/developer-guide/context-compression-and-caching.md`.
 
 **Selesai bila.**
-- [ ] Semua tes kompresi yang ada tetap lulus, termasuk aturan `provider_data`.
-- [ ] Tes: bagian tengah yang melebihi jendela model bantu diringkas bertahap, tidak dipotong.
-- [ ] Tes: perkiraan token sesudah satu respons memakai angka provider sebagai jangkar.
-- [ ] Skrip pengukuran berjalan dengan provider `mock` di CI.
+- [x] Semua tes kompresi yang ada tetap lulus, termasuk aturan `provider_data`.
+- [x] Tes: bagian tengah yang melebihi jendela model bantu diringkas bertahap, tidak dipotong.
+- [x] Tes: perkiraan token sesudah satu respons memakai angka provider sebagai jangkar.
+- [x] Skrip pengukuran berjalan dengan provider `mock` di CI.
+
+**Kemajuan 8 Oktober 2026.** Selesai di branch `f2-t11-compression`. Ringkasan kini punya lima
+bagian tetap (`SUMMARY_SECTIONS`: `Goal`, `Key Decisions`, `Files`, `Failed Commands`,
+`Unfinished Work`); `missing_summary_sections()` memeriksa kelengkapannya, dan prompt pembaruan
+ringkasan lama menyebut bagian yang belum ada. Bila serialisasi bagian tengah melampaui jendela
+model bantu (`ContextCompressor._summary_input_budget`, dari `auxiliary_context_length` yang
+diisi agent lewat `resolve_auxiliary_route("compression", …)`), bagian tengah dipecah pada batas
+pesan, tiap bagian diringkas, lalu digabung lewat satu panggilan merge — bukan dipotong.
+`tokens.estimate_prompt_tokens` memakai `prompt_tokens` terakhir dari provider sebagai jangkar
+(hanya bila angkanya masuk akal untuk transkrip itu) dan memperkirakan pesan sesudahnya saja;
+`ContextEngine.anchored_prompt_tokens` dan `iteration.prepare_iteration` memakainya.
+`prune_images()` membuang bagian `image_url` di luar jendela terlindung lebih dulu daripada
+`prune_tool_outputs()`. Penghitung pengingat memori disimpan per sesi di
+`<home>/memories/nudge.json` lewat `MemoryManager.initialize`, sehingga sesi yang dilanjutkan
+tidak memulai ulang hitungannya. `scripts/eval_compression.py` mengompres transkrip contoh dan
+melaporkan fakta mana yang hilang (5 fakta: dua path, satu keputusan, satu perintah gagal
+beserta sebabnya, satu pekerjaan tersisa) serta bagian ringkasan yang kosong.
+Dijaga `tests/agent/test_compression.py` (10 tes baru). Bukti regresi merah/hijau ada di
+`docs/STATUS.md`. Clone rujukan Hermes tidak tersedia, sehingga file rujukan belum dibaca.
 
 **Ukuran.** M
 

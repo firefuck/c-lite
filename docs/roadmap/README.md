@@ -108,7 +108,7 @@ dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
 | F2-T8 | Checkpoint dan rollback file | M | - | ✅ |
 | F2-T9 | Eksekusi kode | M | F2-T7 | ✅ |
 | F2-T10 | MCP: HTTP, resources, prompts, `clite mcp` | L | - | ⬜ |
-| F2-T11 | Kompresi yang lebih baik | M | F1-T2 | ⬜ |
+| F2-T11 | Kompresi yang lebih baik | M | F1-T2 | ✅ |
 | F2-T12 | Review latar belakang dan kurator terjadwal | M | - | ⬜ |
 | F2-T13 | Delegasi yang lebih kaya | M | - | ⬜ |
 | F2-T14 | OAuth dan `clite auth` | L | F1-T2 | ⬜ |
