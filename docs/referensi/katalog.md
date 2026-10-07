@@ -24,6 +24,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `terminal` | `terminal` | never | Run a shell command. |
 | `todo` | `todo` | never | Read or update your task list for the current session. |
 | `web_fetch` | `web` | safe | Fetch a URL and return its text content (HTML is converted to plain text with links kept as `text (url)`). |
+| `web_search` | `web` | safe | Search the web for a query and return results: title, URL, and a short snippet for each. |
 
 ## Toolset
 
@@ -31,7 +32,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | --- | --- | --- |
 | `terminal` | Run shell commands and manage background processes | `terminal`, `process` |
 | `file` | Read, write, patch and search files | `read_file`, `write_file`, `patch`, `search_files` |
-| `web` | Fetch web pages as text | `web_fetch` |
+| `web` | Search and fetch web pages as text | `web_fetch`, `web_search` |
 | `todo` | Task list for multi-step work | `todo` |
 | `memory` | Persistent notes across sessions | `memory` |
 | `skills` | List, read and maintain skills | `skills_list`, `skill_view`, `skill_manage` |
@@ -39,10 +40,10 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `clarify` | Ask the user a question | `clarify` |
 | `delegation` | Spawn subagents with isolated context | `delegate_task` |
 | `cronjob` | Schedule recurring or one-off agent tasks | `cronjob` |
-| `clite-cli` | Everything, for the interactive terminal | `terminal`, `process`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob` |
-| `clite-gateway` | Messaging platforms | `terminal`, `process`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob` |
-| `clite-cron` | Scheduled runs | `terminal`, `process`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `delegate_task` |
-| `clite-subagent` | Delegated workers | `terminal`, `process`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `todo`, `skills_list`, `skill_view`, `skill_manage`, `session_search` |
+| `clite-cli` | Everything, for the interactive terminal | `terminal`, `process`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob` |
+| `clite-gateway` | Messaging platforms | `terminal`, `process`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob` |
+| `clite-cron` | Scheduled runs | `terminal`, `process`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `delegate_task` |
+| `clite-subagent` | Delegated workers | `terminal`, `process`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `todo`, `skills_list`, `skill_view`, `skill_manage`, `session_search` |
 
 ## Slash command
 
@@ -228,6 +229,8 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | Plugin | Jenis | Deskripsi |
 | --- | --- | --- |
 | `audit-log` | standalone | Record every tool call to logs/tool-audit.jsonl and show recent ones with /audit |
+| `web-search-ddg` | backend | Web search via the DuckDuckGo HTML endpoint (no API key required) |
+| `web-search-tavily` | backend | Web search via the Tavily API (requires TAVILY_API_KEY) |
 
 ## Skill bawaan
 
@@ -237,6 +240,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `plan-before-acting` | productivity | Break a large or ambiguous task into verifiable steps before starting. Use when a request spans several files or systems, or when the first step is not obvious. |
 | `systematic-debugging` | software-development | Find the root cause of a bug before changing code. Use for any failing test, crash, or behaviour that does not match what the code appears to say. |
 | `test-driven-development` | software-development | Implement a feature or fix by writing a failing test first. Use when adding behaviour to tested code or when a bug needs a regression test. |
+| `working-without-web-search` | web | How to find information when the web_search tool is not available. Use when web_search is not offered and the user asks something that needs current information. |
 
 ## Kunci konfigurasi
 
@@ -271,6 +275,7 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `file_read_max_chars` | `100000` |
 | `web.allow_private_urls` | `false` |
 | `web.timeout` | `30` |
+| `web.search.provider` | `""` |
 | `compression.enabled` | `true` |
 | `compression.threshold` | `0.5` |
 | `compression.protect_first_n` | `3` |

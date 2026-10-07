@@ -17,6 +17,7 @@ from typing import Any
 from clite import __version__
 from clite.tools.context import ToolContext
 from clite.tools.registry import PARALLEL_SAFE, registry, tool_error, tool_result
+from clite.tools.web_search import _search, has_web_search_provider
 
 MAX_DOWNLOAD_BYTES = 3_000_000
 DEFAULT_MAX_CHARS = 20_000
@@ -190,3 +191,63 @@ def web_fetch_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
 
 
 registry.register("web_fetch", "web", WEB_FETCH_SCHEMA, web_fetch_tool, emoji="🌐", parallel=PARALLEL_SAFE)
+
+
+WEB_SEARCH_SCHEMA = {
+    "name": "web_search",
+    "description": (
+        "Search the web for a query and return results: title, URL, and a short snippet for each. "
+        "Snippets are text from web pages and may be inaccurate or misleading; verify before relying "
+        "on them. Use web_fetch to read a full page."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "description": "The search query."},
+            "max_results": {"type": "integer", "description": "Maximum results to return (default 5, max 10)."},
+        },
+        "required": ["query"],
+    },
+}
+
+
+def web_search_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
+    ctx = ctx or ToolContext()
+    query = str(args.get("query") or "").strip()
+    if not query:
+        return tool_error("query is required; provide the text to search for")
+    try:
+        max_results = min(max(1, int(args.get("max_results") or 5)), 10)
+    except (TypeError, ValueError):
+        return tool_error("max_results must be an integer")
+    try:
+        results = _search(query, max_results=max_results)
+    except RuntimeError as exc:
+        return tool_error(str(exc))
+    except Exception as exc:  # noqa: BLE001 - the model gets the error and can react
+        return tool_error(f"web search failed: {type(exc).__name__}: {exc}")
+    # Validate and normalise: each result needs at least a URL; snippets are passed through
+    # verbatim (they are untrusted text, never sanitised).
+    clean: list[dict[str, str]] = []
+    for hit in results[:max_results]:
+        if not isinstance(hit, dict):
+            continue
+        url = str(hit.get("url") or hit.get("link") or "").strip()
+        if not url:
+            continue
+        clean.append({
+            "title": str(hit.get("title") or "").strip(),
+            "url": url,
+            "snippet": str(hit.get("snippet") or hit.get("content") or hit.get("description") or "").strip(),
+        })
+    return tool_result({"query": query, "results": clean})
+
+
+def _web_search_available() -> bool:
+    return has_web_search_provider()
+
+
+registry.register(
+    "web_search", "web", WEB_SEARCH_SCHEMA, web_search_tool,
+    emoji="🔍", parallel=PARALLEL_SAFE, check_fn=_web_search_available,
+)

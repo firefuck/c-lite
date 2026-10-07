@@ -1,0 +1,5 @@
+name: web-search-tavily
+version: 1.0.0
+description: Web search via the Tavily API (requires TAVILY_API_KEY)
+author: C-lite
+kind: backend

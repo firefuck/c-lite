@@ -60,8 +60,9 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
 **`PluginContext`** menyediakan: `register_tool`, `register_toolset`, `register_environment`,
 `register_hook`, `register_prompt_section`, `register_command`, `register_cli_command`,
 `register_provider`, `register_transport`, `register_memory_provider`,
-`register_context_engine`, `register_platform`, `register_skills_dir`,
-`register_skill_source`, serta `settings`, `home`, `plugin_dir`, `logger`.
+`register_context_engine`, `register_web_search_provider`, `register_platform`,
+`register_skills_dir`, `register_skill_source`, serta `settings`, `home`, `plugin_dir`,
+`logger`.
 
 **Shell hook**
 - Konfigurasi: `hooks: {event: [perintah | {command, matcher, timeout, fail_closed}]}`.
@@ -87,6 +88,7 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
 | Ledger pembatalan | ✅ | |
 | Shell hook dengan persetujuan | ✅ | |
 | Plugin bawaan contoh (`audit-log`) | ✅ | |
+| Plugin bawaan backend (`web-search-ddg`, `web-search-tavily`) | ✅ | DDG tanpa kunci; Tavily berkunci, ``TAVILY_API_KEY`` terdaftar sebagai kredensial |
 | `pip_dependencies`, `provides_tools`, `provides_hooks` di manifest | 🟡 | Diparse, belum dipakai (tidak ada pemasangan dependensi otomatis) |
 | Jenis `exclusive` (satu aktif per kategori) | 🟡 | Jenisnya dikenali; aturan "hanya satu" belum ditegakkan |
 | Pembaruan plugin, katalog plugin | ⬜ | F6-T5 |

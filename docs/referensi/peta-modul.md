@@ -265,6 +265,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `patching.py` | Tolerant patch matching and V4A multi-file patch application. | `MatchResult`, `find_tolerant_match()`, `apply_replacement()`, `PatchHunk`, `ParsedPatch`, `parse_v4a_patch()`, `MultiFileResult`, `apply_v4a_patch()` |
 | `registry.py` | Tool registry: one process-wide table of every tool the model can call. | `ToolEntry`, `ToolRegistry`, `get_background_loop()`, `run_async()`, `tool_error()`, `tool_result()`, `discover_builtin_tools()`, `reset_check_cache()` |
 | `toolsets.py` | Toolsets: named groups of tools, composable through ``includes``. | `register_toolset()`, `toolset_exists()`, `resolve_toolset()`, `resolve_toolsets()`, `all_toolsets()`, `toolset_for_tool()` |
+| `web_search.py` | ``WebSearchProvider``: a pluggable backend for the ``web_search`` tool. | `WebSearchProvider`, `register_web_search_provider()`, `unregister_web_search_provider()`, `reset_web_search_providers()`, `provider_names()`, `has_web_search_provider()`, `get_web_search_provider()` |
 
 ## `clite/tools/builtin/`
 
@@ -281,7 +282,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `skills.py` | Skill tools: list, view (progressive disclosure), and manage (procedural memory). | `skills_list_tool()`, `skill_view_tool()`, `skill_manage_tool()` |
 | `terminal.py` | ``terminal``: run a shell command in the session's execution environment. | `clip_lines()`, `terminal_tool()` |
 | `todo.py` | ``todo``: the agent's task list for multi-step work. | `todo_tool()` |
-| `web.py` | ``web_fetch``: download a page and return readable text. | `html_to_text()`, `private_address_reason()`, `web_fetch_tool()` |
+| `web.py` | ``web_fetch``: download a page and return readable text. | `html_to_text()`, `private_address_reason()`, `web_fetch_tool()`, `web_search_tool()` |
 
 ## `clite/tools/environments/`
 
@@ -298,4 +299,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `__init__.py` | MCP (Model Context Protocol) client: tools served by external processes. |  |
 | `client.py` | A small MCP client over stdio. | `McpError`, `safe_name()`, `McpServer`, `connect_mcp_servers()`, `shutdown_mcp_servers()` |
 
-Jumlah: 162 modul.
+Jumlah: 163 modul.

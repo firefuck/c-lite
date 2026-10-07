@@ -200,10 +200,20 @@ bisa mengubah beberapa file dalam satu panggilan.
 `website/docs/developer-guide/web-search-provider-plugin.md`.
 
 **Selesai bila.**
-- [ ] Tes: `web_search` tidak ada di definisi tool tanpa provider, dan ada dengan provider.
-- [ ] Tes terhadap server HTTP lokal yang meniru API pencarian.
-- [ ] Kunci provider pencarian terdaftar sebagai kredensial (`register_secret`).
-- [ ] Baris `web_search` di spesifikasi tools menjadi ✅.
+- [x] Tes: `web_search` tidak ada di definisi tool tanpa provider, dan ada dengan provider.
+- [x] Tes terhadap server HTTP lokal yang meniru API pencarian.
+- [x] Kunci provider pencarian terdaftar sebagai kredensial (`register_secret`).
+- [x] Baris `web_search` di spesifikasi tools menjadi ✅.
+
+**Kemajuan 7 Oktober 2026.** Implementasi selesai di branch `f2-t5-web-search`. Antarmuka
+`WebSearchProvider` dan registry-nya mengikuti pola `register_context_engine`; tool
+`web_search` memakai `check_fn` yang lulus hanya bila ada provider aktif. Dua plugin bawaan
+berjenis `backend`: `web-search-ddg` (DuckDuckGo, tanpa kunci) dan `web-search-tavily`
+(Tavily, berkunci; `TAVILY_API_KEY` terdaftar via `register_secret`). Skill bawaan
+`working-without-web-search` dengan `fallback_for_tools: [web_search]` menjelaskan cara
+bekerja tanpa pencarian. Tes di `tests/tools/test_web_search.py` dan
+`tests/tools/test_web_search_secrets.py` menjaga keempat kriteria selesai. Clone rujukan
+Hermes tidak tersedia, sehingga file rujukan belum dibaca.
 
 **Ukuran.** M
 

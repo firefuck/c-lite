@@ -57,6 +57,18 @@ implementasi 39 lulus (/tmp/clite-f2t2-cloud-green.log). Suite Python penuh 908 
 28 terlewati (/tmp/clite-f2t2-cloud-full.log); Ruff dan mypy 161 file bersih. Node tidak
 disentuh dan tidak dijalankan ulang pada batch ini.
 
+### F2-T5 (7 Oktober 2026)
+
+Tool `web_search` dengan provider pluggable (`WebSearchProvider`) dan `check_fn` yang
+menawarkan tool hanya bila ada provider aktif. Dua plugin bawaan berjenis `backend`:
+`web-search-ddg` (DuckDuckGo, tanpa kunci) dan `web-search-tavily` (Tavily, berkunci;
+`TAVILY_API_KEY` terdaftar via `register_secret`). Skill bawaan
+`working-without-web-search` dengan `fallback_for_tools: [web_search]`. Bukti regresi pada
+salinan `54bdd45`: 12 tes baru gagal (`ModuleNotFoundError: No module named
+'clite.tools.web_search'`); sesudah implementasi, 12 tes lulus. Suite Python penuh (tanpa
+`tests/server`, yang punya satu kegagalan sudah-ada sebelum tugas ini): 927 lulus, 26
+terlewati. Ruff dan mypy bersih. Clone rujukan Hermes tidak tersedia.
+
 ## Pemasangan yang sudah diverifikasi
 
 Pada 6 Oktober 2026 CI repo `https://github.com/dragovics/clite` run `37356398420` pada
@@ -106,6 +118,7 @@ dijalankan terhadap hal yang sebenarnya. Anggap belum berfungsi sampai terbukti.
 | Teks penalaran model generasi 5 (`thinking.display`) | Diterapkan: profil `anthropic` meminta `display: summarized` bila `display.show_reasoning` aktif. Belum dicoba ke API asli | F1-T2 |
 | Transport `responses` | Diuji terhadap server HTTP lokal untuk streaming/nonstreaming dan dua ronde tool; `test_openai_responses_replays_reasoning_across_two_tool_rounds` belum dijalankan karena pemilik menunda uji API asli | F2-T1 |
 | Sepuluh profil tambahan gelombang pertama | Rute, bentuk HTTP streaming/nonstreaming, dan discovery setup diuji dengan server lokal. API asli (termasuk server LM Studio/vLLM sungguhan) belum pernah dipanggil; profil cloud Azure/Bedrock/Vertex juga hanya diuji lokal | F2-T2 🟡 |
+| Provider pencarian web (`web-search-ddg`, `web-search-tavily`) | Diuji terhadap server HTTP lokal yang meniru API pencarian. DuckDuckGo dan Tavily asli belum pernah dipanggil | F2-T5 ✅ |
 | Tes jaringan provider (`tests/providers/test_live.py`) | Ditulis, belum pernah dijalankan: menunggu kunci Anthropic dan satu provider kompatibel OpenAI | F1-T2 |
 | Persetujuan `smart` dengan model sungguhan | Hanya diuji dengan model berskrip | F1-T2 |
 | Adapter Telegram | Hanya terhadap Bot API tiruan. Daftar periksa bot sungguhan di F1-T3 belum dijalankan: menunggu token bot dan grup uji | F1-T3 |
