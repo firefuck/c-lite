@@ -180,7 +180,7 @@ Setiap butir dijaga oleh tes di `tests/agent/`.
 | Estimasi biaya | ⬜ | Kolom `estimated_cost_usd` ada, belum diisi: F2-T3 |
 | Input gambar | ✅ | `attachments.py`: bentuk konten, batas ukuran/jumlah, pengecilan, penyaringan model tanpa penglihatan; `clite chat --image` dan `/image`. Dijaga `tests/agent/test_attachments.py`, `test_loop.py`, `tests/runtime/test_session_and_slash.py`. Model bantu untuk melihat ada sebagai tool `vision_analyze` (spesifikasi tools) |
 | Review latar belakang (memori dan skill) | ⬜ | F2-T12 |
-| Checkpoint dan rollback file | ⬜ | F2-T8 |
+| Checkpoint dan rollback file | ✅ | `tools/checkpoints.py` menyimpan isi lama sebelum `write_file`/`patch` mengubah file, dikelompokkan per giliran di bawah `<home>/checkpoints/`. `/rollback [n]` mengembalikan perubahan giliran terakhir (atau `n` giliran); file yang dibuat agent dihapus, file yang dihapus dikembalikan. Perubahan lewat perintah `terminal` tidak terlihat. Dijaga `tests/tools/test_checkpoints.py`. F2-T8 |
 | Kunci file memori di Windows | ✅ | `core.locking` memakai `fcntl`/`msvcrt`; tes dua proses dan mutasi memori lulus pada Linux/Windows. CI `37499972911`, F1-T5 |
 
 ## Yang sengaja berbeda dari Hermes

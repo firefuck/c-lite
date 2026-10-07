@@ -16,6 +16,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from clite.core.redact import redact
+from clite.tools.checkpoints import record_change, turn_id_for
 from clite.tools.context import ToolContext
 from clite.tools.environments import get_environment
 from clite.tools.file_safety import read_denied_reason, write_denied_reason
@@ -44,6 +45,20 @@ def _resolve(path: str, ctx: ToolContext) -> str:
 def _join(parent: str, name: str) -> str:
     """Join a directory path and a child name using the backend's path spelling."""
     return str(PurePosixPath(parent) / name)
+
+
+def _before_content(environment, path: str) -> str | None:
+    """The file's text as it is now, for the checkpoint store.
+
+    Read through the session environment so a checkpoint follows the same files the tools
+    see. A binary or unreadable file has nothing to save: the change is still recorded, and
+    the rollback reports that entry as skipped rather than silently doing nothing.
+    """
+    try:
+        read = environment.read_file(path)
+    except OSError:
+        return None
+    return None if read.binary else read.content
 
 
 # ── read_file ────────────────────────────────────────────────────────────────────────────
@@ -164,11 +179,16 @@ def write_file_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str
     if denied:
         return tool_error(f"Refused to write {path}: {denied}.")
     existed = environment.stat(path).is_file
+    # Save the previous content before the write, so /rollback can undo it. Only a real edit
+    # is a checkpoint: replacing a file that never existed records a creation instead.
+    previous = _before_content(environment, path) if existed else None
     try:
         environment.write_file(path, content)
     except OSError as exc:
         return tool_error(f"could not write {path}: {exc}")
-    return tool_result(path=str(path), bytes_written=len(content.encode("utf-8")), created=not existed)
+    change = record_change(ctx.session_id, str(path), before=previous, existed=existed, turn=turn_id_for(ctx))
+    return tool_result(path=str(path), bytes_written=len(content.encode("utf-8")), created=not existed,
+                       checkpointed=change is not None and change.skipped_reason is None)
 
 
 # ── patch ────────────────────────────────────────────────────────────────────────────────
@@ -232,7 +252,15 @@ def _patch_mode(args: dict[str, Any], ctx: ToolContext) -> str:
         return tool_error(result.error, **extra)
 
     files: list[dict[str, Any]] = []
+    turn = turn_id_for(ctx)
     for entry in result.applied:
+        # Record from the snapshot the patch kept: it holds each file's content as it was
+        # before this patch, which is exactly what a checkpoint needs. A delete leaves the
+        # path gone; a creation had no previous content.
+        record_change(
+            ctx.session_id, str(entry.path), before=entry.before, existed=entry.before is not None,
+            turn=turn, deleted=not entry.path.exists(),
+        )
         files.append({
             "path": str(entry.path),
             "created": entry.created,
@@ -300,6 +328,7 @@ def patch_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
         environment.write_file(path, updated)
     except OSError as exc:
         return tool_error(f"could not write {path}: {exc}")
+    record_change(ctx.session_id, str(path), before=content, existed=True, turn=turn_id_for(ctx))
     diff = "".join(
         difflib.unified_diff(content.splitlines(keepends=True), updated.splitlines(keepends=True),
                              fromfile=f"a/{PurePosixPath(path).name}", tofile=f"b/{PurePosixPath(path).name}", n=2)

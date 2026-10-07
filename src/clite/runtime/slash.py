@@ -136,6 +136,35 @@ def _handle_compress(session: ChatSession, args: str) -> SlashResult:
     return SlashResult(f"Compressed: {before} messages -> {len(session.agent.messages)}.")
 
 
+def _handle_rollback(session: ChatSession, args: str) -> SlashResult:
+    """Undo the files the agent changed: the last turn, or the last ``args`` turns."""
+    if args and not args.isdigit():
+        return SlashResult("Usage: /rollback [turns]. /rollback undoes the last turn; "
+                           "/rollback 3 undoes the last three. /checkpoints lists them.")
+    turns = int(args) if args.isdigit() else 1
+    if turns < 1:
+        return SlashResult("turns must be 1 or more.")
+    result = session.rollback_files(turns)
+    if result.empty:
+        return SlashResult("No file checkpoints for this session. Only write_file and patch are "
+                           "recorded; a file changed by a terminal command is not.")
+    return SlashResult(result.summary())
+
+
+def _handle_checkpoints(session: ChatSession, args: str) -> SlashResult:
+    groups = session.list_file_checkpoints()
+    if not groups:
+        return SlashResult("No file checkpoints for this session. Only write_file and patch are "
+                           "recorded; a file changed by a terminal command is not.")
+    lines = []
+    for group in groups:
+        when = time.strftime("%Y-%m-%d %H:%M", time.localtime(group.created_at)) if group.created_at else ""
+        lines.append(f"turn {group.turn}  {when}  {len(group.changes)} file(s)")
+        lines += [f"  {change.kind:<8} {change.path}" for change in group.changes]
+    lines.append("Undo the last turn with /rollback, or the last N with /rollback N.")
+    return SlashResult("\n".join(lines))
+
+
 def _handle_stop(session: ChatSession, args: str) -> SlashResult:
     if not session.busy:
         return SlashResult("Nothing is running.")

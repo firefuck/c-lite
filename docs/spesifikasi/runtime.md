@@ -71,11 +71,12 @@ membutuhkan kode yang sama, kode itu tinggal di sini, bukan di salah satu surfac
 |---|---|---|
 | `build_agent`, toolset per platform | ✅ | |
 | `ChatSession` | ✅ | |
-| 28 slash command | ✅ | Hermes punya 102. Tambahan: F3-T4 |
+| 30 slash command | ✅ | Hermes punya 102. Tambahan: F3-T4 |
 | Quick command (`exec`, `alias`) | ✅ | |
 | Skill dan perintah plugin sebagai slash command | ✅ | |
 | Auto-prune sesi | ✅ | |
-| Percabangan sesi (`/branch`), `/rollback`, `/background`, `/queue` | ⬜ | F3-T4 |
+| Checkpoint file: `/rollback`, `/checkpoints` | ✅ | `ChatSession.rollback_files` dan `list_file_checkpoints` memanggil `tools/checkpoints.py`; perintah tersedia di semua surface. Perubahan lewat perintah `terminal` tidak tercatat (lihat spesifikasi agent dan tools). Dijaga `tests/tools/test_checkpoints.py`. F2-T8 |
+| Percabangan sesi (`/branch`), `/background`, `/queue` | ⬜ | F3-T4 |
 | `/insights` | ⬜ | F3-T8 |
 
 ## Yang sengaja berbeda dari Hermes

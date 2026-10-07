@@ -390,11 +390,27 @@ file; dokumentasikan batas ini dengan jelas.
 `hermes_cli/subcommands/checkpoints.py`.
 
 **Selesai bila.**
-- [ ] Tes: tulis, patch, dan buat file dalam satu giliran, lalu `/rollback` mengembalikan
+- [x] Tes: tulis, patch, dan buat file dalam satu giliran, lalu `/rollback` mengembalikan
       ketiganya.
-- [ ] Tes: checkpoint tidak pernah menyimpan file yang ditolak `read_denied_reason`.
-- [ ] Tes: pemangkasan menghapus checkpoint sesi yang sudah dipangkas.
-- [ ] Baris checkpoint di spesifikasi agent, tools, dan runtime menjadi ✅.
+- [x] Tes: checkpoint tidak pernah menyimpan file yang ditolak `read_denied_reason`.
+- [x] Tes: pemangkasan menghapus checkpoint sesi yang sudah dipangkas.
+- [x] Baris checkpoint di spesifikasi agent, tools, dan runtime menjadi ✅.
+
+**Kemajuan 8 Oktober 2026.** `src/clite/tools/checkpoints.py` menyimpan isi lama sebelum
+`write_file`/`patch` mengubah file, ke `<home>/checkpoints/<id sesi>/turn-<n>/` (nomor giliran,
+satu subdirektori per giliran). Nomor giliran dihitung dari pesan pengguna aktif di percakapan,
+jadi pesan internal agent tidak memecah satu giliran. Dua perintah baru di
+`COMMAND_REGISTRY`: `/rollback [n]` (mengembalikan giliran terakhir atau `n` giliran terakhir;
+file yang dibuat agent dihapus, file yang dihapus dikembalikan) dan `/checkpoints` (daftar
+giliran dan berkasnya). Keduanya dilayani `ChatSession.rollback_files` dan
+`list_file_checkpoints`. Pemangkasan mengikuti `sessions.retention_days`: `prune_checkpoints`
+di `runtime/maintenance.py` dijalankan saat surface mulai — menyapu store sesi yang sudah
+dihapus dari database, membuang grup yang lebih tua dari batas retensi, dan memangkas dari yang
+tertua bila total melewati `checkpoints.max_bytes` (kunci config baru, default 100 MB). Guard:
+file yang ditolak `read_denied_reason` tidak pernah disimpan. Batas: perubahan lewat perintah
+`terminal` tidak tercatat (didokumentasikan di spesifikasi tools dan agent). Dijaga
+`tests/tools/test_checkpoints.py` (20 tes). Bukti regresi merah/hijau ada di `docs/STATUS.md`.
+Clone rujukan Hermes tidak tersedia, sehingga file rujukan belum dibaca.
 
 **Ukuran.** M
 

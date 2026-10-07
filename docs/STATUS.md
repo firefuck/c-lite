@@ -148,6 +148,44 @@ antarmuka baru tanpa perubahan perilaku. Suite Python penuh: 1010 lulus, 29 terl
 tes server gagal yang sudah gagal sebelum tugas ini (versi pustaka `websockets`). Ruff dan
 mypy bersih. Docker dan SSH asli belum pernah dijalankan. Rujukan Hermes tidak tersedia.
 
+### F2-T8: checkpoint dan rollback file (8 Oktober 2026)
+
+`src/clite/tools/checkpoints.py` menyimpan isi lama sebuah file sebelum `write_file` atau
+`patch` mengubahnya, ke `<home>/checkpoints/<id sesi>/turn-<n>/` — satu subdirektori per
+giliran, dengan `manifest.json` (daftar berkas dan jenis perubahannya: `modified`, `created`,
+`deleted`) dan `files/` berisi salinan isi lama. Nomor giliran dihitung dari pesan pengguna
+aktif di percakapan (`turn_id_for`), jadi pesan internal agent tidak memecah satu giliran
+menjadi dua. Guard: berkas yang ditolak `read_denied_reason` tidak pernah disimpan, karena
+store adalah teks biasa di disk dan menyimpannya akan memindahkan rahasia ke tempat yang bisa
+dibaca model.
+
+Dua slash command baru di `COMMAND_REGISTRY`: `/rollback [n]` mengembalikan perubahan giliran
+terakhir (atau `n` giliran terakhir) — berkas yang dibuat agent dihapus, berkas yang dihapus
+dikembalikan, berkas yang diubah dipulihkan; dan `/checkpoints` mendaftar giliran beserta
+berkasnya. Keduanya dilayani `ChatSession.rollback_files` dan `list_file_checkpoints`, jadi
+tersedia di CLI, TUI, dashboard, dan gateway. Pemangkasan mengikuti `sessions.retention_days`:
+`runtime/maintenance.py::prune_checkpoints` berjalan saat surface mulai, menghapus store sesi
+yang sudah tidak ada di database, membuang grup yang lebih tua dari batas retensi, dan
+memangkas dari yang tertua bila total melewati `checkpoints.max_bytes` (kunci config baru,
+default 100 MB).
+
+Batas yang didokumentasikan: perubahan lewat perintah `terminal` (`mv`, `sed -i`, skrip) tidak
+terlihat oleh tool file dan karena itu tidak tercatat; catatan ini ada di spesifikasi tools dan
+agent.
+
+Bukti regresi merah/hijau pada salinan bercabang dengan tes baru saja (modul dan konstanta
+disalin, tapi tanpa penyambungan di `file_tools.py`, `slash.py`, `session.py`, dan
+`maintenance.py`): 14 tes gagal, termasuk tiga perilaku yang diminta — satu giliran dengan
+tulis/patch/buat yang tidak dikembalikan, checkpoint yang tidak menyapu store saat sesi
+dipangkas, dan perintah `/rollback`/`/checkpoints` yang tidak ada. Dua guard diuji terpisah:
+menghapus baris `read_denied_reason` di `record_change` menggagalkan
+`test_a_checkpoint_never_stores_a_file_the_read_tools_refuse`, dan melumpuhkan
+`_prune_missing_sessions` menggagalkan
+`test_pruning_removes_the_checkpoints_of_a_pruned_session`. Sesudah implementasi, 20 tes di
+`tests/tools/test_checkpoints.py` lulus. Suite `tests/tools`, `tests/runtime`, dan `tests/core`
+yang terdampak lulus (393 lulus, 13 terlewati tanpa Docker/Windows). Rujukan Hermes tidak
+tersedia.
+
 ## Pemasangan yang sudah diverifikasi
 
 Pada 6 Oktober 2026 CI repo `https://github.com/dragovics/clite` run `37356398420` pada
@@ -309,6 +347,7 @@ python scripts/check_hermes_refs.py --hermes ../hermes-ref   # butuh clone Herme
 | 8 Oktober 2026 | F2-T6 langkah 1: 14 regresi merah pada salinan `5ae95cd` dengan tes baru saja, 46 tes baru lulus sesudah implementasi; suite Python penuh 995 lulus/26 terlewati, Ruff dan mypy 164 file bersih; 21 tes Node `apps/shared` dan 18 tes `ui-tui` lulus, bundle TUI dibangun ulang | Linux, Python 3.11.16, Node 26.7.0 |
 | 8 Oktober 2026 | F2-T6 langkah 2 dan 3: regresi merah pada worktree bersih dari `1a6cdab` (2 `ImportError` + 2 kegagalan arsitektur), 20 tes baru + arsitektur lulus sesudah implementasi; suite Python penuh 1016 lulus/26 terlewati (1 gagal sudah-ada di `tests/server`), Ruff bersih, mypy 167 file bersih | Linux, Python 3.11.16 |
 | 8 Oktober 2026 | F2-T7: 10 gagal + 1 error pada salinan `1a6cdab` dengan tes baru saja, 14 lulus / 3 terlewati (tanpa Docker) sesudah implementasi; suite tool file + terminal lama 56 lulus lewat antarmuka baru; suite Python penuh 1010 lulus/29 terlewati (satu tes server gagal sebelum tugas ini), Ruff dan mypy bersih. Docker dan SSH asli belum dijalankan | Linux, Python 3.11.16 (Docker CLI ada, daemon tidak) |
+| 8 Oktober 2026 | F2-T8: 14 gagal pada salinan bercabang dengan tes baru saja tanpa penyambungan, 19 tes baru lulus sesudah implementasi; dua guard diuji terpisah (hapus penjaga `read_denied_reason`, lumpuhkan pemangkasan sesi) dan keduanya menggagalkan tesnya; suite `tests/tools`+`tests/runtime`+`tests/core` 393 lulus/13 terlewati, `tests/test_architecture.py` dan `tests/test_docs.py` lulus sesudah `python scripts/gen_docs.py` | Linux, Python 3.11.16 |
 
 Setiap task yang memverifikasi sesuatu menambah baris di tabel ini dan memindahkan butirnya
 dari "belum diverifikasi".

@@ -211,7 +211,7 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 | MCP HTTP, resources, prompts, sampling, OAuth | ⬜ | F2-T10 |
 | Analisis gambar, pembuatan gambar | ✅ | `vision_analyze` (rute `auxiliary.vision`, model utama tanpa penglihatan tak pernah menerima gambar) dan `image_generate` (`ImageProvider` + registry, plugin bawaan `image-gen-openai`, `check_fn` tanpa provider). Dijaga `tests/tools/test_vision.py` dan `tests/tools/test_image_gen.py`. Uji terhadap API asli belum dijalankan |
 | Eksekusi kode (`execute_code`) | ⬜ | F2-T9 |
-| Checkpoint sebelum menulis file | ⬜ | F2-T8 |
+| Checkpoint sebelum menulis file | ✅ | `write_file` dan `patch` menyimpan isi lama ke `<home>/checkpoints/<id sesi>/turn-<n>/` sebelum mengubah file; `/rollback [n]` dan `/checkpoints` ada di semua surface. Batasnya: perubahan lewat perintah `terminal` tidak terlihat (lihat "Celah yang diketahui"). Dijaga `tests/tools/test_checkpoints.py`. F2-T8 |
 | Otomasi browser | ⬜ | Belum dijadwalkan |
 | `send_message` lintas platform | ⬜ | F4-T8 |
 | Windows | ✅ | cmd.exe dan Git Bash: cwd, exit code, stdin, timeout/interupsi pohon proses dan penjaga path lulus di Windows nyata. CI `37499972911`, F1-T5 |
@@ -239,6 +239,11 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 - Tool file tidak dibatasi ke direktori kerja. Yang dibatasi hanya daftar path terlarang.
   Backend `docker` dan `ssh` memberi batas nyata: berkas di luar mount tidak terlihat dari
   dalam container.
+- Checkpoint file hanya mencatat tulisan lewat tool file (`write_file` dan `patch`). Perubahan
+  yang dibuat lewat perintah `terminal` — misalnya `mv`, `sed -i`, atau skrip yang mengubah
+  berkas — tidak terlihat oleh tool file, jadi tidak disimpan dan tidak bisa dikembalikan oleh
+  `/rollback`. Batas ini sengaja: menyadap seluruh sistem file berada di luar lingkup, dan
+  sandbox `docker`/`ssh` tetap cara yang benar untuk mengurung perubahan seperti itu.
 - `web_fetch` memeriksa alamat dengan me-resolve nama host lebih dulu, lalu pustaka HTTP
   me-resolve lagi saat menyambung. Server DNS yang menjawab berbeda di antara keduanya (DNS
   rebinding) bisa lolos.

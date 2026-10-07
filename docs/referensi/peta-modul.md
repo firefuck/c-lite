@@ -113,7 +113,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `brand.py` | Every product-name string in one place. |  |
 | `config.py` | Configuration: ``config.yaml`` holds settings, ``.env`` holds secrets. | `deep_merge()`, `get_path()`, `load_user_config_raw()`, `load_config()`, `config_get()`, `reset_config_cache()`, `atomic_config_update()`, `config_set()`, `config_unset()`, `migrate_config_file()`, … (+1) |
 | `config_defaults.py` | ``DEFAULT_CONFIG``: every setting, its default, and the reason for that default. |  |
-| `constants.py` | Profile-aware home resolution. | `set_home_override()`, `reset_home_override()`, `get_home_override()`, `home_scope()`, `get_default_root()`, `get_process_home()`, `get_home()`, `home_key()`, `display_home()`, `ensure_dir()`, … (+13) |
+| `constants.py` | Profile-aware home resolution. | `set_home_override()`, `reset_home_override()`, `get_home_override()`, `home_scope()`, `get_default_root()`, `get_process_home()`, `get_home()`, `home_key()`, `display_home()`, `ensure_dir()`, … (+14) |
 | `env.py` | Secrets: ``<home>/.env`` and nothing else. | `SecretSpec`, `register_secret()`, `read_env_file()`, `load_env()`, `loaded_secret_names()`, `secret_names()`, `secret_scope()`, `get_secret()`, `save_secret()`, `remove_secret()`, … (+1) |
 | `errors.py` | Exception types shared across packages. | `CliteError`, `ConfigError`, `AuthError`, `ProviderError`, `ProfileError` |
 | `io.py` | Atomic file writes. | `atomic_write_text()`, `atomic_write_json()`, `read_json()` |
@@ -218,7 +218,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `__init__.py` | Runtime: what every surface shares on top of the agent. |  |
 | `commands.py` | The slash command registry: one table every surface reads. | `CommandDef`, `resolve_command()`, `commands_for()`, `split_command()`, `command_catalog()` |
 | `factory.py` | ``build_agent``: the one place a surface turns "what the user asked for" into an ``AIAgent``. | `default_toolsets()`, `build_agent()` |
-| `maintenance.py` | Housekeeping a surface runs when it starts. | `reset_maintenance_state()`, `auto_prune_sessions()`, `run_startup_maintenance()` |
+| `maintenance.py` | Housekeeping a surface runs when it starts. | `reset_maintenance_state()`, `auto_prune_sessions()`, `run_startup_maintenance()`, `prune_checkpoints()` |
 | `presentation.py` | Small presentation helpers shared by every surface (terminal, RPC clients, gateway). | `tool_preview()`, `result_failed()` |
 | `session.py` | ``ChatSession``: one conversation as a surface sees it. | `SlashResult`, `ChatSession` |
 | `setup.py` | Applying a provider choice: shared by ``clite setup`` and the setup screens of the UIs. | `apply_setup()` |
@@ -260,6 +260,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | --- | --- | --- |
 | `__init__.py` | Tools: the registry, toolsets, the dispatch entry points and the built-in tools. |  |
 | `approval.py` | Command approval: the gate between the model and a destructive shell command. | `DangerMatch`, `ApprovalDecision`, `shell_plain()`, `own_command_names()`, `detect_self_access()`, `reset_approval_state()`, `normalize_command()`, `detect_dangerous_command()`, `detect_hardline()`, `smart_verdict()`, … (+1) |
+| `checkpoints.py` | Per-session file checkpoints, so the agent's own edits can be rolled back. | `reset_turn_tracking()`, `Change`, `TurnGroup`, `RollbackResult`, `session_dir()`, `turn_id_for()`, `record_change()`, `rollback()`, `list_checkpoints()`, `total_size()`, … (+1) |
 | `context.py` | ``ToolContext``: what a tool handler may know about the call it is serving. | `ToolContext` |
 | `dispatch.py` | The two entry points the agent loop uses: tool definitions in, tool results out. | `reset_definition_cache()`, `resolve_enabled_tools()`, `get_tool_definitions()`, `coerce_args()`, `cap_result()`, `handle_function_call()` |
 | `file_safety.py` | Path guards for the file tools. | `protected_path()`, `write_denied_reason()`, `read_denied_reason()` |
@@ -305,4 +306,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `__init__.py` | MCP (Model Context Protocol) client: tools served by external processes. |  |
 | `client.py` | A small MCP client over stdio. | `McpError`, `safe_name()`, `McpServer`, `connect_mcp_servers()`, `shutdown_mcp_servers()` |
 
-Jumlah: 169 modul.
+Jumlah: 170 modul.

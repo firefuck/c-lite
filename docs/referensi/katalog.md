@@ -61,6 +61,8 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `/sessions` |  | Session | `[count]` | queue |  | List recent sessions |
 | `/resume` |  | Session | `<id \| title>` | queue |  | Switch to an earlier session |
 | `/compress` |  | Session | `[focus]` | queue |  | Summarise older turns to free context |
+| `/rollback` |  | Session | `[turns]` | queue |  | Undo the files the agent changed in the last turn(s) |
+| `/checkpoints` |  | Session |  | queue |  | List the file checkpoints kept for this session |
 | `/stop` |  | Session |  | allow |  | Interrupt the running turn |
 | `/steer` |  | Session | `<text>` | allow |  | Guide the running turn without interrupting it |
 | `/quit` | `/exit`, `/q` | Session |  | allow | ya | Exit |
@@ -358,6 +360,7 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `server.port` | `0` |
 | `sessions.auto_prune` | `false` |
 | `sessions.retention_days` | `90` |
+| `checkpoints.max_bytes` | `100000000` |
 | `logging.level` | `"INFO"` |
 | `logging.max_size_mb` | `5` |
 | `logging.backup_count` | `3` |
