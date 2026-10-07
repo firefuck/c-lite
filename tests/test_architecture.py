@@ -53,6 +53,7 @@ LAYER_RANK = {
 # cycle) and each is a deliberate inversion; a new entry needs a reason.
 ALLOWED_UPWARD_LAZY_IMPORTS = {
     ("clite.tools.builtin.delegate", "agent"),  # the tool is a thin wrapper over agent.delegation
+    ("clite.tools.builtin.vision", "agent"),  # reuses agent.attachments to load/encode the image
     ("clite.tools.builtin.cronjob", "cron"),  # the tool edits the job store
     ("clite.plugins.context", "gateway"),  # ctx.register_platform()
     ("clite.cron.scheduler", "runtime"),  # a job runs through runtime.factory.build_agent
@@ -137,7 +138,7 @@ def test_bundled_plugins_use_only_the_plugin_api():
     may: ``core``, the provider profile API and the hook bus. Everything else reaches a plugin
     through the ``ctx`` it is handed, never through an import of the agent's internals."""
     allowed = ("clite.core.", "clite.providers.base", "clite.providers.registry", "clite.providers.transports",
-               "clite.plugins.hooks", "clite.tools.web_search")
+               "clite.plugins.hooks", "clite.tools.web_search", "clite.tools.image_gen")
     for path in sorted((PACKAGE / "bundled").rglob("*.py")):
         for name, _, line in _internal_imports(path):
             assert name.startswith(allowed), f"{path.relative_to(REPO_ROOT)}:{line} imports {name}"
@@ -158,6 +159,8 @@ READ_INDIRECTLY: dict[str, tuple[str, str]] = {
     "auxiliary.title_generation.model": ("agent/title.py", '"title_generation"'),
     "auxiliary.approval.provider": ("tools/approval.py", '"approval", [{"role": "user"'),
     "auxiliary.approval.model": ("tools/approval.py", '"approval", [{"role": "user"'),
+    "auxiliary.vision.provider": ("tools/builtin/vision.py", 'resolve_auxiliary_route("vision"'),
+    "auxiliary.vision.model": ("tools/builtin/vision.py", 'resolve_auxiliary_route("vision"'),
     "skills.external_dirs": ("skills/catalog.py", '.get("external_dirs")'),
     "skills.disabled": ("skills/catalog.py", '.get("disabled")'),
     "plugins.entries": ("plugins/context.py", 'f"plugins.entries.{self.plugin_id}.settings"'),

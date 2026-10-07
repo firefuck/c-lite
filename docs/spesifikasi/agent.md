@@ -178,7 +178,7 @@ Setiap butir dijaga oleh tes di `tests/agent/`.
 | Judul sesi otomatis | ✅ | |
 | Estimasi token | 🟡 | Perkiraan karakter/4 di `context/tokens.py`. Angka dari provider dipakai bila ada |
 | Estimasi biaya | ⬜ | Kolom `estimated_cost_usd` ada, belum diisi: F2-T3 |
-| Input gambar | ✅ | `attachments.py`: bentuk konten, batas ukuran/jumlah, pengecilan, penyaringan model tanpa penglihatan; `clite chat --image` dan `/image`. Dijaga `tests/agent/test_attachments.py`, `test_loop.py`, `tests/runtime/test_session_and_slash.py`. Step 2 (analisis) dan 3 (pembuatan): F2-T6 |
+| Input gambar | ✅ | `attachments.py`: bentuk konten, batas ukuran/jumlah, pengecilan, penyaringan model tanpa penglihatan; `clite chat --image` dan `/image`. Dijaga `tests/agent/test_attachments.py`, `test_loop.py`, `tests/runtime/test_session_and_slash.py`. Model bantu untuk melihat ada sebagai tool `vision_analyze` (spesifikasi tools) |
 | Review latar belakang (memori dan skill) | ⬜ | F2-T12 |
 | Checkpoint dan rollback file | ⬜ | F2-T8 |
 | Kunci file memori di Windows | ✅ | `core.locking` memakai `fcntl`/`msvcrt`; tes dua proses dan mutasi memori lulus pada Linux/Windows. CI `37499972911`, F1-T5 |

@@ -84,6 +84,17 @@ itu tool, sesi, atau giliran.
   `responses` menjadi `input_image`. Dijaga `tests/providers/test_transports.py` dan
   `tests/providers/test_client.py` (streaming dan tidak).
 
+**Penglihatan model**
+- `ProviderProfile.supports_vision(model)` menyatakan apakah sebuah model menerima bagian
+  gambar. Profil yang seluruh modelnya menerima gambar tidak perlu mengisi apa pun. Profil
+  yang model penglihatannya adalah id terpisah mengisi `vision_models` (daftar izin); profil
+  yang model teksnya berbagi awalan id mengisi `no_vision_prefixes` (daftar tolak). Contoh
+  terisi: `deepseek` (hanya `deepseek-v4-flash-vision-exp` yang menerima gambar; sumber
+  dicatat di docstring profil).
+- Agent memakai method ini untuk menahan gambar dari model tanpa penglihatan
+  (`model.vision` di config menimpanya), dan `vision_analyze` memakainya untuk memastikan
+  rute `auxiliary.vision` benar-benar bisa melihat. Dijaga `tests/tools/test_vision.py`.
+
 **Panggilan**
 - `cancel` (sebuah `threading.Event`) membatalkan panggilan dari thread lain dengan menutup
   soket. Pemanggil menerima `InterruptedError`.

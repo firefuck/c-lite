@@ -180,6 +180,12 @@ class PluginContext:
         web_search.register_web_search_provider(name, factory)
         self._record("web_search_provider", name, lambda: web_search._PROVIDERS.pop(name, None))
 
+    def register_image_provider(self, name: str, factory: Callable[[], Any]) -> None:
+        from clite.tools import image_gen
+
+        image_gen.register_image_provider(name, factory)
+        self._record("image_provider", name, lambda: image_gen._PROVIDERS.pop(name, None))
+
     def register_platform(self, name: str, factory: Callable[..., Any]) -> None:
         """Add a gateway platform adapter. ``factory(config, runner)`` returns the adapter."""
         from clite.gateway.platforms import base

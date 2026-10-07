@@ -63,6 +63,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     # web_fetch refuses loopback, private and link-local addresses unless this is true.
     # web.search.provider selects a search backend plugin (empty = first available).
     "web": {"allow_private_urls": False, "timeout": 30, "search": {"provider": ""}},
+    # image.provider selects an image-generation backend plugin (empty = first available).
+    "image": {"provider": ""},
     # Images the user attaches to a message. `max_bytes` is the ceiling on one image after
     # downscaling; `max_images` is the ceiling per message; `max_edge` is the longest side in
     # pixels an oversized image is shrunk to (needs the `images` extra, Pillow).
@@ -84,6 +86,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "compression": {"provider": "main", "model": ""},
         "title_generation": {"provider": "main", "model": ""},
         "approval": {"provider": "main", "model": ""},
+        # The model that reads images for `vision_analyze` when the conversation's own model
+        # cannot see. "main" reuses the conversation route; point it at a vision model when the
+        # main model has no eyes.
+        "vision": {"provider": "main", "model": ""},
     },
     # ── Display ──────────────────────────────────────────────────────────────────────────
     "display": {

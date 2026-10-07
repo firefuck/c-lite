@@ -823,3 +823,54 @@ def test_a_vision_capable_model_keeps_the_image_part(make_agent):
     assert any(part.get("type") == "image_url" for part in parts)
     assert "cannot see images" not in str(parts)
 
+
+def test_a_blind_model_reads_an_image_through_vision_analyze_and_never_sees_it(make_agent, tmp_path):
+    """The main model has no eyes, so it calls ``vision_analyze``. The picture goes on the wire
+    only on the ``auxiliary.vision`` route; the main model's own requests stay text, and it gets
+    the helper's answer back as a tool result."""
+    import base64
+
+    from clite.tools.builtin import vision as _vision  # noqa: F401 - registers the tool
+
+    profile = ProviderProfile(name="mock", api_mode="mock", auth_type="none",
+                              no_vision_prefixes=("blind",))
+    route = mock_route("blind-model", profile=profile)
+    config = {"model": {"provider": "mock"},
+              "auxiliary": {"vision": {"provider": "main", "model": "helper-vision"}}}
+    image_bytes = b"\x89PNG\r\n\x1a\n" + b"picture"
+    image_path = tmp_path / "picture.png"
+    image_path.write_bytes(image_bytes)
+
+    agent, client = make_agent(
+        [
+            tool_call_response(("vision_analyze", {"path": str(image_path), "prompt": "describe"})),
+            text_response("It is a red square."),  # the auxiliary model's answer
+            text_response("It is a red square."),  # the main model's answer, from the tool result
+        ],
+        route=route, config=config, enabled_toolsets=["vision"],
+    )
+    content = [{"type": "text", "text": "what is this?"},
+               {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64.b64encode(image_bytes).decode()}"}}]
+    agent.run_conversation(content)
+
+    # Nothing the main (blind) model was sent carries an image part. The auxiliary call, which
+    # legitimately carries the picture, is a different model and is checked separately below.
+    for call in client.calls:
+        if call["route"].model == "helper-vision":
+            continue
+        for message in call["messages"]:
+            parts = message.get("content")
+            if isinstance(parts, list):
+                assert all(part.get("type") != "image_url" for part in parts)
+
+    # The auxiliary call carried the picture, addressed to the auxiliary model.
+    aux_calls = [call for call in client.calls if call["route"].model == "helper-vision"]
+    assert len(aux_calls) == 1
+    aux_parts = aux_calls[0]["messages"][-1]["content"]
+    assert any(part.get("type") == "image_url" for part in aux_parts if isinstance(part, dict))
+
+    # The main model received the helper's answer as a tool result, as text.
+    last = client.calls[-1]["messages"]
+    tool_results = [m for m in last if m.get("role") == "tool"]
+    assert tool_results and any("red square" in str(m.get("content")) for m in tool_results)
+

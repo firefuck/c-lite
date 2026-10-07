@@ -23,6 +23,8 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `process` | `terminal` | never | Manage background processes started with terminal(background=true). |
 | `terminal` | `terminal` | never | Run a shell command. |
 | `todo` | `todo` | never | Read or update your task list for the current session. |
+| `image_generate` | `vision` | never | Create an image from a text description (and optionally edit an existing one) and save it to a file. |
+| `vision_analyze` | `vision` | safe | Look at an image file and return a description written by a helper model that can see. |
 | `web_fetch` | `web` | safe | Fetch a URL and return its text content (HTML is converted to plain text with links kept as `text (url)`). |
 | `web_search` | `web` | safe | Search the web for a query and return results: title, URL, and a short snippet for each. |
 
@@ -33,6 +35,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `terminal` | Run shell commands and manage background processes | `terminal`, `process` |
 | `file` | Read, write, patch and search files | `read_file`, `write_file`, `patch`, `search_files` |
 | `web` | Search and fetch web pages as text | `web_fetch`, `web_search` |
+| `vision` | Look at images through a helper model | `vision_analyze`, `image_generate` |
 | `todo` | Task list for multi-step work | `todo` |
 | `memory` | Persistent notes across sessions | `memory` |
 | `skills` | List, read and maintain skills | `skills_list`, `skill_view`, `skill_manage` |
@@ -40,9 +43,9 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `clarify` | Ask the user a question | `clarify` |
 | `delegation` | Spawn subagents with isolated context | `delegate_task` |
 | `cronjob` | Schedule recurring or one-off agent tasks | `cronjob` |
-| `clite-cli` | Everything, for the interactive terminal | `terminal`, `process`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob` |
-| `clite-gateway` | Messaging platforms | `terminal`, `process`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob` |
-| `clite-cron` | Scheduled runs | `terminal`, `process`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `delegate_task` |
+| `clite-cli` | Everything, for the interactive terminal | `terminal`, `process`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob` |
+| `clite-gateway` | Messaging platforms | `terminal`, `process`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob` |
+| `clite-cron` | Scheduled runs | `terminal`, `process`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `delegate_task` |
 | `clite-subagent` | Delegated workers | `terminal`, `process`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `todo`, `skills_list`, `skill_view`, `skill_manage`, `session_search` |
 
 ## Slash command
@@ -230,6 +233,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | Plugin | Jenis | Deskripsi |
 | --- | --- | --- |
 | `audit-log` | standalone | Record every tool call to logs/tool-audit.jsonl and show recent ones with /audit |
+| `image-gen-openai` | backend | Image generation via the OpenAI Images API (requires OPENAI_API_KEY) |
 | `web-search-ddg` | backend | Web search via the DuckDuckGo HTML endpoint (no API key required) |
 | `web-search-tavily` | backend | Web search via the Tavily API (requires TAVILY_API_KEY) |
 
@@ -278,6 +282,7 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `web.allow_private_urls` | `false` |
 | `web.timeout` | `30` |
 | `web.search.provider` | `""` |
+| `image.provider` | `""` |
 | `attachments.max_bytes` | `5000000` |
 | `attachments.max_images` | `8` |
 | `attachments.max_edge` | `1568` |
@@ -295,6 +300,8 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `auxiliary.title_generation.model` | `""` |
 | `auxiliary.approval.provider` | `"main"` |
 | `auxiliary.approval.model` | `""` |
+| `auxiliary.vision.provider` | `"main"` |
+| `auxiliary.vision.model` | `""` |
 | `display.streaming` | `true` |
 | `display.show_reasoning` | `false` |
 | `display.tool_progress` | `"all"` |

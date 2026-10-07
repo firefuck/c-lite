@@ -146,6 +146,25 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 - A keyed provider registers its API key with ``register_secret`` so it is stripped from
   commands the agent runs and redacted from what the model reads.
 
+**`vision_analyze` dan `image_generate`**
+
+- `vision_analyze` mengirim gambar ke rute `auxiliary.vision`, untuk model utama yang tidak
+  menerima gambar. Model utama tidak pernah menerima bagian gambar; ia hanya menerima teks
+  jawaban model bantu sebagai hasil tool. Rute itu memakai profil provider; modelnya harus
+  menerima gambar (`ProviderProfile.supports_vision`). Bila rutenya buta, tool menolak dengan
+  pesan yang menyebut cara mengarahkan `auxiliary.vision` ke model berpenglihatan, bukan
+  mengirim gambar ke model yang akan menolaknya.
+- `image_generate` membuat gambar lewat backend yang bisa dipasang (`ImageProvider` in
+  ``tools/image_gen.py``); sebuah plugin mendaftarkannya dengan
+  ``ctx.register_image_provider(name, factory)``. Tool hanya ditawarkan bila ada provider aktif
+  (``check_fn``), jadi model tidak pernah diberi tahu ia bisa menggambar tanpa backend.
+- Satu plugin bawaan berjenis ``backend``: ``image-gen-openai`` (OpenAI Images API, butuh
+  ``OPENAI_API_KEY``). Kuncinya didaftarkan ``register_secret``. ``image.provider`` memilih
+  backend saat lebih dari satu terpasang.
+- Provider mengembalikan byte gambar dan media typenya. Tool menyimpannya di
+  ``<cwd>/generated-images/`` dan mengembalikan path-nya (percakapan membawa teks, bukan
+  gambar). Setiap path melewati ``write_denied_reason`` seperti tulisan file lain.
+
 **MCP**
 - Tiap server menjadi toolset `mcp-<server>` dengan tool `mcp_<server>_<tool>`.
 - Server yang rusak dilewati, bukan fatal. Server yang mati melapor, tidak menggantung.
@@ -168,7 +187,7 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 | `delegate_task`, `cronjob` | ✅ | |
 | MCP stdio (tools) | ✅ | Diuji juga terhadap server dari SDK MCP resmi |
 | MCP HTTP, resources, prompts, sampling, OAuth | ⬜ | F2-T10 |
-| Analisis gambar, pembuatan gambar | ⬜ | F2-T6 |
+| Analisis gambar, pembuatan gambar | ✅ | `vision_analyze` (rute `auxiliary.vision`, model utama tanpa penglihatan tak pernah menerima gambar) dan `image_generate` (`ImageProvider` + registry, plugin bawaan `image-gen-openai`, `check_fn` tanpa provider). Dijaga `tests/tools/test_vision.py` dan `tests/tools/test_image_gen.py`. Uji terhadap API asli belum dijalankan |
 | Eksekusi kode (`execute_code`) | ⬜ | F2-T9 |
 | Checkpoint sebelum menulis file | ⬜ | F2-T8 |
 | Otomasi browser | ⬜ | Belum dijadwalkan |
