@@ -116,6 +116,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `env.py` | Secrets: ``<home>/.env`` and nothing else. | `SecretSpec`, `register_secret()`, `read_env_file()`, `load_env()`, `loaded_secret_names()`, `secret_names()`, `secret_scope()`, `get_secret()`, `save_secret()`, `remove_secret()`, … (+1) |
 | `errors.py` | Exception types shared across packages. | `CliteError`, `ConfigError`, `AuthError`, `ProviderError`, `ProfileError` |
 | `io.py` | Atomic file writes. | `atomic_write_text()`, `atomic_write_json()`, `read_json()` |
+| `locking.py` | Cross-process file locks that lock on POSIX and on Windows. | `exclusive_lock()` |
 | `logging.py` | File logging under ``<home>/logs``: ``agent.log`` (INFO+) and ``errors.log`` (WARNING+). | `setup_logging()`, `reset_logging()` |
 | `profiles.py` | Profiles: fully separate homes under ``<default root>/profiles/<name>``. | `ProfileInfo`, `validate_profile_name()`, `get_sticky_profile()`, `get_active_profile_name()`, `list_profiles()`, `profile_exists()`, `create_profile()`, `delete_profile()`, `set_sticky_profile()`, `apply_profile_override()` |
 | `redact.py` | Redaction: keep credentials out of transcripts and logs. | `redact()` |
@@ -295,4 +296,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `__init__.py` | MCP (Model Context Protocol) client: tools served by external processes. |  |
 | `client.py` | A small MCP client over stdio. | `McpError`, `safe_name()`, `McpServer`, `connect_mcp_servers()`, `shutdown_mcp_servers()` |
 
-Jumlah: 159 modul.
+Jumlah: 160 modul.

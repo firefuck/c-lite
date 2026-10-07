@@ -101,6 +101,14 @@ def test_every_profile_and_the_pairing_store_are_guarded_like_the_active_home(ct
     assert read_denied_reason(other / "config.yaml") is None  # policy, not credentials: readable
 
 
+def test_profiles_under_an_overridden_home_are_guarded(tmp_path):
+    from clite.core.constants import home_scope
+
+    with home_scope(tmp_path / "custom-home"):
+        assert read_denied_reason(tmp_path / "custom-home" / "profiles" / "work" / ".env")
+        assert write_denied_reason(tmp_path / "custom-home" / "profiles" / "work" / "config.yaml")
+
+
 def test_credential_files_cannot_be_read(ctx, clite_home):
     (clite_home / ".env").write_text("OPENROUTER_API_KEY=sk-or-very-secret-value-123456\n")
     result = json.loads(read_file_tool({"path": str(clite_home / ".env")}, ctx))

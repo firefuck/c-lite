@@ -21,13 +21,9 @@ from typing import Any
 from clite.core.config import config_get
 from clite.core.constants import ensure_dir, get_cron_dir, home_key
 from clite.core.io import atomic_write_json, atomic_write_text, read_json
+from clite.core.locking import exclusive_lock
 from clite.core.threats import describe, scan_text
 from clite.cron.schedule import KIND_ONCE, Schedule, ScheduleError, next_run, parse_schedule
-
-try:
-    import fcntl
-except ImportError:  # Windows
-    fcntl = None  # type: ignore[assignment]
 
 MAX_PROMPT_CHARS = 20_000
 UPDATABLE_FIELDS = frozenset({"name", "prompt", "deliver", "model", "provider", "toolsets", "skills", "repeat"})
@@ -73,16 +69,8 @@ class JobStore:
     @contextlib.contextmanager
     def _locked(self):
         ensure_dir(self.directory)
-        with self._lock:
-            if fcntl is None:
-                yield
-                return
-            with open(self.directory / ".jobs.lock", "a+") as handle:  # noqa: PTH123
-                fcntl.flock(handle, fcntl.LOCK_EX)
-                try:
-                    yield
-                finally:
-                    fcntl.flock(handle, fcntl.LOCK_UN)
+        with self._lock, exclusive_lock(self.directory / ".jobs.lock"):
+            yield
 
     def _load(self) -> list[dict[str, Any]]:
         data = read_json(self.path, {})

@@ -48,6 +48,7 @@ logger = logging.getLogger("clite.tools.approval")
 
 # (regex, key, description). The key is what gets remembered when the user approves.
 DANGEROUS_PATTERNS: list[tuple[str, str, str]] = [
+    (r"\b(?:rd|rmdir)\s+/s\b|\b(?:del|erase)\s+", "windows_delete", "delete files or directories"),
     (r"\brm\s+(-[a-zA-Z]*[rRf][a-zA-Z]*\s+)+", "rm_recursive_or_force", "recursive or forced delete"),
     (r"\brm\s+--(recursive|force)\b", "rm_recursive_or_force", "recursive or forced delete"),
     (r"\bfind\b.*\s-delete\b", "find_delete", "find with -delete"),
@@ -202,9 +203,16 @@ _HOME_WORD = re.compile(r"^(?:~|\$HOME)(?=/|$)")
 _PWD_WORD = re.compile(r"^\$PWD(?=/|$)")
 
 
+def _path_text(path: str) -> str:
+    path = path.replace("\\", "/")
+    if re.match(r"^[A-Za-z]:/", path):
+        path = "/" + path.lower()
+    return posixpath.normpath(path)
+
+
 def _user_home() -> str | None:
     try:
-        return posixpath.normpath(str(Path.home()))
+        return _path_text(str(Path.home()))
     except RuntimeError:  # no HOME and no passwd entry: nothing to compare against
         return None
 
@@ -212,6 +220,9 @@ def _user_home() -> str | None:
 def _absolute(word: str, where: str | None) -> str | None:
     """``word`` as a normalised absolute path, read from the directory ``where``; ``None``
     when only a running shell could tell."""
+    word = word.replace("\\", "/")
+    if re.match(r"^[A-Za-z]:/", word):
+        word = "/" + word.lower()
     home = _user_home()
     if home:
         word = _HOME_WORD.sub(lambda _match: home, word)
@@ -244,7 +255,7 @@ def _recursive_delete_victim(text: str, cwd: str = "") -> str | None:
     root, the home directory, or a system directory. Targets are read the way the shell
     resolves them (``~``, ``$HOME``, ``..``, a trailing ``/*``), from ``cwd`` when it is
     known, following any ``cd`` earlier on the same command line."""
-    where: str | None = posixpath.normpath(cwd) if cwd else None
+    where: str | None = _path_text(cwd) if cwd else None
     for words in _simple_commands(text):
         if words[0] in ("cd", "pushd"):
             target = words[1] if len(words) > 1 else "~"
@@ -348,7 +359,9 @@ def _home_spellings() -> list[str]:
     spellings = {f"~/{HOME_DIRNAME}", f"$HOME/{HOME_DIRNAME}", f"${{HOME}}/{HOME_DIRNAME}", f"${HOME_ENV}", f"${{{HOME_ENV}}}"}
     for home in (get_home(), get_default_root()):
         spellings.update({str(home), str(home.resolve(strict=False))})
-    return sorted(spellings)
+    spellings.update({f"%{HOME_ENV}%", f"%LOCALAPPDATA%/{HOME_DIRNAME.lstrip('.')}",
+                      f"%USERPROFILE%/{HOME_DIRNAME}"})
+    return sorted({spelling.replace("\\", "/") for spelling in spellings})
 
 
 _HOME_MARK = "\x00agent-home\x00"  # normalize_command drops NUL bytes, so a command cannot contain this
@@ -428,7 +441,9 @@ def detect_self_access(command: str, cwd: str = "") -> DangerMatch | None:
     the agent's own management command, it names a path into one of the agent's homes that is
     (or could expand to) a protected file or a directory holding one, or it runs from inside
     such a directory."""
-    for text in _readings(command):
+    # Windows backslashes are separators, not POSIX escapes. Keep both readings.
+    readings = _readings(command) + [normalize_command(command).replace("\\", "/").translate(_QUOTES)]
+    for text in readings:
         if _own_cli().search(text) or _runs_own_cli(text) or _reaches_into_agent_home(text, cwd):
             return SELF_ACCESS
     return None
@@ -467,7 +482,12 @@ def detect_hardline(command: str, cwd: str = "") -> str | None:
         for pattern, description in _COMPILED_HARDLINE:
             if pattern.search(text):
                 return description
-    return _recursive_delete_victim(shell_plain(command), cwd)
+    # Preserve Windows separators as well as the POSIX escape reading.
+    for text in (shell_plain(command), normalize_command(command).replace("\\", "/").translate(_QUOTES)):
+        victim = _recursive_delete_victim(text, cwd)
+        if victim:
+            return victim
+    return None
 
 
 def _non_interactive_policy(ctx: ToolContext) -> str:

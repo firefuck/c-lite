@@ -251,7 +251,7 @@ Ditulis apa adanya supaya tidak ada yang mengandalkan pagar yang tidak ada.
 | `web_fetch` me-resolve nama dua kali | DNS rebinding terhadap `web_fetch` bisa lolos | - |
 | Token server berumur sepanjang proses, tanpa pembatasan laju | Token yang bocor berlaku sampai server dimatikan | Akses jarak jauh yang aman: F5-T6 |
 | Tidak ada batas ukuran pesan RPC, tidak ada pembatasan laju per pengguna gateway | Klien yang sudah diizinkan bisa membebani proses | - |
-| Windows belum pernah dijalankan | Izin file `.env` dan pemutusan grup proses belum terverifikasi di sana | F1-T5 |
+| Windows: batas verifikasi | ACL `.env` dan pemutusan pohon proses sudah lulus CI `37499972911`; REPL manual belum dicoba | F1-T5 selesai |
 
 ## Aturan untuk kode baru
 

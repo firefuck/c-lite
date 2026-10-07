@@ -72,7 +72,7 @@ def test_clite_tui_runs_a_turn_with_the_packaged_bundle(clite_home, tmp_path):
            "NO_COLOR": "1"}
     result = subprocess.run(
         [sys.executable, "-m", "clite", "tui", "--cwd", str(tmp_path)], input="hello bundle\n/quit\n",
-        capture_output=True, text=True, timeout=120, env=env,
+        capture_output=True, text=True, encoding="utf-8", timeout=120, env=env,
     )
     assert result.returncode == 0, result.stderr
     assert "You said: hello bundle" in result.stdout

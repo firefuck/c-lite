@@ -136,7 +136,10 @@ def test_platform_and_disabled_filters(skills_dir, clite_home):
     _write(skills_dir, "switched-off")
     _write(skills_dir, "normal")
     (clite_home / "config.yaml").write_text("skills:\n  disabled: [switched-off]\n")
-    assert [skill.name for skill in discover_skills()] == ["normal"]
+    import sys
+
+    expected = ["normal", "windows-only"] if sys.platform == "win32" else ["normal"]
+    assert [skill.name for skill in discover_skills()] == expected
     assert get_skill("switched-off") is not None  # still resolvable by name, e.g. to re-enable
 
 

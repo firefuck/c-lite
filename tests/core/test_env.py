@@ -1,7 +1,6 @@
 """Secrets: .env is the profile's source of truth, and a bound scope never leaks."""
 
 import os
-import stat
 
 import pytest
 
@@ -17,13 +16,13 @@ def test_env_file_overrides_a_stale_shell_export(monkeypatch):
     assert "EXAMPLE_KEY" in env.loaded_secret_names()
 
 
-def test_save_replaces_in_place_and_restricts_permissions():
+def test_save_replaces_in_place_and_restricts_permissions(assert_private_file):
     get_env_path().write_text("# comment\nA=1\nB=2\n")
     env.save_secret("A", "new value with spaces")
     env.save_secret("C", "3")
     assert env.read_env_file() == {"A": "new value with spaces", "B": "2", "C": "3"}
     assert get_env_path().read_text().startswith("# comment\n")
-    assert stat.S_IMODE(get_env_path().stat().st_mode) == 0o600
+    assert_private_file(get_env_path())
 
 
 def test_remove_reports_whether_anything_changed():

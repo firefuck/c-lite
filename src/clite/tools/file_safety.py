@@ -50,7 +50,10 @@ def protected_path(path: str | os.PathLike[str]) -> str | None:
     inside = []
     for home in {get_home(), get_default_root()}:
         if _is_within(target, home):
-            inside.append(target.relative_to(home.resolve(strict=False)).parts)
+            parts = target.relative_to(home.resolve(strict=False)).parts
+            inside.append(parts)
+            if len(parts) >= 3 and parts[0].lower() == "profiles":
+                inside.append(parts[2:])
     if _is_within(target, get_profiles_root()):
         inside.append(target.relative_to(get_profiles_root().resolve(strict=False)).parts[1:])
     names = {"/".join(parts).lower() for parts in inside}

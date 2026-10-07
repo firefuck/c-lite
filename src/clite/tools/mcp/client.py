@@ -78,6 +78,7 @@ class McpServer:
         self._lock = threading.Lock()
         self._write_lock = threading.Lock()
         self._stderr_tail: list[str] = []
+        self._stderr_reader: threading.Thread | None = None
 
     # ── process and wire ─────────────────────────────────────────────────────────────────
 
@@ -94,7 +95,8 @@ class McpServer:
         except OSError as exc:
             raise McpError(f"could not start mcp server {self.name!r}: {exc}") from exc
         threading.Thread(target=self._read_stdout, name=f"clite-mcp-{self.name}", daemon=True).start()
-        threading.Thread(target=self._read_stderr, name=f"clite-mcp-{self.name}-err", daemon=True).start()
+        self._stderr_reader = threading.Thread(target=self._read_stderr, name=f"clite-mcp-{self.name}-err", daemon=True)
+        self._stderr_reader.start()
 
         result = self.request("initialize", {
             "protocolVersion": PROTOCOL_VERSION, "capabilities": {},
@@ -124,9 +126,12 @@ class McpServer:
                 process.stdin.write(json.dumps(message, ensure_ascii=False) + "\n")
                 process.stdin.flush()
             except OSError as exc:
-                raise McpError(f"mcp server {self.name!r} closed its input: {exc}") from exc
+                raise McpError(f"mcp server {self.name!r} closed its input: {exc}" + self._stderr_hint()) from exc
 
     def _stderr_hint(self) -> str:
+        # stdout EOF/process exit can precede the stderr reader getting its last timeslice.
+        if self._stderr_reader is not None:
+            self._stderr_reader.join(timeout=1)
         return f" (stderr: {' | '.join(self._stderr_tail[-3:])})" if self._stderr_tail else ""
 
     def notify(self, method: str, params: dict[str, Any] | None = None) -> None:
@@ -259,6 +264,8 @@ class McpServer:
             process.wait(timeout=2)
         except (OSError, subprocess.TimeoutExpired):
             process.kill()
+        if self._stderr_reader is not None:
+            self._stderr_reader.join(timeout=1)
         self.process = None
 
 

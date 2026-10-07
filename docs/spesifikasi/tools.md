@@ -152,7 +152,7 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 | Checkpoint sebelum menulis file | ⬜ | F2-T8 |
 | Otomasi browser | ⬜ | Belum dijadwalkan |
 | `send_message` lintas platform | ⬜ | F4-T8 |
-| Windows | 🟡 | Kode jalurnya ada (`taskkill`, `cmd.exe`), belum pernah dijalankan: F1-T5 |
+| Windows | ✅ | cmd.exe dan Git Bash: cwd, exit code, stdin, timeout/interupsi pohon proses dan penjaga path lulus di Windows nyata. CI `37499972911`, F1-T5 |
 
 ## Yang sengaja berbeda dari Hermes
 

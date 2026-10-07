@@ -20,7 +20,19 @@ def test_override_wins_and_is_restored(clite_home, tmp_path):
 
 def test_default_root_ignores_override_and_environment(clite_home, tmp_path):
     with constants.home_scope(tmp_path / "elsewhere"):
-        assert constants.get_default_root() == Path.home() / ".clite"
+        assert constants.get_default_root() == clite_home
+
+
+def test_windows_default_uses_localappdata_and_falls_back_inside_user_home(monkeypatch, tmp_path):
+    import sys
+
+    from clite.core.brand import HOME_DIRNAME
+
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "local-data"))
+    assert constants.get_default_root() == tmp_path / "local-data" / HOME_DIRNAME.lstrip(".")
+    monkeypatch.delenv("LOCALAPPDATA")
+    assert constants.get_default_root() == Path.home() / "AppData" / "Local" / HOME_DIRNAME.lstrip(".")
 
 
 def test_home_key_is_stable_for_equivalent_paths(tmp_path):
@@ -30,8 +42,8 @@ def test_home_key_is_stable_for_equivalent_paths(tmp_path):
 
 
 def test_display_home_hides_the_user_directory(clite_home):
-    assert constants.display_home() == "~/.clite"
-    assert constants.display_home(Path("/srv/agent")) == "/srv/agent"
+    assert constants.display_home() == "~/" + clite_home.relative_to(Path.home()).as_posix()
+    assert constants.display_home(Path("/srv/agent")) == str(Path("/srv/agent"))
 
 
 def test_bundled_dir_ships_with_the_package():
