@@ -89,7 +89,17 @@ sepadan), `providers/base.py`, `agent/bedrock_adapter.py`, `agent/vertex_adapter
 - [ ] `test_vendors_are_named_only_in_their_provider_profiles` tetap lulus: tidak ada nama
       provider baru di luar direktori profilnya.
 - [ ] `clite setup` menampilkan provider baru tanpa perubahan di kode setup.
-- [ ] Tabel status per profil jujur tentang mana yang sudah dipanggil sungguhan.
+- [x] Tabel status per profil jujur tentang mana yang sudah dipanggil sungguhan.
+
+**Kemajuan 7 Oktober 2026 — parsial.** Gelombang pertama menambah `xai`, `groq`, `mistral`,
+`together`, `fireworks`, `nvidia`, `zai`, `moonshot`, `lmstudio`, dan `vllm`.
+`tests/providers/test_additional_profiles.py` menjaga resolusi rute, kunci/origin, bentuk
+permintaan streaming dan nonstreaming terhadap `fake_api`, serta menu `clite setup`.
+Model dipilih pengguna, bukan default diam-diam. Profil lokal tidak mengarang katalog atau
+ukuran konteks deployment. K2.6 menghilangkan suhu yang dibatasi oleh mode penalarannya.
+Azure OpenAI, AWS Bedrock, dan Google Vertex belum dikerjakan; checklist menyeluruh tetap
+terbuka. Tidak ada API asli yang dipanggil. Clone rujukan Hermes tidak tersedia; sumber
+resmi yang dibaca dan tanggalnya dicatat di docstring tiap profil.
 
 **Ukuran.** M
 

@@ -99,7 +99,7 @@ dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
 | Task | Judul | Ukuran | Bergantung pada | Status |
 |---|---|---|---|---|
 | F2-T1 | Transport Responses API | M | F1-T2 | 🟡 |
-| F2-T2 | Profil provider tambahan | M | F1-T2 | ⬜ |
+| F2-T2 | Profil provider tambahan | M | F1-T2 | 🟡 |
 | F2-T3 | Harga dan estimasi biaya | S | F1-T2 | ⬜ |
 | F2-T4 | Patch toleran dan patch multi-file | M | - | ⬜ |
 | F2-T5 | Pencarian web | M | - | ⬜ |
