@@ -276,6 +276,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | --- | --- | --- |
 | `__init__.py` | Built-in tools. |  |
 | `clarify.py` | ``clarify``: ask the user a question and wait for the answer. | `clarify_tool()` |
+| `code.py` | ``execute_code``: run a short Python program inside the session's execution environment. | `execute_code_tool()` |
 | `cronjob.py` | ``cronjob``: let the agent schedule its own future work. | `cronjob_tool()` |
 | `delegate.py` | ``delegate_task``: hand focused work to subagents with isolated context. | `delegate_tool()` |
 | `file_tools.py` | File tools: read_file, write_file, patch, search_files. | `read_file_tool()`, `write_file_tool()`, `patch_tool()`, `search_files_tool()` |
@@ -306,4 +307,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `__init__.py` | MCP (Model Context Protocol) client: tools served by external processes. |  |
 | `client.py` | A small MCP client over stdio. | `McpError`, `safe_name()`, `McpServer`, `connect_mcp_servers()`, `shutdown_mcp_servers()` |
 
-Jumlah: 170 modul.
+Jumlah: 171 modul.

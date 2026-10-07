@@ -440,10 +440,28 @@ tanpa merangkai banyak perintah shell.
 **Rujukan Hermes.** `tools/code_execution_tool.py`, `tools/code_execution_env.py`.
 
 **Selesai bila.**
-- [ ] Tes: kode yang melewati batas waktu dimatikan beserta proses anaknya.
-- [ ] Tes: kode yang memuat pola berbahaya meminta persetujuan, sama seperti di `terminal`.
-- [ ] Tes: variabel kredensial tidak terlihat dari dalam kode.
-- [ ] Baris `execute_code` di spesifikasi tools menjadi ✅.
+- [x] Tes: kode yang melewati batas waktu dimatikan beserta proses anaknya.
+- [x] Tes: kode yang memuat pola berbahaya meminta persetujuan, sama seperti di `terminal`.
+- [x] Tes: variabel kredensial tidak terlihat dari dalam kode.
+- [x] Baris `execute_code` di spesifikasi tools menjadi ✅.
+
+**Kemajuan 8 Oktober 2026.** `src/clite/tools/builtin/code.py` menambah tool `execute_code`,
+yang menjalankan program Python pendek lewat lingkungan eksekusi sesi (`BaseEnvironment`) yang
+sama dengan `terminal`, jadi di backend `docker`/`ssh` ia mewarisi sandbox itu. Program sampai
+ke interpreter lewat stdin (`python -`), sehingga teks model tidak masuk ke baris perintah;
+runner kecil yang ditanam menandai setiap tulisan dengan stream asalnya dan membasuhnya saat
+itu juga, jadi `stdout` dan `stderr` kembali terpisah dan keluaran yang sempat tercetak tetap
+terlihat walau program dimatikan karena batas waktu. Teks kode lewat `check_command` yang sama
+seperti perintah: pola `script_delete` di `approval.py` diperluas supaya `shutil.rmtree`,
+`os.remove`/`unlink`, dan `subprocess.run(["rm", …])` yang ditulis langsung dalam Python ikut
+ditandai, bukan hanya setelah `python -c`. Kredensial dibuang lewat `build_child_env` dan
+keluaran diredaksi. Tool terdaftar di toolset `terminal`. Dijaga `tests/tools/test_code.py`
+(23 tes). Bukti regresi merah/hijau ada di `docs/STATUS.md`. Clone rujukan Hermes tidak
+tersedia, sehingga file rujukan belum dibaca.
+
+**Batas yang didokumentasikan.** Program yang dijalankan lewat stdin tidak bisa membaca stdin.
+Proses anak yang menulis langsung ke deskriptor berkas tidak bertanda, jadi stderr-nya
+dilaporkan sebagai stdout.
 
 **Ukuran.** M
 

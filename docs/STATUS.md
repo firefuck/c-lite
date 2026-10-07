@@ -186,6 +186,64 @@ menghapus baris `read_denied_reason` di `record_change` menggagalkan
 yang terdampak lulus (393 lulus, 13 terlewati tanpa Docker/Windows). Rujukan Hermes tidak
 tersedia.
 
+### F2-T9: eksekusi kode (8 Oktober 2026)
+
+`src/clite/tools/builtin/code.py` menambah tool `execute_code`: program Python pendek yang
+dijalankan lewat lingkungan eksekusi sesi (`BaseEnvironment`, F2-T7), bukan di dalam proses
+agent. Karena itu di backend `docker` atau `ssh` kode berjalan di dalam container atau di host
+jauh dan mewarisi sandbox itu; di backend `local` ia mengikuti `approvals.mode` seperti
+`terminal`.
+
+Program sampai ke interpreter lewat stdin (`python -`), sehingga teks model tidak pernah masuk
+ke baris perintah: tidak ada kutipan shell, tidak ada batas panjang baris perintah, tidak ada
+celah injeksi. Sebuah runner kecil yang ditanam dalam program menandai setiap tulisan dengan
+stream asalnya dan membasuhnya saat itu juga, lalu menutup dengan satu laporan base64 berisi
+`exit_code`. Tool memisahkan `stdout` dan `stderr` dari tanda itu, membuang catatan penutup
+milik lingkungan (`[command timed out …]`) supaya tidak terbaca sebagai keluaran program, dan
+mengembalikan ketiganya. Karena keluarannya mengalir, bukan dibuffer, program yang dimatikan
+karena batas waktu tetap memperlihatkan apa yang sempat tercetak.
+
+Kode diperlakukan sebagai perintah. Teksnya dikirim ke `check_command` yang sama seperti
+`terminal`, dan pola `script_delete` di `approval.py` diperluas dengan dua pola baru yang
+membaca sintaks Python, sehingga `shutil.rmtree(...)`, `os.remove`/`os.unlink`/`os.rmdir`,
+`shutil.move(...)`, dan `subprocess.run(["rm", …])` yang ditulis langsung dalam kode ikut
+ditandai — bukan hanya bentuk `python -c "…rmtree…"` yang sudah ada. Kredensial dibuang lewat
+`build_child_env` (mekanisme yang sama dengan perintah lain) dan `stdout`/`stderr` diredaksi
+sebelum masuk transkrip. Tool terdaftar di toolset `terminal`, jadi ia ikut semua toolset
+komposit tanpa perubahan di sana.
+
+Bukti regresi merah/hijau pada salinan bercabang dari `eb5f031` dengan tes baru saja: 1 error
+koleksi (`No module named 'clite.tools.builtin.code'`) yang menutupi 23 tes. Untuk membuktikan
+tiap guard secara terpisah, kode yang sudah jadi diubah satu per satu di salinan terisolasi
+(22 tes lulus, 1 gagal tiap kali karena `-x` berhenti di kegagalan pertama):
+
+- **kredensial**: menghapus jaminan lingkungan yang membersihkan kredensial (menjalankan
+  subprocess langsung yang mewarisi `os.environ`, tanpa `build_child_env`) menggagalkan
+  `test_credential_variables_are_not_visible_from_inside_the_code` dan
+  `test_provider_keys_exported_in_the_shell_are_not_visible_either`.
+- **pola berbahaya**: memberi gerbang teks `'true'` sebagai ganti teks kode menggagalkan
+  `test_code_containing_a_dangerous_pattern_asks_for_approval`; dan menghapus dua pola baru di
+  `approval.py` menggagalkan
+  `test_a_destructive_call_written_in_python_is_flagged_like_the_command_it_runs`. Pada HEAD,
+  `shutil.rmtree`, `os.remove`, dan `subprocess.run(["rm", …])` lolos gerbang tanpa satu pun
+  `DangerMatch`.
+- **batas waktu**: menjalankan program dengan `timeout=None` (jadi bawaan 180 detik lingkungan
+  yang berlaku) menggagalkan `test_a_program_that_overruns_its_timeout_is_stopped`
+  (62,9 detik sampai gagal) dan, dijalankan sendiri, juga menggagalkan
+  `test_the_timeout_kills_the_child_processes_the_program_started` (120,2 detik). Yang terakhir
+  membuktikan proses anak (`sleep 120` yang dimulai dari dalam kode) mati setelah batas waktu,
+  karena `LocalEnvironment` mematikan seluruh grup proses — dan bahwa tanpa batas waktu ia
+  memang hidup terus.
+
+Sesudah implementasi, 23 tes di `tests/tools/test_code.py` lulus. Satu tes lama yang menuliskan
+isi toolset `terminal` secara harfiah disesuaikan kontraknya (tool baru memang masuk toolset
+itu). Suite Python penuh: 1073 lulus, 29 terlewati, satu tes `tests/server` gagal yang sudah
+gagal sebelum tugas ini (`websockets`). Ruff bersih, mypy 171 file bersih. Docker dan SSH asli
+belum pernah dijalankan, jadi klaim "mewarisi sandbox" diuji lewat backend tiruan
+(`test_code_runs_on_the_registered_backend_not_on_the_host`) yang membuktikan kode tidak
+dijalankan di host melainkan lewat backend yang dipilih `terminal.backend`. Rujukan Hermes
+tidak tersedia.
+
 ## Pemasangan yang sudah diverifikasi
 
 Pada 6 Oktober 2026 CI repo `https://github.com/dragovics/clite` run `37356398420` pada
@@ -348,6 +406,7 @@ python scripts/check_hermes_refs.py --hermes ../hermes-ref   # butuh clone Herme
 | 8 Oktober 2026 | F2-T6 langkah 2 dan 3: regresi merah pada worktree bersih dari `1a6cdab` (2 `ImportError` + 2 kegagalan arsitektur), 20 tes baru + arsitektur lulus sesudah implementasi; suite Python penuh 1016 lulus/26 terlewati (1 gagal sudah-ada di `tests/server`), Ruff bersih, mypy 167 file bersih | Linux, Python 3.11.16 |
 | 8 Oktober 2026 | F2-T7: 10 gagal + 1 error pada salinan `1a6cdab` dengan tes baru saja, 14 lulus / 3 terlewati (tanpa Docker) sesudah implementasi; suite tool file + terminal lama 56 lulus lewat antarmuka baru; suite Python penuh 1010 lulus/29 terlewati (satu tes server gagal sebelum tugas ini), Ruff dan mypy bersih. Docker dan SSH asli belum dijalankan | Linux, Python 3.11.16 (Docker CLI ada, daemon tidak) |
 | 8 Oktober 2026 | F2-T8: 14 gagal pada salinan bercabang dengan tes baru saja tanpa penyambungan, 19 tes baru lulus sesudah implementasi; dua guard diuji terpisah (hapus penjaga `read_denied_reason`, lumpuhkan pemangkasan sesi) dan keduanya menggagalkan tesnya; suite `tests/tools`+`tests/runtime`+`tests/core` 393 lulus/13 terlewati, `tests/test_architecture.py` dan `tests/test_docs.py` lulus sesudah `python scripts/gen_docs.py` | Linux, Python 3.11.16 |
+| 8 Oktober 2026 | F2-T9: merah pada salinan `eb5f031` dengan tes baru saja (1 error koleksi, modul belum ada); 23 tes baru lulus sesudah implementasi; tiga guard diuji terpisah pada salinan terisolasi (batas waktu, gerbang persetujuan, kredensial) dan masing-masing menggagalkan tesnya; suite Python penuh 1073 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 171 file bersih | Linux, Python 3.11.16 |
 
 Setiap task yang memverifikasi sesuatu menambah baris di tabel ini dan memindahkan butirnya
 dari "belum diverifikasi".
