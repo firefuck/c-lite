@@ -1,0 +1,5 @@
+name: web-search-ddg
+version: 1.0.0
+description: Web search via the DuckDuckGo HTML endpoint (no API key required)
+author: C-lite
+kind: backend

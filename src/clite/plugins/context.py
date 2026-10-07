@@ -174,6 +174,12 @@ class PluginContext:
         engine.register_context_engine(name, factory)
         self._record("context_engine", name, lambda: engine._ENGINES.pop(name, None))
 
+    def register_web_search_provider(self, name: str, factory: Callable[[], Any]) -> None:
+        from clite.tools import web_search
+
+        web_search.register_web_search_provider(name, factory)
+        self._record("web_search_provider", name, lambda: web_search._PROVIDERS.pop(name, None))
+
     def register_platform(self, name: str, factory: Callable[..., Any]) -> None:
         """Add a gateway platform adapter. ``factory(config, runner)`` returns the adapter."""
         from clite.gateway.platforms import base

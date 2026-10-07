@@ -32,6 +32,7 @@ def _reset_process_state() -> None:
         ("clite.plugins.hooks", "reset_hook_buses"),
         ("clite.tools.registry", "reset_check_cache"),
         ("clite.tools.dispatch", "reset_definition_cache"),
+        ("clite.tools.web_search", "reset_web_search_providers"),
         ("clite.tools.approval", "reset_approval_state"),
         ("clite.tools.builtin.process", "reset_process_registry"),
         ("clite.tools.environments", "cleanup_all_environments"),

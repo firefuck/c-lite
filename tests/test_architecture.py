@@ -137,7 +137,7 @@ def test_bundled_plugins_use_only_the_plugin_api():
     may: ``core``, the provider profile API and the hook bus. Everything else reaches a plugin
     through the ``ctx`` it is handed, never through an import of the agent's internals."""
     allowed = ("clite.core.", "clite.providers.base", "clite.providers.registry", "clite.providers.transports",
-               "clite.plugins.hooks")
+               "clite.plugins.hooks", "clite.tools.web_search")
     for path in sorted((PACKAGE / "bundled").rglob("*.py")):
         for name, _, line in _internal_imports(path):
             assert name.startswith(allowed), f"{path.relative_to(REPO_ROOT)}:{line} imports {name}"

@@ -58,7 +58,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "tool_result_max_chars": 100_000,
     "file_read_max_chars": 100_000,
     # web_fetch refuses loopback, private and link-local addresses unless this is true.
-    "web": {"allow_private_urls": False, "timeout": 30},
+    # web.search.provider selects a search backend plugin (empty = first available).
+    "web": {"allow_private_urls": False, "timeout": 30, "search": {"provider": ""}},
     # ── Context ──────────────────────────────────────────────────────────────────────────
     "compression": {
         "enabled": True,

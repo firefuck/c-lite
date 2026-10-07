@@ -131,6 +131,21 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 - Setiap lompatan redirect tunduk pada dua aturan yang sama. Halaman publik tidak bisa
   memantulkan agent ke alamat internal atau ke skema lain.
 
+**`web_search`**
+- The tool is offered only when a web-search provider is configured. Its ``check_fn`` returns
+  ``False`` when no provider is available (no registry entry, or a keyed provider whose API
+  key is not in ``.env``), so the model is never told it can search the web when there is no
+  backend to answer.
+- Each result has a title, URL, and snippet. The snippet is untrusted text from the web: it
+  arrives as a tool result, never in the system prompt. The tool does not sanitise or strip
+  HTML in snippets; the model sees exactly what the search backend returned.
+- Providers are pluggable (``WebSearchProvider`` in ``tools/web_search.py``); a plugin
+  registers one with ``ctx.register_web_search_provider(name, factory)``. Two bundled
+  ``kind: backend`` plugins ship: ``web-search-ddg`` (DuckDuckGo, no API key) and
+  ``web-search-tavily`` (Tavily, needs ``TAVILY_API_KEY``).
+- A keyed provider registers its API key with ``register_secret`` so it is stripped from
+  commands the agent runs and redacted from what the model reads.
+
 **MCP**
 - Tiap server menjadi toolset `mcp-<server>` dengan tool `mcp_<server>_<tool>`.
 - Server yang rusak dilewati, bukan fatal. Server yang mati melapor, tidak menggantung.
@@ -147,7 +162,7 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 | `terminal`, `process` | ✅ | |
 | `read_file`, `write_file`, `patch`, `search_files` | ✅ | Patch toleran (rantai pencocokan dengan cek unik per tingkat) dan patch multi-file V4A atomic |
 | `web_fetch` | ✅ | |
-| `web_search` | ⬜ | F2-T5 |
+| `web_search` | ✅ | Provider pluggable (``WebSearchProvider``); ``check_fn`` gates on provider availability; two bundled plugins (DDG keyless, Tavily keyed) |
 | `todo`, `memory`, `clarify`, `session_search` | ✅ | |
 | `skills_list`, `skill_view`, `skill_manage` | ✅ | |
 | `delegate_task`, `cronjob` | ✅ | |
