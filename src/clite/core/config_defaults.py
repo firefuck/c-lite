@@ -166,8 +166,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
     # Shell hooks: {event: [command | {command, matcher, timeout, fail_closed}]}. A hook runs
     # only after `clite hooks approve` (see clite.plugins.shell_hooks).
     "hooks": {},
-    # MCP servers over stdio: {name: {command, args, env, cwd, timeout, enabled,
-    # tools: {include: [..], exclude: [..]}}}
+    # MCP servers: {name: {command, args, env, cwd, timeout, enabled, tools: {include, exclude}}}
+    # for a local process, or {name: {url, headers, timeout, enabled}} for a Streamable HTTP
+    # endpoint. In `headers`, `${NAME}` reads NAME from .env.
     "mcp_servers": {},
     "quick_commands": {},  # {name: {type: exec|alias, command|target}}
     "platform_hints": {},  # {platform: "text" | {append: ..} | {replace: ..}}

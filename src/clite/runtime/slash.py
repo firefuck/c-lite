@@ -311,6 +311,39 @@ def _handle_plugins(session: ChatSession, args: str) -> SlashResult:
     return SlashResult("\n".join(lines) + "\n\nEnable one with `clite plugins enable <name>`, then /reload.")
 
 
+def _handle_mcp(session: ChatSession, args: str) -> SlashResult:
+    """The status of the MCP servers this session knows about."""
+    from clite.tools.mcp import mcp_servers_snapshot
+
+    servers = mcp_servers_snapshot()
+    wanted = args.strip()
+    if wanted:
+        servers = [server for server in servers if server["name"] == wanted]
+        if not servers:
+            return SlashResult(f"No MCP server named {wanted!r} is connected. /mcp lists them.")
+    if not servers:
+        return SlashResult("No MCP servers are connected. Add one with `clite mcp add` (see `clite mcp --help`).")
+    lines = []
+    for server in servers:
+        state = "up" if server["alive"] else "down"
+        lines.append(f"{server['name']:<16} {server['transport']:<5} {state:<4} "
+                     f"{len(server['tools'])} tools, {server['resources']} resources, {server['prompts']} prompts")
+        lines += [f"    {name}" for name in server["tools"]]
+        if server["tools_changed"]:
+            lines.append("    its tool list changed; the new tools apply to your next session")
+    return SlashResult("\n".join(lines))
+
+
+def run_mcp_prompt(session: ChatSession, name: str, args: str) -> SlashResult:
+    """Run an MCP prompt slash command: deliver its messages as the next user message."""
+    from clite.tools.mcp import mcp_prompt_error, render_mcp_prompt
+
+    problem = mcp_prompt_error(name, args)
+    if problem is not None:
+        return SlashResult(problem)
+    return SlashResult(render_mcp_prompt(name, args), ACTION_SUBMIT, {"mcp_prompt": name})
+
+
 def _handle_memory(session: ChatSession, args: str) -> SlashResult:
     manager = session.agent.memory
     if manager is None or manager.store is None:

@@ -77,6 +77,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `/profile` |  | Configuration |  | queue |  | Show the active profile and list the others |
 | `/skills` |  | Tools & Skills | `[filter]` | queue |  | List skills |
 | `/plugins` |  | Tools & Skills |  | queue |  | List plugins and their status |
+| `/mcp` |  | Tools & Skills | `[name]` | queue |  | Show the status of the MCP servers |
 | `/memory` |  | Tools & Skills |  | queue |  | Show what is in persistent memory |
 | `/cron` |  | Tools & Skills |  | queue |  | List scheduled jobs |
 | `/help` | `/?` | Info |  | allow |  | List commands |
@@ -96,6 +97,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `clite skills` | list, view, install and curate skills | `list`, `view`, `install`, `remove`, `curate` |
 | `clite plugins` | list, enable, disable, install or remove plugins | `list`, `enable`, `disable`, `install`, `remove` |
 | `clite hooks` | review, approve or test shell hooks from config.yaml | `list`, `approve`, `revoke`, `test` |
+| `clite mcp` | add, list, remove and test MCP servers | `list`, `add`, `remove`, `test` |
 | `clite sessions` | list, show, search, export or delete sessions | `list`, `show`, `rename`, `delete`, `export`, `search`, `prune` |
 | `clite profile` | manage profiles (separate homes) | `list`, `show`, `create`, `use`, `delete` |
 | `clite cron` | schedule agent tasks | `list`, `add`, `pause`, `resume`, `run`, `remove`, `tick`, `daemon` |

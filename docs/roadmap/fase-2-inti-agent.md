@@ -494,12 +494,28 @@ dibutuhkan.
 `tools/mcp_tool_lifecycle.py`, `hermes_cli/mcp_config.py`, `hermes_cli/subcommands/mcp.py`.
 
 **Selesai bila.**
-- [ ] Tes terhadap server MCP HTTP sungguhan yang dijalankan lokal (dari SDK resmi, terlewati
+- [x] Tes terhadap server MCP HTTP sungguhan yang dijalankan lokal (dari SDK resmi, terlewati
       bila SDK tidak terpasang).
-- [ ] Tes: perubahan daftar tool di tengah sesi tidak mengubah definisi tool sesi itu.
-- [ ] Tes: `clite mcp add` menulis config lewat `atomic_config_update` dan `clite mcp test`
+- [x] Tes: perubahan daftar tool di tengah sesi tidak mengubah definisi tool sesi itu.
+- [x] Tes: `clite mcp add` menulis config lewat `atomic_config_update` dan `clite mcp test`
       melaporkan tool yang ditemukan.
-- [ ] Baris MCP di spesifikasi tools dan cli diperbarui.
+- [x] Baris MCP di spesifikasi tools dan cli diperbarui.
+
+**Kemajuan 8 Oktober 2026.** Selesai di branch `f2-t10-mcp`. Transport Streamable HTTP baru
+(`tools/mcp/http.py`, pustaka standar saja) di samping stdio: `url` memilih HTTP, `command`
+memilih stdio. Header autentikasi ditulis dengan `${NAMA}` yang dibaca `get_secret`, dan nama
+itu didaftarkan lewat `register_secret` supaya nilainya diredaksi; variabel yang hilang adalah
+galat yang menyebut namanya. Server dengan kapabilitas `resources` mendapat tool
+`mcp_<server>_list_resources` dan `mcp_<server>_read_resource`; prompt server menjadi slash
+command `mcp-<server>-<prompt>` yang dikirim sebagai pesan pengguna (seperti skill, tidak
+menyunting system prompt). `notifications/tools/list_changed` hanya menandai `tools_changed`:
+sesi yang berjalan menyimpan definisi tool yang dibangun saat ia dibuat (A1), dan sesi
+berikutnya membaca ulang lewat `connect_mcp_servers`. Server yang gagal start dicoba ulang
+dengan jeda membesar (eksponensial, batas 300 detik). CLI `clite mcp add | list | remove |
+test` menulis `mcp_servers` lewat `atomic_config_update`, dan `/mcp` menampilkan status.
+Dijaga `tests/tools/test_mcp.py` (21 tes; 13 di antaranya baru). Bukti regresi merah/hijau ada
+di `docs/STATUS.md`. Clone rujukan Hermes tidak tersedia, sehingga file rujukan belum dibaca.
+Yang sengaja tidak dikerjakan: sampling dan OAuth untuk server HTTP.
 
 **Ukuran.** L
 

@@ -24,7 +24,7 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 | Penjaga file | `file_safety.py` | Path yang tidak boleh ditulis atau dibaca tool file; `PROTECTED_PATHS` adalah daftar file terlindung di tiap home agent, dipakai juga oleh gerbang persetujuan |
 | Lingkungan | `environments/` | `BaseEnvironment` + operasi file, backend `local`, `docker`, `ssh` |
 | Tool bawaan | `builtin/` | 20 tool (lihat [katalog](../referensi/katalog.md)) |
-| MCP | `mcp/client.py` | Klien MCP stdio tanpa SDK |
+| MCP | `mcp/client.py`, `mcp/http.py` | Klien MCP tanpa SDK: transport stdio dan Streamable HTTP, tools, resources, prompts |
 
 ## Kontrak
 
@@ -220,9 +220,29 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
   host jauh adalah mesin lain, di mana path host tidak berarti).
 
 **MCP**
-- Tiap server menjadi toolset `mcp-<server>` dengan tool `mcp_<server>_<tool>`.
-- Server yang rusak dilewati, bukan fatal. Server yang mati melapor, tidak menggantung.
-- Lingkungan proses server tidak memuat rahasia dari `.env` kecuali disebut di `env`.
+- Tiap server menjadi toolset `mcp-<server>` dengan tool `mcp_<server>_<tool>`. Dua transport:
+  **stdio** (satu proses, satu pesan JSON-RPC per baris) dan **Streamable HTTP** (`url`,
+  JSON-RPC dalam POST ke satu endpoint dengan header `Mcp-Session-Id`). Pemilihan transport
+  dari spec: `command` memilih stdio, `url` memilih HTTP.
+- Server yang mendeklarasikan kapabilitas `resources` juga mendapat tool
+  `mcp_<server>_list_resources` dan `mcp_<server>_read_resource`. Prompt server menjadi slash
+  command `mcp-<server>-<prompt>`; ia dikirim sebagai pesan pengguna, seperti skill, bukan
+  dengan menyunting system prompt.
+- Header autentikasi HTTP ditulis di `headers`, dengan `${NAMA}` merujuk `get_secret`. Nama
+  yang diambil dari `.env` didaftarkan lewat `register_secret`, jadi nilainya diredaksi dari
+  apa yang dibaca model. Variabel yang hilang adalah galat yang menyebut namanya, bukan header
+  kosong yang berujung 401.
+- **Daftar tool tetap selama sesi (A1).** `notifications/tools/list_changed` tidak menyentuh
+  registry sesi yang berjalan: session menyimpan definisi tool yang dibangun saat ia dibuat.
+  Perubahan diingat (`tools_changed`); sesi berikutnya membaca ulang daftarnya saat
+  `connect_mcp_servers` dipanggil.
+- Server yang rusak dilewati, bukan fatal. Server yang gagal start tidak dicoba ulang seketika:
+  jeda membesar (eksponensial, `5s * 2^(n-1)`, batas 300 detik) sebelum percobaan berikutnya di
+  sesi berikutnya. Server yang mati melapor, tidak menggantung.
+- Lingkungan proses stdio tidak memuat rahasia dari `.env` kecuali disebut di `env`. Header
+  HTTP yang berisi rahasia diredaksi dari transkrip.
+- `clite mcp add | list | remove | test` mengelola `mcp_servers` lewat `atomic_config_update`,
+  dan `/mcp` menampilkan status tiap server (transport, hidup/mati, jumlah tool/resources/prompts).
 
 ## Status fitur
 
@@ -241,7 +261,8 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 | `skills_list`, `skill_view`, `skill_manage` | ✅ | |
 | `delegate_task`, `cronjob` | ✅ | |
 | MCP stdio (tools) | ✅ | Diuji juga terhadap server dari SDK MCP resmi |
-| MCP HTTP, resources, prompts, sampling, OAuth | ⬜ | F2-T10 |
+| MCP HTTP, resources, prompts | ✅ | Streamable HTTP (header `${NAMA}` dari `.env`, didaftarkan `register_secret`), tool `mcp_<server>_list_resources`/`_read_resource`, prompt server sebagai slash command `mcp-<server>-<prompt>`, dan `clite mcp add\|list\|remove\|test` + `/mcp`. Perubahan daftar tool di tengah sesi menunggu sesi berikutnya (A1); server yang mati dicoba ulang dengan jeda membesar. Diuji terhadap server HTTP SDK resmi. F2-T10 |
+| MCP sampling, OAuth | ⬜ | Di luar lingkup F2-T10 |
 | Analisis gambar, pembuatan gambar | ✅ | `vision_analyze` (rute `auxiliary.vision`, model utama tanpa penglihatan tak pernah menerima gambar) dan `image_generate` (`ImageProvider` + registry, plugin bawaan `image-gen-openai`, `check_fn` tanpa provider). Dijaga `tests/tools/test_vision.py` dan `tests/tools/test_image_gen.py`. Uji terhadap API asli belum dijalankan |
 | Eksekusi kode (`execute_code`) | ✅ | Program Python pendek lewat lingkungan eksekusi sesi; `stdout`/`stderr`/`exit_code` terpisah, batas waktu mematikan pohon proses, kredensial dibuang, keluaran diredaksi, dan teks kode lewat `check_command`. Dijaga `tests/tools/test_code.py`. F2-T9 |
 | Checkpoint sebelum menulis file | ✅ | `write_file` dan `patch` menyimpan isi lama ke `<home>/checkpoints/<id sesi>/turn-<n>/` sebelum mengubah file; `/rollback [n]` dan `/checkpoints` ada di semua surface. Batasnya: perubahan lewat perintah `terminal` tidak terlihat (lihat "Celah yang diketahui"). Dijaga `tests/tools/test_checkpoints.py`. F2-T8 |
