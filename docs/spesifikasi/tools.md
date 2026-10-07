@@ -23,7 +23,7 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 | Persetujuan | `approval.py` | Pola berbahaya, pola terlarang mutlak, mode `manual` / `smart` / `off` |
 | Penjaga file | `file_safety.py` | Path yang tidak boleh ditulis atau dibaca tool file; `PROTECTED_PATHS` adalah daftar file terlindung di tiap home agent, dipakai juga oleh gerbang persetujuan |
 | Lingkungan | `environments/` | `BaseEnvironment` + operasi file, backend `local`, `docker`, `ssh` |
-| Tool bawaan | `builtin/` | 16 tool (lihat [katalog](../referensi/katalog.md)) |
+| Tool bawaan | `builtin/` | 20 tool (lihat [katalog](../referensi/katalog.md)) |
 | MCP | `mcp/client.py` | Klien MCP stdio tanpa SDK |
 
 ## Kontrak
@@ -77,6 +77,9 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 - Perintah dinormalkan dulu (escape ANSI, byte NUL, huruf lebar penuh), lalu setiap pendeteksi
   membacanya dua kali: seperti tertulis, dan seperti shell membacanya (`shell_plain`: tanpa
   tanda kutip, garis miring terbalik, `${NAMA}`, `$IFS`, dan garis miring berulang).
+- Teks kode `execute_code` masuk ke gerbang ini juga: panggilan merusak yang ditulis dalam
+  Python (`shutil.rmtree(...)`, `os.remove`/`os.unlink`/`os.rmdir`, `subprocess.run(["rm", …])`)
+  ditandai oleh pola `script_delete`, sama seperti bentuk baris perintahnya.
 - Callback persetujuan yang rusak atau jawaban tak dikenal berarti tolak.
 - **Perintah yang menjangkau pengaturan atau kredensial agent sendiri**
   (`detect_self_access`) diperlakukan lebih ketat. Termasuk di dalamnya: path ke dalam salah
@@ -186,6 +189,36 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
   ``<cwd>/generated-images/`` dan mengembalikan path-nya (percakapan membawa teks, bukan
   gambar). Setiap path melewati ``write_denied_reason`` seperti tulisan file lain.
 
+**`execute_code`**
+- Menjalankan program Python pendek dan mengembalikan `stdout`, `stderr`, dan `exit_code`
+  secara terpisah. Program dijalankan lewat lingkungan eksekusi sesi yang sama dengan
+  `terminal` (`BaseEnvironment`), jadi di backend `docker` atau `ssh` ia berjalan di dalam
+  container atau di host jauh, bukan di mesin pengguna. Di backend `local` ia mengikuti
+  `approvals.mode` persis seperti `terminal`.
+- Kode adalah perintah. Teksnya dikirim ke `check_command` yang sama sebelum dijalankan, jadi
+  panggilan merusak yang ditulis dalam Python — `shutil.rmtree(...)`, `os.remove(...)`,
+  `os.system("rm -rf …")`, `subprocess.run(["rm", …])` — ditandai sama seperti perintah yang
+  dibungkusnya, dan pola terlarang mutlak ditolak di semua mode. Panggilan yang tidak menuju
+  shell (`subprocess.run([...])` tanpa `shell=True`) juga terbaca, karena polanya membaca
+  sintaks Python, bukan hanya bentuk baris perintah.
+- Program menerima lingkungan yang sama bersihnya dengan perintah lain
+  (`build_child_env`): setiap kredensial yang dikenal dibuang, jadi `os.environ` di dalam kode
+  tidak memuat kunci provider maupun nama apa pun dari `.env`. Keluarannya diredaksi
+  (`core.redact`) sebelum masuk transkrip.
+- Program sampai ke interpreter lewat stdin (`python -`), sehingga teks model tidak masuk ke
+  baris perintah sama sekali: tidak ada kutipan shell, tidak ada batas panjang baris perintah.
+  Harganya: program tidak bisa membaca stdin.
+- Runner kecil menandai setiap tulisan dengan stream asalnya dan membasuhnya saat itu juga,
+  jadi keluaran mengalir, tidak dibuffer: program yang dimatikan karena batas waktu tetap
+  memperlihatkan apa yang sempat tercetak. Tulisan proses anak yang langsung ke deskriptor
+  berkas tidak bertanda dan dibaca sebagai stdout.
+- Batas waktu mematikan program beserta proses anaknya (grup proses dimatikan lewat
+  lingkungan, jadi ini berlaku di semua backend). Batas keluaran per stream mengikuti
+  `tool_output.max_chars`, dengan catatan pemotongan yang menyebut batasnya. `code` dibatasi
+  `MAX_CODE_CHARS` (100.000 karakter).
+- Interpreter: `sys.executable` di backend `local`; `python3` di backend lain (container dan
+  host jauh adalah mesin lain, di mana path host tidak berarti).
+
 **MCP**
 - Tiap server menjadi toolset `mcp-<server>` dengan tool `mcp_<server>_<tool>`.
 - Server yang rusak dilewati, bukan fatal. Server yang mati melapor, tidak menggantung.
@@ -210,7 +243,7 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 | MCP stdio (tools) | ✅ | Diuji juga terhadap server dari SDK MCP resmi |
 | MCP HTTP, resources, prompts, sampling, OAuth | ⬜ | F2-T10 |
 | Analisis gambar, pembuatan gambar | ✅ | `vision_analyze` (rute `auxiliary.vision`, model utama tanpa penglihatan tak pernah menerima gambar) dan `image_generate` (`ImageProvider` + registry, plugin bawaan `image-gen-openai`, `check_fn` tanpa provider). Dijaga `tests/tools/test_vision.py` dan `tests/tools/test_image_gen.py`. Uji terhadap API asli belum dijalankan |
-| Eksekusi kode (`execute_code`) | ⬜ | F2-T9 |
+| Eksekusi kode (`execute_code`) | ✅ | Program Python pendek lewat lingkungan eksekusi sesi; `stdout`/`stderr`/`exit_code` terpisah, batas waktu mematikan pohon proses, kredensial dibuang, keluaran diredaksi, dan teks kode lewat `check_command`. Dijaga `tests/tools/test_code.py`. F2-T9 |
 | Checkpoint sebelum menulis file | ✅ | `write_file` dan `patch` menyimpan isi lama ke `<home>/checkpoints/<id sesi>/turn-<n>/` sebelum mengubah file; `/rollback [n]` dan `/checkpoints` ada di semua surface. Batasnya: perubahan lewat perintah `terminal` tidak terlihat (lihat "Celah yang diketahui"). Dijaga `tests/tools/test_checkpoints.py`. F2-T8 |
 | Otomasi browser | ⬜ | Belum dijadwalkan |
 | `send_message` lintas platform | ⬜ | F4-T8 |
@@ -233,7 +266,8 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
   menyembunyikan niatnya tidak tertangkap: skrip yang ditulis ke file lalu dijalankan
   terpisah, alias, nama yang dirakit dari variabel atau substitusi perintah, dan muatan
   interpreter (`python -c`). Gerbang ini sabuk pengaman terhadap kekeliruan model, bukan
-  sandbox. Deteksi yang lebih dalam: F2-T15.
+  sandbox. Deteksi yang lebih dalam: F2-T15. Teks kode `execute_code` dibaca dengan pola yang
+  sama, jadi ia mewarisi batas ini juga.
 - Persetujuan yang diingat (`session`, `always`) berlaku untuk seluruh pola, bukan untuk
   perintah yang ditanyakan saja.
 - Tool file tidak dibatasi ke direktori kerja. Yang dibatasi hanya daftar path terlarang.
@@ -247,3 +281,9 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 - `web_fetch` memeriksa alamat dengan me-resolve nama host lebih dulu, lalu pustaka HTTP
   me-resolve lagi saat menyambung. Server DNS yang menjawab berbeda di antara keduanya (DNS
   rebinding) bisa lolos.
+- `execute_code` memberi programnya kepada interpreter lewat stdin, jadi program itu tidak bisa
+  membaca stdin. Ini pertukaran yang disengaja: teks model tidak pernah masuk ke baris
+  perintah, jadi tidak ada yang perlu dikutip dan tidak ada batas panjang baris perintah.
+- Proses anak dari `execute_code` yang menulis langsung ke deskriptor berkas tidak bertanda,
+  jadi stderr-nya dilaporkan sebagai stdout. Program yang memakai `print()` biasa tidak
+  terpengaruh.

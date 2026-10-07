@@ -73,7 +73,7 @@ def test_a_tool_registered_into_a_new_toolset_name_resolves():
 def test_register_toolset_and_all_alias(monkeypatch):
     monkeypatch.setattr("clite.tools.toolsets.TOOLSETS", dict(TOOLSETS))
     register_toolset("pair", "two tools", tools=["read_file"], includes=["terminal"])
-    assert resolve_toolsets(["pair"]) == ["read_file", "terminal", "process"]
+    assert resolve_toolsets(["pair"]) == ["read_file", "terminal", "process", "execute_code"]
     _register()
     assert "t_tool" in resolve_toolset("all")
 

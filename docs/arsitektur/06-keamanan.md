@@ -75,6 +75,12 @@ dijalankan.
 Gerbang persetujuan (`src/clite/tools/approval.py`) memeriksa teks setiap perintah `terminal`
 sebelum dijalankan. Urutannya ada di [spesifikasi tools](../spesifikasi/tools.md#kontrak).
 
+Teks kode yang dijalankan `execute_code` melewati gerbang yang sama. Kode adalah perintah:
+`shutil.rmtree(...)`, `os.remove(...)`, `subprocess.run(["rm", …])`, dan `os.system("rm -rf …")`
+ditandai seperti perintah yang dibungkusnya, lewat pola `script_delete` yang membaca sintaks
+Python dan bukan hanya bentuk baris perintah. Karena itu jalur ini tidak menawarkan cara
+mengelak dari gerbang.
+
 | Lapis | Berlaku di mode | Bisa dibuka dengan |
 |---|---|---|
 | Terlarang mutlak: `rm` rekursif atas root, direktori home, atau direktori sistem; memformat disk; fork bomb | Semua, termasuk `off` | Tidak ada |

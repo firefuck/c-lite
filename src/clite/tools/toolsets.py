@@ -14,7 +14,7 @@ from clite.tools.registry import registry
 _CORE = ["terminal", "file", "web", "vision", "todo", "memory", "skills", "session_search"]
 
 TOOLSETS: dict[str, dict[str, Any]] = {
-    "terminal": {"description": "Run shell commands and manage background processes", "tools": ["terminal", "process"]},
+    "terminal": {"description": "Run shell commands, Python snippets and background processes", "tools": ["terminal", "process", "execute_code"]},
     "file": {"description": "Read, write, patch and search files", "tools": ["read_file", "write_file", "patch", "search_files"]},
     "web": {"description": "Search and fetch web pages as text", "tools": ["web_fetch", "web_search"]},
     "vision": {"description": "Look at images through a helper model", "tools": ["vision_analyze", "image_generate"]},

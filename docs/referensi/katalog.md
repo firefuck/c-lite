@@ -20,6 +20,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `skill_manage` | `skills` | never | Create and maintain skills: your procedural memory. |
 | `skill_view` | `skills` | safe | Load a skill's full instructions. |
 | `skills_list` | `skills` | safe | List available skills with their descriptions. |
+| `execute_code` | `terminal` | never | Run a short Python program and get back its stdout, stderr and exit code. |
 | `process` | `terminal` | never | Manage background processes started with terminal(background=true). |
 | `terminal` | `terminal` | never | Run a shell command. |
 | `todo` | `todo` | never | Read or update your task list for the current session. |
@@ -32,7 +33,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 
 | Toolset | Deskripsi | Berisi (setelah `includes` diurai) |
 | --- | --- | --- |
-| `terminal` | Run shell commands and manage background processes | `terminal`, `process` |
+| `terminal` | Run shell commands, Python snippets and background processes | `terminal`, `process`, `execute_code` |
 | `file` | Read, write, patch and search files | `read_file`, `write_file`, `patch`, `search_files` |
 | `web` | Search and fetch web pages as text | `web_fetch`, `web_search` |
 | `vision` | Look at images through a helper model | `vision_analyze`, `image_generate` |
@@ -43,10 +44,10 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `clarify` | Ask the user a question | `clarify` |
 | `delegation` | Spawn subagents with isolated context | `delegate_task` |
 | `cronjob` | Schedule recurring or one-off agent tasks | `cronjob` |
-| `clite-cli` | Everything, for the interactive terminal | `terminal`, `process`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob` |
-| `clite-gateway` | Messaging platforms | `terminal`, `process`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob` |
-| `clite-cron` | Scheduled runs | `terminal`, `process`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `delegate_task` |
-| `clite-subagent` | Delegated workers | `terminal`, `process`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `todo`, `skills_list`, `skill_view`, `skill_manage`, `session_search` |
+| `clite-cli` | Everything, for the interactive terminal | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob` |
+| `clite-gateway` | Messaging platforms | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob` |
+| `clite-cron` | Scheduled runs | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `delegate_task` |
+| `clite-subagent` | Delegated workers | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `todo`, `skills_list`, `skill_view`, `skill_manage`, `session_search` |
 
 ## Slash command
 

@@ -77,6 +77,11 @@ DANGEROUS_PATTERNS: list[tuple[str, str, str]] = [
     (r"\bterraform\s+(destroy|apply\b.*-auto-approve)", "terraform_destroy", "destroy or auto-apply infrastructure"),
     (r"\bcrontab\s+-r\b", "crontab_remove", "remove the crontab"),
     (r"(^|[;&|]\s*)(python3?|node|perl|ruby)\s+-[ce]\s+.*(rmtree|unlink|rm\s+-)", "script_delete", "script that deletes files"),
+    # The same deletes spelled directly in code, which is what `execute_code` runs: a call that
+    # removes a tree or a file is the destructive command it wraps, whatever syntax it is
+    # written in. This is why the code-execution tool sends its text through this gate.
+    (r"\brmtree\s*\(|\bos\.(remove|unlink|rmdir|removedirs)\s*\(", "script_delete", "script that deletes files"),
+    (r"\bsubprocess\.\w+\s*\(\s*[\[\(]?\s*[\"']rm[\"']\s*,\s*[\"']-", "script_delete", "script that deletes files"),
     (r"\b(mv|cp)\b.*\s(~/)?\.(ssh|aws|gnupg)/", "credential_dir_write", "write into a credential directory"),
     (r">\s*~?/?\S*\.(bashrc|zshrc|profile|bash_profile)\b", "shell_rc_overwrite", "overwrite a shell startup file"),
 ]

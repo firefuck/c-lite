@@ -43,6 +43,11 @@ def _ctx(answer=None, **kwargs):
         "psql -c 'DROP TABLE users'",
         "kubectl delete pod web-1",
         "dd if=image.iso of=backup.img",
+        # Destructive calls written in Python, which is what `execute_code` runs. The code text
+        # goes through this same gate, so the delete is flagged whatever syntax spells it.
+        "import shutil; shutil.rmtree('/tmp/build')",
+        "import os; os.remove('notes.txt')",
+        'import subprocess; subprocess.run(["rm", "-rf", "build"])',
     ],
 )
 def test_dangerous_commands_are_detected(command):
@@ -51,7 +56,13 @@ def test_dangerous_commands_are_detected(command):
 
 @pytest.mark.parametrize(
     "command",
-    ["ls -la", "git status", "rm notes.txt", "python -m pytest", "grep -r force .", "echo 'sudo is a word' > /dev/null && true"][:5],
+    [
+        "ls -la", "git status", "rm notes.txt", "python -m pytest", "grep -r force .",
+        # Ordinary Python: a move, a list method, and a word that merely mentions removing.
+        "import shutil; shutil.move('a.txt', 'b.txt')",
+        "rows = [1, 2]; rows.remove(1)",
+        "print('remove the temporary directory after the run')",
+    ],
 )
 def test_ordinary_commands_are_not_flagged(command):
     assert detect_dangerous_command(command) == []
