@@ -28,6 +28,7 @@ terminal, WebSocket, atau Telegram. Semua surface memakainya lewat `AIAgent` dan
 | Prompt | `prompt/` | Tiga tingkat prompt, file konteks, penanda cache |
 | Konteks | `context/` | `ContextEngine` dan kompresor bawaan |
 | Memori | `memory/` | `MemoryStore` bawaan, `MemoryProvider` eksternal, `MemoryManager` |
+| Review | `review.py` | Review latar belakang: agent kecil yang membaca salinan giliran panjang dan menulis memori/skill |
 | Lain-lain | `delegation.py`, `title.py`, `todo.py`, `budget.py`, `callbacks.py` | Subagent, judul sesi, daftar tugas, anggaran iterasi, callback |
 
 ## Alur satu giliran
@@ -176,6 +177,23 @@ Setiap butir dijaga oleh tes di `tests/agent/`.
   `delegation.max_spawn_depth` (1).
 - Anak yang gagal melaporkan gagal tanpa menggagalkan induk atau saudaranya.
 
+**Review latar belakang**
+- Setelah giliran yang selesai dan memakai setidaknya `background_review.min_tool_calls`
+  tool call, sebuah agent review kecil berjalan di thread latar. Ia menerima salinan giliran
+  itu sebagai satu pesan pengguna (teks saja: apa yang diminta, tool apa yang dipanggil, apa
+  jawabannya) dan **tidak** mewarisi transkrip sesi utama.
+- Review berjalan pada `AIAgent` terpisah dengan toolset sempit (`memory` dan `skills`) dan
+  anggaran `background_review.max_turns`; ia menulis hanya lewat tool memori dan skill, dan
+  `persist=False` sehingga tidak ada baris sesi yang ditulis. Riwayat dan system prompt sesi
+  utama tidak pernah disentuh.
+- Gate: `background_review.enabled`, giliran harus selesai dan tidak terinterupsi, bukan
+  subagent (`depth > 0`), bukan platform `cron`, sesi tidak sedang sibuk, dan tidak ada review
+  lain untuk sesi itu dalam `background_review.min_interval_seconds` terakhir.
+- Review yang gagal atau melewati `background_review.timeout_seconds` menjadi `error` pada
+  hasilnya dan catatan log; ia tidak pernah melempar ke giliran dan tidak memengaruhi giliran
+  berikutnya.
+- Hasilnya terlihat: baris status `on_status("review", …)` di surface dan catatan di log.
+
 ## Status fitur
 
 | Fitur | Status | Catatan |
@@ -189,7 +207,7 @@ Setiap butir dijaga oleh tes di `tests/agent/`.
 | Estimasi token | ✅ | `context/tokens.py`: perkiraan karakter/4 untuk pesan sesudah jangkar, `prompt_tokens` dari provider sebagai jangkar untuk bagian yang sudah diukur (F2-T11) |
 | Estimasi biaya | ⬜ | Kolom `estimated_cost_usd` ada, belum diisi: F2-T3 |
 | Input gambar | ✅ | `attachments.py`: bentuk konten, batas ukuran/jumlah, pengecilan, penyaringan model tanpa penglihatan; `clite chat --image` dan `/image`. Dijaga `tests/agent/test_attachments.py`, `test_loop.py`, `tests/runtime/test_session_and_slash.py`. Model bantu untuk melihat ada sebagai tool `vision_analyze` (spesifikasi tools) |
-| Review latar belakang (memori dan skill) | ⬜ | F2-T12 |
+| Review latar belakang (memori dan skill) | ✅ | `review.py`: agent fork terpisah (toolset `memory`+`skills`, `background_review.max_turns`) menerima salinan giliran sebagai pesan pengguna, tidak menyentuh riwayat/system prompt sesi utama; gate `enabled`/`min_tool_calls`/`min_interval_seconds`/subagent/cron/sibuk; gagal atau timeout hanya jadi catatan. Dijaga `tests/agent/test_review.py`. F2-T12 |
 | Checkpoint dan rollback file | ✅ | `tools/checkpoints.py` menyimpan isi lama sebelum `write_file`/`patch` mengubah file, dikelompokkan per giliran di bawah `<home>/checkpoints/`. `/rollback [n]` mengembalikan perubahan giliran terakhir (atau `n` giliran); file yang dibuat agent dihapus, file yang dihapus dikembalikan. Perubahan lewat perintah `terminal` tidak terlihat. Dijaga `tests/tools/test_checkpoints.py`. F2-T8 |
 | Kunci file memori di Windows | ✅ | `core.locking` memakai `fcntl`/`msvcrt`; tes dua proses dan mutasi memori lulus pada Linux/Windows. CI `37499972911`, F1-T5 |
 

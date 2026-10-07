@@ -46,6 +46,7 @@ def _reset_process_state() -> None:
         ("clite.cron.jobs", "reset_job_stores"),
         ("clite.rpc.server", "reset_server_state"),
         ("clite.runtime.maintenance", "reset_maintenance_state"),
+        ("clite.agent.review", "reset_review_state"),
     ):
         module = sys.modules.get(module_name)
         reset = getattr(module, function_name, None) if module else None

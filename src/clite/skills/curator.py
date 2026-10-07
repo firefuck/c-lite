@@ -63,9 +63,14 @@ def restore_skill(archived_name: str) -> Path:
     return destination
 
 
-def run_curator(stale_days: int = DEFAULT_STALE_DAYS, *, dry_run: bool = True) -> dict[str, Any]:
-    """Archive stale agent-created skills. ``dry_run`` (the default) only reports."""
-    stale = find_stale_skills(stale_days)
+def run_curator(stale_days: int = DEFAULT_STALE_DAYS, *, dry_run: bool = True,
+                now: float | None = None) -> dict[str, Any]:
+    """Archive stale agent-created skills. ``dry_run`` (the default) only reports.
+
+    ``now`` lets a caller inject the clock (a scheduled run, a test); it is handed straight to
+    :func:`find_stale_skills`.
+    """
+    stale = find_stale_skills(stale_days, now=now)
     archived = []
     if not dry_run:
         for entry in stale:

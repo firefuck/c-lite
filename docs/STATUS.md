@@ -357,6 +357,62 @@ lulus. Log lokal: `/tmp/clite-f2t11-red-guards.log` (merah per guard) dan
 `/tmp/clite-f2t11-green.log` (hijau). Suite Python penuh dan status akhir ada di tabel catatan
 verifikasi di bawah. Rujukan Hermes tidak tersedia, sehingga file rujukan belum dibaca.
 
+### F2-T12: review latar belakang dan kurator terjadwal (8 Oktober 2026)
+
+`src/clite/agent/review.py` (baru) menjalankan satu review di thread latar setelah giliran yang
+selesai dan memakai setidaknya `background_review.min_tool_calls` tool call. Reviewer adalah
+`AIAgent` terpisah dengan toolset sempit (`memory`, `skills`) dan anggaran
+`background_review.max_turns`; ia menerima **salinan giliran** sebagai satu pesan pengguna —
+teks saja, dibangun `build_turn_transcript` — dan berjalan dengan `persist=False`, jadi ia tidak
+menulis baris sesi apa pun. Ia hanya menulis lewat tool memori dan skill, jadi riwayat dan
+system prompt sesi utama tidak pernah tersentuh. Saksi di `turn/finalize.py`: setelah giliran
+selesai, `should_review(..., ignore_busy=True)` memutuskan dan `spawn_background_review`
+menjalankannya (kunci giliran masih dipegang saat itu, karena itu `ignore_busy`).
+
+Gerbangnya: `background_review.enabled`, giliran selesai dan tidak terinterupsi, memori aktif,
+bukan subagent (`depth > 0`), bukan platform `cron`, sesi tidak sibuk, dan tidak ada review lain
+untuk sesi itu dalam `background_review.min_interval_seconds` terakhir. Review yang gagal atau
+melewati `background_review.timeout_seconds` menjadi `error` pada hasil dan catatan log, tidak
+pernah melempar ke giliran. Hasilnya terlihat: baris status `on_status("review", …)` di surface
+dan catatan di log (`outcome.summary`).
+
+Kurator dijalankan otomatis oleh `runtime/maintenance.py::run_curator_maintenance`, dipanggil
+`run_startup_maintenance` setelah auto-prune dan pemangkasan checkpoint. Kunci config baru:
+`curator.enabled`, `curator.interval_hours`, `curator.stale_days`, `background_review.*`.
+Kurator berjalan paling banyak sekali per `curator.interval_hours` lewat cap waktu di database
+(`last_curator_run`) — pola yang sama dengan auto-prune sesi — dan kegagalannya ditelan
+(`_prune_curator_store` di dalam `try`), jadi surface tetap mulai. `curator.run_curator` kini
+menerima `now=` supaya jamnya bisa disuntikkan.
+
+Bukti regresi merah/hijau pada worktree bersih dari `a976469`. **Merah:** dengan tes baru saja
+dan modul `review` belum ada, koleksi `tests/agent/test_review.py` gagal
+(`ImportError: cannot import name 'review' from 'clite.agent'`); seluruh 23 tes tertutup. Untuk
+membuktikan tiap guard secara terpisah, implementasi disalin ke worktree terisolasi lalu satu
+perilaku dikembalikan ke bentuk yang salah:
+
+- **riwayat sesi utama disentuh**: menambahkan pesan review ke `agent.messages` menggagalkan
+  `test_review_writes_one_memory_entry_and_leaves_the_main_session_untouched` dan
+  `test_a_real_long_turn_triggers_a_review_and_its_own_history_is_untouched`.
+- **gagal tidak ditelan**: melempar `outcome.error` keluar `run_review` menggagalkan
+  `test_a_failing_review_does_not_break_the_next_turn`; melempar pada timeout menggagalkan
+  `test_a_timed_out_review_does_not_break_the_next_turn`.
+- **kurator tiap startup**: menghapus gate interval menggagalkan
+  `test_the_startup_curator_runs_at_most_once_per_interval` (3 pemanggilan, bukan 2); membuang
+  penangkap galat di `run_startup_maintenance` menggagalkan
+  `test_a_failing_curator_does_not_stop_a_session`.
+- **gerbang review**: menghapus gate `enabled`/depth/cron/busy menggagalkan
+  `test_a_subagent_turn_is_never_reviewed`, `test_a_cron_turn_is_never_reviewed`, dan
+  `test_a_busy_session_is_not_reviewed`.
+- **anggaran reviewer diabaikan**: memakai `max_turns` tetap besar menggagalkan
+  `test_the_review_has_its_own_small_budget`.
+
+Log lokal: `/tmp/clite-f2t12-red-collection.log` (merah koleksi), `/tmp/clite-f2t12-red-guards.log`
+(merah per guard), `/tmp/clite-f2t12-green.log` (hijau). Sesudah implementasi, 23 tes
+`tests/agent/test_review.py` lulus. Suite Python penuh: 1132 lulus, 29 terlewati, satu tes
+`tests/server` gagal yang sudah gagal sebelum tugas ini (`websockets`). Ruff bersih, mypy 174
+file bersih. Clone rujukan tetap `../hermes-ref` tidak tersedia; perilaku diambil dari salinan
+Hermes Agent lain di mesin ini (commit `a0a7d765`, bukan commit yang dipatok).
+
 ## Pemasangan yang sudah diverifikasi
 
 Pada 6 Oktober 2026 CI repo `https://github.com/dragovics/clite` run `37356398420` pada
@@ -522,6 +578,7 @@ python scripts/check_hermes_refs.py --hermes ../hermes-ref   # butuh clone Herme
 | 8 Oktober 2026 | F2-T9: merah pada salinan `eb5f031` dengan tes baru saja (1 error koleksi, modul belum ada); 23 tes baru lulus sesudah implementasi; tiga guard diuji terpisah pada salinan terisolasi (batas waktu, gerbang persetujuan, kredensial) dan masing-masing menggagalkan tesnya; suite Python penuh 1073 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 171 file bersih | Linux, Python 3.11.16 |
 | 8 Oktober 2026 | F2-T10: 13 tes baru merah pada worktree bersih `4156234` dengan tes baru saja, 21 tes `tests/tools/test_mcp.py` lulus sesudah implementasi; empat guard diuji terpisah pada salinan terisolasi (A1, jeda membesar, header `.env`, tool resources) dan masing-masing menggagalkan tesnya; MCP HTTP diuji terhadap server Streamable HTTP dari SDK resmi (termasuk middleware bearer token), terlewati bila SDK tidak terpasang; suite Python penuh 1092 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini), Ruff bersih, mypy 173 file bersih. Sampling dan OAuth belum ada | Linux, Python 3.11.16 (SDK `mcp` 2.0.0) |
 | 8 Oktober 2026 | F2-T11: merah pada worktree bersih `f119b29` dengan tes baru saja (koleksi gagal: `cannot import name 'SUMMARY_SECTIONS'`); enam guard diuji terpisah pada salinan terisolasi (bagian tetap, peringkasan bertahap, pemangkasan gambar, jangkar token, persistensi penghitung nudge, skrip pengukuran) dan masing-masing menggagalkan tesnya; 10 tes baru lulus sesudah implementasi, seluruh `tests/agent/test_compression.py` 33 lulus; suite Python penuh 1109 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 173 file bersih. `scripts/eval_compression.py --provider mock` melaporkan 5/5 fakta bertahan | Linux, Python 3.11.16 |
+| 8 Oktober 2026 | F2-T12: merah pada worktree bersih `a976469` dengan tes baru saja (koleksi `tests/agent/test_review.py` gagal: `cannot import name 'review' from 'clite.agent'`); enam guard diuji terpisah pada worktree terisolasi (riwayat sesi utama, gagal ditelan, timeout ditelan, gate interval kurator, gerbang enabled/depth/cron/busy, anggaran reviewer) dan masing-masing menggagalkan tesnya; 23 tes baru lulus sesudah implementasi; suite Python penuh 1132 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 174 file bersih. Clone rujukan tetap `../hermes-ref` tidak tersedia | Linux, Python 3.11.16 |
 
 Setiap task yang memverifikasi sesuatu menambah baris di tabel ini dan memindahkan butirnya
 dari "belum diverifikasi".
