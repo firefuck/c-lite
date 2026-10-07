@@ -13,6 +13,8 @@ package name written as ``old`` and the new one as ``new``:
     Old         -> New          inside identifiers (``OldError`` -> ``NewError``)
     <display>   -> --display    the name people read, where it stands as a word of its own
     extra console scripts       dropped, or renamed with ``--alias``
+    distribution name           ``[project] name`` when it differs from the package (and its
+                                wheel-file form with ``_``) -> new; a renamed project picks its own
 
 The script edits text files in place and renames files and directories. Run it on a clean
 git tree: ``git diff`` then shows exactly what it did and ``git checkout . && git clean -fd``
@@ -48,8 +50,9 @@ class RenameError(Exception):
     pass
 
 
-def current_brand(root: Path) -> tuple[str, str, list[str]]:
-    """``(package name, display name, extra console scripts)`` as the repository states them."""
+def current_brand(root: Path) -> tuple[str, str, list[str], str]:
+    """``(package name, display name, extra console scripts, distribution name)`` as the
+    repository states them."""
     brand_files = sorted((root / "src").glob("*/core/brand.py"))
     if len(brand_files) != 1:
         raise RenameError(f"expected exactly one src/<package>/core/brand.py under {root}, found {len(brand_files)}")
@@ -58,24 +61,32 @@ def current_brand(root: Path) -> tuple[str, str, list[str]]:
     display = re.search(r'^DISPLAY_NAME = "([^"]+)"', text, re.MULTILINE)
     if not name or not display:
         raise RenameError(f"{brand_files[0]} does not define APP_NAME and DISPLAY_NAME as plain strings")
-    scripts = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8")).get("project", {}).get("scripts", {})
-    return name.group(1), display.group(1), [key for key in scripts if key != name.group(1)]
+    project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8")).get("project", {})
+    scripts = project.get("scripts", {})
+    return (name.group(1), display.group(1), [key for key in scripts if key != name.group(1)],
+            project.get("name", name.group(1)))
 
 
-def build_rewriter(old: str, old_display: str, new: str, new_display: str, aliases: dict[str, str]):
+def build_rewriter(old: str, old_display: str, new: str, new_display: str, aliases: dict[str, str],
+                   distribution: str | None = None):
     """A function that rewrites one text. Rules run in this order:
 
     1. the display name, only where it is a word of its own (never inside an identifier);
     2. console-script aliases that are kept;
-    3. OLD, Old, old inside anything.
+    3. the distribution name and its wheel-file form, where they stand on their own;
+    4. OLD, Old, old inside anything.
     """
     standalone_display = re.compile(rf"(?<!{WORD}){re.escape(old_display)}(?!{WORD})")
     plain = [(old.upper(), new.upper()), (old.capitalize(), new.capitalize()), (old, new)]
+    forms = {distribution, distribution.replace("-", "_")} - {old} if distribution else set()
+    standalone_distribution = [re.compile(rf"(?<!{WORD}){re.escape(form)}(?!{WORD})") for form in forms]
 
     def rewrite(text: str) -> str:
         text = standalone_display.sub(lambda _match: new_display, text)
         for alias, replacement in aliases.items():
             text = text.replace(alias, replacement)
+        for pattern in standalone_distribution:
+            text = pattern.sub(lambda _match: new, text)
         for before, after in plain:
             text = text.replace(before, after)
         return text
@@ -131,7 +142,7 @@ def main(argv: list[str] | None = None) -> int:
     root = args.root.resolve()
 
     try:
-        old, old_display, old_aliases = current_brand(root)
+        old, old_display, old_aliases, distribution = current_brand(root)
     except RenameError as exc:
         parser.error(str(exc))
     if not VALID_NAME.match(args.name):
@@ -143,7 +154,7 @@ def main(argv: list[str] | None = None) -> int:
 
     kept = {old_aliases[0]: args.alias} if args.alias and old_aliases else {}
     dropped = [alias for alias in old_aliases if alias not in kept]
-    rewrite = build_rewriter(old, old_display, args.name, args.display, kept)
+    rewrite = build_rewriter(old, old_display, args.name, args.display, kept, distribution)
 
     print(f"{old!r} ({old_display!r}) -> {args.name!r} ({args.display!r})")
     edited = 0

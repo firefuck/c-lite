@@ -1,5 +1,7 @@
 """Config contracts: defaults merge under the user file, and writes go through one seam."""
 
+from types import SimpleNamespace
+
 import pytest
 import yaml
 
@@ -58,6 +60,94 @@ def test_broken_file_is_never_overwritten():
     with pytest.raises(ConfigError):
         config.config_set("terminal.timeout", 1)
     assert get_config_path().read_text() == "model: [unclosed\n"
+
+
+@pytest.fixture
+def commented_config():
+    text = (
+        "# Personal settings — keep this note\n"
+        "display:\n"
+        "  skin: 'mono'  # chosen theme\n"
+        "\n"
+        "# Model settings\n"
+        'model:\n  default: "local/model"\n'
+        "  provider: 'mock'\n"
+        "\n"
+        "terminal:\n"
+        "  timeout: 42  # seconds\n"
+        "  cwd: '/work'\n"
+        "\n"
+        "command_allowlist: []  # remembered approvals\n"
+        f"_config_version: {CONFIG_VERSION}\n"
+        "# End of settings\n"
+    )
+    get_config_path().write_text(text, encoding="utf-8")
+    return text
+
+
+def test_config_set_preserves_comments_blank_lines_order_and_quotes(commented_config):
+    config.config_set("model.default", "local/other")
+    assert get_config_path().read_text(encoding="utf-8") == commented_config.replace(
+        'default: "local/model"', 'default: "local/other"'
+    )
+    assert config.config_get("model.default") == "local/other"
+
+
+def test_config_unset_preserves_comments_blank_lines_order_and_quotes(commented_config):
+    assert config.config_unset("terminal.timeout") is True
+    expected = commented_config.replace("  timeout: 42  # seconds\n", "")
+    assert get_config_path().read_text(encoding="utf-8") == expected
+    assert config.config_unset("terminal.missing") is False
+    assert get_config_path().read_text(encoding="utf-8") == expected
+
+
+def test_approval_always_preserves_comments_blank_lines_order_and_quotes(commented_config):
+    from clite.tools.approval import check_command
+    from clite.tools.context import ToolContext
+
+    ctx = ToolContext(callbacks=SimpleNamespace(approve=lambda **kwargs: "always"))
+    decision = check_command("git reset --hard", ctx)
+    assert decision.approved and decision.choice == "always"
+    expected = commented_config.replace(
+        "command_allowlist: []  # remembered approvals\n",
+        "command_allowlist:     # remembered approvals\n- git_reset_hard\n",
+    )
+    assert get_config_path().read_text(encoding="utf-8") == expected
+    assert config.config_get("command_allowlist") == ["git_reset_hard"]
+
+
+@pytest.mark.parametrize("text", ["model: [unclosed\n", "[not, a, mapping]\n", "scalar\n"])
+def test_set_unset_and_approval_never_overwrite_an_invalid_file(text):
+    from clite.tools.approval import check_command
+    from clite.tools.context import ToolContext
+
+    target = get_config_path()
+    target.write_text(text, encoding="utf-8")
+    before = target.read_bytes()
+    with pytest.raises(ConfigError):
+        config.config_set("terminal.timeout", 1)
+    with pytest.raises(ConfigError):
+        config.config_unset("terminal.timeout")
+    # An existing session can still approve even when the on-disk config broke later.
+    ctx = ToolContext(
+        config={}, callbacks=SimpleNamespace(approve=lambda **kwargs: "always")
+    )
+    assert check_command("git reset --hard", ctx).approved
+    assert target.read_bytes() == before
+
+
+@pytest.mark.parametrize("value", ["yes", "no", "on", "off", "012", "1:20"])
+def test_written_strings_keep_their_type_with_the_pyyaml_reader(value):
+    config.config_set("model.default", value)
+    assert config.config_get("model.default") == value
+
+
+def test_updates_keep_existing_yaml_11_values_semantically_unchanged():
+    get_config_path().write_text("enabled: on\nnumber: 012\n", encoding="utf-8")
+    before = config.load_user_config_raw()
+    config.atomic_config_update(lambda document: document.update(extra=True))
+    after = config.load_user_config_raw()
+    assert {key: after[key] for key in before} == before
 
 
 def test_environment_references_expand(monkeypatch):

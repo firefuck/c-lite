@@ -1,18 +1,24 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+# 77 is the first release that reads an SPDX `license` expression and `license-files`.
+requires = ["setuptools>=77,<90"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "clite"
-version = "0.1.0"
+# The distribution name differs from the command and the import package: `clite` on PyPI
+# belongs to another project. `pip install` takes this name; `clite` is still what runs.
+name = "c-lite"
+dynamic = ["version"]  # __version__ in src/clite/__init__.py; scripts/release.py checks it
 description = "C-lite: a personal AI agent with one core across CLI, TUI, desktop and messaging."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE", "NOTICE.md"]
 requires-python = ">=3.11"
 dependencies = [
   # Only packages every session needs belong here; anything provider- or platform-specific
   # goes in an extra. Every dependency carries an upper bound.
   "pydantic>=2.7,<3",
   "PyYAML>=6.0,<7",
+  "ruamel.yaml>=0.18.6,<0.19",
   "python-dotenv>=1.0,<2",
   # `clite serve` / `clite dashboard`: the JSON-RPC backend for the desktop app and web UI.
   "starlette>=0.40,<2",
@@ -33,6 +39,9 @@ dev = [
 [project.scripts]
 clite = "clite.cli.main:main"
 c-lite = "clite.cli.main:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "clite.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["src"]

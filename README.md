@@ -27,9 +27,42 @@ Hermes; yang ada di sini adalah fondasi dan peta kerja untuk menumbuhkan sisanya
 Daftar lengkap yang dihasilkan dari kode ada di
 [docs/referensi/katalog.md](docs/referensi/katalog.md).
 
-## Mencoba
+## Memasang
 
-Butuh Python 3.11 atau lebih baru. Node 22 hanya diperlukan untuk TUI.
+Butuh Python 3.11 atau lebih baru. Node 22 hanya diperlukan untuk TUI. Distribusi bernama
+`c-lite`, dengan lisensi MIT; paket Python dan perintah tetap `clite`. Tujuan penerbitan
+adalah [GitHub Releases](https://github.com/dragovics/clite/releases), bukan PyPI.
+**Rilis `v0.1.0` sudah terbit.** Wheel sudah diuji dengan pipx dan virtualenv:
+
+```bash
+pipx install ./dist/c_lite-0.1.0-py3-none-any.whl
+clite --version     # C-lite 0.1.0
+clite setup         # pilih provider, simpan kunci, pilih model
+clite doctor        # periksa instalasi
+```
+
+Wheel tersebut dibuat dengan `python scripts/release.py build` (pasang alat build lewat
+`python -m pip install 'build>=1.2,<2'`). Tanpa pipx, gunakan
+`pip install ./dist/c_lite-0.1.0-py3-none-any.whl` di dalam virtualenv.
+Pemasangan pipx lewat URL HTTP lokal juga sudah diuji; itu bukan bukti URL GitHub bekerja.
+Unduh aset dengan akun GitHub yang punya akses ke repositori privat:
+
+```bash
+gh release download v0.1.0 --repo dragovics/clite --pattern '*.whl' --dir dist
+pipx install ./dist/c_lite-0.1.0-py3-none-any.whl
+```
+
+Unduhan GitHub terautentikasi dan instalasi pipx telah diverifikasi. URL aset privat tidak bisa dipasang
+secara anonim; login GitHub di browser tidak otomatis mengautentikasi pip/pipx.
+
+Membuat rilis: naikkan versi berikutnya dengan `python scripts/release.py bump patch`
+(atau `minor`/`major`), lalu isi bagian versinya di [CHANGELOG.md](CHANGELOG.md).
+Untuk rilis pertama, pertahankan versi `0.1.0` yang sudah ada. Jalankan pemeriksaan dan build,
+commit, lalu `python scripts/release.py tag` dan dorong tag hanya setelah mendapat izin.
+Workflow `.github/workflows/release.yml` membangun wheel dan sdist,
+mengujinya di virtualenv bersih, lalu menerbitkan rilis GitHub dengan keduanya terlampir.
+
+## Mencoba dari source
 
 ```bash
 git clone https://github.com/dragovics/clite && cd clite

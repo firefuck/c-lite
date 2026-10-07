@@ -30,7 +30,7 @@ melihat seluruh pemeriksaan lulus, di mesinnya dan di GitHub Actions.
 - Tambahkan job yang membangun wheel, memasangnya ke lingkungan bersih, lalu menjalankan
   `clite --version`, `clite doctor`, dan satu giliran dengan provider `mock`.
 
-**Di luar lingkup.** Windows (F1-T5) dan rilis ke PyPI (F1-T7).
+**Di luar lingkup.** Windows (F1-T5) dan rilis GitHub (F1-T7).
 
 **File.** `pyproject.toml`, `package.json`, `ui-tui/package.json`, `apps/shared/package.json`,
 `apps/desktop/package.json`, `.github/workflows/ci.yml`, `scripts/run_tests.sh`,
@@ -262,14 +262,21 @@ dan urutan kunci di `config.yaml` milik pengguna.
 **Rujukan Hermes.** `hermes_yaml.py`, `scripts/check_config_yaml_writers.py`.
 
 **Selesai bila.**
-- [ ] Tes: file dengan komentar, baris kosong, dan urutan kunci tertentu tetap sama setelah
+- [x] Tes: file dengan komentar, baris kosong, dan urutan kunci tertentu tetap sama setelah
       `config_set`, `config_unset`, dan persetujuan `always`, kecuali baris yang diubah.
-- [ ] File yang rusak tetap tidak pernah ditimpa.
-- [ ] Baris "Penulis config yang mempertahankan komentar" di spesifikasi core menjadi ✅.
+- [x] File yang rusak tetap tidak pernah ditimpa.
+- [x] Baris "Penulis config yang mempertahankan komentar" di spesifikasi core menjadi ✅.
 
 **Ukuran.** S
 
 **Bergantung pada.** F1-T1
+
+**Kemajuan 6 Oktober 2026.** Jalur tulis kini memakai `ruamel.yaml>=0.18.6,<0.19` dengan
+`preserve_quotes` dan resolver YAML 1.1 yang sama dengan pembaca PyYAML. Tiga tes
+round-trip gagal pada salinan `57c5794`; lima tes kompatibilitas skalar juga gagal pada
+implementasi ruamel awal sebelum resolver disamakan. Sesudah patch, 146 tes `tests/core`
+dan persetujuan lulus; Ruff dan mypy berkas config bersih. Suite penuh dan CI menunggu
+runner induk, sehingga task belum ditutup.
 
 ---
 
@@ -283,23 +290,38 @@ dan urutan kunci di `config.yaml` milik pengguna.
 - `CHANGELOG.md` dengan isi rilis pertama.
 - Workflow rilis yang berjalan pada tag: membangun, menguji wheel di lingkungan bersih, lalu
   menerbitkan.
-- Periksa apakah nama paket `clite` masih tersedia di PyPI. Bila tidak, pilih nama distribusi
-  lain; nama perintah tetap `clite`.
+- Keputusan pemilik: distribusi `c-lite`, paket Python dan perintah `clite`, lisensi MIT.
+  Terbitkan hanya di GitHub Releases; tidak ada penerbitan atau akun PyPI yang diperlukan.
 - README: bagian pemasangan diperbarui dengan perintah yang sudah terbukti.
 
-**File.** `scripts/release.py (baru)`, `CHANGELOG.md (baru)`,
-`.github/workflows/release.yml (baru)`, `pyproject.toml`, `README.md`.
+**File.** `scripts/release.py`, `CHANGELOG.md`, `.github/workflows/release.yml`,
+`pyproject.toml`, `README.md`, `scripts/rename_project.py`, `tests/test_release.py`.
 
 **Rujukan Hermes.** `scripts/release.py`.
 
 **Selesai bila.**
-- [ ] `pipx install` dari artefak rilis menghasilkan `clite` yang lulus `clite doctor`.
-- [ ] Tes: versi di `pyproject.toml`, `clite --version`, dan tag sama.
-- [ ] Rilis GitHub pertama terbit dengan wheel dan sdist terlampir.
+- [x] `pipx install` dari artefak rilis menghasilkan `clite` yang lulus `clite doctor`.
+- [x] Tes: versi di `pyproject.toml`, `clite --version`, dan tag sama.
+- [x] Rilis GitHub pertama terbit dengan wheel dan sdist terlampir.
 
 **Ukuran.** S
 
 **Bergantung pada.** F1-T1, F1-T2
 
-**Butuh dari Anda.** Keputusan nama paket dan lisensi, dan akun PyPI bila ingin menerbitkan di
-sana.
+**Keputusan pemilik.** Tag/push dan penerbitan GitHub diizinkan; keputusan nama paket,
+lisensi, serta kanal rilis sudah ditetapkan. Repositori privat memerlukan akun dengan akses.
+
+**Kemajuan 7 Oktober 2026.** Skrip menyediakan pemeriksaan versi/changelog/tag,
+kenaikan versi di satu tempat, build wheel/sdist dan pemeriksaan isi wheel, serta tag lokal
+yang menolak tree kotor atau tag duplikat. Sembilan tes rilis lulus; enam kegagalan regresi
+dibuktikan di salinan terpisah dengan batas waktu, kemudian sembilan tes kembali lulus
+setelah kode dipulihkan. Distribusi dan lisensi tercantum di metadata wheel.
+
+Wheel dan sdist `0.1.0` lokal sudah dipasang ke lingkungan terpisah. Instalasi pipx melalui
+HTTP lokal menghasilkan `clite --version` dan `clite doctor` yang lulus dengan provider
+`mock`; pemeriksa instalasi wheel juga lulus di luar checkout. Sesudahnya aset GitHub
+terbit diunduh terautentikasi, dipasang melalui pipx, dan lulus doctor serta smoke test.
+Suite runner: 820 tes Python lulus, 26 terlewati, Ruff dan mypy 160 file bersih, 47 tes
+Node dan tiga pemeriksaan tipe lulus. Workflow rilis `37563420757` hijau (build,
+Python 3.11/3.13, publish). Tag `v0.1.0` menunjuk `e65bb0c`; wheel/sdist terlampir
+pada https://github.com/dragovics/clite/releases/tag/v0.1.0. Belum merge. F1-T2 tetap parsial.

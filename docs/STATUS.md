@@ -1,18 +1,18 @@
 # Status
 
-Diperbarui 6 Oktober 2026. Halaman ini memisahkan tiga hal yang mudah tertukar: apa yang
+Diperbarui 7 Oktober 2026. Halaman ini memisahkan tiga hal yang mudah tertukar: apa yang
 **dijaga tes**, apa yang **ditulis tetapi belum pernah bertemu hal yang sebenarnya**, dan apa
 yang **belum ada**.
 
 ## Dijaga tes
 
-Pemeriksaan terbaru dijalankan di Linux, Python 3.12.14, Node 24.19.0.
+Pemeriksaan terbaru F1-T7 dijalankan runner di Linux, Python 3.11.16, Node 26.7.0.
 
 | Pemeriksaan | Hasil |
 |---|---|
 | `ruff check src tests scripts` | Bersih |
-| `mypy` (159 file sumber) | Bersih |
-| Tes Python (`pytest tests`) | 758 lulus, 2 skip paket opsional |
+| `mypy` (160 file sumber) | Bersih |
+| Tes Python (`pytest tests`) | 820 lulus, 26 terlewati (jaringan, Windows, paket opsional) |
 | Tes TypeScript `apps/shared` | 21 lulus; `tsc --noEmit` bersih |
 | Tes TypeScript `ui-tui` | 18 lulus; `tsc --noEmit` bersih |
 | Tes TypeScript `apps/desktop` | 8 lulus; `tsc --noEmit` bersih |
@@ -50,6 +50,30 @@ dan TUI. Aset skill yang sengaja dihilangkan ditolak oleh pemeriksa tersebut (di
 Kendala penagihan yang tercatat pada repo sebelumnya tidak muncul di repo tujuan ini.
 F1-T1 selesai.
 
+### F1-T7: rilis GitHub terbit dan teruji
+
+Distribusi `c-lite` versi `0.1.0` memakai MIT; import dan CLI tetap `clite`.
+Pada 7 Oktober 2026 runner memverifikasi ulang build wheel/sdist, pemeriksaan versi
+terhadap calon tag `v0.1.0`, pemasangan wheel ke virtualenv terpisah, dan
+`scripts/check_wheel_install.py` dengan Python mode terisolasi di luar checkout.
+CLI, doctor, giliran mock, plugin/skill bawaan, aset dashboard dan TUI lulus.
+Instalasi pipx dari wheel yang disajikan lewat HTTP lokal juga menghasilkan versi benar
+dan doctor lulus; metadata instalasinya menunjuk URL loopback, **bukan GitHub**.
+Sdist sudah dipasang di lingkungan terpisah dan menghasilkan CLI versi `0.1.0`.
+Doctor memakai config provider `mock`, bukan kredensial atau provider sungguhan.
+
+Sembilan tes `tests/test_release.py` menjaga versi tunggal, tag yang cocok, changelog,
+kenaikan versi, isi wheel dan penolakan tag pada tree kotor/duplikat. Bukti regresi di
+salinan terpisah: metadata lama menggagalkan dua tes; pelepasan pemeriksaan tag, penulisan
+versi, isi catatan rilis, dan pemeriksaan wheel masing-masing menggagalkan satu tes.
+Sesudah kode dipulihkan, sembilan tes lulus. Log lokal: /tmp/clite-f1t7-red.log.
+
+F1-T7 selesai: workflow `37563420757` hijau pada `e65bb0c` (build, Python 3.11/3.13,
+publish). Rilis https://github.com/dragovics/clite/releases/tag/v0.1.0 memuat wheel dan
+sdist. Aset diunduh lewat `gh release download`, digest SHA-256 cocok dengan GitHub,
+wheel dipasang dengan pipx terisolasi dan lulus versi, doctor mock serta smoke test.
+Repositori tetap privat; unduhan perlu autentikasi. Main belum di-merge; F1-T2 tetap parsial.
+
 ## Ditulis, belum diverifikasi
 
 Semua butir ini punya kode, dan sebagian punya tes terhadap tiruan, tetapi belum pernah
@@ -57,6 +81,7 @@ dijalankan terhadap hal yang sebenarnya. Anggap belum berfungsi sampai terbukti.
 
 | Hal | Keadaan | Task |
 |---|---|---|
+| Rilis GitHub wheel/sdist | Artefak lokal dan instalasi pipx/virtualenv teruji; workflow tag, penerbitan, dan unduhan aset privat belum dijalankan | F1-T7 |
 | Panggilan ke provider sungguhan | Belum pernah. Transport `anthropic_messages` dan `chat_completions` hanya diuji terhadap server tiruan. Ini termasuk pemutaran ulang blok penalaran bertanda tangan pada model Claude generasi 5, yang aturannya diambil dari dokumentasi, bukan dari pengamatan | F1-T2 |
 | Teks penalaran model generasi 5 (`thinking.display`) | Diterapkan: profil `anthropic` meminta `display: summarized` bila `display.show_reasoning` aktif. Belum dicoba ke API asli | F1-T2 |
 | Tes jaringan provider (`tests/providers/test_live.py`) | Ditulis, belum pernah dijalankan: menunggu kunci Anthropic dan satu provider kompatibel OpenAI | F1-T2 |
@@ -155,10 +180,12 @@ python scripts/check_hermes_refs.py --hermes ../hermes-ref   # butuh clone Herme
 
 | Tanggal | Yang diverifikasi | Di mana |
 |---|---|---|
+| 7 Oktober 2026 | F1-T7: 820 tes Python lulus/26 terlewati, Ruff/mypy 160 file bersih; 47 tes Node dan tiga typecheck lulus. Build, instalasi wheel/doctor/mock/TUI dan pipx lokal lulus; enam kegagalan regresi di salinan terpisah, sembilan tes rilis kembali lulus sesudah dipulihkan. Belum menerbitkan rilis GitHub | Linux, Python 3.11.16, Node 26.7.0 |
 | 5 Oktober 2026 | Seluruh tabel "Dijaga tes" di atas | Linux, Python 3.13, Node 22.22 |
 | 5 Oktober 2026 | Wheel dibangun dan dipasang ke lingkungan virtual bersih. Dari sana: `clite --version`, `clite doctor`, satu giliran dengan provider `mock`, `clite tui --help`, satu giliran lewat TUI, daftar plugin dan skill bawaan, dan `clite serve` (file dashboard, pemeriksaan token, satu giliran lewat WebSocket). Dependensi diambil dari paket sistem dan `websockets` dari clone, bukan dari PyPI | Linux, Python 3.13, Node 22.22 |
 | 5 Oktober 2026 | `scripts/rename_project.py` pada salinan repositori, diikuti langkah lanjutan yang dicetaknya: `scripts/run_tests.sh` lulus seluruhnya dan program hasil ganti nama berjalan. Yang tersisa dari nama lama hanya URL repositori di README | Linux, Python 3.13, Node 22.22 |
 | 5 Oktober 2026 | Workflow CI terpicu di GitHub pada setiap push; semua job ditolak sebelum berjalan karena akun terkunci masalah penagihan | GitHub Actions |
+| 6 Oktober 2026 | F1-T6 lokal: penulis config `ruamel.yaml` mempertahankan format; suite penuh 811 lulus, 26 skip; CI belum jalan | Linux, Python 3.11 |
 | 6 Oktober 2026 | `install_skill("anthropics/skills/skills/pdf")` memasang skill dari GitHub sungguhan tanpa token (`pytest tests/skills -m network`) | Linux, Python 3.13 |
 
 Setiap task yang memverifikasi sesuatu menambah baris di tabel ini dan memindahkan butirnya
