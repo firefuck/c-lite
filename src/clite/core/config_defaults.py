@@ -183,6 +183,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
     # auto_prune deletes sessions with no activity for retention_days, at most once a day, when
     # a surface starts. Pinned sessions are kept. `clite sessions prune` does it on demand.
     "sessions": {"auto_prune": False, "retention_days": 90},
+    # File checkpoints kept so /rollback can undo the agent's edits. Groups older than
+    # sessions.retention_days are dropped with their session, and the oldest groups are
+    # deleted once the whole store grows past max_bytes.
+    "checkpoints": {"max_bytes": 100_000_000},
     "logging": {"level": "INFO", "max_size_mb": 5, "backup_count": 3},
     "timezone": "",  # IANA name; empty = system local time
     "_config_version": CONFIG_VERSION,

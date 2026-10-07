@@ -144,6 +144,11 @@ def get_cache_dir() -> Path:
     return get_home() / "cache"
 
 
+def get_checkpoints_dir() -> Path:
+    """Where per-session file checkpoints live, one subdirectory per session id."""
+    return get_home() / "checkpoints"
+
+
 def get_soul_path() -> Path:
     return get_home() / "SOUL.md"
 

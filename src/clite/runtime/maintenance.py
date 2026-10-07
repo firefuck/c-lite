@@ -3,6 +3,9 @@
 Maintenance never raises and never blocks a chat: every step is best effort. It runs at most
 once per process and home, and steps that are expensive keep their own "last run" timestamp
 in the database so several processes do not repeat the work.
+
+Two steps today: pruning old sessions (``sessions.auto_prune``) and pruning the file-checkpoint
+store that goes with them (see ``clite.runtime.maintenance.prune_checkpoints``).
 """
 
 from __future__ import annotations
@@ -16,6 +19,7 @@ from typing import Any
 from clite.core.config import get_path, load_config
 from clite.core.constants import home_key
 from clite.state.db import get_session_db
+from clite.tools.checkpoints import prune_checkpoints as _prune_checkpoint_store
 
 logger = logging.getLogger("clite.runtime.maintenance")
 
@@ -59,6 +63,26 @@ def run_startup_maintenance(config: dict[str, Any] | None = None, *, keep_sessio
             return
         _DONE.add(key)
     try:
-        auto_prune_sessions(config if config is not None else load_config(), keep=keep_sessions)
+        cfg = config if config is not None else load_config()
+        auto_prune_sessions(cfg, keep=keep_sessions)
+        prune_checkpoints(cfg)
     except Exception:  # noqa: BLE001 - housekeeping must never stop a session from starting
         logger.warning("startup maintenance failed", exc_info=True)
+
+
+def prune_checkpoints(config: dict[str, Any]) -> list[str]:
+    """Drop checkpoint stores whose session is gone, and trim the rest by age and size.
+
+    The session database is the source of truth: a store directory with no session row left
+    (the session was pruned or deleted) is removed outright, and the surviving stores follow
+    ``sessions.retention_days`` and ``checkpoints.max_bytes``. Best effort, like the rest of
+    maintenance.
+    """
+    db = get_session_db()
+    rows = db.list_sessions(limit=1_000_000, include_archived=True, include_children=True)
+    alive = [row["id"] for row in rows]
+    emptied = _prune_checkpoint_store(config, session_ids=alive)
+    emptied += _prune_checkpoint_store(config)
+    if emptied:
+        logger.info("checkpoint pruning emptied %d store(s)", len(emptied))
+    return emptied

@@ -25,6 +25,7 @@ from clite.runtime.commands import resolve_command, split_command
 from clite.runtime.factory import build_agent
 from clite.skills.commands import build_skill_message, skill_commands
 from clite.state.db import get_session_db
+from clite.tools.checkpoints import RollbackResult, TurnGroup, list_checkpoints, rollback
 
 logger = logging.getLogger("clite.runtime.session")
 
@@ -276,6 +277,16 @@ class ChatSession:
     def set_title(self, title: str) -> str:
         self.agent.ensure_session()
         return get_session_db().set_title(self.agent.session_id, title, source="user")
+
+    # ── file checkpoints ─────────────────────────────────────────────────────────────────
+
+    def rollback_files(self, turns: int = 1) -> RollbackResult:
+        """Restore the files the agent changed in the last ``turns`` turns."""
+        return rollback(self.agent.session_id, turns=turns)
+
+    def list_file_checkpoints(self) -> list[TurnGroup]:
+        """The stored file-change groups for this session, oldest first."""
+        return list_checkpoints(self.agent.session_id)
 
     def info(self) -> dict[str, Any]:
         row = get_session_db().get_session(self.agent.session_id) or {}

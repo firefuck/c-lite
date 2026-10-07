@@ -282,7 +282,7 @@ Ditulis apa adanya supaya tidak ada yang mengandalkan pagar yang tidak ada.
 | Gerbang persetujuan membaca teks **satu** perintah | Skrip yang ditulis ke file lalu dijalankan di langkah berikutnya tidak terlihat | Pemindaian yang lebih dalam tidak menggantikan sandbox |
 | Gerbang persetujuan tidak menjalankan shell | Nama yang baru terbentuk saat perintah berjalan tidak terbaca: `rm -rf $(echo /)`, `c=clite; $c config set ...`, `python -c "..."`. Yang pertama masih ditanyakan sebagai hapus rekursif; dua yang lain lolos tanpa pertanyaan | Deteksi muatan interpreter dan posisi perintah: F2-T15. Jaminan sungguhan hanya dari sandbox |
 | Persetujuan yang diingat berlaku per **pola**, bukan per perintah | Menjawab "session" atau "always" untuk satu `rm -rf build/` meloloskan setiap hapus rekursif berikutnya, kecuali yang terlarang mutlak | Jawab "once" untuk perintah yang tidak ingin digeneralkan |
-| Tool file tidak dibatasi ke direktori kerja | Model bisa menulis ke mana pun di luar daftar terlarang | Checkpoint sebelum menulis: F2-T8 |
+| Tool file tidak dibatasi ke direktori kerja | Model bisa menulis ke mana pun di luar daftar terlarang | Checkpoint sebelum menulis (F2-T8) membuat perubahan bisa dibatalkan dengan `/rollback`, tetapi ia tidak mencegah tulisannya: batas nyata tetap sandbox `terminal.backend: docker` atau `ssh` |
 | Skrip shell hook bisa ditulis ulang | Persetujuan mengikat teks perintah, bukan isi file yang ditunjuknya | Simpan skrip hook di luar jangkauan agent, atau buat hanya-baca |
 | Plugin berjalan dalam proses dengan hak penuh | Plugin jahat yang diaktifkan bisa melakukan apa saja | Baca plugin sebelum mengaktifkan |
 | Pemindai teks berbasis pola | Injeksi yang ditulis cermat lolos | - |

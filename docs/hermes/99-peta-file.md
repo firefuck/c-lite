@@ -95,7 +95,7 @@ Sebelum membawa sesuatu, baca
 | `tools/environments/docker.py`, `tools/environments/ssh.py` | belum ada | F2-T7 |
 | `tools/file_tools.py`, `tools/file_operations.py` | `src/clite/tools/builtin/file_tools.py` | |
 | `tools/fuzzy_match.py`, `tools/patch_parser.py` | belum ada | Patch toleran dan multi-file: F2-T4 |
-| `tools/checkpoint_manager.py` | belum ada | F2-T8 |
+| `tools/checkpoint_manager.py`, `tools/checkpoint_pruning.py` | `src/clite/tools/checkpoints.py` | Checkpoint per sesi, rollback lewat `/rollback`, pemangkasan mengikuti `sessions.retention_days`. F2-T8 |
 | `tools/web_tools.py`, `tools/url_safety.py` | `src/clite/tools/builtin/web.py` | Hanya `web_fetch`. Pencarian: F2-T5 |
 | `tools/vision_tools.py`, `tools/image_generation_tool.py` | belum ada | F2-T6 |
 | `tools/code_execution_tool.py` | belum ada | F2-T9 |

@@ -39,6 +39,8 @@ COMMAND_REGISTRY: list[CommandDef] = [
     CommandDef("sessions", "List recent sessions", args_hint="[count]"),
     CommandDef("resume", "Switch to an earlier session", args_hint="<id | title>"),
     CommandDef("compress", "Summarise older turns to free context", args_hint="[focus]"),
+    CommandDef("rollback", "Undo the files the agent changed in the last turn(s)", args_hint="[turns]"),
+    CommandDef("checkpoints", "List the file checkpoints kept for this session"),
     CommandDef("stop", "Interrupt the running turn", busy_policy=BUSY_ALLOW),
     CommandDef("steer", "Guide the running turn without interrupting it", args_hint="<text>", busy_policy=BUSY_ALLOW),
     CommandDef("quit", "Exit", aliases=("exit", "q"), cli_only=True, busy_policy=BUSY_ALLOW),
