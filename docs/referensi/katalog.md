@@ -11,7 +11,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `clarify` | `clarify` | never | Ask the user a question when you cannot proceed without their decision: the request is ambiguous in a way that changes the work, or a choice is theirs to make. |
 | `cronjob` | `cronjob` | never | Schedule a task for later. |
 | `delegate_task` | `delegation` | never | Run one or more subagents, each on a focused task, and get back only their final reports. |
-| `patch` | `file` | path | Replace text in a file. |
+| `patch` | `file` | path | Replace text in a file, or apply a multi-file V4A patch. |
 | `read_file` | `file` | path | Read a text file with line numbers (`LINE\|content`). |
 | `search_files` | `file` | safe | Search the project. |
 | `write_file` | `file` | path | Create a file or replace its whole content. |

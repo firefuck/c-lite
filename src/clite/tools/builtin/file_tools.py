@@ -19,6 +19,7 @@ from clite.core.redact import redact
 from clite.tools.context import ToolContext
 from clite.tools.environments import get_environment
 from clite.tools.file_safety import read_denied_reason, write_denied_reason
+from clite.tools.patching import apply_replacement, apply_v4a_patch, find_tolerant_match
 from clite.tools.registry import PARALLEL_PATH, PARALLEL_SAFE, registry, tool_error, tool_result
 
 DEFAULT_READ_LIMIT = 500
@@ -167,41 +168,79 @@ def write_file_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str
 PATCH_SCHEMA = {
     "name": "patch",
     "description": (
-        "Replace text in a file. old_string must match exactly once (include enough surrounding lines "
-        "to make it unique) unless replace_all is true. Returns a diff of the change. Read the file "
+        "Replace text in a file, or apply a multi-file V4A patch. In replace mode "
+        "(default), old_string must match exactly once (include enough surrounding lines "
+        "to make it unique) unless replace_all is true; a tolerant match chain (trailing "
+        "whitespace, indentation, smart quotes, blank lines) is tried when the exact text "
+        "is absent, each rung only accepted when the match is unique. In patch mode, the "
+        "patch argument holds V4A text (*** Update/Add/Delete File) touching several files, "
+        "applied atomically: all or nothing. Returns a diff of the change. Read the file "
         "first so old_string is copied from its real content."
     ),
     "parameters": {
         "type": "object",
         "properties": {
-            "path": {"type": "string", "description": "File to edit."},
-            "old_string": {"type": "string", "description": "Exact text to find."},
-            "new_string": {"type": "string", "description": "Replacement text. Empty string deletes."},
-            "replace_all": {"type": "boolean", "description": "Replace every occurrence (default false)."},
+            "path": {"type": "string", "description": "File to edit (replace mode)."},
+            "old_string": {"type": "string", "description": "Exact text to find (replace mode)."},
+            "new_string": {"type": "string", "description": "Replacement text. Empty string deletes (replace mode)."},
+            "replace_all": {"type": "boolean", "description": "Replace every occurrence (default false, replace mode)."},
+            "mode": {
+                "type": "string",
+                "enum": ["replace", "patch"],
+                "description": (
+                    "'replace' (default) edits one file with old_string/new_string. "
+                    "'patch' applies the V4A text in the `patch` argument across several files atomically."
+                ),
+            },
+            "patch": {
+                "type": "string",
+                "description": (
+                    "V4A patch text (patch mode only): *** Update/Add/Delete File headers, each followed "
+                    "by @@ context @@, - removed lines, + added lines, and ' ' context lines."
+                ),
+            },
         },
         "required": ["path", "old_string", "new_string"],
     },
 }
 
 
-def _find_whitespace_tolerant(content: str, old: str) -> tuple[int, int] | None:
-    """Span of the one place where ``old`` matches line by line ignoring leading and trailing
-    whitespace. Models routinely get indentation slightly wrong; a unique such match is safe."""
-    wanted = [line.strip() for line in old.strip("\n").splitlines()]
-    if not wanted or not any(wanted):
-        return None
-    lines = content.splitlines(keepends=True)
-    spans = []
-    for start in range(len(lines) - len(wanted) + 1):
-        if all(lines[start + i].strip() == wanted[i] for i in range(len(wanted))):
-            begin = sum(len(line) for line in lines[:start])
-            end = begin + sum(len(line) for line in lines[start : start + len(wanted)])
-            spans.append((begin, end))
-    return spans[0] if len(spans) == 1 else None
+def _patch_mode(args: dict[str, Any], ctx: ToolContext) -> str:
+    """Apply a V4A multi-file patch atomically; all paths still go through ``write_denied_reason``."""
+    patch_text = args.get("patch")
+    if not isinstance(patch_text, str) or not patch_text.strip():
+        return tool_error("mode='patch' requires a non-empty `patch` argument with V4A text")
+
+    def resolve(path_str: str) -> Path:
+        return _resolve(path_str, ctx)
+
+    result = apply_v4a_patch(patch_text, resolve)
+    if result.error:
+        extra: dict[str, Any] = {}
+        if result.denied_path:
+            extra["denied_path"] = result.denied_path
+        if result.rolled_back:
+            extra["rolled_back"] = True
+        return tool_error(result.error, **extra)
+
+    files: list[dict[str, Any]] = []
+    for entry in result.applied:
+        files.append({
+            "path": str(entry.path),
+            "created": entry.created,
+            "diff": redact(entry.diff[:8000]),
+        })
+    return tool_result(files=files, count=len(files))
 
 
 def patch_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
     ctx = ctx or ToolContext()
+    mode = args.get("mode") or "replace"
+    if mode == "patch":
+        return _patch_mode(args, ctx)
+    if mode != "replace":
+        return tool_error(f"mode must be 'replace' or 'patch', got {mode!r}")
+
     raw_path, old, new = args.get("path"), args.get("old_string"), args.get("new_string")
     if not raw_path:
         return tool_error("path is required")
@@ -223,23 +262,31 @@ def patch_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
         return tool_error(f"could not read {path}: {exc}")
 
     count = content.count(old)
-    if count == 0:
-        span = _find_whitespace_tolerant(content, old)
-        if span is None:
+    if count == 1:
+        updated, replaced, level = content.replace(old, new, 1), 1, "exact"
+    elif count > 1:
+        if not args.get("replace_all"):
             return tool_error(
-                "old_string was not found in the file. Read the file again and copy the text exactly, "
-                "including indentation.",
-                path=str(path),
+                f"old_string matches {count} places. Add surrounding lines to make it unique, "
+                "or set replace_all=true.",
+                path=str(path), matches=count,
             )
-        replacement = new if new.endswith("\n") or not content[span[0] : span[1]].endswith("\n") else new + "\n"
-        updated, replaced = content[: span[0]] + replacement + content[span[1] :], 1
-    elif count > 1 and not args.get("replace_all"):
-        return tool_error(
-            f"old_string matches {count} places. Add surrounding lines to make it unique, or set replace_all=true.",
-            path=str(path), matches=count,
-        )
+        updated, replaced, level = content.replace(old, new), count, "exact"
     else:
-        updated, replaced = content.replace(old, new), count
+        # Exact match absent: walk the tolerance chain. Each rung is accepted only when
+        # the match is unique; an ambiguous rung stops the chain so the model is told
+        # how many candidates the loosest passing normalisation saw.
+        match = find_tolerant_match(content, old)
+        if not match.found or match.span is None:
+            reason = "was not found" if match.matches == 0 else f"matches {match.matches} places"
+            return tool_error(
+                f"old_string {reason}. Read the file again and copy the text exactly, "
+                "including indentation.",
+                path=str(path), matches=match.matches,
+            )
+        updated = apply_replacement(content, match.span, new)
+        replaced, level = 1, match.level
+
     try:
         atomic_write_text(path, updated)
     except OSError as exc:
@@ -248,7 +295,7 @@ def patch_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
         difflib.unified_diff(content.splitlines(keepends=True), updated.splitlines(keepends=True),
                              fromfile=f"a/{path.name}", tofile=f"b/{path.name}", n=2)
     )
-    return tool_result(path=str(path), replacements=replaced, diff=redact(diff[:8000]))
+    return tool_result(path=str(path), replacements=replaced, match_level=level, diff=redact(diff[:8000]))
 
 
 # ── search_files ─────────────────────────────────────────────────────────────────────────
