@@ -44,7 +44,10 @@ milik backend di sebuah jendela. Tidak ada UI kedua.
 | Peluncur backend dan kebijakan navigasi | ✅ | |
 | Jalan pertama Electron | ✅ | Dijalankan 8 Oktober 2026 di Linux dengan display X, Electron 44.5.1; hasil per butir daftar periksa ada di `apps/desktop/README.md` |
 | Ikon, menu, pemaketan installer, auto-update, tanda tangan kode | ⬜ | F5-T4 |
-| Multi-sesi, lampiran file, notifikasi, tray | ⬜ | F5-T5 |
+| Beberapa sesi sekaligus di satu jendela | ✅ | F5-T5: tiap sesi punya transkripnya sendiri; event dirutekan lewat `session_id` |
+| Lampiran berkas (seret dan tempel) | ⬜ | F5-T5 |
+| Notifikasi sistem | ⬜ | F5-T5 |
+| Tray | ⬜ | Belum ada task-nya |
 | Pemilihan profil | ⬜ | F5-T5 |
 
 ## Yang sengaja berbeda dari Hermes

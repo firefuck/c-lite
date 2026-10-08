@@ -24,14 +24,36 @@ function h(tag, attributes = {}, ...children) {
   return element;
 }
 
+// One open conversation. Several can be open at once in one connection: every event carries
+// its `session_id`, so each view keeps its own transcript, its own streaming element and its
+// own running tools. Only the active one is in the document; the others keep their nodes in
+// memory, so switching back is instant and nothing is re-rendered from scratch.
+function newView(id, info) {
+  return {
+    id,
+    info,
+    busy: false,
+    streaming: null,
+    tools: new Map(),
+    // Each view owns its transcript element. Only the active one is in the document, so a
+    // background session keeps receiving events into its own element without touching the page.
+    container: h("div", { class: "transcript-body" }),
+  };
+}
+
 const state = {
   rpc: null,
-  sessionId: null, // runtime id
-  info: null,
-  busy: false,
-  streaming: null, // the assistant element receiving deltas
-  tools: new Map(), // call id -> element
+  views: new Map(), // runtime session id -> view
+  activeId: null,
 };
+
+function activeView() {
+  return state.views.get(state.activeId) || null;
+}
+
+function viewOf(sessionId) {
+  return state.views.get(sessionId) || null;
+}
 
 // ── token and connection ────────────────────────────────────────────────────────────────
 
@@ -78,20 +100,51 @@ async function connect() {
 // ── sessions ─────────────────────────────────────────────────────────────────────────────
 
 async function openSession(params) {
-  if (state.sessionId) await state.rpc.request("session.close", { session_id: state.sessionId }).catch(() => {});
   const info = await state.rpc.request("session.create", params);
-  state.sessionId = info.session_id;
-  setInfo(info);
-  $("#transcript").replaceChildren();
-  state.streaming = null;
-  state.tools.clear();
-  const history = await state.rpc.request("session.history", { session_id: state.sessionId });
-  for (const message of history.messages) renderStored(message);
+  const view = newView(info.session_id, info);
+  state.views.set(view.id, view);
+  await activateSession(view.id);
+  if (info.message_count) {
+    const history = await state.rpc.request("session.history", { session_id: view.id });
+    for (const message of history.messages) renderStored(message);
+  }
+  await refreshSessions();
+  return view;
+}
+
+/** Make a view the one in the document. A background view keeps its element and its events. */
+async function activateSession(sessionId) {
+  const view = viewOf(sessionId);
+  if (!view) return;
+  state.activeId = sessionId;
+  $("#transcript").replaceChildren(view.container);
+  setInfo(view.info);
+  setBusy(view.busy);
+  renderOpenSessions();
+  scrollDown();
   $("#prompt").focus();
 }
 
+/** Let a runtime session go. Its stored history stays; only this connection forgets it. */
+async function closeSession(sessionId) {
+  const view = viewOf(sessionId);
+  if (!view) return;
+  await state.rpc.request("session.close", { session_id: sessionId }).catch(() => {});
+  state.views.delete(sessionId);
+  if (state.activeId === sessionId) {
+    state.activeId = null;
+    const next = [...state.views.keys()].pop();
+    if (next) await activateSession(next);
+    else await openSession({});
+  } else {
+    renderOpenSessions();
+  }
+}
+
 function setInfo(info) {
-  state.info = info;
+  const view = viewOf(info.session_id) || activeView();
+  if (view) view.info = info;
+  if (!view || view.id !== state.activeId) return; // the status bar shows the active session
   $("#status-model").textContent = `${info.model} · ${info.provider}`;
   const context = info.context;
   $("#status-context").textContent = context.context_length
@@ -103,9 +156,29 @@ function setInfo(info) {
   }
 }
 
+/** The open conversations, with a dot when one is working in the background. */
+function renderOpenSessions() {
+  const open = [...state.views.values()];
+  $("#open-sessions").replaceChildren(
+    ...open.map((view) => h("li", {},
+      h("button", {
+        type: "button", "data-open": view.id,
+        class: `${view.id === state.activeId ? "current" : ""}${view.busy ? " busy" : ""}`,
+        onclick: () => activateSession(view.id),
+      },
+      h("span", { class: "dot" }),
+      view.info.title || "(new chat)",
+      view.busy ? h("span", { class: "meta" }, "working") : null,
+      open.length > 1
+        ? h("span", { class: "close", role: "button", "data-close": view.id, onclick: (event) => { event.stopPropagation(); closeSession(view.id); } }, "×")
+        : null),
+    )),
+  );
+}
+
 async function refreshSessions() {
   const { sessions } = await state.rpc.request("session.list", { limit: 40 });
-  const current = state.info && state.info.stored_session_id;
+  const current = activeView()?.info?.stored_session_id;
   $("#sessions").replaceChildren(
     ...sessions.map((session) =>
       h("li", {}, h("button", {
@@ -118,7 +191,8 @@ async function refreshSessions() {
 
 // ── transcript ───────────────────────────────────────────────────────────────────────────
 
-function scrollDown() {
+function scrollDown(view) {
+  if (view && view.id !== state.activeId) return; // a background view scrolls when you open it
   const transcript = $("#transcript");
   transcript.scrollTop = transcript.scrollHeight;
 }
@@ -133,12 +207,14 @@ function renderText(element, text) {
   });
 }
 
-function addMessage(role, text) {
+/** Append a message to a view's transcript. Defaults to the active view. */
+function addMessage(role, text, view = activeView()) {
+  if (!view) return null;
   const element = h("div", { class: `message ${role}` });
   element.dataset.text = text;
   renderText(element, text);
-  $("#transcript").append(element);
-  scrollDown();
+  view.container.append(element);
+  scrollDown(view);
   return element;
 }
 
@@ -147,45 +223,56 @@ function notice(text, kind = "notice") {
 }
 
 function renderStored(message) {
+  const view = activeView();
+  if (!view) return;
   if (message.role === "tool") {
-    $("#transcript").append(h("div", { class: "tool" }, `✓ ${message.tool_name}`));
+    view.container.append(h("div", { class: "tool" }, `✓ ${message.tool_name}`));
   } else if (message.text) {
-    addMessage(message.role, message.text);
+    addMessage(message.role, message.text, view);
   }
 }
 
 function setBusy(busy) {
-  state.busy = busy;
+  const view = activeView();
+  if (view) view.busy = busy;
   $("#send").hidden = busy;
   $("#stop").hidden = !busy;
+  renderOpenSessions();
 }
 
+/** Route one event to the view it belongs to, active or not. */
 function handleEvent(event) {
-  if (event.session_id && event.session_id !== state.sessionId) return;
+  const view = viewOf(event.session_id);
+  if (!view) return; // an event for a session this connection never opened
   const payload = event.payload;
+  const markBusy = (busy) => {
+    view.busy = busy;
+    if (view.id === state.activeId) setBusy(busy);
+    else renderOpenSessions();
+  };
   switch (event.type) {
     case "turn.start":
-      setBusy(true);
+      markBusy(true);
       break;
     case "message.delta":
-      if (!state.streaming) state.streaming = addMessage("assistant", "");
-      state.streaming.dataset.text += payload.text;
-      renderText(state.streaming, state.streaming.dataset.text);
-      scrollDown();
+      if (!view.streaming) view.streaming = addMessage("assistant", "", view);
+      view.streaming.dataset.text += payload.text;
+      renderText(view.streaming, view.streaming.dataset.text);
+      scrollDown(view);
       break;
     case "message.complete":
-      if (!state.streaming && payload.text) addMessage("assistant", payload.text);
-      state.streaming = null;
+      if (!view.streaming && payload.text) addMessage("assistant", payload.text, view);
+      view.streaming = null;
       break;
     case "tool.start": {
       const element = h("div", { class: "tool running" }, `${payload.name}  ${payload.preview}`);
-      state.tools.set(payload.call_id, element);
-      $("#transcript").append(element);
-      scrollDown();
+      view.tools.set(payload.call_id, element);
+      view.container.append(element);
+      scrollDown(view);
       break;
     }
     case "tool.complete": {
-      const element = state.tools.get(payload.call_id);
+      const element = view.tools.get(payload.call_id);
       if (element) {
         element.className = `tool${payload.failed ? " failed" : ""}`;
         element.textContent = `${payload.failed ? "✗" : "✓"} ${element.textContent}  (${payload.duration.toFixed(1)}s)`;
@@ -193,24 +280,24 @@ function handleEvent(event) {
       break;
     }
     case "status.update":
-      notice(`[${payload.kind}] ${payload.text}`);
+      addMessage("notice", `[${payload.kind}] ${payload.text}`, view);
       break;
     case "subagent.update":
-      notice(`subagent ${payload.index + 1}: ${payload.event} ${payload.tool || payload.status}`);
+      addMessage("notice", `subagent ${payload.index + 1}: ${payload.event} ${payload.tool || payload.status}`, view);
       break;
     case "session.info":
       setInfo(payload);
       refreshSessions();
       break;
     case "turn.complete":
-      state.streaming = null;
-      setBusy(false);
-      if (payload.interrupted) notice("(interrupted)");
-      else if (payload.error) notice(payload.final_response || payload.error, "error");
-      state.rpc.request("session.info", { session_id: state.sessionId }).then(setInfo).then(refreshSessions);
+      view.streaming = null;
+      markBusy(false);
+      if (payload.interrupted) addMessage("notice", "(interrupted)", view);
+      else if (payload.error) addMessage("error", payload.final_response || payload.error, view);
+      state.rpc.request("session.info", { session_id: view.id }).then(setInfo).then(refreshSessions);
       break;
     case "error":
-      notice(payload.message, "error");
+      addMessage("error", payload.message, view);
       break;
     default:
       break;
@@ -218,14 +305,15 @@ function handleEvent(event) {
 }
 
 async function send(text) {
-  if (!text.trim() || !state.rpc) return;
+  const view = activeView();
+  if (!text.trim() || !state.rpc || !view) return;
   if (text.trim().startsWith("/")) {
     try {
-      const result = await state.rpc.request("slash.exec", { session_id: state.sessionId, command: text.trim() });
+      const result = await state.rpc.request("slash.exec", { session_id: view.id, command: text.trim() });
       if (result.text) notice(result.text);
       if (result.action === "new") {
-        $("#transcript").replaceChildren();
-        const history = await state.rpc.request("session.history", { session_id: state.sessionId });
+        view.container.replaceChildren();
+        const history = await state.rpc.request("session.history", { session_id: view.id });
         for (const message of history.messages) renderStored(message);
       }
     } catch (error) {
@@ -235,7 +323,7 @@ async function send(text) {
   }
   addMessage("user", text);
   try {
-    await state.rpc.request("prompt.submit", { session_id: state.sessionId, text });
+    await state.rpc.request("prompt.submit", { session_id: view.id, text });
   } catch (error) {
     notice(error.message, "error");
   }
@@ -537,7 +625,7 @@ const panels = {
       ...skills.map((skill) => row(`/${skill.name}`, `${skill.description} · ${skill.category || "general"} · ${skill.tier}`)));
   },
   async tools(panel) {
-    const { toolsets } = await state.rpc.request("tools.list", { session_id: state.sessionId });
+    const { toolsets } = await state.rpc.request("tools.list", { session_id: state.activeId });
     panel.replaceChildren(h("h2", {}, "Toolsets"),
       ...toolsets.map((set) => row(`${set.name}  (${set.enabled_tools.length}/${set.tools.length})`, `${set.description} · ${set.tools.join(", ")}`)));
   },
@@ -742,12 +830,12 @@ $("#prompt").addEventListener("keydown", (event) => {
   }
 });
 
-const interrupt = () => state.rpc && state.sessionId && state.rpc.request("session.interrupt", { session_id: state.sessionId });
+const interrupt = () => state.rpc && state.activeId && state.rpc.request("session.interrupt", { session_id: state.activeId });
 $("#stop").addEventListener("click", interrupt);
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && state.busy && !$("#dialog").open) interrupt();
+  if (event.key === "Escape" && activeView()?.busy && !$("#dialog").open) interrupt();
 });
-$("#new-chat").addEventListener("click", () => openSession({}).then(refreshSessions));
+$("#new-chat").addEventListener("click", () => openSession({}));
 $("#tabs").addEventListener("click", (event) => {
   if (event.target.dataset.tab) selectTab(event.target.dataset.tab);
 });
