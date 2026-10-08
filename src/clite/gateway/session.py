@@ -11,11 +11,13 @@ conversation where it left off.
 from __future__ import annotations
 
 import threading
+import time
 from typing import Any
 
 from clite.core.constants import get_home
 from clite.core.io import atomic_write_json, read_json
 from clite.gateway.event import CHAT_DM, SessionSource
+from clite.runtime.home_channel import HomeChannels
 
 
 def build_session_key(source: SessionSource, *, group_sessions_per_user: bool = True) -> str:
@@ -45,14 +47,37 @@ class SessionMap:
             entry = self._load().get(key)
         return entry.get("session_id") if isinstance(entry, dict) else None
 
-    def set(self, key: str, session_id: str, source: SessionSource) -> None:
+    def get_entry(self, key: str) -> dict[str, Any] | None:
+        with self._lock:
+            entry = self._load().get(key)
+        return entry if isinstance(entry, dict) else None
+
+    def set(
+        self, key: str, session_id: str, source: SessionSource, *, last_activity: float | None = None
+    ) -> None:
         with self._lock:
             data = self._load()
-            data[key] = {"session_id": session_id, "source": source.to_dict()}
+            act = last_activity if last_activity is not None else time.time()
+            data[key] = {
+                "session_id": session_id,
+                "source": source.to_dict(),
+                "last_activity": act,
+            }
             atomic_write_json(self.path, data)
+
+    def update_activity(self, key: str, timestamp: float | None = None) -> None:
+        with self._lock:
+            data = self._load()
+            entry = data.get(key)
+            if isinstance(entry, dict):
+                entry["last_activity"] = timestamp if timestamp is not None else time.time()
+                atomic_write_json(self.path, data)
 
     def reset(self, key: str) -> None:
         with self._lock:
             data = self._load()
             if data.pop(key, None) is not None:
                 atomic_write_json(self.path, data)
+
+
+__all__ = ["HomeChannels", "SessionMap", "build_session_key"]

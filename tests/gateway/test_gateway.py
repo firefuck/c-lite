@@ -545,3 +545,65 @@ def test_cron_output_reaches_a_named_chat_through_the_gateway(gateway):
     assert outcome[0]["job_id"] == job["id"] and outcome[0]["delivered"] is True
     assert local.wait_for_messages(1) == ["[disk]\nDisk at 91%."]
     assert local.outbox[0]["chat_id"] == "ops-room"
+
+
+def test_session_reset_policy_idle_and_daily(gateway):
+    runner, local, _ = gateway(
+        responses=[
+            text_response("reply 1"),
+            text_response("reply 2"),
+            text_response("reply 3"),
+        ]
+    )
+    # 1. Test IDLE reset policy: 60 minutes
+    runner.config["gateway"] = {
+        "session_reset": {"mode": "idle", "idle_minutes": 60},
+    }
+    current_time = 1_000_000.0
+    runner.now_fn = lambda: current_time
+
+    # First turn at t=0
+    local.inject("msg 1", user_id="owner")
+    local.wait_for_messages(1)
+    sess_id_1 = runner.session_map.get("local:dm:owner")
+    assert sess_id_1 is not None
+
+    # Second turn at t=59 minutes (not reached 60m): stays in same session
+    current_time += 59 * 60.0
+    local.inject("msg 2", user_id="owner")
+    local.wait_for_messages(2)
+    sess_id_2 = runner.session_map.get("local:dm:owner")
+    assert sess_id_2 == sess_id_1
+
+    # Third turn at t=60 minutes elapsed from last msg: resets and starts new session
+    current_time += 60 * 60.0
+    local.inject("msg 3", user_id="owner")
+    msgs = local.wait_for_messages(4)  # 1 reset notice + 1 answer
+    sess_id_3 = runner.session_map.get("local:dm:owner")
+    assert sess_id_3 != sess_id_1
+    assert any("[Starting a new conversation" in m for m in msgs)
+
+
+def test_sethome_and_cron_delivery_to_home_channel(gateway):
+    from clite.cron.jobs import get_job_store
+
+    runner, local, _ = gateway()
+
+    # 1. When no home channel is set: delivery fails with clear message
+    job = get_job_store().create(
+        "report", "every 1h", name="report", deliver="local", now=1_000
+    )
+    with pytest.raises(RuntimeError, match="no home channel configured for 'local'"):
+        runner.deliver(job, "Output text")
+
+    # 2. Set home channel via /sethome
+    local.inject("/sethome", user_id="owner", chat_id="channel-main")
+    msgs = local.wait_for_messages(1)
+    assert any("Set this chat as the home channel for local" in m for m in msgs)
+    assert runner.home_channels.get("local") == "channel-main"
+
+    # 3. Cron delivery now succeeds and routes to the home channel
+    runner.deliver(job, "Hello home channel")
+    assert any("[report]\nHello home channel" in m["text"] for m in local.outbox)
+    assert any(m["chat_id"] == "channel-main" for m in local.outbox)
+

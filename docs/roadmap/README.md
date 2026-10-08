@@ -144,7 +144,7 @@ dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
 | F4-T4 | Lampiran masuk dan keluar | M | F2-T6 | ⬜ |
 | F4-T5 | Jawaban streaming dan progres tool di chat | M | F1-T3 | ⬜ |
 | F4-T6 | Gateway sebagai layanan sistem | M | F1-T3 | ⬜ |
-| F4-T7 | Kebijakan reset sesi dan home channel | S | - | ⬜ |
+| F4-T7 | Kebijakan reset sesi dan home channel | S | - | ✅ |
 | F4-T8 | Tool `send_message` | S | F4-T7 | ⬜ |
 | F4-T9 | Cron lanjutan | M | F4-T7 | ⬜ |
 | F4-T10 | Endpoint kompatibel OpenAI dan webhook masuk | M | - | ⬜ |

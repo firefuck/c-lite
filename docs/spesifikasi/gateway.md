@@ -102,7 +102,7 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
 | Lampiran masuk dan keluar (gambar, suara, dokumen) | ⬜ | `MessageEvent.attachments` ada, belum dipakai: F4-T4 |
 | Jawaban streaming (menyunting pesan), progres tool | ⬜ | Hanya `send_typing`: F4-T5 |
 | Layanan sistem (systemd, launchd), restart dengan drain | ⬜ | `clite gateway run` berjalan di latar depan: F4-T6 |
-| Kebijakan reset sesi (menganggur, harian), home channel | ⬜ | F4-T7 |
+| Kebijakan reset sesi (menganggur, harian), home channel | ✅ | `gateway.session_reset` (`idle`, `daily`), notifikasi reset sesi satu kali; `/sethome` menetapkan home channel; cron `deliver: <platform>` mengirim ke home channel platform tersebut. Dijaga `tests/gateway/test_gateway.py`: F4-T7 |
 | Tool `send_message` | ⬜ | F4-T8 |
 | Endpoint API kompatibel OpenAI, webhook masuk | ⬜ | F4-T10 |
 

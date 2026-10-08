@@ -105,6 +105,7 @@ COMMAND_REGISTRY: list[CommandDef] = [
     CommandDef("logs", "Show the last lines of the agent log", "Info", args_hint="[count]", cli_only=True),
     CommandDef("copy", "Copy the last answer to the clipboard", "Info", cli_only=True),
     CommandDef("insights", "Show usage insights, tokens and costs", "Info", args_hint="[days]"),
+    CommandDef("sethome", "Set this chat as the platform's home channel", "Gateway"),
     CommandDef("debug", "Show prompt and context internals", "Info"),
 ]
 

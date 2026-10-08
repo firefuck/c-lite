@@ -97,6 +97,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `/logs` |  | Info | `[count]` | queue | ya | Show the last lines of the agent log |
 | `/copy` |  | Info |  | queue | ya | Copy the last answer to the clipboard |
 | `/insights` |  | Info | `[days]` | queue |  | Show usage insights, tokens and costs |
+| `/sethome` |  | Gateway |  | queue |  | Set this chat as the platform's home channel |
 | `/debug` |  | Info |  | queue |  | Show prompt and context internals |
 
 ## Perintah CLI
@@ -386,6 +387,10 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `gateway.allow_all_users` | `false` |
 | `gateway.group_sessions_per_user` | `true` |
 | `gateway.agent_cache_ttl_seconds` | `3600` |
+| `gateway.session_reset.mode` | `"none"` |
+| `gateway.session_reset.idle_minutes` | `120` |
+| `gateway.session_reset.daily_hour` | `4` |
+| `gateway.home_channels` | `{}` |
 | `cron.enabled` | `true` |
 | `cron.catch_up_missed` | `true` |
 | `cron.inactivity_timeout_seconds` | `600` |

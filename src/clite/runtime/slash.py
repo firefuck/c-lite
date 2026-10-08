@@ -674,6 +674,19 @@ def _handle_insights(session: ChatSession, args: str) -> SlashResult:
     return SlashResult(format_insights(data))
 
 
+def _handle_sethome(session: ChatSession, args: str) -> SlashResult:
+    platform = session.platform
+    origin = session.agent.session_meta.get("origin") or {}
+    chat_id = origin.get("chat_id")
+    if not chat_id:
+        return SlashResult(f"Cannot set home channel for {platform}: no chat id found.")
+    from clite.runtime.home_channel import HomeChannels
+
+    home_channels = HomeChannels()
+    home_channels.set(platform, str(chat_id))
+    return SlashResult(f"Set this chat as the home channel for {platform}.")
+
+
 def _handle_debug(session: ChatSession, args: str) -> SlashResult:
     agent = session.agent
     agent.ensure_session()

@@ -197,6 +197,12 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "allow_all_users": False,
         "group_sessions_per_user": True,
         "agent_cache_ttl_seconds": 3600,
+        "session_reset": {
+            "mode": "none",  # none | idle | daily
+            "idle_minutes": 120,
+            "daily_hour": 4,
+        },
+        "home_channels": {},  # {platform: chat_id}
     },
     "cron": {"enabled": True, "catch_up_missed": True, "inactivity_timeout_seconds": 600},
     "server": {"host": "127.0.0.1", "port": 0},

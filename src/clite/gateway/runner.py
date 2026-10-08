@@ -27,7 +27,7 @@ from clite.core.errors import CliteError
 from clite.gateway.event import CHAT_DM, MessageEvent, SessionSource
 from clite.gateway.pairing import PairingStore
 from clite.gateway.platforms.base import PLATFORMS, BasePlatformAdapter, split_message
-from clite.gateway.session import SessionMap, build_session_key
+from clite.gateway.session import HomeChannels, SessionMap, build_session_key
 from clite.plugins.hooks import has_hook, invoke_hook
 from clite.plugins.manager import ensure_plugins_loaded
 from clite.runtime.commands import BUSY_ALLOW, resolve_command, split_command
@@ -80,6 +80,8 @@ class GatewayRunner:
         self.adapters: dict[str, BasePlatformAdapter] = {}
         self.sessions: dict[str, GatewaySession] = {}
         self.session_map = SessionMap()
+        self.home_channels = HomeChannels(self.config)
+        self.now_fn = time.time
         self.pairing = PairingStore()
         self._lock = threading.RLock()
         self._scheduler: Any = None
@@ -167,9 +169,18 @@ class GatewayRunner:
                 origin.get("chat_id"),
                 origin.get("thread_id"),
             )
-        else:
+        elif ":" in target:
             platform, _, chat_id = target.partition(":")
             thread_id = None
+        else:
+            # Home channel for platform: "deliver: telegram"
+            platform = target.strip()
+            thread_id = None
+            chat_id = self.home_channels.get(platform)
+            if not chat_id:
+                raise RuntimeError(
+                    f"no home channel configured for {platform!r}; run /sethome in the chat first"
+                )
         if not platform or not chat_id or platform not in self.adapters:
             raise RuntimeError(
                 f"cannot deliver to {target!r}: the platform is not connected or the chat is unknown"
@@ -238,13 +249,48 @@ class GatewayRunner:
 
         return AgentCallbacks(approve=approve, clarify=clarify, on_status=on_status)
 
+    def _should_reset_session(self, entry: dict[str, Any] | None, now: float) -> bool:
+        if not entry:
+            return False
+        last_activity = float(entry.get("last_activity") or 0.0)
+        if not last_activity:
+            return False
+
+        mode = str(get_path(self.config, "gateway.session_reset.mode", "none")).lower()
+        if mode == "idle":
+            idle_minutes = float(get_path(self.config, "gateway.session_reset.idle_minutes", 120))
+            return (now - last_activity) >= (idle_minutes * 60.0)
+        if mode == "daily":
+            daily_hour = int(get_path(self.config, "gateway.session_reset.daily_hour", 4))
+            import datetime
+
+            dt_last = datetime.datetime.fromtimestamp(last_activity)
+            dt_now = datetime.datetime.fromtimestamp(now)
+            cutoff_today = dt_now.replace(hour=daily_hour, minute=0, second=0, microsecond=0)
+            if dt_now >= cutoff_today:
+                return dt_last < cutoff_today
+            cutoff_yesterday = cutoff_today - datetime.timedelta(days=1)
+            return dt_last < cutoff_yesterday
+        return False
+
     def _get_session(self, source: SessionSource) -> GatewaySession:
         key = build_session_key(
             source,
             group_sessions_per_user=bool(get_path(self.config, "gateway.group_sessions_per_user", True)),
         )
+        now = self.now_fn()
         with self._lock:
             self._evict_idle()
+            entry = self.session_map.get_entry(key)
+            if self._should_reset_session(entry, now):
+                if key in self.sessions:
+                    self._close_session(self.sessions.pop(key), "reset_policy")
+                self.session_map.reset(key)
+                self.reply(
+                    source,
+                    "[Starting a new conversation per session reset policy. Use /resume to return to the previous session.]",
+                )
+
             session = self.sessions.get(key)
             if session is None:
                 chat = ChatSession(
@@ -273,7 +319,9 @@ class GatewayRunner:
                         thread_name=f"clite-gw-{key}",
                     ),
                 )
-                self.session_map.set(key, chat.session_id, source)
+                self.session_map.set(key, chat.session_id, source, last_activity=now)
+            else:
+                self.session_map.update_activity(key, now)
             session.last_used = time.monotonic()
             return session
 

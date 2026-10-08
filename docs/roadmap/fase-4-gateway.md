@@ -261,11 +261,11 @@ yang tidak berasal dari percakapan mana pun.
 `website/docs/developer-guide/gateway-session-lifecycle.md`.
 
 **Selesai bila.**
-- [ ] Tes dengan waktu yang disuntikkan: kebijakan `idle` dan `daily` memulai sesi baru tepat
+- [x] Tes dengan waktu yang disuntikkan: kebijakan `idle` dan `daily` memulai sesi baru tepat
       pada batasnya, dan tidak sebelum itu.
-- [ ] Tes: job cron dengan `deliver: telegram` sampai ke home channel, dan gagal dengan pesan
+- [x] Tes: job cron dengan `deliver: telegram` sampai ke home channel, dan gagal dengan pesan
       yang jelas bila belum ada.
-- [ ] Baris "Kebijakan reset sesi, home channel" di spesifikasi gateway dan cron menjadi ✅.
+- [x] Baris "Kebijakan reset sesi, home channel" di spesifikasi gateway dan cron menjadi ✅.
 
 **Ukuran.** S
 
