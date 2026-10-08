@@ -165,7 +165,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `tool.start` | `call_id`, `name`, `args?`, `preview?` |
 | `tool.complete` | `call_id`, `name`, `duration`, `failed?`, `result_preview?` |
 | `status.update` | `kind`, `text` |
-| `subagent.update` | `event`, `index?`, `goal?`, `tool?`, `status?` |
+| `subagent.update` | `event`, `index?`, `goal?`, `tool?`, `status?`, `args?`, `iteration?`, `model?`, `spawn_id?` |
 | `turn.complete` | `turn_id`, `final_response`, `completed`, `interrupted?`, `error?`, `exit_reason?`, `api_calls?`, `duration?`, `usage?` |
 | `error` | `message`, `code?` |
 
@@ -194,6 +194,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `pre_gateway_dispatch` |  |  |
 | `pre_llm_call` | ya |  |
 | `pre_tool_call` | ya | ya |
+| `subagent_result` | ya |  |
 | `subagent_start` | ya |  |
 | `subagent_stop` | ya |  |
 | `transform_llm_output` |  |  |

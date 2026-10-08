@@ -28,7 +28,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `attachments.py` | Images a user attaches to a message: load, validate, shrink, and place into content. | `AttachmentError`, `detect_media_type()`, `image_part()`, `load_image()`, `load_images()`, `build_content()`, `image_parts()`, `has_images()`, `attachment_note()` |
 | `budget.py` | Iteration budget: how many model calls one turn may make. | `IterationBudget` |
 | `callbacks.py` | ``AgentCallbacks``: how a surface observes and answers the agent. | `AgentCallbacks` |
-| `delegation.py` | Delegation: run subagents with their own context and return only their reports. | `delegate()` |
+| `delegation.py` | Delegation: run subagents with their own context and return only their reports. | `may_delegate()`, `delegate()` |
 | `loop.py` | The turn loop: a short driver over phase functions. | `run_turn()` |
 | `messages.py` | Message hygiene: keep the transcript in a shape every provider accepts. | `internal_user_message()`, `is_internal()`, `content_text()`, `append_to_content()`, `sanitize_for_api()`, `parse_tool_arguments()` |
 | `review.py` | Background review: learn from a long turn without touching it. | `ReviewOutcome`, `reset_review_state()`, `review_enabled()`, `turn_tool_calls()`, `should_review()`, `build_turn_transcript()`, `review_prompt()`, `run_review()`, `spawn_background_review()` |

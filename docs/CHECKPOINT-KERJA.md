@@ -30,6 +30,27 @@ membutuhkan otorisasi tersendiri.
 
 ## Status aktif
 
+### F2-T13 — selesai, regresi merah/hijau terbukti
+
+- Branch `f2-t13-delegation`, titik awal `e53fda8`; tanpa push/merge.
+- Lingkup: `model` per tugas pada `delegate_task` (dibatasi ke provider terkonfigurasi),
+  progres `on_subagent` (nama tool, pratinjau argumen teredaksi, iterasi, model), event
+  `subagent.update` diperluas (`args`, `iteration`, `model`, `spawn_id`), delegasi latar
+  (`background=true`) dengan laporan sebagai catatan pada hasil tool berikutnya (pola
+  `/steer`), dan peran pengatur saat `max_spawn_depth > 1`.
+- Merah pada worktree bersih `e53fda8` dengan tes baru saja: 10 dari 11 tes baru
+  `tests/agent/test_memory_and_delegation.py` gagal, satu tes baru
+  `apps/shared/test/transcript.test.ts` gagal. Empat guard diuji terpisah (catatan tidak
+  menulis ulang pesan terkirim, model per tugas, peran pengatur, penjalaran interupsi) dan
+  masing-masing menggagalkan tesnya.
+- Hijau: 38 tes `tests/agent/test_memory_and_delegation.py` lulus (11 baru); suite Python
+  penuh 1122 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini); Ruff
+  bersih, mypy 174 file bersih; `apps/shared` 22 tes lulus; bundle TUI dibangun ulang.
+- Seluruh berkas di `File` roadmap tersentuh, ditambah `agent/agent.py`,
+  `agent/tool_executor.py`, `agent/turn/iteration.py`, `plugins/hooks.py`, surface TS, dan
+  dokumen (spesifikasi agent, katalog, peta modul, STATUS, roadmap). Clone rujukan
+  `../hermes-ref` tidak tersedia sehingga file rujukan belum dibaca.
+
 ### F2-T2 — gelombang cloud teruji lokal, task tetap parsial
 
 - Branch `f2-t2-providers`, titik awal `35ff0b0`; tanpa commit/push/merge dan tanpa API asli.

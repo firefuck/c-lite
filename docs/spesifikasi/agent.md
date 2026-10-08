@@ -169,12 +169,25 @@ Setiap butir dijaga oleh tes di `tests/agent/`.
   hitungannya.
 
 **Delegasi**
-- Subagent mulai dengan percakapan kosong, tanpa memori, dan tanpa tool `delegate_task`,
-  `clarify`, `memory`, `cronjob`. Induk hanya menerima laporan akhir.
+- Subagent mulai dengan percakapan kosong, tanpa memori, dan tanpa tool `clarify`, `memory`,
+  `cronjob`. Induk hanya menerima laporan akhir.
 - Nama tool anak selalu merupakan subset nama tool induk, termasuk permintaan alias semua,
   toolset komposit, toolset kustom parsial, dan MCP. Larangan toolset induk diwariskan,
   lalu larangan khusus anak diterapkan. Kedalaman dibatasi
   `delegation.max_spawn_depth` (1).
+- Setiap tugas bisa memilih model lewat argumen `model`: sebuah nama model saja mempertahankan
+  provider induk, sedangkan `provider:model` dan alias berpindah provider. Pilihannya dibatasi
+  ke provider yang terkonfigurasi; provider yang tidak bisa diresolusi menjadi hasil galat
+  untuk tugas itu saja, tanpa menggagalkan tugas lain.
+- Progres: `on_subagent` membawa nama tool, pratinjau argumen yang diredaksi, jumlah iterasi,
+  dan model anak. Event RPC `subagent.update` diperluas dengan bidang opsional `args`,
+  `iteration`, `model`, dan `spawn_id`; klien lama tetap bekerja.
+- Delegasi latar: `delegate_task(background=true)` langsung kembali dengan id per tugas.
+  Laporan tiap tugas yang selesai disampaikan ke induk sebagai catatan pada hasil tool
+  berikutnya (pola `/steer`), tidak pernah menyisipkan ke pesan yang sudah dikirim; bila tiba
+  di antara giliran, ia menjadi pesan internal baru. Interupsi induk menjalar ke subagent latar.
+- Peran pengatur: dengan `delegation.max_spawn_depth` lebih dari 1, anak di tingkat tengah
+  boleh mendelegasikan lagi (mendapat toolset `delegation`), sedangkan cucu tidak.
 - Anak yang gagal melaporkan gagal tanpa menggagalkan induk atau saudaranya.
 
 **Review latar belakang**
@@ -202,7 +215,9 @@ Setiap butir dijaga oleh tes di `tests/agent/`.
 | Prompt tiga tingkat, cache, file konteks | ✅ | |
 | Kompresor bawaan dan registry `ContextEngine` | ✅ | Ringkasan berstruktur, peringkasan bertahap, gambar dibuang lebih dulu (F2-T11) |
 | Memori bawaan, provider eksternal, pengingat | ✅ | Provider contoh: F6-T3 |
-| Delegasi sinkron | ✅ | Model per anak, progres rinci, delegasi asinkron: F2-T13 |
+| Delegasi sinkron | ✅ | Model per tugas (`model`, dibatasi ke provider terkonfigurasi), progres rinci (nama tool, pratinjau argumen, iterasi, model). F2-T13 |
+| Delegasi latar | ✅ | `delegate_task(background=true)` kembali dengan id; laporan tiba sebagai catatan pada hasil tool berikutnya (pola `/steer`), interupsi induk menjalar. Dijaga `tests/agent/test_memory_and_delegation.py`. F2-T13 |
+| Peran pengatur | ✅ | Dengan `delegation.max_spawn_depth > 1`, anak tingkat tengah mendelegasikan lagi dan cucu tidak. F2-T13 |
 | Judul sesi otomatis | ✅ | |
 | Estimasi token | ✅ | `context/tokens.py`: perkiraan karakter/4 untuk pesan sesudah jangkar, `prompt_tokens` dari provider sebagai jangkar untuk bagian yang sudah diukur (F2-T11) |
 | Estimasi biaya | ⬜ | Kolom `estimated_cost_usd` ada, belum diisi: F2-T3 |
