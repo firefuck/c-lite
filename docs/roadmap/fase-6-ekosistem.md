@@ -297,21 +297,30 @@ percakapan bisa diekspor dalam format yang dipakai untuk evaluasi dan pelatihan.
   ditanya; perintah berbahaya mengikuti kebijakan non-interaktif).
 - Bisa dilanjutkan: baris yang sudah selesai dilewati saat perintah dijalankan ulang.
 - Hasil per baris: jawaban akhir, alasan berakhir, pemakaian token, biaya, durasi.
+  (Biaya ditunda: mesin biaya F2-T3 belum ada, jadi catatan hasil memuat token, bukan rupiah.)
 - `clite sessions export --format trajectory`: pesan, tool call, dan hasilnya dalam satu
   format yang didokumentasikan, **diredaksi**, dan tanpa `provider_data`.
 
-**File.** `src/clite/runtime/batch.py (baru)`, `src/clite/cli/subcommands/batch.py (baru)`,
-`src/clite/cli/subcommands/sessions.py`, `src/clite/runtime/factory.py`,
+**File.** `src/clite/runtime/batch.py (baru)`, `src/clite/runtime/trajectory.py (baru)`,
+`src/clite/cli/subcommands/batch.py (baru)`, `src/clite/cli/subcommands/sessions.py`,
+`src/clite/runtime/factory.py`, `src/clite/providers/transports/base.py`,
 `tests/runtime/test_batch.py (baru)`.
 
 **Rujukan Hermes.** `batch_runner.py`, `agent/trajectory.py`, `trajectory_compressor.py`,
 `website/docs/developer-guide/trajectory-format.md`.
 
 **Selesai bila.**
-- [ ] Tes: batch tiga prompt dengan dua pekerja menghasilkan tiga hasil, dan menjalankan ulang
+- [x] Tes: batch tiga prompt dengan dua pekerja menghasilkan tiga hasil, dan menjalankan ulang
       tidak mengulang yang sudah selesai.
-- [ ] Tes: satu prompt yang gagal tidak menghentikan batch.
-- [ ] Tes: ekspor lintasan tidak memuat nilai kredensial yang dikenal.
+- [x] Tes: satu prompt yang gagal tidak menghentikan batch.
+- [x] Tes: ekspor lintasan tidak memuat nilai kredensial yang dikenal.
+
+**Catatan.** Batch runner memakai dua pekerja sekaligus dan menemukan balapan yang sudah ada
+sebelum tugas ini: `_ensure_builtin` di `providers/transports/base.py` menandai registry
+"sudah dimuat" sebelum impornya selesai, jadi thread kedua bisa melihat registry setengah
+terisi (`no transport for api_mode 'mock'`). Kunci reentrant ditambahkan dan flag dipindah ke
+akhir; dijaga `test_concurrent_first_use_of_the_transports_registry_finds_every_one` yang
+menjalankan proses dingin bersamaan.
 
 **Ukuran.** M
 

@@ -28,7 +28,8 @@ def default_toolsets(platform: str, config: dict[str, Any]) -> list[str]:
         return [str(item) for item in override]
     if platform in LOCAL_PLATFORMS:
         return list(config.get("toolsets") or ["clite-cli"])
-    if platform == "cron":
+    if platform in ("cron", "batch"):
+        # Nobody is watching: the headless toolset, which has no tool that talks to a person.
         return ["clite-cron"]
     return ["clite-gateway"]
 

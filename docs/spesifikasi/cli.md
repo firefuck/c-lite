@@ -93,7 +93,7 @@ pakai (argumen, profil tak dikenal), 130 Ctrl+C.
 
 | Fitur | Status | Catatan |
 |---|---|---|
-| 22 sub-perintah tingkat atas | ✅ | |
+| 28 sub-perintah tingkat atas | ✅ | |
 | Versi CLI, metadata dinamis, dan calon tag konsisten | ✅ | `tests/test_release.py` |
 | Distribusi `c-lite` melalui GitHub Releases | ✅ | F1-T7: workflow `37563420757`, aset terbit/pipx/doctor lulus |
 | REPL klasik, `-q`, `--json`, lanjut sesi (`-r`, `-c`) | ✅ | |
@@ -106,6 +106,8 @@ pakai (argumen, profil tak dikenal), 130 Ctrl+C.
 | `clite completion bash`, `zsh`, `fish` | ✅ | Skrip pelengkapan dibangun dari parser `main` yang sama, jadi tiap sub-perintah dan opsi (termasuk dari plugin) selalu ikut; nilai dinamis lewat `clite completion --values profiles\|models\|sessions` yang cepat dan tidak memuat plugin. Dijaga `tests/cli/test_cli.py` (termasuk `bash -n`) |
 | `clite auth`, `clite webhook` | ⬜ | F2-T14, F4-T10 |
 | `clite mcp` | ✅ | `add`, `list`, `remove`, `test`. `add` menulis `mcp_servers` lewat `atomic_config_update` (komentar config tetap utuh); `test` menyambung sekali dan melaporkan tool, resources, dan prompts yang ditemukan. Dijaga `tests/tools/test_mcp.py`. F2-T10 |
+| `clite batch run` | ✅ | F6-T8: menjalankan berkas JSONL tanpa pengawasan, `--workers N` pekerja, hasil per baris di `results.jsonl` (default `<nama-berkas>-out` di sebelah masukan). Berhenti lalu dijalankan lagi melanjutkan, bukan mengulang; baris yang gagal dicoba lagi dan kode keluarnya 1. Dijaga `tests/runtime/test_batch.py` |
+| `clite sessions export --format {json,trajectory}` | ✅ | F6-T8: `trajectory` adalah bentuk yang diredaksi dan tanpa `provider_data` untuk evaluasi dan pelatihan; `json` (default) tetap transkrip apa adanya. Bentuknya di [04-format-data.md](../arsitektur/04-format-data.md#lintasan-sesi) |
 | `/mcp` | ✅ | Menampilkan status tiap server MCP: transport, hidup/mati, jumlah tool/resources/prompts, dan catatan bila daftar toolnya berubah untuk sesi berikutnya. F2-T10 |
 
 ## Yang sengaja berbeda dari Hermes

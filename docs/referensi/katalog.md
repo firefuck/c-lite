@@ -116,6 +116,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `clite hooks` | review, approve or test shell hooks from config.yaml | `list`, `approve`, `revoke`, `test` |
 | `clite mcp` | add, list, remove and test MCP servers | `list`, `add`, `remove`, `test` |
 | `clite sessions` | list, show, search, export or delete sessions | `list`, `show`, `rename`, `delete`, `export`, `search`, `prune` |
+| `clite batch` | run many prompts unattended | `run` |
 | `clite profile` | manage profiles (separate homes) | `list`, `show`, `create`, `use`, `delete` |
 | `clite cron` | schedule agent tasks | `list`, `add`, `pause`, `resume`, `run`, `remove`, `tick`, `daemon` |
 | `clite gateway` | run the messaging gateway | `run`, `status`, `pair` |

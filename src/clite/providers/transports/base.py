@@ -6,6 +6,7 @@ owns no network code: it builds a request, parses a response, and accumulates a 
 
 from __future__ import annotations
 
+import threading
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
@@ -83,6 +84,7 @@ class ProviderTransport(ABC):
 
 _TRANSPORTS: dict[str, ProviderTransport] = {}
 _BUILTIN_LOADED = False
+_LOCK = threading.RLock()  # reentrant: importing a transport may register another one
 
 
 def register_transport(transport: ProviderTransport) -> None:
@@ -106,11 +108,20 @@ def transport_modes() -> list[str]:
 
 
 def _ensure_builtin() -> None:
+    """Import the built-in transports once. The flag is set at the end, inside the lock, so a
+    second thread never sees a half-filled registry: two agents built at the same time (the
+    batch runner) used to reach ``get_transport`` while the imports were still running."""
     global _BUILTIN_LOADED
-    if _BUILTIN_LOADED:
-        return
-    _BUILTIN_LOADED = True
-    registered_first = dict(_TRANSPORTS)  # a plugin may have registered before first use
-    from clite.providers.transports import anthropic_messages, chat_completions, mock, responses  # noqa: F401
+    with _LOCK:
+        if _BUILTIN_LOADED:
+            return
+        registered_first = dict(_TRANSPORTS)  # a plugin may have registered before first use
+        from clite.providers.transports import (  # noqa: F401
+            anthropic_messages,
+            chat_completions,
+            mock,
+            responses,
+        )
 
-    _TRANSPORTS.update(registered_first)
+        _TRANSPORTS.update(registered_first)
+        _BUILTIN_LOADED = True

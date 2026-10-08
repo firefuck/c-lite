@@ -17,6 +17,8 @@ membutuhkan kode yang sama, kode itu tinggal di sini, bukan di salah satu surfac
 | File | Isi |
 |---|---|
 | `factory.py` | `build_agent`: satu-satunya tempat surface membuat `AIAgent` |
+| `batch.py` | `run_batch`: banyak prompt tanpa pengawasan, hasil per baris di disk |
+| `trajectory.py` | `build_trajectory`: bentuk ekspor percakapan yang diredaksi |
 | `session.py` | `ChatSession`: satu percakapan sebagaimana dilihat surface; `TurnQueue`: antrean giliran bersama |
 | `commands.py` | `COMMAND_REGISTRY`: tabel slash command |
 | `slash.py` | Handler slash command (`_handle_<nama>`) |
@@ -30,14 +32,45 @@ membutuhkan kode yang sama, kode itu tinggal di sini, bukan di salah satu surfac
 - Memuat plugin dan menemukan tool sebelum daftar tool diresolusi, menyambungkan server MCP
   bila ada, lalu membuat `AIAgent`.
 - Toolset default per platform: entri `platform_toolsets` bila ada; kalau tidak, surface lokal
-  (`cli`, `tui`, `desktop`, `api`, `acp`) memakai `toolsets` dari config, `cron` memakai
-  `clite-cron`, platform pesan memakai `clite-gateway`. Platform pesan tidak pernah diam-diam
-  mewarisi toolset terminal pengguna.
+  (`cli`, `tui`, `desktop`, `api`, `acp`) memakai `toolsets` dari config, `cron` dan `batch`
+  memakai `clite-cron`, platform pesan memakai `clite-gateway`. Platform pesan tidak pernah
+  diam-diam mewarisi toolset terminal pengguna. `batch` sengaja tidak mendapat toolset lokal:
+  tidak ada orang yang bisa ditanya dan tidak ada yang menjadwalkan pekerjaan baru dari dalam
+  batch.
 - `yolo=True` berarti `approval_mode="off"` untuk agent itu.
 - Menjalankan `run_startup_maintenance` sekali per proses dan home; kegagalannya tidak pernah
   menghalangi sesi. Langkahnya: auto-prune sesi, pangkas checkpoint, lalu kurator skill
   (`run_curator_maintenance`, paling banyak sekali per `curator.interval_hours`, lewat cap
   waktu di database seperti auto-prune; `curator.enabled` mematikannya).
+
+**`run_batch`** (`batch.py`)
+- Berkas batch adalah JSONL: satu objek per baris, kunci yang dikenal `id`, `prompt`, `model`,
+  `provider`, `toolsets`. `id` default `line-<nomor>`; `id` ganda ditolak. Setiap masalah
+  menyebut barisnya, dan tak satu pun prompt dijalankan sebelum seluruh berkas terbaca bersih.
+- Tiap baris berjalan di sesinya sendiri lewat `build_agent(platform="batch", ...)` dengan
+  `auto_title=False` dan judul sesi dari `id`. Satu baris yang gagal tidak menghentikan batch:
+  kegagalan dicatat sebagai `status="failed"` lalu batch lanjut.
+- Kebijakan non-interaktif platform `batch` adalah `approvals.single_query_mode` (default
+  `deny`), bukan `approvals.cron_mode`: batch tidak pernah memberi persetujuan sendiri.
+- Hasil ditambahkan ke `results.jsonl` di direktori keluaran begitu satu baris selesai, di
+  bawah kunci tulis, jadi urutan selesai tidak mengubah isi berkas. Menjalankan ulang berkas
+  yang sama melewati baris ber-`status="completed"` dan mencoba lagi yang gagal; baris terakhir
+  yang separuh tertulis (run terputus) diabaikan sehingga baris itu jalan lagi.
+- Isi catatan hasil diredaksi (`core.redact`): prompt, jawaban akhir, dan galat. Bentuknya ada
+  di [04-format-data.md](../arsitektur/04-format-data.md#berkas-batch).
+- Aman dijalankan dengan beberapa pekerja. Registry transport
+  (`providers/transports/base.py`) memuat transport bawaannya di bawah kunci dan menandai
+  "sudah dimuat" di akhir, bukan di awal: dua agent yang dibangun bersamaan dulu bisa membaca
+  registry yang belum terisi. Dijaga `tests/providers/test_transports.py`.
+
+**`build_trajectory`** (`trajectory.py`)
+- Menghasilkan satu dokumen `{"format": "clite-trajectory/1", "session": {...}, "steps": [...]}`.
+- Hanya pesan percakapan yang masuk: pesan `system` dan pesan bertanda `internal` dilewati,
+  begitu juga kunci penyimpanan seperti `_row_id` dan `provider_data`.
+- Setiap nilai teks diredaksi, termasuk judul sesi: judul ditulis dari pesan pertama pengguna,
+  dan di situlah kunci yang ditempelkan berakhir.
+- Bentuk langkah dan tool call ada di
+  [04-format-data.md](../arsitektur/04-format-data.md#lintasan-sesi).
 
 **`ChatSession`**
 - Memegang satu `AIAgent` dan semua yang dilakukan surface di sekitarnya: `submit`,
@@ -116,6 +149,7 @@ membutuhkan kode yang sama, kode itu tinggal di sini, bukan di salah satu surfac
 | Percabangan sesi (`/branch`), `/queue`, `/background`, `/export`, `/context`, `/tasks`, `/hooks`, `/pin`, `/archive`, `/verbose`, `/skin`, `/logs`, `/copy` | ✅ | F3-T4: dua belas perintah baru; `/branch` menyalin pesan aktif tanpa `provider_data` dan mencatat `parent_session_id`. Dijaga `tests/runtime/test_session_and_slash.py` |
 | `/insights` | ✅ | Menampilkan analitik pemakaian: token dan biaya per model/hari, tool populer, dan sesi per platform; subagent diatribusikan ke induknya. Juga tersedia lewat `clite insights` (`--json`). Dijaga `tests/state/test_db.py` dan `tests/runtime/test_session_and_slash.py`: F3-T8 |
 | Antrean giliran bersama (`TurnQueue`) untuk masukan saat sibuk | ✅ | F3-T1: dipakai REPL klasik, `RpcSession`, dan gateway; dijaga `tests/runtime/test_session_and_slash.py` |
+| Batch runner dan ekspor lintasan | ✅ | F6-T8: `run_batch` (platform `batch`, bisa dilanjutkan, satu baris gagal tidak menghentikan sisanya) dan `build_trajectory` (diredaksi, tanpa pesan internal maupun `provider_data`). Dijaga `tests/runtime/test_batch.py` |
 
 ## Yang sengaja berbeda dari Hermes
 
@@ -131,3 +165,8 @@ membutuhkan kode yang sama, kode itu tinggal di sini, bukan di salah satu surfac
   agent (`/new`, `/resume`, `/reload`). Sejak F3-T1 satu `TurnQueue` menjaga satu giliran
   berjalan pada satu waktu dan menegakkan `display.busy_input_mode` sama di semua surface;
   perintah yang menyentuh sesi harus menunggu giliran (kecuali yang `BUSY_ALLOW`).
+- Batch tidak punya batas waktu per baris. `agent.run_budget_seconds` masih kosong secara
+  default, jadi satu prompt yang menggantung menahan pekerja yang menjalankannya sampai
+  prosesnya dihentikan; berhenti di tengah aman karena hasil ditulis dan run bisa dilanjutkan.
+- Catatan hasil batch belum memuat biaya, hanya token: mesin biaya F2-T3 belum ada. Bidangnya
+  ditambahkan begitu mesin itu ada, bukan dihitung ulang di sini.

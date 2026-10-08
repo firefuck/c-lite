@@ -15,6 +15,7 @@ SUBCOMMAND_MODULES = (
     "hooks",
     "mcp",
     "sessions",
+    "batch",
     "profile",
     "cron",
     "gateway",

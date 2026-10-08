@@ -9,6 +9,7 @@ import time
 
 from clite.agent.messages import content_text, is_internal
 from clite.core.config import config_get
+from clite.runtime.trajectory import build_trajectory
 from clite.state.db import get_session_db
 
 
@@ -82,24 +83,26 @@ def run_export(args: argparse.Namespace) -> int:
     if row is None:
         return 1
     db = get_session_db()
-    messages = [
-        {key: value for key, value in message.items() if key != "_row_id"}
-        for message in db.get_messages(row["id"])
-    ]
-    payload = json.dumps(
-        {
+    if args.format == "trajectory":
+        document = build_trajectory(row, db.get_messages(row["id"]))
+        count, noun = len(document["steps"]), "step"
+    else:
+        messages = [
+            {key: value for key, value in message.items() if key != "_row_id"}
+            for message in db.get_messages(row["id"])
+        ]
+        document = {
             "session": {
                 key: row[key] for key in ("id", "source", "model", "provider", "title", "started_at")
             },
             "messages": messages,
-        },
-        ensure_ascii=False,
-        indent=2,
-    )
+        }
+        count, noun = len(messages), "message"
+    payload = json.dumps(document, ensure_ascii=False, indent=2)
     if args.output:
         with open(args.output, "w", encoding="utf-8") as handle:
             handle.write(payload + "\n")
-        print(f"Exported {len(messages)} messages to {args.output}")
+        print(f"Exported {count} {noun}s to {args.output}")
     else:
         sys.stdout.write(payload + "\n")
     return 0
@@ -156,6 +159,13 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     export = actions.add_parser("export", help="write a session as JSON")
     export.add_argument("session")
     export.add_argument("-o", "--output")
+    export.add_argument(
+        "--format",
+        choices=("json", "trajectory"),
+        default="json",
+        help="'json' keeps everything stored; 'trajectory' is the redacted, provider-free shape "
+        "used for evaluation and training",
+    )
     export.set_defaults(handler=run_export)
     search = actions.add_parser("search", help="full-text search across all sessions")
     search.add_argument("query", nargs="+")

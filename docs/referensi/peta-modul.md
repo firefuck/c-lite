@@ -95,6 +95,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | --- | --- | --- |
 | `__init__.py` | One module per subcommand group. |  |
 | `backup.py` | ``clite backup``: archive and restore the agent's home directory. | `create_backup()`, `restore_backup()`, `run_backup()`, `register()` |
+| `batch.py` | ``clite batch``: run many prompts without watching, and keep the results on disk. | `run_run()`, `run_usage()`, `register()` |
 | `chat.py` | ``clite chat``: the interactive REPL, or one query with ``-q``. | `add_chat_arguments()`, `session_options()`, `wants_tui()`, `run_chat()`, `register()` |
 | `completion.py` | ``clite completion bash\|zsh\|fish``: shell completion built from the real parser. | `run_completion()`, `register()` |
 | `config.py` | ``clite config``: read and write config.yaml. | `run_show()`, `run_get()`, `run_set()`, `run_unset()`, `run_path()`, `run_env()`, `run_edit()`, `run_migrate()`, `register()` |
@@ -228,6 +229,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | Runtime: what every surface shares on top of the agent. |  |
+| `batch.py` | ``run_batch``: many prompts, unattended, each in its own session, results on disk. | `BatchError`, `BatchRow`, `BatchReport`, `read_rows()`, `read_results()`, `run_batch()`, `result_lines()` |
 | `commands.py` | The slash command registry: one table every surface reads. | `CommandDef`, `resolve_command()`, `commands_for()`, `split_command()`, `command_catalog()` |
 | `factory.py` | ``build_agent``: the one place a surface turns "what the user asked for" into an ``AIAgent``. | `default_toolsets()`, `build_agent()` |
 | `home_channel.py` | Home channels for messaging platforms: ``platform -> chat_id``. | `HomeChannels` |
@@ -236,6 +238,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `session.py` | ``ChatSession``: one conversation as a surface sees it. | `Turn`, `TurnQueue`, `busy_input_mode()`, `SlashResult`, `ChatSession` |
 | `setup.py` | Applying a provider choice: shared by ``clite setup`` and the setup screens of the UIs. | `verify_provider_key()`, `apply_setup()` |
 | `slash.py` | Slash command handlers. | `run_mcp_prompt()` |
+| `trajectory.py` | The trajectory format: one session as the steps a model walked through. | `build_trajectory()` |
 
 ## `clite/server/`
 
@@ -322,4 +325,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 186 modul.
+Jumlah: 189 modul.

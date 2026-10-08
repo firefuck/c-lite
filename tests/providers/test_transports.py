@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 
 import pytest
 
@@ -900,3 +903,61 @@ def test_an_image_request_does_not_mutate_the_stored_history(api_mode):
         _route(api_mode=api_mode), IMAGE_HISTORY, None, RequestParams(), stream=True
     )
     assert json.dumps(IMAGE_HISTORY) == snapshot
+
+
+# ── the registry itself ──────────────────────────────────────────────────────────────────
+
+# Two agents built at the same moment must not see a half-filled registry. Loading the
+# built-in transports used to set its "already loaded" flag before doing the imports, so the
+# second thread returned with nothing registered and ``get_transport`` raised. The batch
+# runner builds one agent per worker, which is how this was found.
+COLD_LOAD_SCRIPT = """
+import builtins, threading, time
+
+real_import = builtins.__import__
+
+
+def slow_import(name, *args, **kwargs):
+    if name == "clite.providers.transports":
+        time.sleep(0.3)  # hold the loader in the window the second thread used to fall into
+    return real_import(name, *args, **kwargs)
+
+
+builtins.__import__ = slow_import
+from clite.providers.transports.base import get_transport  # noqa: E402
+
+gate = threading.Barrier(4)
+found, errors = [], []
+
+
+def use():
+    gate.wait()
+    try:
+        found.append(get_transport("mock").api_mode)
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"{type(exc).__name__}: {exc}")
+
+
+threads = [threading.Thread(target=use) for _ in range(4)]
+for thread in threads:
+    thread.start()
+for thread in threads:
+    thread.join()
+assert not errors, errors
+assert found == ["mock"] * 4, found
+"""
+
+
+def test_concurrent_first_use_of_the_transports_registry_finds_every_one():
+    """A cold interpreter, four threads through one gate: all four must get a transport.
+
+    Cold on purpose: the imports have to really run, which is what makes the race visible.
+    """
+    result = subprocess.run(
+        [sys.executable, "-c", COLD_LOAD_SCRIPT],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)},
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stderr

@@ -202,6 +202,57 @@ event dan perintah yang persis sama. File ini tidak bisa ditulis lewat tool file
 `memories/MEMORY.md` dan `memories/USER.md`: teks polos, entri dipisah baris berisi `§`.
 Dibatasi `memory.memory_char_limit` dan `memory.user_char_limit` karakter.
 
+## Berkas batch
+
+`clite batch run <file.jsonl>` membaca satu berkas JSONL. Tiap baris satu objek; kunci yang
+dikenal `id`, `prompt`, `model`, `provider`, `toolsets` (kunci lain ditolak, dengan nomor
+barisnya). `prompt` wajib berisi; `id` default `line-<nomor>` dan tidak boleh ganda.
+
+```jsonl
+{"id": "ringkas-1", "prompt": "Ringkas README menjadi lima poin"}
+{"prompt": "Sebutkan tiga risiko migrasi", "model": "mock-1"}
+```
+
+Keluarannya `results.jsonl` di direktori `--out` (default `<nama-berkas>-out` di sebelah
+masukan), satu baris per prompt selesai:
+
+| Bidang | Isi |
+|---|---|
+| `id`, `line` | Id baris dan nomor barisnya di berkas masukan |
+| `status` | `completed` atau `failed` |
+| `prompt`, `final_response`, `error` | Diredaksi lewat `core.redact`; `error` null bila tidak ada |
+| `exit_reason` | Alasan giliran berakhir (lihat [02-alur-giliran.md](02-alur-giliran.md#alasan-giliran-berakhir)) |
+| `session_id`, `model`, `provider` | Sesinya, dan rute yang benar-benar dipakai |
+| `duration_seconds`, `api_calls` | Durasi dan jumlah panggilan API |
+| `usage` | `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens` |
+
+Baris ditambahkan begitu satu prompt selesai, bukan di akhir, jadi proses yang berhenti di
+tengah tetap meninggalkan hasil yang bisa dipakai. Menjalankan ulang melewati `id` yang sudah
+`completed` dan mencoba lagi yang `failed`.
+
+## Lintasan sesi
+
+`clite sessions export <id> --format trajectory` menulis dokumen yang dipakai untuk evaluasi
+dan pelatihan: yang tersisa hanya percakapan, sudah diredaksi, dan tanpa `provider_data`.
+
+```json
+{"format": "clite-trajectory/1",
+ "session": {"id": "...", "source": "cli", "model": "...", "provider": "...",
+             "title": "...", "started_at": "..."},
+ "steps": [{"role": "user", "content": "...", "timestamp": "..."},
+           {"role": "assistant", "content": "...",
+            "tool_calls": [{"id": "...", "name": "terminal", "arguments": {...}}]},
+           {"role": "tool", "content": "...", "tool_call_id": "...", "name": "terminal"}]}
+```
+
+- Pesan `system` dan pesan bertanda `internal` tidak masuk; begitu juga `_row_id` dan
+  `provider_data`.
+- Setiap nilai teks diredaksi, termasuk `title` dan `arguments` tool call. Argumen yang bukan
+  JSON menjadi `{"unparsed": "<teks>"}`.
+- `context` membawa `turn_context` bila ada, terpisah dari `content`.
+- Bentuk `--format json` berbeda: seluruh baris pesan apa adanya, tanpa redaksi, untuk
+  diproses sendiri oleh pemanggil.
+
 ## Kawat shell hook
 
 Satu objek JSON di stdin perintah:
