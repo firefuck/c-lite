@@ -62,24 +62,43 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 - Hook `pre_tool_call` yang melempar atau kehabisan waktu berarti **blokir**.
 
 **Persetujuan perintah** (urutan pemeriksaan, yang paling mutlak dulu)
-1. Yang terlarang mutlak ditolak di semua mode: pola di `HARDLINE_PATTERNS`, dan `rm`
+1. Perintah yang melampaui batas penguraian ditolak di semua mode: lebih panjang dari
+   `MAX_COMMAND_CHARS` (20.000 karakter), atau lebih bersarang dari `MAX_COMMAND_DEPTH` (12
+   tingkat `$(`/subshell). Pesannya menyebut sebabnya (panjang atau kedalaman). Gerbang yang
+   tidak sanggup membaca perintah gagal ke "tidak".
+2. Yang terlarang mutlak ditolak di semua mode: pola di `HARDLINE_PATTERNS` (`rm` rekursif atas
+   root/home/direktori sistem, `mkfs`, `dd` ke disk, tulis ke perangkat blok, fork bomb,
+   `kill -1`/`kill -HUP`, `shutdown`/`reboot`/`halt`/`poweroff`/`init 0`/`init 6`), dan `rm`
    rekursif yang targetnya root, direktori home (atau direktori di atasnya), atau direktori
    sistem (`SYSTEM_DIRECTORIES`). Target dibaca seperti shell menyelesaikannya, dari direktori
    kerja bila diketahui.
-2. Glob `approvals.deny` ditolak di semua mode, termasuk `--yolo`.
-3. Mode `off` meloloskan sisanya.
-4. Perintah tanpa pola berbahaya langsung jalan.
-5. Pola yang sudah disetujui untuk sesi ini atau ada di `command_allowlist` langsung jalan.
-6. Mode `smart`: model bantu menilai. `APPROVE` jalan, `DENY` ditolak, selain itu (termasuk
-   galat dan jawaban tak terduga) lanjut ke langkah 7. Putusannya tidak diingat.
-7. Tanya pengguna: `once`, `session`, `always`, `deny`. Tanpa pengguna (cron, `-q`),
+3. Glob `approvals.deny` ditolak di semua mode, termasuk `--yolo`.
+4. Mode `off` meloloskan sisanya.
+5. Perintah tanpa pola berbahaya langsung jalan.
+6. Pola yang sudah disetujui untuk sesi ini atau ada di `command_allowlist` langsung jalan.
+7. Mode `smart`: model bantu menilai. `APPROVE` jalan, `DENY` ditolak, selain itu (termasuk
+   galat dan jawaban tak terduga) lanjut ke langkah 8. Putusannya tidak diingat.
+8. Tanya pengguna: `once`, `session`, `always`, `deny`. Tanpa pengguna (cron, `-q`),
    kebijakan non-interaktif yang memutuskan; defaultnya tolak.
 - Perintah dinormalkan dulu (escape ANSI, byte NUL, huruf lebar penuh), lalu setiap pendeteksi
   membacanya dua kali: seperti tertulis, dan seperti shell membacanya (`shell_plain`: tanpa
   tanda kutip, garis miring terbalik, `${NAMA}`, `$IFS`, dan garis miring berulang).
+- **Posisi perintah sadar tanda kutip.** Pendeteksi pola hanya menilai perintahnya, bukan teks
+  yang menyebutnya. Kecocokan yang seluruhnya berada di dalam satu bagian berkutip hanyalah
+  data: `git commit -m "buang rm -rf /"` dan `echo "rm -rf /"` tidak ditolak, sedangkan
+  `rm -rf "/"` tetap hapus rekursif. Sebaliknya, bagian berkutip yang memuat **kode** dibaca
+  ulang sebagai perintah: muatan `sh -c`/`bash -c`/`zsh -c`/`eval`, argumen `python -c`,
+  `python3 -c`, `node -e`, `perl -e`, `ruby -e`, opsi `-c`/`-e`/`--command`/`--eval` sejenis
+  (`psql -c`, `redis-cli -e`), dan teks yang diberikan ke `os.system`/`subprocess.*`. Jadi
+  `bash -c "rm -rf /"` dan `python -c "import shutil; shutil.rmtree(chr(47))"` tetap ditolak.
+- **Nama yang dirakit dari variabel di baris yang sama** diselesaikan lebih dulu: `c=clite; $c
+  config set ...` dinilai sebagai `clite config set ...` (perintah pengelolaan agent sendiri,
+  tidak pernah diingat), dan `d=/; rm -rf $d` sebagai `rm -rf /` (terlarang mutlak). Variabel
+  yang nilainya tidak ada di baris itu tetap tidak terbaca.
 - Teks kode `execute_code` masuk ke gerbang ini juga: panggilan merusak yang ditulis dalam
-  Python (`shutil.rmtree(...)`, `os.remove`/`os.unlink`/`os.rmdir`, `subprocess.run(["rm", …])`)
-  ditandai oleh pola `script_delete`, sama seperti bentuk baris perintahnya.
+  Python (`shutil.rmtree(...)`, `os.remove`/`os.unlink`/`os.rmdir`, `File.delete`/`unlink`,
+  `subprocess.run(["rm", …])`, `unlinkSync`/`rmSync`) ditandai oleh pola `script_delete`, sama
+  seperti bentuk baris perintahnya.
 - Callback persetujuan yang rusak atau jawaban tak dikenal berarti tolak.
 - **Perintah yang menjangkau pengaturan atau kredensial agent sendiri**
   (`detect_self_access`) diperlakukan lebih ketat. Termasuk di dalamnya: path ke dalam salah

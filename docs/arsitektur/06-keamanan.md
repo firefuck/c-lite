@@ -83,10 +83,11 @@ mengelak dari gerbang.
 
 | Lapis | Berlaku di mode | Bisa dibuka dengan |
 |---|---|---|
-| Terlarang mutlak: `rm` rekursif atas root, direktori home, atau direktori sistem; memformat disk; fork bomb | Semua, termasuk `off` | Tidak ada |
+| Terlarang mutlak: `rm` rekursif atas root, direktori home, atau direktori sistem; `mkfs`; `dd` ke disk; menulis ke perangkat blok; fork bomb; `kill -1`/`kill -HUP`; `shutdown`, `reboot`, `halt`, `poweroff`, `init 0`/`init 6` | Semua, termasuk `off` | Tidak ada |
 | `approvals.deny` (glob milik pengguna) | Semua, termasuk `off` | Menyunting config |
 | Pola berbahaya (hapus rekursif, `sudo`, `git push --force`, unduh lalu jalankan, dan lainnya) | `manual`, `smart` | Jawaban pengguna; bisa diingat per sesi atau selamanya |
 | Menjangkau pengaturan atau kredensial agent sendiri | `manual`, `smart` | Jawaban pengguna, **setiap kali** |
+| Perintah melebihi batas ukuran atau kedalaman penguraian | Semua, termasuk `off` | Tidak ada |
 
 Lapis terakhir menutup jalur eskalasi yang paling langsung. `config.yaml` adalah kebijakan itu
 sendiri (mode persetujuan, daftar izin, plugin aktif), jadi perintah seperti
@@ -108,9 +109,33 @@ dihitung menjangkau:
 tanda kutip, garis miring terbalik, `${NAMA}`, `$IFS`, dan garis miring berulang dibuang.
 `rm -rf "$HOME"`, `rm --recursive --force /`, dan `cat ~//.clite/.e*` dinilai sama dengan
 ejaan polosnya. Target `rm` dibaca seperti shell menyelesaikannya (`~`, `..`, `/*` di ujung),
-dari direktori kerja bila diketahui, dengan mengikuti `cd` di baris yang sama. Gerbang ini
-tetap tidak menjalankan shell: nama yang dirakit dari variabel, oleh substitusi perintah, atau
-oleh interpreter (`python -c`) tidak terlihat. Lihat [celah yang diketahui](#celah-yang-diketahui).
+dari direktori kerja bila diketahui, dengan mengikuti `cd` di baris yang sama.
+
+**Posisi perintah sadar tanda kutip.** Yang dinilai adalah perintahnya, bukan setiap teks yang
+kebetulan menyebutnya. Sebuah kecocokan yang seluruhnya berada di dalam satu bagian berkutip
+hanyalah **data**: `git commit -m "buang rm -rf / dari skrip"` dan `echo "rm -rf /"` berjalan
+tanpa ditolak, sedangkan `rm -rf "/"` tetap hapus rekursif karena `rm` sendiri ada di posisi
+perintah. Yang bertanda kutip tetapi **kode**, bukan data, tetap dibaca sebagai perintah:
+muatan `sh -c`, `bash -c`, `zsh -c`, dan `eval`, argumen `python -c`/`python3 -c`/`node -e`/
+`perl -e`/`ruby -e`, `psql -c` dan opsi `-c`/`-e` sejenis, serta teks yang diberikan ke
+`os.system`/`subprocess.*`. Dengan begitu `bash -c "rm -rf /"` dan
+`python -c "import shutil; shutil.rmtree(chr(47))"` ditolak seperti perintah yang
+dibungkusnya.
+
+**Nama yang dirakit dari variabel di baris yang sama** diselesaikan lebih dulu:
+`c=clite; $c config set ...` dinilai sebagai `clite config set ...` (perintah pengelolaan
+agent sendiri: tidak pernah diingat), dan `d=/; rm -rf $d` sebagai `rm -rf /` (terlarang
+mutlak). Variabel yang nilainya tidak ada di baris itu tetap tidak terbaca; sandbox tetap
+satu-satunya jaminan.
+
+**Batas penguraian.** Perintah yang lebih panjang dari `MAX_COMMAND_CHARS` (20.000 karakter)
+atau lebih bersarang dari `MAX_COMMAND_DEPTH` (12 tingkat `$(`/subshell) **ditolak**, bukan
+diloloskan, dengan alasan yang menyebutkan sebabnya. Gerbang yang tidak sanggup membaca
+perintah gagal ke "tidak".
+
+Gerbang ini tetap tidak menjalankan shell: nama yang hanya terbentuk saat perintah berjalan
+oleh substitusi yang lebih dalam, atau oleh skrip di file lain, tidak terlihat. Lihat
+[celah yang diketahui](#celah-yang-diketahui).
 
 Tanpa pengguna untuk ditanya (cron, `-q`, chat yang diam), jawabannya tolak.
 
@@ -126,7 +151,22 @@ Tanpa pengguna untuk ditanya (cron, `-q`, chat yang diam), jawabannya tolak.
 `test_where_a_command_runs_decides_what_a_relative_name_can_reach`,
 `test_reaching_for_the_agents_settings_is_asked_about_every_time`,
 `test_smart_mode_never_reviews_a_command_that_reaches_for_the_agents_settings`,
-`test_the_command_cannot_talk_the_reviewer_prompt_out_of_its_frame`.
+`test_the_command_cannot_talk_the_reviewer_prompt_out_of_its_frame`,
+`test_a_quoted_mention_of_a_forbidden_command_is_data_not_a_command`,
+`test_a_quoted_mention_is_approved_without_asking`, `test_code_passed_to_a_shell_is_still_judged`,
+`test_an_interpreter_payload_that_deletes_is_flagged`,
+`test_an_interpreter_payload_that_reaches_the_agents_settings_is_flagged`,
+`test_a_payload_that_only_mentions_a_forbidden_command_is_still_data`,
+`test_a_name_assembled_from_a_variable_is_judged_as_what_it_runs`,
+`test_a_variable_that_names_the_root_is_a_hardline_delete`,
+`test_a_variable_that_names_the_agents_cli_is_never_remembered`,
+`test_the_added_absolute_prohibitions_are_refused_in_every_mode`,
+`test_a_soft_kill_is_still_an_ordinary_pattern`,
+`test_a_mention_of_an_absolute_prohibition_is_still_data`,
+`test_a_command_too_long_to_parse_is_refused_with_a_reason`,
+`test_a_command_too_deeply_nested_to_parse_is_refused_with_a_reason`,
+`test_the_parse_limits_fail_closed_not_open`,
+`test_the_examples_in_the_security_document_are_caught`.
 
 ### File
 
@@ -286,7 +326,7 @@ Ditulis apa adanya supaya tidak ada yang mengandalkan pagar yang tidak ada.
 |---|---|---|
 | Backend `local` tidak punya sandbox | Perintah yang lolos gerbang berjalan dengan hak penuh pengguna | Setel `terminal.backend: docker` atau `ssh` (F2-T7) untuk menjalankannya di container atau mesin lain |
 | Gerbang persetujuan membaca teks **satu** perintah | Skrip yang ditulis ke file lalu dijalankan di langkah berikutnya tidak terlihat | Pemindaian yang lebih dalam tidak menggantikan sandbox |
-| Gerbang persetujuan tidak menjalankan shell | Nama yang baru terbentuk saat perintah berjalan tidak terbaca: `rm -rf $(echo /)`, `c=clite; $c config set ...`, `python -c "..."`. Yang pertama masih ditanyakan sebagai hapus rekursif; dua yang lain lolos tanpa pertanyaan | Deteksi muatan interpreter dan posisi perintah: F2-T15. Jaminan sungguhan hanya dari sandbox |
+| Gerbang persetujuan tidak menjalankan shell | Nama yang benar-benar terbentuk saat perintah berjalan tidak terbaca: `rm -rf $(curl …)` yang mengunduh namanya, substitusi bersarang lebih dari `MAX_COMMAND_DEPTH`, dan skrip yang ditulis lalu dijalankan di langkah berikutnya. Tiga contoh yang dulu tercatat (`rm -rf $(echo /)`, `c=clite; $c config set ...`, `python -c "..."`) kini tertutup: yang pertama ditanyakan sebagai hapus rekursif, dua yang lain ditangkap deteksi posisi perintah dan muatan interpreter (F2-T15) | Perintah yang melebihi batas ukuran/kedalaman ditolak, bukan diloloskan. Jaminan sungguhan hanya dari sandbox |
 | Persetujuan yang diingat berlaku per **pola**, bukan per perintah | Menjawab "session" atau "always" untuk satu `rm -rf build/` meloloskan setiap hapus rekursif berikutnya, kecuali yang terlarang mutlak | Jawab "once" untuk perintah yang tidak ingin digeneralkan |
 | Tool file tidak dibatasi ke direktori kerja | Model bisa menulis ke mana pun di luar daftar terlarang | Checkpoint sebelum menulis (F2-T8) membuat perubahan bisa dibatalkan dengan `/rollback`, tetapi ia tidak mencegah tulisannya: batas nyata tetap sandbox `terminal.backend: docker` atau `ssh` |
 | Skrip shell hook bisa ditulis ulang | Persetujuan mengikat teks perintah, bukan isi file yang ditunjuknya | Simpan skrip hook di luar jangkauan agent, atau buat hanya-baca |

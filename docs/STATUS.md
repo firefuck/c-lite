@@ -460,6 +460,54 @@ ini (`websockets`). Ruff bersih, mypy 174 file bersih. `scripts/gen_rpc_contract
 `tsc --noEmit` bersih; `ui-tui` 18 tes lulus (11 e2e, 7 render). Clone rujukan `../hermes-ref`
 tetap tidak tersedia, sehingga file rujukan belum dibaca.
 
+### F2-T15: deteksi perintah yang lebih tahan penyamaran (8 Oktober 2026)
+
+`src/clite/tools/approval.py` kini menilai **posisi perintah**. `shell_plain` dihasilkan satu
+pembaca (`_shell_read`) yang sekaligus mencatat rentang tiap bagian berkutip, jadi pendeteksi
+tahu bagian mana yang hanya **data** dan bagian mana yang **kode**. Kecocokan pola yang
+seluruhnya berada di dalam satu bagian berkutip dianggap sebutan, bukan perintah: `git commit
+-m "buang rm -rf / dari skrip"` dan `echo "rm -rf /"` berjalan tanpa ditolak, sedangkan
+`rm -rf "/"` tetap hapus rekursif karena `rm` sendiri ada di posisi perintah. Bagian berkutip
+yang memuat kode dibaca ulang sebagai perintah: muatan `sh -c`/`bash -c`/`zsh -c`/`eval`,
+argumen `python -c`/`python3 -c`/`node -e`/`perl -e`/`ruby -e`, opsi `-c`/`-e`/`--command`/
+`--eval` (`psql -c`), dan teks ke `os.system`/`subprocess.*`. **Penugasan variabel** di baris
+yang sama diselesaikan lebih dulu (`_variable_values`/`_expand_variables`): `c=clite; $c config
+set ...` ditangkap `detect_self_access` (tidak pernah diingat), `d=/; rm -rf $d` menjadi
+`rm -rf /` (terlarang mutlak). **Larangan mutlak bertambah**: `kill -1`/`kill -HUP`,
+`shutdown`/`reboot`/`halt`/`poweroff`, `init 0`/`init 6`, dan `mkfs` di posisi perintah — hanya
+saat berada di posisi perintah, sehingga `echo "shutdown"` tetap data. **Batas penguraian**:
+perintah lebih panjang dari `MAX_COMMAND_CHARS` (20.000) atau lebih bersarang dari
+`MAX_COMMAND_DEPTH` (12 tingkat `$(`/subshell) ditolak dengan alasan yang menyebut sebabnya
+(`choice="too_complex"`), bukan diloloskan. Ketiga pendeteksi (`detect_dangerous_command`,
+`detect_hardline`, `detect_self_access`) menghormati batas ini dan membaca ulang muatan kode
+secara rekursif, jadi `execute_code` yang mengirim teks Python lewat gerbang yang sama tetap
+terjaga.
+
+Bukti regresi merah/hijau pada worktree bersih dari `b5a547c` (di sana paket `clite` diarahkan
+lewat `PYTHONPATH` ke `src` worktree, karena instalasi editable menunjuk checkout utama).
+**Merah:** dengan 58 tes baru saja dan implementasi belum ada, 28 tes menggagalkan
+(`tests/tools/test_approval.py`). Untuk membuktikan tiap guard secara terpisah, implementasi
+disalin ke worktree terisolasi lalu satu perilaku dikembalikan ke bentuk yang salah:
+
+- **posisi perintah dimatikan** (`_contained` selalu `False`): 13 tes gagal — sebutan berkutip
+  kembali ditolak mutlak.
+- **muatan kode tidak dibaca ulang** (`_code_payloads` mengembalikan kosong): 17 tes gagal —
+  `bash -c "rm -rf /"` dan muatan interpreter lolos.
+- **ekspansi variabel dimatikan**: 5 tes gagal — `c=clite; $c config set ...` dan
+  `d=/; rm -rf $d` lolos.
+- **pola larangan mutlak baru dibuang**: 6 tes gagal — `kill -1`, `shutdown`, `reboot`,
+  `init 0` kembali hanya pola berbahaya yang bisa diingat.
+- **batas penguraian dimatikan** (panjang dan kedalaman): 3 tes gagal — perintah raksasa dan
+  bersarang diloloskan.
+
+**Hijau:** 148 tes `tests/tools/test_approval.py` lulus (58 baru), seluruh `tests/tools` 402
+lulus/13 terlewati. Suite Python penuh: 1178 lulus, 29 terlewati (`tests/server` butuh
+`websockets`, gagal sebelum tugas ini). Ruff bersih, mypy 174 file bersih. Tiga contoh di baris
+celah "Gerbang persetujuan tidak menjalankan shell" kini tertutup dan dijaga
+`test_the_examples_in_the_security_document_are_caught`; sisa celahnya (substitusi bersarang
+lebih dalam dari batas, skrip di file lain) tetap terdaftar. Clone rujukan `../hermes-ref`
+tetap tidak tersedia, sehingga file rujukan belum dibaca.
+
 ## Pemasangan yang sudah diverifikasi
 
 Pada 6 Oktober 2026 CI repo `https://github.com/dragovics/clite` run `37356398420` pada
@@ -627,6 +675,7 @@ python scripts/check_hermes_refs.py --hermes ../hermes-ref   # butuh clone Herme
 | 8 Oktober 2026 | F2-T11: merah pada worktree bersih `f119b29` dengan tes baru saja (koleksi gagal: `cannot import name 'SUMMARY_SECTIONS'`); enam guard diuji terpisah pada salinan terisolasi (bagian tetap, peringkasan bertahap, pemangkasan gambar, jangkar token, persistensi penghitung nudge, skrip pengukuran) dan masing-masing menggagalkan tesnya; 10 tes baru lulus sesudah implementasi, seluruh `tests/agent/test_compression.py` 33 lulus; suite Python penuh 1109 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 173 file bersih. `scripts/eval_compression.py --provider mock` melaporkan 5/5 fakta bertahan | Linux, Python 3.11.16 |
 | 8 Oktober 2026 | F2-T12: merah pada worktree bersih `a976469` dengan tes baru saja (koleksi `tests/agent/test_review.py` gagal: `cannot import name 'review' from 'clite.agent'`); enam guard diuji terpisah pada worktree terisolasi (riwayat sesi utama, gagal ditelan, timeout ditelan, gate interval kurator, gerbang enabled/depth/cron/busy, anggaran reviewer) dan masing-masing menggagalkan tesnya; 23 tes baru lulus sesudah implementasi; suite Python penuh 1132 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 174 file bersih. Clone rujukan tetap `../hermes-ref` tidak tersedia | Linux, Python 3.11.16 |
 | 8 Oktober 2026 | F2-T13: merah pada worktree bersih `e53fda8` dengan tes baru saja (10 dari 11 tes baru `tests/agent/test_memory_and_delegation.py` gagal, tes baru `apps/shared/test/transcript.test.ts` gagal); empat guard diuji terpisah pada worktree terisolasi (catatan tidak menulis ulang pesan terkirim, model per tugas, peran pengatur, penjalaran interupsi) dan masing-masing menggagalkan tesnya; 11 tes baru + 27 lama lulus sesudah implementasi; suite Python penuh 1122 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 174 file bersih, `apps/shared` 22 tes lulus, bundle TUI dibangun ulang. Clone rujukan `../hermes-ref` tidak tersedia | Linux, Python 3.11.16, Node 26.7.0 |
+| 8 Oktober 2026 | F2-T15: merah pada worktree bersih `b5a547c` dengan `PYTHONPATH` ke `src` worktree (instalasi editable menunjuk checkout utama) dan 58 tes baru saja: 28 tes `tests/tools/test_approval.py` gagal; lima guard diuji terpisah pada worktree terisolasi (posisi perintah 13 gagal, muatan kode 17, ekspansi variabel 5, larangan mutlak baru 6, batas penguraian 3) dan masing-masing menggagalkan tesnya; 148 tes lulus sesudah implementasi, seluruh `tests/tools` 402 lulus/13 terlewati; suite Python penuh 1178 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 174 file bersih. Clone rujukan `../hermes-ref` tidak tersedia | Linux, Python 3.11.16 |
 
 Setiap task yang memverifikasi sesuatu menambah baris di tabel ini dan memindahkan butirnya
 dari "belum diverifikasi".
