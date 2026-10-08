@@ -18,9 +18,9 @@ milik backend di sebuah jendela. Tidak ada UI kedua.
 |---|---|---|
 | `src/backend-process.ts` | Menjalankan `clite serve`, membaca baris siap, membuat token, menghentikan proses | ✅ teruji |
 | `src/window-policy.ts` | `decideNavigation`: ke mana jendela boleh pergi | ✅ teruji |
-| `src/main.ts` | Proses utama Electron: jendela, satu instance, siklus hidup | ⬜ belum pernah dijalankan |
-| `src/preload.ts` | Jembatan ke halaman (`window.cliteDesktop`) | ⬜ belum pernah dijalankan |
-| `build.mjs` | Bundel esbuild ke `dist/main.cjs` dan `dist/preload.cjs` | ⬜ belum pernah dijalankan |
+| `src/main.ts` | Proses utama Electron: jendela, satu instance, siklus hidup | ✅ teruji (`test/smoke.test.ts`) |
+| `src/preload.ts` | Jembatan ke halaman (`window.cliteDesktop`) | ✅ teruji (lewat jendela di tes asap) |
+| `build.mjs` | Bundel esbuild ke `dist/main.cjs` dan `dist/preload.cjs` | ✅ teruji (dijalankan tes asap) |
 
 ## Kontrak
 
@@ -42,7 +42,7 @@ milik backend di sebuah jendela. Tidak ada UI kedua.
 | Fitur | Status | Catatan |
 |---|---|---|
 | Peluncur backend dan kebijakan navigasi | ✅ | |
-| Jalan pertama Electron | ⬜ | Daftar periksa ada di `apps/desktop/README.md`: F5-T1 |
+| Jalan pertama Electron | ✅ | Dijalankan 8 Oktober 2026 di Linux dengan display X, Electron 44.5.1; hasil per butir daftar periksa ada di `apps/desktop/README.md` |
 | Ikon, menu, pemaketan installer, auto-update, tanda tangan kode | ⬜ | F5-T4 |
 | Multi-sesi, lampiran file, notifikasi, tray | ⬜ | F5-T5 |
 | Pemilihan profil | ⬜ | F5-T5 |
@@ -57,7 +57,9 @@ disiapkan untuk itu.
 
 ## Celah yang diketahui
 
-- Versi Electron di `package.json` (`^44.0.0`) adalah versi mayor terbaru saat scaffolding
-  dibuat (5 Oktober 2026), bukan versi yang sudah dicoba.
+- Di mesin uji, proses GPU Chromium tidak bisa dipakai, jadi tes asap menjalankan Electron
+  dengan `--disable-gpu` (dan `--no-sandbox` di kontainer); di CI Linux di bawah `xvfb-run`.
+- Tautan luar, instance kedua, dan backend yang mati mendadak belum dicoba dengan tangan
+  (lihat `apps/desktop/README.md`).
 - Tidak ada penanganan untuk backend yang sudah berjalan dari instance lain selain kunci
   satu-instance milik Electron.

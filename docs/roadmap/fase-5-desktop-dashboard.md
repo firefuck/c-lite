@@ -43,9 +43,11 @@ berjalan, dan menutup jendela mematikan backend.
 `apps/desktop/BUILDING.md`.
 
 **Selesai bila.**
-- [ ] Tes asap lulus di CI.
-- [ ] Type check `apps/desktop` berjalan di CI (saat ini dilewati tanpa Electron).
-- [ ] Baris `main.ts`, `preload.ts`, dan `build.mjs` di spesifikasi desktop menjadi ✅, dan
+- [ ] Tes asap lulus di CI. (Tesnya ada dan lulus lokal, 8 Oktober 2026; CI-nya belum
+      dijalankan karena perubahan belum di-push.)
+- [ ] Type check `apps/desktop` berjalan di CI (saat ini dilewati tanpa Electron). (Sudah
+      lulus lokal; langkah CI-nya sudah ada, belum dijalankan.)
+- [x] Baris `main.ts`, `preload.ts`, dan `build.mjs` di spesifikasi desktop menjadi ✅, dan
       butirnya dicoret dari "belum diverifikasi" di `docs/STATUS.md`.
 
 **Ukuran.** S

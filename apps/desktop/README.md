@@ -12,12 +12,13 @@ aplikasi desktop.
 | `src/backend-process.ts` (menjalankan backend, membaca port, token) | Teruji | `test/backend-process.test.ts` menjalankan `python -m clite serve` sungguhan |
 | `src/window-policy.ts` (ke mana jendela boleh bernavigasi) | Teruji | tes yang sama |
 | Halaman dashboard yang dimuat | Teruji | `tests/server/test_dashboard_browser.py` (Chromium sungguhan) |
-| `src/main.ts` (proses utama Electron) | **Belum pernah dijalankan** | ditulis tanpa Electron terpasang |
-| `src/preload.ts` | **Belum pernah dijalankan** | idem |
-| `npm install`, `npm start`, pemaketan installer | **Belum pernah dijalankan** | registry npm tidak terjangkau saat scaffolding dibuat |
+| `src/main.ts` (proses utama Electron) | Teruji | `test/smoke.test.ts` membuka aplikasi sungguhan, mengirim satu pesan ke provider `mock`, membaca jawabannya, lalu menutup jendela dan memastikan backend ikut berhenti |
+| `src/preload.ts` | Teruji | idem: jendela yang dimuat di tes memakai jembatan ini |
+| `npm install`, `npm start` | Teruji | `test/smoke.test.ts` menjalankan bundel `dist/main.cjs` yang sama dengan `npm start` |
+| Pemaketan installer | **Belum pernah dijalankan** | F5-T4 |
 
-Versi Electron di `package.json` (`^44.0.0`) adalah versi mayor terbaru saat scaffolding
-dibuat, bukan versi yang sudah dicoba. Pekerjaan verifikasinya adalah task `F5-T1` di
+Versi Electron di `package.json` (`44.5.1`) adalah versi yang benar-benar dipakai menjalankan
+tes asap, bukan versi terbaru saat scaffolding dibuat. Verifikasinya task `F5-T1` di
 `docs/roadmap/`.
 
 ## Cara kerja
@@ -56,16 +57,21 @@ Saat mengembangkan tanpa memasang paket Python, arahkan ke source:
 CLITE_DESKTOP_BACKEND="python3 -m clite" PYTHONPATH=../../src npm start
 ```
 
-## Yang perlu diperiksa pada percobaan pertama
+## Percobaan pertama (8 Oktober 2026)
 
-1. Jendela terbuka dan dashboard tampil (bukan halaman kosong). Jika kosong, lihat stderr
-   backend: `startBackend` menyertakannya di pesan galat.
-2. Menutup jendela menghentikan proses backend (cek dengan `ps`).
-3. Tautan `https://` di jawaban model terbuka di browser, bukan di dalam jendela.
-4. Menjalankan aplikasi dua kali hanya memfokuskan jendela yang sudah ada.
-5. Backend yang mati mendadak menampilkan dialog galat, bukan jendela mati.
+Dijalankan di Linux dengan display X, Electron 44.5.1, provider `mock`.
 
-Catat hasilnya di `docs/spesifikasi/` (bagian desktop) dan ubah tabel status di atas.
+| # | Yang diperiksa | Hasil |
+| --- | --- | --- |
+| 1 | Jendela terbuka dan dashboard tampil | Ya. `test/smoke.test.ts` menunggu `#status-connection.online` dan status model terisi, lalu mengirim satu pesan dan membaca jawabannya (`You said: …`) |
+| 2 | Menutup jendela menghentikan proses backend | Ya. Tes yang sama menutup jendela lewat DevTools (`Page.close`) dan menunggu port backend berhenti menerima sambungan |
+| 3 | Tautan `https://` terbuka di browser pengguna | Belum dicoba dengan klik sungguhan. Aturannya dijaga `decideNavigation` (`test/backend-process.test.ts`) |
+| 4 | Aplikasi kedua hanya memfokuskan jendela yang ada | Belum dicoba dengan dua peluncuran bersamaan. Jalurnya memakai kunci satu-instance Electron |
+| 5 | Backend yang mati mendadak menampilkan dialog galat | Belum dicoba. Jalur kodenya ada di `main.ts`; `dialog.showErrorBox` menunggu ditekan, jadi tidak diotomatiskan |
+
+Catatan lingkungan: di mesin uji ini proses GPU Chromium tidak bisa dipakai, jadi tes
+menjalankan Electron dengan `--disable-gpu` (dan `--no-sandbox` di kontainer). Flag itu bisa
+diganti lewat `CLITE_SMOKE_FLAGS`. Di CI Linux, tes berjalan di bawah `xvfb-run`.
 
 ## Belum ada
 

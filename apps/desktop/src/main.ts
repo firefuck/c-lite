@@ -1,9 +1,9 @@
 // Electron main process.
 //
-// NOT VERIFIED in the environment this scaffold was built in (no Electron there). The logic
-// it depends on is: backend-process.ts and window-policy.ts are tested, and the page it loads
-// (the dashboard) is tested in a real browser. What remains to check on first run is the
-// Electron wiring in this file. See apps/desktop/README.md.
+// The wiring here is covered by test/smoke.test.ts: it launches this app with the mock
+// provider, reads the answer out of the window, and checks that closing the app stops the
+// backend. The logic it leans on lives outside (backend-process.ts, window-policy.ts) so it
+// can be tested without Electron.
 //
 // Three parties: this process owns the backend's lifetime and the window; the renderer is the
 // dashboard page served by the backend; the backend is the Python process. The renderer gets

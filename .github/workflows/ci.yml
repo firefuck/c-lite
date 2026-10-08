@@ -65,7 +65,9 @@ jobs:
       # The TypeScript tests start the real Python backend.
       - run: pip install -e ".[dev]"
       - run: npm ci
-      - run: scripts/run_tests.sh
+      # The desktop smoke test opens the real Electron window, so the runner needs a display.
+      - run: sudo apt-get update && sudo apt-get install -y xvfb
+      - run: xvfb-run -a scripts/run_tests.sh
       # Whether the committed bundle is stale is checked by the Python suite (it compares a
       # hash of the sources), so this step only proves the bundle still builds.
       - run: npm run build

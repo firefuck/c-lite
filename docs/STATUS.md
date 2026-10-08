@@ -6,16 +6,17 @@ yang **belum ada**.
 
 ## Dijaga tes
 
-Pemeriksaan terbaru F3-T2 dijalankan runner di Linux, Python 3.11.16, Node 26.7.0.
+Pemeriksaan terbaru F5-T1 dijalankan di Linux, Python 3.14.7, Node 26.7.0, pada worktree bersih
+di `HEAD` + perubahan F5-T1 (tanpa berkas sesi lain yang belum di-commit).
 
 | Pemeriksaan | Hasil |
 |---|---|
 | `ruff check src tests scripts` | Bersih |
-| `mypy` (178 file sumber) | Bersih |
-| Tes Python (`pytest tests`) | 1268 lulus, 29 terlewati (jaringan, Windows, Docker, paket opsional), 1 gagal yang sudah ada sebelum F3-T4 (`tests/server`, `websockets`) |
-| Tes TypeScript `apps/shared` | 22 lulus; `tsc --noEmit` 1 galat yang sudah ada di `HEAD` (literal `subagent.update` di tes, bukan dari F3-T2) |
-| Tes TypeScript `ui-tui` | 18 lulus + 11 tes e2e lulus (29 total); `tsc --noEmit` bersih |
-| Tes TypeScript `apps/desktop` | 8 lulus; `tsc --noEmit` bersih |
+| `mypy` (192 file sumber) | Bersih |
+| Tes Python (`pytest tests`) | 1352 lulus, 48 terlewati (jaringan, Windows, Docker, paket opsional). Tanpa `GIT_AUTHOR_*`/`GIT_COMMITTER_*`, `tests/test_release.py::test_tagging_needs_a_clean_tree_and_creates_the_tag_for_the_version` gagal karena identitas git (lingkungan, bukan perubahan ini) |
+| Tes TypeScript `apps/shared` | 22 lulus; `tsc --noEmit` bersih |
+| Tes TypeScript `ui-tui` | 52 lulus; `tsc --noEmit` bersih |
+| Tes TypeScript `apps/desktop` | 9 lulus (termasuk tes asap Electron); `tsc --noEmit` bersih |
 | Rujukan ke file Hermes di semua dokumen | Lulus pada sesi pembuatan; belum diulang di sesi ini karena clone rujukan tidak tersedia |
 
 Yang tercakup tes Python itu, selain perilaku tiap modul:
@@ -734,7 +735,6 @@ dijalankan terhadap hal yang sebenarnya. Anggap belum berfungsi sampai terbukti.
 | Windows | Terverifikasi CI `37499972911` pada `6360a9a`: 765 lulus, 59 terlewati. ACL `.env`, cmd/Git Bash, penghentian pohon proses, home/path, dan kunci dua proses lulus; REPL manual belum dicoba | F1-T5 ✅ |
 | macOS | Belum pernah dijalankan | F1-T1 |
 | Plugin lewat entry point pip | Jalur muatnya ada; belum diuji dengan paket yang benar-benar terpasang | F6-T5 |
-| Cangkang Electron (`apps/desktop/src/main.ts`, `preload.ts`, `build.mjs`) | Ditulis tanpa Electron terpasang; belum pernah dijalankan | F5-T1 |
 | Model atau harness selain Claude Code | Belum pernah ada yang mengerjakan repositori ini. Panduan peralihannya disusun dari isi repositori, belum dari sesi nyata ([PANDUAN-MODEL-LAIN.md](PANDUAN-MODEL-LAIN.md)) | Coba dengan satu task S |
 | Skill dan subagent Claude Code di `.claude/` | Ditulis mengikuti dokumentasi Claude Code; belum pernah dipanggil di Claude Code. Bila `/orientasi` tidak dikenali, tempel bagian "Prompt" dari file di `docs/prompts/` | Coba dengan `/orientasi` |
 
@@ -865,3 +865,5 @@ dari "belum diverifikasi".
 | 8 Oktober 2026 | F6-T5 langkah 5 (`ctx.llm`): merah pada worktree bersih `303afbb` dengan berkas tes baru saja (`ModuleNotFoundError: No module named 'clite.plugins.llm'` dan `'PluginContext' object has no attribute 'llm'`, 5 tes), hijau sesudah kode dipulihkan — 91 lulus dari `tests/plugins`+`tests/test_architecture.py`. Lima guard diuji terpisah pada worktree terisolasi dan masing-masing menggagalkan tesnya: (a) anggaran tidak ditegakkan, (b) `ask` menerima pesan sesi, (c) plafon `plugins.llm.max_tokens` tidak dipakai, (d) tanpa pemberian pun plugin mendapat 5 panggilan, (e) hitungan dipakai bersama semua plugin. Rute `auxiliary.plugin.provider/model` ditambahkan ke `DEFAULT_CONFIG` dengan entri `READ_INDIRECTLY` di tes arsitektur. Ruff bersih, mypy 192 file bersih. Langkah 6–7 (hook tambahan, halaman dashboard) belum dikerjakan | Linux, Python 3.14.7 |
 
 | 8 Oktober 2026 | F6-T5 langkah 6 (hook tambahan): merah pada worktree bersih `65b7e40` dengan berkas tes baru saja (`unknown hook 'pre_memory_write'`/`'on_compaction'` dan `'pre_memory_write' in frozenset({'pre_tool_call'})`, 5 tes), hijau sesudah kode dipulihkan — 94 lulus dari `tests/plugins/test_hooks.py`+`tests/agent/test_memory_and_delegation.py`+`tests/agent/test_compression.py`. Lima guard diuji terpisah dan masing-masing menggagalkan tesnya: (a) `add()` tidak lagi menanyakan guard memori, (b) `pre_memory_write` tidak gagal tertutup, (c) `on_compaction` tidak pernah ditembakkan, (d) `messages_after` membawa daftar yang salah, (e) kedua hook ditawarkan ke shell hook kembali. Suite Python penuh 1345 lulus/51 terlewati/4 gagal yang sudah ada sebelum tugas ini dan bersifat lingkungan (3 butuh `ANTHROPIC_API_KEY`, 1 butuh identitas git). Ruff bersih, mypy 192 file bersih, `python scripts/gen_docs.py` memperbarui tabel hook di `docs/referensi/katalog.md`. Langkah 7 (halaman dashboard) belum dikerjakan | Linux, Python 3.14.7 | Langkah 7 (halaman dashboard) belum dikerjakan |
+
+| 8 Oktober 2026 | F5-T1: tes asap Electron baru (`apps/desktop/test/smoke.test.ts`) menjalankan aplikasi sungguhan (`electron .`, bundel `dist/main.cjs`) dengan provider `mock`, mengemudikan halaman lewat DevTools (`Runtime.evaluate`), mengirim satu pesan, membaca jawaban `You said: …`, memastikan tidak ada galat JS, lalu menutup jendela (`Page.close`) dan menunggu port backend berhenti menerima sambungan; `main.ts`, `preload.ts`, dan `build.mjs` ditandai ✅ di spesifikasi desktop dan baris "Cangkang Electron" dihapus dari daftar belum diverifikasi; versi Electron dipatok `44.5.1` (yang benar-benar dijalankan); pekerjaan CI `node` menjalankan tes di bawah `xvfb-run`. Dijalankan di Linux dengan display X. Suite penuh pada worktree bersih `HEAD`+perubahan ini: Ruff bersih, mypy 192 file bersih, 1352 tes Python lulus/48 terlewati, 22+52+9 tes TypeScript lulus. Dua butir "Selesai bila" (tes asap lulus di CI, type check `apps/desktop` berjalan di CI) belum diverifikasi karena perubahan belum di-push. Clone rujukan `../hermes-ref` tidak tersedia | Linux, Python 3.14.7, Node 26.7.0 |
