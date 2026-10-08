@@ -65,10 +65,33 @@ PERMISSION_OPTIONS = [
 ]
 PERMISSION_CHOICES = {"allow_once": "once", "allow_session": "session", "allow_always": "always"}
 
+# An ACP plan entry needs a priority and one of three statuses. Our task list has neither a
+# priority nor a status for a task that was dropped, so every entry is "medium" and cancelled
+# items stay out of the plan: showing them as completed would say the work was done.
+PLAN_PRIORITY = "medium"
+PLAN_STATUSES = {"pending": "pending", "in_progress": "in_progress", "completed": "completed"}
+
 
 def tool_kind(name: str) -> str:
     """The ACP kind of a tool call, for the icon and the verb an editor shows."""
     return TOOL_KINDS.get(name, "other")
+
+
+def plan_entries(todos: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The agent's task list as an ACP plan.
+
+    The whole list goes every time, as the protocol asks: the client replaces its plan with
+    what it is sent, so a partial update would silently drop the items left out.
+    """
+    entries: list[dict[str, Any]] = []
+    for item in todos:
+        status = PLAN_STATUSES.get(str(item.get("status")))
+        if status is None:
+            continue
+        entries.append(
+            {"content": str(item.get("content") or ""), "priority": PLAN_PRIORITY, "status": status}
+        )
+    return entries
 
 
 def permission_choice(reply: dict[str, Any] | None) -> str:
@@ -228,6 +251,12 @@ class AcpSession:
                     ],
                 }
             )
+            if name == "todo":
+                # The task list is the only plan there is: an editor shows it as the session's
+                # plan, and it is re-sent whole whenever the tool that edits it has run.
+                self._update(
+                    {"sessionUpdate": "plan", "entries": plan_entries(self.chat.agent.todos.read())}
+                )
 
         def approve(*, command: str, description: str, pattern_keys: list[str]) -> str:
             call = self._running_call() or self._stand_in_call(command)

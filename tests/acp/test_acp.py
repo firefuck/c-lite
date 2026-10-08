@@ -19,7 +19,13 @@ import pytest
 
 from clite.acp.entry import serve_stdio
 from clite.acp.server import ACP_METHODS, PROTOCOL_VERSION, AcpError, AcpServer
-from clite.acp.session import PERMISSION_OPTIONS, permission_choice, stop_reason, tool_kind
+from clite.acp.session import (
+    PERMISSION_OPTIONS,
+    permission_choice,
+    plan_entries,
+    stop_reason,
+    tool_kind,
+)
 from clite.agent import TurnResult
 from clite.providers.testing import ScriptedClient, text_response, tool_call_response
 from clite.rpc.transport import MemoryTransport
@@ -485,6 +491,116 @@ def test_a_tool_call_that_fails_is_reported_as_failed(client, clite_home):
     done = next(update["update"] for update in acp.updates("tool_call_update"))
     assert done["status"] == "failed"
     assert "not found" in done["content"][0]["content"]["text"].lower()
+
+
+# ── the plan ─────────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("todos", "entries"),
+    [
+        ([], []),
+        (
+            [{"id": "1", "content": "read the spec", "status": "in_progress"}],
+            [{"content": "read the spec", "priority": "medium", "status": "in_progress"}],
+        ),
+        (
+            [{"content": "one", "status": "pending"}, {"content": "two", "status": "completed"}],
+            [
+                {"content": "one", "priority": "medium", "status": "pending"},
+                {"content": "two", "priority": "medium", "status": "completed"},
+            ],
+        ),
+        # ACP knows three statuses; a task we dropped is not one of them, and showing it as
+        # completed would say the work was done.
+        ([{"content": "dropped", "status": "cancelled"}], []),
+        # A status from nowhere (an old file, a hand-written list) gets the same treatment.
+        ([{"content": "someday", "status": "later"}], []),
+        # Nothing in the task list is a priority, so everything is the middle one.
+        ([{"content": "one", "status": "pending", "priority": "high"}], [{"content": "one", "priority": "medium", "status": "pending"}]),
+    ],
+)
+def test_the_plan_is_the_task_list_in_the_protocols_own_words(todos, entries):
+    assert plan_entries(todos) == entries
+
+
+def test_the_todo_tool_turns_the_task_list_into_the_sessions_plan(client, clite_home):
+    acp = client(
+        [
+            tool_call_response(
+                (
+                    "todo",
+                    {
+                        "todos": [
+                            {"id": "1", "content": "read the spec", "status": "completed"},
+                            {"id": "2", "content": "write the code", "status": "in_progress"},
+                            {"id": "3", "content": "drop this", "status": "cancelled"},
+                        ]
+                    },
+                )
+            ),
+            text_response("I have a plan"),
+        ]
+    )
+    session_id = acp.new_session(str(clite_home))
+    assert acp.prompt(session_id, "plan this")["result"] == {"stopReason": "end_turn"}
+
+    plans = acp.updates("plan")
+    assert len(plans) == 1
+    assert plans[0]["sessionId"] == session_id
+    assert plans[0]["update"]["entries"] == [
+        {"content": "read the spec", "priority": "medium", "status": "completed"},
+        {"content": "write the code", "priority": "medium", "status": "in_progress"},
+    ]
+
+    # The plan follows the call that changed it, and both come before the turn's reply.
+    order = [
+        message["params"]["update"]["sessionUpdate"]
+        for message in acp.transport.messages
+        if message.get("method") == "session/update"
+    ]
+    assert order.index("tool_call_update") < order.index("plan")
+
+
+def test_the_plan_is_sent_whole_every_time(client, clite_home):
+    """The client replaces its plan with what it is sent, so a partial list would drop items."""
+    acp = client(
+        [
+            tool_call_response(
+                (
+                    "todo",
+                    {
+                        "todos": [
+                            {"id": "1", "content": "one", "status": "pending"},
+                            {"id": "2", "content": "two", "status": "pending"},
+                        ]
+                    },
+                )
+            ),
+            tool_call_response(
+                ("todo", {"todos": [{"id": "2", "content": "two", "status": "completed"}], "merge": True})
+            ),
+            text_response("done"),
+        ]
+    )
+    session_id = acp.new_session(str(clite_home))
+    assert acp.prompt(session_id, "plan this")["result"] == {"stopReason": "end_turn"}
+
+    plans = acp.updates("plan")
+    assert len(plans) == 2
+    # The second call only mentions task 2, but the plan still carries task 1.
+    assert plans[1]["update"]["entries"] == [
+        {"content": "one", "priority": "medium", "status": "pending"},
+        {"content": "two", "priority": "medium", "status": "completed"},
+    ]
+
+
+def test_only_the_todo_tool_puts_a_plan_on_the_wire(client, clite_home):
+    (clite_home / "notes.txt").write_text("hi\n")
+    acp = client([tool_call_response(("read_file", {"path": "notes.txt"})), text_response("read")])
+    session_id = acp.new_session(str(clite_home))
+    acp.prompt(session_id, "read it")
+    assert acp.updates("plan") == []
 
 
 def _dangerous_command(target) -> str:

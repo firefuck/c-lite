@@ -112,6 +112,15 @@ dibangun `runtime.build_agent` dengan platform `acp`.
   pemanggil seperti itu, tapi jalurnya ada) diberi tool call buatan ber-id `approval-N`, supaya
   pertanyaannya tidak menggantung tanpa sasaran.
 
+**Rencana**
+- Daftar tugas agen (`agent.todos`) dikirim sebagai `plan`, setiap kali tool `todo` selesai
+  berjalan — hanya tool itu, karena hanya ia yang mengubah daftarnya. Daftarnya dikirim utuh
+  tiap kali, seperti yang diminta protokolnya: klien mengganti rencananya dengan yang dikirim,
+  jadi kiriman sebagian akan menghapus butir yang tidak disebut.
+- Prioritas tidak ada di daftar tugas kita, jadi setiap butir `medium`. Protokolnya mengenal
+  tiga status; butir yang dibatalkan (`cancelled`) tidak ikut sama sekali — menampilkannya
+  sebagai `completed` akan bilang pekerjaannya selesai.
+
 **Stdio**
 - Stdout adalah kawat. `entry.py` mengalihkan `sys.stdout` ke stderr selama proses hidup,
   sehingga `print` nyasar dari sebuah tool tidak merusak aliran protokol.
@@ -127,7 +136,8 @@ dibangun `runtime.build_agent` dengan platform `acp`.
 | `session/prompt`: potongan pesan dan alasan berhenti | ✅ | Hanya blok teks; satu giliran per sesi; galat provider menjadi galat permintaan |
 | `session/cancel` | ✅ | Notifikasi, dibaca di thread pembaca; prompt menjawab `cancelled` |
 | Pembaruan tool call dan izin | ✅ | F6-T4: `tool_call`/`tool_call_update` dengan kind, status, `rawInput`, `locations`; izin lewat `session/request_permission` ke callback `approve`, dengan diam berarti tolak. Dijaga `tests/acp/test_acp.py`, termasuk satu giliran sungguhan lewat pipa dengan tool call dan permintaan izin |
-| `plan` dari `agent.todos` dan `available_commands_update` | ⬜ | F6-T4 |
+| `plan` dari `agent.todos` | ✅ | F6-T4: dikirim utuh setiap tool `todo` selesai; butir `cancelled` tidak ikut. Dijaga `tests/acp/test_acp.py` |
+| `available_commands_update` | ⬜ | F6-T4 |
 | `session/load`: memutar ulang riwayat tersimpan | ⬜ | F6-T4 |
 | Kemampuan sisi klien (editor menjalankan terminal, membaca berkas) | ⬜ | Di luar lingkup F6-T4 |
 
