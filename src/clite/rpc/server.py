@@ -81,13 +81,21 @@ def rpc_method(
 
 class RpcServer:
     def __init__(
-        self, transport: Transport, *, platform: str = "tui", client_factory: Callable[[], Any] | None = None
+        self,
+        transport: Transport,
+        *,
+        platform: str = "tui",
+        client_factory: Callable[[], Any] | None = None,
+        on_server_answer: Callable[[str, dict[str, Any], dict[str, Any] | None], None] | None = None,
     ) -> None:
         from clite.rpc import methods  # noqa: F401 - registers the handlers
 
         self.transport = transport
         self.platform = platform
         self.client_factory = client_factory  # tests inject a scripted model client
+        # Told what a client answered to a server request (an approval, a clarification), for
+        # callers that must record it. The RPC layer stays unaware of who is listening.
+        self.on_server_answer = on_server_answer
         self.sessions: dict[str, Any] = {}  # runtime session id -> RpcSession
         self._lock = threading.RLock()
         self._seq = 0
@@ -140,10 +148,13 @@ class RpcServer:
         finally:
             self._pending.pop(request_id, None)
         try:
-            return spec.result.model_validate(reply).model_dump(mode="json")
+            answer = spec.result.model_validate(reply).model_dump(mode="json")
         except ValidationError:
             logger.warning("client sent an invalid reply to %s: %r", name, reply)
             return None
+        if self.on_server_answer is not None:
+            self.on_server_answer(name, body, answer)
+        return answer
 
     def _respond(self, request_id: Any, result: Any = None, error: RpcError | None = None) -> None:
         if request_id is None:

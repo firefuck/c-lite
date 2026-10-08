@@ -120,7 +120,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `clite profile` | manage profiles (separate homes) | `list`, `show`, `create`, `use`, `delete` |
 | `clite cron` | schedule agent tasks | `list`, `add`, `pause`, `resume`, `run`, `remove`, `tick`, `daemon` |
 | `clite gateway` | run the messaging gateway | `run`, `status`, `pair` |
-| `clite serve` | run the headless backend (for the desktop app or a remote client) |  |
+| `clite serve` | run the headless backend (for the desktop app or a remote client) | `token` |
 | `clite dashboard` | run the backend and open the web dashboard |  |
 | `clite tui` | start the terminal UI (needs Node.js) |  |
 | `clite completion` | print a shell completion script for bash, zsh or fish |  |
@@ -423,6 +423,12 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `cron.inactivity_timeout_seconds` | `600` |
 | `server.host` | `"127.0.0.1"` |
 | `server.port` | `0` |
+| `server.allowed_hosts` | `[]` |
+| `server.max_message_bytes` | `1000000` |
+| `server.rate_limit.max_failures` | `10` |
+| `server.rate_limit.window_seconds` | `60` |
+| `server.rate_limit.delay_seconds` | `5` |
+| `server.audit_log` | `true` |
 | `sessions.auto_prune` | `false` |
 | `sessions.retention_days` | `90` |
 | `checkpoints.max_bytes` | `100000000` |

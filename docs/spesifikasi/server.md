@@ -40,7 +40,18 @@ pemeriksaan kesehatan.
 - Default hanya mendengarkan di `127.0.0.1`. Host lain memicu peringatan di stderr.
 
 **Autentikasi**
-- Satu token untuk semua rute `/api` kecuali health, dibandingkan dalam waktu konstan.
+- Satu token untuk semua rute `/api` kecuali health, dibandingkan dalam waktu konstan. Yang
+  diterima: token sesi sekali pakai, atau token bernama yang belum dicabut dan belum kedaluwarsa.
+  Percobaan yang salah dihitung per alamat klien; alamat yang melewati
+  `server.rate_limit.max_failures` dalam satu jendela menunggu sebelum dijawab lagi.
+- Pesan RPC masuk dibatasi `server.max_message_bytes`. ASGI menolak bingkai WebSocket yang lebih
+  besar sebelum aplikasi memegangnya, dan aplikasi memeriksa ulang panjang teks sebelum mengurai.
+- Server yang diikat ke alamat selain loopback menolak mulai tanpa TLS (`--tls-cert` dan
+  `--tls-key`) kecuali `--insecure` diberikan, dan hanya menjawab nama di
+  `server.allowed_hosts` (plus alamat bind dan nama loopback).
+- Sambungan, token yang dipakai, token yang ditolak, pesan yang ditolak, dan jawaban
+  persetujuan ditulis ke `<home>/logs/audit.log` (`server.audit_log`, default aktif). Nilai
+  token tidak pernah ditulis, hanya namanya.
   Diterima sebagai `Authorization: Bearer`, header `X-Clite-Token`, atau parameter `token`
   (WebSocket dari browser tidak bisa mengirim header).
 - WebSocket juga memeriksa `Origin`: hanya origin dashboard sendiri yang lolos, yaitu host dan
@@ -93,7 +104,8 @@ luar event loop dijaga oleh `tests/server/test_context.py`.
 | Halaman sesi, config, kredensial, cron, memori, log, hook/MCP | ✅ | F5-T2 |
 | Halaman analitik | ⬜ | Belum ada task-nya |
 | Dashboard React + Vite | ⬜ | Hanya bila JS polos tidak lagi cukup: F5-T3 |
-| TLS, autentikasi pengguna, akses jarak jauh | ⬜ | F5-T6 |
+| Token bernama, pembatasan laju, batas ukuran pesan, TLS, daftar host, log audit | ✅ | F5-T6 |
+| Autentikasi pengguna (login, banyak akun) | ⬜ | Belum ada task-nya |
 | Endpoint kompatibel OpenAI (`/v1/chat/completions`) | ⬜ | F4-T10 |
 | Halaman dari plugin | ✅ | F6-T5: listener dan port sendiri (origin sendiri), bingkai ber-sandbox, hanya aset web di dalam direktori plugin. Tanpa jembatan data: halaman tidak bisa meminta sesuatu ke backend |
 
@@ -106,5 +118,7 @@ luar event loop dijaga oleh `tests/server/test_context.py`.
 
 ## Celah yang diketahui
 
-- Token berumur sepanjang proses dan tidak bisa dicabut tanpa memulai ulang.
-- Tidak ada pembatasan laju pada percobaan token.
+- Token sesi sekali pakai (`CLITE_SESSION_TOKEN`) berumur sepanjang proses; token **bernama**
+  (`clite serve token create`) punya masa berlaku dan bisa dicabut tanpa memulai ulang.
+- Tekanan balik untuk klien yang lambat membaca belum ada: batas ukuran menjaga pesan masuk,
+  bukan laju keluaran.

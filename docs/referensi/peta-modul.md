@@ -110,7 +110,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `model.py` | ``clite model``: show, list and choose models. | `run_show()`, `run_list()`, `run_set()`, `run_providers()`, `register()` |
 | `plugins.py` | ``clite plugins``: list, enable, disable, install, remove, search, info, update. | `run_list()`, `run_search()`, `run_info()`, `run_install()`, `run_update()`, `run_remove()`, `register()` |
 | `profile.py` | ``clite profile``: separate homes with their own config, keys, memory and sessions. | `run_list()`, `run_show()`, `run_create()`, `run_use()`, `run_delete()`, `register()` |
-| `serve.py` | ``clite serve`` and ``clite dashboard``: the HTTP + WebSocket backend. | `run_serve()`, `register()` |
+| `serve.py` | ``clite serve``, ``clite dashboard`` and ``clite serve token``: the backend and its tokens. | `run_serve()`, `run_token_create()`, `run_token_list()`, `run_token_revoke()`, `register()` |
 | `sessions.py` | ``clite sessions``: browse, search, export and prune stored conversations. | `run_list()`, `run_show()`, `run_rename()`, `run_delete()`, `run_export()`, `run_search()`, `run_prune()`, `register()` |
 | `setup.py` | ``clite setup``: interactive wizard and non-interactive provider configuration. | `run_setup()`, `register()` |
 | `skills.py` | ``clite skills``: browse, install and curate skills. | `run_list()`, `run_view()`, `run_search()`, `run_info()`, `run_install()`, `run_update()`, `run_tap()`, `run_remove()`, `run_curate()`, `register()` |
@@ -251,8 +251,11 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | The headless backend: HTTP + WebSocket JSON-RPC for the desktop app and the dashboard. |  |
-| `app.py` | The ASGI app behind ``clite serve`` and ``clite dashboard``. | `presented_token()`, `host_allowed()`, `origin_allowed()`, `create_app()`, `create_plugin_pages_app()` |
-| `run.py` | Starting the backend: bind, announce readiness, serve. | `bind_socket()`, `dashboard_url()`, `start_plugin_pages()`, `serve()` |
+| `app.py` | The ASGI app behind ``clite serve`` and ``clite dashboard``. | `max_message_bytes()`, `allowed_hosts()`, `presented_token()`, `host_allowed()`, `origin_allowed()`, `create_app()`, `create_plugin_pages_app()` |
+| `audit.py` | The audit trail for a reachable server. | `audit_path()`, `audit()` |
+| `limits.py` | Limits that keep a reachable server from being an easy target. | `TokenThrottle`, `too_large()`, `client_address()` |
+| `run.py` | Starting the backend: bind, announce readiness, serve. | `bind_refusal()`, `bind_socket()`, `dashboard_url()`, `start_plugin_pages()`, `serve()` |
+| `tokens.py` | Named session tokens for ``clite serve``, stored as hashes. | `TokenError`, `tokens_path()`, `token_digest()`, `TokenRecord`, `TokenStore`, `get_token_store()`, `reset_token_stores()` |
 
 ## `clite/skills/`
 
@@ -332,4 +335,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 196 modul.
+Jumlah: 199 modul.

@@ -635,8 +635,8 @@ def test_memory_edits_go_through_the_store_and_its_guards(client):
 
 
 def test_logs_tail_filters_by_level_and_redacts(client, clite_home):
-    from clite.core.env import SecretSpec, register_secret
     from clite.core.constants import get_logs_dir
+    from clite.core.env import SecretSpec, register_secret
 
     register_secret(SecretSpec(name="CLITE_LOG_SECRET", description="a credential for this test"))
     rpc = client()

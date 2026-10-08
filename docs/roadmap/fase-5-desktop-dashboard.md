@@ -249,13 +249,21 @@ yang menemukan port-nya.
 **Rujukan Hermes.** `plugins/dashboard_auth/`, `hermes_cli/web_server_oauth.py`.
 
 **Selesai bila.**
-- [ ] Tes: token yang dicabut ditolak pada permintaan berikutnya dan memutus WebSocket yang
+- [x] Tes: token yang dicabut ditolak pada permintaan berikutnya dan memutus WebSocket yang
       sedang memakainya.
-- [ ] Tes: sepuluh percobaan salah dari satu alamat memicu penundaan, tanpa memengaruhi
+- [x] Tes: sepuluh percobaan salah dari satu alamat memicu penundaan, tanpa memengaruhi
       alamat lain.
-- [ ] Tes: pesan RPC yang melebihi batas ditolak tanpa memuat seluruhnya ke memori.
-- [ ] Tabel "Celah yang diketahui" di dokumen keamanan diperbarui: baris token dan batas
+- [x] Tes: pesan RPC yang melebihi batas ditolak tanpa memuat seluruhnya ke memori.
+- [x] Tabel "Celah yang diketahui" di dokumen keamanan diperbarui: baris token dan batas
       ukuran dihapus atau diubah.
+
+**Dikerjakan 8 Oktober 2026.** `clite/server/tokens.py` (token bernama, hash, masa berlaku,
+cabut), `clite/server/limits.py` (pembatasan laju per alamat, batas ukuran), `clite/server/audit.py`
+(log audit), `clite serve token create|list|revoke`, `--tls-cert`/`--tls-key`/`--insecure`,
+`server.allowed_hosts` menggantikan "semua nama diterima" di luar loopback, dan `ws_max_size`
+dari `server.max_message_bytes` sehingga ASGI menolak bingkai besar sebelum aplikasi memegangnya.
+Belum dikerjakan: tekanan balik untuk klien yang lambat membaca, dan autentikasi pengguna
+(login banyak akun) yang belum punya task.
 
 **Ukuran.** M
 

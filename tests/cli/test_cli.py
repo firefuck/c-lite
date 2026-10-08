@@ -635,13 +635,41 @@ def test_unknown_profile_and_help(clite_home, capsys):
 
 def test_the_session_token_cannot_be_given_on_the_command_line(clite_home):
     """Arguments are visible to every local user (`ps`), so the token only comes in through
-    the environment."""
+    the environment. There is no `--token` option, and a value after it stops the parser rather
+    than starting a server with it."""
     from clite.cli.main import build_parser
 
     for command in ("serve", "dashboard"):
-        args, extra = build_parser().parse_known_args([command, "--token", "secret-token"])
-        assert extra == ["--token", "secret-token"], command
-        assert not getattr(args, "accepts_extra_args", False), command
+        args, extra = build_parser().parse_known_args([command, "--token"])
+        assert extra == ["--token"], command
+        assert not hasattr(args, "token"), command
+        with pytest.raises(SystemExit):
+            build_parser().parse_args([command, "--token", "secret-token"])
+
+
+def test_serve_token_commands_manage_named_tokens(clite_home, capsys):
+    """`clite serve token create|list|revoke`: the value is shown once and stored as a hash."""
+    from clite.cli.main import main
+    from clite.server.tokens import get_token_store
+
+    assert main(["serve", "token", "list"]) == 0
+    assert "No named tokens" in capsys.readouterr().out
+
+    assert main(["serve", "token", "create", "laptop", "--days", "7"]) == 0
+    printed = capsys.readouterr().out
+    assert "Copy it now" in printed
+    secret = next(line for line in printed.splitlines() if line and " " not in line.strip())
+    assert secret not in (clite_home / "tokens.json").read_text()
+    assert get_token_store().verify(secret) is not None
+
+    assert main(["serve", "token", "list"]) == 0
+    listed = capsys.readouterr().out
+    assert "laptop" in listed and "active" in listed and secret not in listed
+
+    assert main(["serve", "token", "revoke", "laptop"]) == 0
+    assert "Revoked" in capsys.readouterr().out
+    assert get_token_store().verify(secret) is None
+    assert main(["serve", "token", "revoke", "laptop"]) == 1  # already gone
 
 
 def test_serve_prints_the_ready_line_as_a_real_process(clite_home):

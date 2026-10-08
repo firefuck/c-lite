@@ -192,7 +192,215 @@ def test_origin_and_host_rules():
     assert host_allowed(connection(host="localhost:8000"), "127.0.0.1")
     assert not host_allowed(connection(host="evil.example:8000"), "127.0.0.1")
     assert not host_allowed(connection(), "127.0.0.1")
-    assert host_allowed(connection(host="agent.lan:8000"), "0.0.0.0")  # the user chose to expose it
+    # Beyond loopback, the name must be one the user listed: "any name accepted" is gone.
+    assert not host_allowed(connection(host="agent.lan:8000"), "0.0.0.0")
+    assert host_allowed(connection(host="agent.lan:8000"), "0.0.0.0", ["agent.lan"])
+    assert host_allowed(connection(host="0.0.0.0:8000"), "0.0.0.0", ["agent.lan"])  # the bind address
+    assert host_allowed(connection(host="127.0.0.1:8000"), "0.0.0.0", ["agent.lan"])  # health checks
+    assert not host_allowed(connection(host="other.lan:8000"), "0.0.0.0", ["agent.lan"])
+
+
+def test_binding_beyond_loopback_needs_tls_or_a_clear_yes():
+    from clite.server.run import bind_refusal
+
+    assert bind_refusal("127.0.0.1") is None
+    assert bind_refusal("localhost") is None
+    refusal = bind_refusal("0.0.0.0")
+    assert refusal is not None and "without TLS" in refusal and "--insecure" in refusal
+    assert bind_refusal("0.0.0.0", tls_certfile="c.pem", tls_keyfile="k.pem") is None
+    assert bind_refusal("0.0.0.0", allow_insecure=True) is None
+    assert bind_refusal("0.0.0.0", tls_certfile="c.pem") is not None  # a cert without its key
+
+
+def test_an_exposed_bind_refuses_to_start_without_tls(clite_home, capsys):
+    from clite.server.run import serve
+
+    assert serve("0.0.0.0", 0, token="t", out=io.StringIO()) == 2
+    assert "without TLS" in capsys.readouterr().err
+
+
+def test_the_asgi_server_is_told_the_message_limit(clite_home, monkeypatch):
+    """The frame limit lives in the ASGI server, so an oversized message is refused before the
+    app ever holds it as a string."""
+    import uvicorn
+
+    from clite.server import run as run_module
+
+    captured: dict[str, object] = {}
+    real_config = uvicorn.Config
+
+    class Capture(real_config):  # type: ignore[misc, valid-type]
+        def __init__(self, app, **kwargs):
+            captured.update(kwargs)
+            super().__init__(app, **kwargs)
+
+    monkeypatch.setattr(uvicorn, "Config", Capture)
+    monkeypatch.setattr(uvicorn.Server, "run", lambda self, sockets=None: None)
+    (clite_home / "config.yaml").write_text(
+        "model:\n  provider: mock\n  default: mock-1\nserver:\n  max_message_bytes: 4096\n"
+    )
+    assert run_module.serve("127.0.0.1", 0, token="t", out=io.StringIO()) == 0
+    assert captured["ws_max_size"] == 4096
+
+
+def test_a_message_over_the_limit_is_refused(clite_home):
+    from websockets.exceptions import ConnectionClosed
+
+    (clite_home / "config.yaml").write_text(
+        "model:\n  provider: mock\n  default: mock-1\nserver:\n  max_message_bytes: 4096\n"
+    )
+    instance, server, thread = start_backend(token="limit-token")
+    try:
+        with instance.connect(token="limit-token") as socket:
+            assert json.loads(socket.recv(timeout=5))["params"]["type"] == "gateway.ready"
+            # A normal message still works.
+            socket.send(json.dumps({"jsonrpc": "2.0", "id": 1, "method": "ping", "params": {}}))
+            assert json.loads(socket.recv(timeout=5))["result"]["pong"] is True
+            # One over the cap closes the connection instead of being parsed.
+            with pytest.raises(ConnectionClosed):
+                socket.send(json.dumps({"jsonrpc": "2.0", "id": 2, "method": "ping", "params": {"x": "y" * 8000}}))
+                socket.recv(timeout=5)
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+
+
+def test_wrong_tokens_slow_that_address_down_only():
+    from clite.server.limits import TokenThrottle, too_large
+
+    throttle = TokenThrottle(max_failures=10, window_seconds=60, delay_seconds=0.5)
+    # The tenth wrong token is the one that starts the wait; the nine before it are answered.
+    assert [throttle.record_failure("10.0.0.1", now=0.0) for _ in range(9)][-1] == 0.0
+    assert throttle.blocked_for("10.0.0.1", now=0.0) == 0.0
+    assert throttle.record_failure("10.0.0.1", now=0.0) == 0.5
+    assert throttle.blocked_for("10.0.0.1", now=0.2) == pytest.approx(0.3)
+    # Another address is untouched by it.
+    assert throttle.blocked_for("10.0.0.2", now=0.0) == 0.0
+    assert throttle.record_failure("10.0.0.2", now=0.0) == 0.0
+    # A success clears the count for that address.
+    throttle.record_success("10.0.0.1")
+    assert throttle.blocked_for("10.0.0.1", now=0.2) == 0.0
+    # The wait grows while the guessing continues, and is capped.
+    for _ in range(20):
+        last = throttle.record_failure("10.0.0.3", now=0.0)
+    assert last == 60.0
+
+    assert too_large("x" * 10, 10) is False
+    assert too_large("x" * 11, 10) is True
+    assert too_large("x" * 11, 0) is False  # no cap configured
+
+
+def test_wrong_tokens_from_one_address_are_delayed(clite_home):
+    from clite.server.limits import TokenThrottle
+
+    (clite_home / "config.yaml").write_text("model:\n  provider: mock\n  default: mock-1\n")
+    throttle = TokenThrottle(max_failures=3, window_seconds=60, delay_seconds=0.4)
+    instance, server, thread = start_backend(token="throttle-token", throttle=throttle)
+    try:
+        started = time.monotonic()
+        for _ in range(2):  # the first two are answered at once
+            assert instance.get("/api/status", token="wrong")[0] == 401
+        assert time.monotonic() - started < 0.4
+        started = time.monotonic()
+        assert instance.get("/api/status", token="wrong")[0] == 401  # the third waits
+        assert time.monotonic() - started >= 0.4
+        # The right token is never delayed.
+        started = time.monotonic()
+        assert instance.get("/api/status", token="throttle-token")[0] == 200
+        assert time.monotonic() - started < 0.4
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+
+
+def test_named_tokens_open_a_connection_and_revoking_cuts_it_off(clite_home):
+    from websockets.exceptions import ConnectionClosed, InvalidStatus
+
+    from clite.server.tokens import TokenError, get_token_store
+
+    (clite_home / "config.yaml").write_text("model:\n  provider: mock\n  default: mock-1\n")
+    store = get_token_store()
+    _record, secret = store.create("laptop", ttl_days=1)
+
+    instance, server, thread = start_backend(token="session-token")
+    try:
+        # A named token works on both surfaces, and the file never holds the value.
+        assert instance.get("/api/status", token=secret)[0] == 200
+        assert secret not in (clite_home / "tokens.json").read_text()
+
+        with instance.connect(token=secret) as socket:
+            assert json.loads(socket.recv(timeout=5))["params"]["type"] == "gateway.ready"
+            socket.send(json.dumps({"jsonrpc": "2.0", "id": 8, "method": "ping", "params": {}}))
+            assert json.loads(socket.recv(timeout=5))["result"]["pong"] is True
+
+            # Revoke it: the next request is refused, and the open socket is cut off.
+            assert store.revoke("laptop") is True
+            assert instance.get("/api/status", token=secret)[0] == 401
+            with pytest.raises(ConnectionClosed):
+                socket.send(json.dumps({"jsonrpc": "2.0", "id": 9, "method": "ping", "params": {}}))
+                socket.recv(timeout=5)
+
+        with pytest.raises((ConnectionClosed, InvalidStatus)), instance.connect(token=secret):
+            pass
+
+        # The one-off session token is unaffected by all of this.
+        assert instance.get("/api/status", token="session-token")[0] == 200
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+
+    # Creating the same name twice is refused; after a revoke the name is free again.
+    _again, second = store.create("desk")
+    with pytest.raises(TokenError):
+        store.create("desk")
+    assert store.verify(second) is not None
+    assert store.verify(secret) is None  # the revoked one stays dead
+    assert [entry.name for entry in store.list()] == ["desk"]
+
+
+def test_an_expired_token_is_refused(clite_home):
+    from clite.server.tokens import get_token_store
+
+    store = get_token_store()
+    record, secret = store.create("old", ttl_days=1, now=time.time() - 3 * 86_400)
+    assert record.expired() is True
+    assert store.verify(secret) is None
+    assert [entry.name for entry in store.list()] == ["old"]
+
+
+def test_connections_and_approvals_are_audited(clite_home):
+    (clite_home / "config.yaml").write_text("model:\n  provider: mock\n  default: mock-1\n")
+    instance, server, thread = start_backend(token="audit-token")
+    try:
+        assert instance.get("/api/status", token="wrong")[0] == 401
+        with instance.connect(token="audit-token") as socket:
+            assert json.loads(socket.recv(timeout=5))["params"]["type"] == "gateway.ready"
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+
+    from clite.core.constants import get_logs_dir
+
+    log = (get_logs_dir() / "audit.log").read_text()
+    assert "token_rejected" in log
+    assert "connected" in log and "token=session" in log
+    assert "disconnected" in log
+    assert "audit-token" not in log  # the value is never written, only the name
+
+
+def test_the_audit_log_can_be_turned_off(clite_home):
+    from clite.core.constants import get_logs_dir
+
+    (clite_home / "config.yaml").write_text(
+        "model:\n  provider: mock\n  default: mock-1\nserver:\n  audit_log: false\n"
+    )
+    instance, server, thread = start_backend(token="quiet-token")
+    try:
+        assert instance.get("/api/status", token="wrong")[0] == 401
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+    assert not (get_logs_dir() / "audit.log").exists()
 
 
 def test_a_full_turn_over_websocket_then_rest(backend):

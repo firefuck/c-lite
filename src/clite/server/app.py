@@ -31,7 +31,7 @@ from __future__ import annotations
 import asyncio
 import hmac
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -45,16 +45,48 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from clite import __version__
 from clite.agent.messages import content_text, is_internal
+from clite.core.config import config_get
 from clite.plugins.pages import dashboard_pages, find_page, resolve_asset
 from clite.rpc.server import RpcServer
 from clite.rpc.transport import WebSocketTransport
+from clite.server.audit import audit
+from clite.server.limits import TokenThrottle, client_address, too_large
+from clite.server.tokens import get_token_store
 from clite.state.db import get_session_db
 
 logger = logging.getLogger("clite.server")
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 WS_UNAUTHORIZED = 4401
+WS_MESSAGE_TOO_BIG = 1009  # RFC 6455 "message too big"
+WS_TOKEN_REVOKED = 4403
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
+def max_message_bytes() -> int:
+    """Cap on one incoming RPC line, from ``server.max_message_bytes``."""
+    try:
+        return max(0, int(config_get("server.max_message_bytes", 1_000_000) or 0))
+    except (TypeError, ValueError):
+        return 1_000_000
+
+
+def allowed_hosts() -> list[str]:
+    value = config_get("server.allowed_hosts", []) or []
+    return [str(name) for name in value] if isinstance(value, (list, tuple)) else []
+
+
+def _credential_still_valid(name: str, session_token: str) -> bool:
+    """True while the credential that opened a socket is still usable.
+
+    The one-off session token lives exactly as long as this process, so it stays valid. A named
+    token is re-checked against the store, which is what makes ``revoke`` take effect on a
+    socket that is already open.
+    """
+    if name == "session" and session_token:
+        return True
+    record = get_token_store().get(name)
+    return record is not None and not record.expired()
 
 
 def presented_token(connection: HTTPConnection) -> str:
@@ -74,16 +106,21 @@ def _authority(value: str) -> tuple[str, int | None]:
         return "", None
 
 
-def host_allowed(connection: HTTPConnection, bind_host: str) -> bool:
+def host_allowed(connection: HTTPConnection, bind_host: str, allowed_hosts: Sequence[str] = ()) -> bool:
     """With the server bound to loopback, only requests addressed to a loopback name count.
 
     A browser that was told ``evil.example`` now resolves to 127.0.0.1 still sends
     ``Host: evil.example``. Refusing that name is what makes the rebinding useless. A server
-    the user deliberately bound to another address accepts any name.
+    the user deliberately bound to another address answers the names in
+    ``server.allowed_hosts`` and the bind address itself, and nothing else.
     """
-    if bind_host.strip("[]").lower() not in _LOOPBACK_HOSTS:
-        return True
-    return _authority(connection.headers.get("host", ""))[0] in _LOOPBACK_HOSTS
+    host = _authority(connection.headers.get("host", ""))[0]
+    if bind_host.strip("[]").lower() in _LOOPBACK_HOSTS:
+        return host in _LOOPBACK_HOSTS
+    accepted = {name.strip().lower() for name in allowed_hosts if name and name.strip()}
+    accepted.add(bind_host.strip("[]").lower())
+    accepted.update(_LOOPBACK_HOSTS)  # a health check from the machine itself still works
+    return host in accepted
 
 
 def origin_allowed(connection: HTTPConnection) -> bool:
@@ -111,18 +148,47 @@ def create_app(
     client_factory: Callable[[], Any] | None = None,
     platform: str = "desktop",
     bind_host: str = "127.0.0.1",
+    throttle: TokenThrottle | None = None,
 ) -> Starlette:
     if not token:
         raise ValueError("the server needs a session token")
+    limiter = throttle or TokenThrottle(
+        max_failures=int(config_get("server.rate_limit.max_failures", 10) or 10),
+        window_seconds=float(config_get("server.rate_limit.window_seconds", 60) or 60),
+        delay_seconds=float(config_get("server.rate_limit.delay_seconds", 5) or 5),
+    )
+    hosts = allowed_hosts()
 
-    def authorized(connection: HTTPConnection) -> bool:
-        return host_allowed(connection, bind_host) and hmac.compare_digest(
-            presented_token(connection).encode(), token.encode()
-        )
+    def credential_name(connection: HTTPConnection) -> str:
+        """Which credential this connection presented: "session", a named token, or ""."""
+        presented = presented_token(connection)
+        if not presented:
+            return ""
+        if hmac.compare_digest(presented.encode(), token.encode()):
+            return "session"  # the one-off token a parent process handed us
+        record = get_token_store().verify(presented)
+        return record.name if record is not None else ""
+
+    def authorize(connection: HTTPConnection) -> tuple[bool, str, float]:
+        """``(allowed, credential name, seconds to wait before answering)``."""
+        address = client_address(connection)
+        if not host_allowed(connection, bind_host, hosts):
+            audit("host_rejected", address=address, host=connection.headers.get("host", ""))
+            return False, "", 0.0
+        name = credential_name(connection)
+        if name:
+            limiter.record_success(address)
+            return True, name, 0.0
+        delay = limiter.record_failure(address)
+        audit("token_rejected", address=address, delay=f"{delay:.2f}s")
+        return False, "", delay
 
     def guarded(handler: Callable[[Request], Any]) -> Callable[[Request], Any]:
         async def wrapper(request: Request) -> Response:
-            if not authorized(request):
+            allowed, _name, delay = authorize(request)
+            if not allowed:
+                if delay:
+                    await asyncio.sleep(delay)  # the throttle is a wait, not just a count
                 return JSONResponse({"error": "unauthorized"}, status_code=401)
             return await asyncio.to_thread(handler, request)
 
@@ -174,21 +240,54 @@ def create_app(
         return JSONResponse({"session_id": row["id"], "title": row.get("title") or "", "messages": messages})
 
     async def websocket_endpoint(websocket: WebSocket) -> None:
-        if not authorized(websocket) or not origin_allowed(websocket):
+        allowed, name, delay = authorize(websocket)
+        if not allowed or not origin_allowed(websocket):
+            if delay:
+                await asyncio.sleep(delay)
             await websocket.close(code=WS_UNAUTHORIZED)
             return
         await websocket.accept()
+        address = client_address(websocket)
+        audit("connected", token=name, address=address, platform=platform)
+
+        def record_answer(request_name: str, params: dict[str, Any], answer: dict[str, Any] | None) -> None:
+            # An approval is the one decision worth keeping: it is what let a dangerous command
+            # run. A clarification is the user's own words and is not recorded here.
+            if request_name == "approval.request":
+                audit(
+                    "approval_answered",
+                    token=name,
+                    address=address,
+                    choice=(answer or {}).get("choice", "none"),
+                    command=str(params.get("command", ""))[:200],
+                )
+
         loop = asyncio.get_running_loop()
         server = RpcServer(
-            WebSocketTransport(websocket, loop), platform=platform, client_factory=client_factory
+            WebSocketTransport(websocket, loop),
+            platform=platform,
+            client_factory=client_factory,
+            on_server_answer=record_answer,
         )
         server.announce()
+        limit = max_message_bytes()
         try:
             while True:
-                server.handle_line(await websocket.receive_text())
+                raw = await websocket.receive_text()
+                if too_large(raw, limit):
+                    audit("message_rejected", token=name, address=address, limit=limit)
+                    await websocket.close(code=WS_MESSAGE_TOO_BIG)
+                    return
+                if not _credential_still_valid(name, token):
+                    # Revoked (or expired) while this socket was open: cut it off now.
+                    audit("token_revoked", token=name, address=address)
+                    await websocket.close(code=WS_TOKEN_REVOKED)
+                    return
+                server.handle_line(raw)
         except WebSocketDisconnect:
             pass
         finally:
+            audit("disconnected", token=name, address=address)
             # Closing interrupts running turns and joins their threads; keep it off the loop.
             await asyncio.to_thread(server.close)
 

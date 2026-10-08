@@ -235,7 +235,22 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "send_targets": [],  # allowed destinations for send_message tool: ["telegram:12345", ...]
     },
     "cron": {"enabled": True, "catch_up_missed": True, "inactivity_timeout_seconds": 600},
-    "server": {"host": "127.0.0.1", "port": 0},
+    "server": {
+        "host": "127.0.0.1",
+        "port": 0,
+        # Names this server answers to when it is bound to something other than loopback. Empty
+        # means only the bind address itself. A loopback server always accepts loopback names
+        # only, whatever this holds.
+        "allowed_hosts": [],
+        # Cap on one incoming RPC message, in bytes. The ASGI server refuses a bigger WebSocket
+        # frame before this is even reached; this is the second check.
+        "max_message_bytes": 1_000_000,
+        # Wrong-token throttling, counted per client address and kept in memory only.
+        "rate_limit": {"max_failures": 10, "window_seconds": 60, "delay_seconds": 5},
+        # Record connections, the token each used, and commands approved from the dashboard, in
+        # <home>/logs/audit.log. Never holds a token value, only its name.
+        "audit_log": True,
+    },
     # auto_prune deletes sessions with no activity for retention_days, at most once a day, when
     # a surface starts. Pinned sessions are kept. `clite sessions prune` does it on demand.
     "sessions": {"auto_prune": False, "retention_days": 90},

@@ -334,8 +334,8 @@ Ditulis apa adanya supaya tidak ada yang mengandalkan pagar yang tidak ada.
 | Pemindai teks berbasis pola | Injeksi yang ditulis cermat lolos | - |
 | Redaksi berbasis pola untuk kredensial yang tidak dikenal | Kunci berformat tak umum di file atau keluaran bisa terkirim ke provider | Daftarkan namanya di `.env` supaya nilainya diredaksi persis |
 | `web_fetch` me-resolve nama dua kali | DNS rebinding terhadap `web_fetch` bisa lolos | - |
-| Token server berumur sepanjang proses, tanpa pembatasan laju | Token yang bocor berlaku sampai server dimatikan | Akses jarak jauh yang aman: F5-T6 |
-| Tidak ada batas ukuran pesan RPC, tidak ada pembatasan laju per pengguna gateway | Klien yang sudah diizinkan bisa membebani proses | - |
+| Token server berumur sepanjang proses | Token yang bocor berlaku sampai server dimatikan. Sejak F5-T6 ada token bernama dengan masa berlaku dan pencabutan tanpa memulai ulang (`clite serve token`), disimpan sebagai hash, dan percobaan token salah dibatasi lajunya per alamat. Token sesi sekali pakai dari `CLITE_SESSION_TOKEN` tetap seumur proses | - |
+| Pesan RPC masuk | Sejak F5-T6 dibatasi `server.max_message_bytes`; ASGI menolak bingkai yang lebih besar sebelum aplikasi memegangnya, dan aplikasi memeriksa ulang sebelum mengurai | Tekanan balik untuk klien yang lambat membaca belum ada |
 | Windows: batas verifikasi | ACL `.env` dan pemutusan pohon proses sudah lulus CI `37499972911`; REPL manual belum dicoba | F1-T5 selesai |
 
 ## Aturan untuk kode baru
