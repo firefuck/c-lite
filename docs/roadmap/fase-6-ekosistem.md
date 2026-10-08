@@ -224,7 +224,8 @@ aturan opt-in.
    menyertainya. `remove_plugin` juga diperbaiki: nama divalidasi dan symlink ditolak.
 2. Katalog dan `clite plugins search` — **selesai**.
 3. `pip_dependencies` ditampilkan sebagai perintah — **selesai**.
-4. Jenis `exclusive` — belum.
+4. Jenis `exclusive` — **selesai**. Manifestnya wajib menyebut `category`; hanya satu plugin per
+   kategori yang dimuat, yang lain berstatus `error` beserta alasannya.
 5. `ctx.llm` — belum.
 6. Hook tambahan — belum.
 7. Halaman dashboard dari plugin — belum.

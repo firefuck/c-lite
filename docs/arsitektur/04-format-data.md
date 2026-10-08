@@ -150,6 +150,7 @@ name: audit-log              # huruf kecil, angka, tanda hubung, garis bawah
 version: 1.0.0
 description: Record every tool call
 kind: standalone             # standalone | backend | exclusive | platform | model-provider
+category: memory             # wajib untuk `exclusive`: satu plugin aktif per kategori
 manifest_version: 1
 requires_env: [SOME_TOKEN]   # diperiksa sebelum kode plugin dijalankan
 ```

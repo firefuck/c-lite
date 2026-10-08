@@ -18,7 +18,7 @@ from clite.plugins.hub import (
     plugin_digest,
     search_plugins,
 )
-from clite.plugins.manager import get_plugin_manager, install_plugin
+from clite.plugins.manager import get_plugin_manager, install_plugin, remove_plugin
 from clite.plugins.manifest import parse_manifest
 
 BODY = "def register(ctx):\n    ctx.register_command('{name}', lambda args, session=None: 'hi')\n"
@@ -374,3 +374,14 @@ def test_cli_remove_refuses_a_name_that_escapes_the_plugins_directory(clite_home
     (victim / "plugin.yaml").write_text("name: victim\n")
     assert "No user-installed plugin" in cli("plugins", "remove", "../victim", expect=1)
     assert victim.is_dir() and (victim / "plugin.yaml").is_file()
+
+
+def test_remove_refuses_a_symlinked_plugin_directory(plugins_dir, clite_home):
+    outside = clite_home / "elsewhere" / "linked"
+    outside.mkdir(parents=True)
+    (outside / "plugin.yaml").write_text("name: linked\n")
+    plugins_dir.mkdir(parents=True, exist_ok=True)
+    (plugins_dir / "linked").symlink_to(outside, target_is_directory=True)
+
+    assert remove_plugin("linked") is False  # a symlink is refused, not followed
+    assert (outside / "plugin.yaml").is_file()

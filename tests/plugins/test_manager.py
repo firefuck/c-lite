@@ -237,3 +237,53 @@ def test_bundled_audit_log_plugin(clite_home):
     assert entries[0]["tool"] == "terminal" and entries[0]["duration_ms"] == 12
     assert "terminal" in manager.commands["audit"].handler("5")
     assert "audit" in manager.cli_commands
+
+
+def test_an_exclusive_plugin_needs_a_category():
+    with pytest.raises(ManifestError, match="needs a category"):
+        parse_manifest({"name": "mem", "kind": "exclusive"})
+    assert parse_manifest({"name": "mem", "kind": "exclusive", "category": "memory"}).category == "memory"
+
+
+def test_an_exclusive_plugin_without_a_category_is_skipped_at_discovery(plugins_dir, clite_home):
+    _write_plugin(plugins_dir, "categoryless", manifest="kind: exclusive\n")
+    _write_plugin(plugins_dir, "greeter")
+    _enable(clite_home, "categoryless", "greeter")
+    manager = ensure_plugins_loaded()
+    assert "categoryless" not in manager.plugins  # refused at scan time, not at load time
+    assert manager.plugins["greeter"].status == "loaded"  # and it did not take the agent down
+
+
+def test_two_exclusive_plugins_of_one_category_cannot_both_load(plugins_dir, clite_home):
+    _write_plugin(plugins_dir, "memory-a", manifest="kind: exclusive\ncategory: memory\n")
+    _write_plugin(plugins_dir, "memory-b", manifest="kind: exclusive\ncategory: memory\n")
+    _write_plugin(plugins_dir, "engine-a", manifest="kind: exclusive\ncategory: context-engine\n")
+    _enable(clite_home, "memory-a", "memory-b", "engine-a")
+    manager = ensure_plugins_loaded()
+
+    assert manager.plugins["memory-a"].status == "loaded"
+    assert manager.plugins["engine-a"].status == "loaded"  # another category is untouched
+    second = manager.plugins["memory-b"]
+    assert second.status == "error"
+    assert "category 'memory'" in second.error and "memory-a" in second.error
+    assert registry.get("memory-b_hello") is None  # and it registered nothing
+    assert manager.plugins["memory-a"].error == ""
+
+
+def test_the_runner_up_takes_over_when_the_active_one_is_disabled(plugins_dir, clite_home):
+    _write_plugin(plugins_dir, "memory-a", manifest="kind: exclusive\ncategory: memory\n")
+    _write_plugin(plugins_dir, "memory-b", manifest="kind: exclusive\ncategory: memory\n")
+    _enable(clite_home, "memory-a", "memory-b")
+    manager = ensure_plugins_loaded()
+    assert manager.plugins["memory-a"].status == "loaded"
+
+    set_plugin_enabled("memory-a", False)
+    manager.load_all()
+    assert manager.plugins["memory-a"].status == "disabled"
+    assert manager.plugins["memory-b"].status == "loaded" and registry.get("memory-b_hello") is not None
+
+    set_plugin_enabled("memory-a", True)
+    manager.load_all()
+    assert manager.plugins["memory-a"].status == "loaded"
+    assert manager.plugins["memory-b"].status == "error"  # stood down, and its tools went with it
+    assert registry.get("memory-b_hello") is None

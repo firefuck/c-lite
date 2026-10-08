@@ -69,10 +69,11 @@ def run_search(args: argparse.Namespace) -> int:
 
 def _describe(info) -> list[str]:
     """The lines `clite plugins info` prints, provenance included."""
+    kind = info.manifest.kind + (f" ({info.manifest.category})" if info.manifest.category else "")
     lines = [
         f"{'name':<12} {info.name}",
         f"{'version':<12} {info.manifest.version}",
-        f"{'kind':<12} {info.manifest.kind}",
+        f"{'kind':<12} {kind}",
         f"{'source':<12} {info.source}" + (f" ({info.path})" if info.path else ""),
         f"{'status':<12} {info.status}" + (f" ({info.error})" if info.error else ""),
         f"{'description':<12} {info.manifest.description or '-'}",

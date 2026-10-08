@@ -54,6 +54,11 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
   semua yang sempat ia daftarkan dibatalkan lewat ledger.
 - Membongkar plugin membatalkan semua pendaftarannya. Tool bawaan yang ia timpa kembali.
 - Plugin tidak bisa mengganti tool bawaan tanpa `plugins.entries.<id>.allow_tool_override: true`.
+- **Jenis `exclusive`.** Manifestnya wajib menyebut `category`; tanpa itu manifestnya ditolak
+  saat pemindaian dan plugin itu dilewati. Di antara plugin `exclusive` yang aktif, hanya
+  yang pertama (urutan nama) yang dimuat — yang berikutnya berstatus `error` dengan alasan
+  yang menyebut plugin dan kategori yang menang, dan semua yang sempat ia daftarkan dibatalkan.
+  Menonaktifkan yang aktif membuat yang berikutnya naik saat `load_all` berikutnya.
 - Memasang (`clite plugins install`) hanya menyalin. Pengguna membaca isinya dulu, lalu
   mengaktifkan sendiri. Sumbernya sebuah direktori, URL git, atau nama dari katalog.
 - `remove_plugin` hanya menyentuh satu direktori langsung di bawah `<home>/plugins/`: nama
@@ -127,7 +132,7 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
 | `provides_tools`, `provides_hooks` di manifest | 🟡 | Diparse, belum dipakai (informasi saja) |
 | Asal-usul pemasangan dan `clite plugins update` | ✅ | F6-T5: sumber, commit, versi, dan hash dicatat; `update` menampilkan diff per berkas, menolak menimpa plugin yang disunting tanpa `--force`, dan meninggalkan plugin **nonaktif** sesudah diperbarui. Dijaga `tests/plugins/test_plugin_hub.py` |
 | Katalog plugin dan `clite plugins search` | ✅ | F6-T5: indeks JSON (`plugins.hub.index`, bawaan dari plugin bawaan), `clite plugins search`/`info`/`install <nama>` dengan hash yang diverifikasi |
-| Jenis `exclusive` (satu aktif per kategori) | 🟡 | Jenisnya dikenali; aturan "hanya satu" belum ditegakkan |
+| Jenis `exclusive` (satu aktif per kategori) | ✅ | F6-T5: manifest tanpa `category` ditolak; hanya satu plugin per kategori yang dimuat, yang lain berstatus `error` beserta alasannya. Dijaga `tests/plugins/test_manager.py` |
 | Halaman dashboard dari plugin | ⬜ | F6-T5 |
 | Akses LLM untuk plugin (`ctx.llm`) | ⬜ | Hermes: `agent/plugin_llm.py`. F6-T5 |
 | Hook tambahan (`pre_verify`, middleware permintaan) | ⬜ | F6-T5 |

@@ -33,6 +33,7 @@ class PluginManifest:
     description: str = ""
     author: str = ""
     kind: str = KIND_STANDALONE
+    category: str = ""  # required for `exclusive`: one active plugin per category
     manifest_version: int = SUPPORTED_MANIFEST_VERSION
     requires_env: tuple[str, ...] = ()
     provides_tools: tuple[str, ...] = ()
@@ -66,6 +67,12 @@ def parse_manifest(data: Any, *, fallback_name: str = "") -> PluginManifest:
     kind = str(data.get("kind") or KIND_STANDALONE)
     if kind not in KINDS:
         raise ManifestError(f"unknown plugin kind {kind!r}; valid kinds: {', '.join(KINDS)}")
+    category = str(data.get("category") or "").strip()
+    if kind == KIND_EXCLUSIVE and not category:
+        raise ManifestError(
+            f"plugin {name!r} is of kind 'exclusive', which needs a category: "
+            "at most one plugin of a category can be active at a time"
+        )
     try:
         manifest_version = int(data.get("manifest_version") or SUPPORTED_MANIFEST_VERSION)
     except (TypeError, ValueError):
@@ -81,6 +88,7 @@ def parse_manifest(data: Any, *, fallback_name: str = "") -> PluginManifest:
         description=str(data.get("description") or ""),
         author=str(data.get("author") or ""),
         kind=kind,
+        category=category,
         manifest_version=manifest_version,
         requires_env=_strings(data.get("requires_env")),
         provides_tools=_strings(data.get("provides_tools")),

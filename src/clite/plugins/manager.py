@@ -45,6 +45,7 @@ from clite.plugins.hub import (
 )
 from clite.plugins.manifest import (
     KIND_BACKEND,
+    KIND_EXCLUSIVE,
     KIND_MODEL_PROVIDER,
     KIND_PLATFORM,
     RESERVED_DIRS,
@@ -234,9 +235,23 @@ class PluginManager:
         with self._lock:
             self.discover()
             get_hook_bus().timeout = float(get_path(cfg, "plugins.hook_callback_timeout", 30) or 0) or None
+            # One plugin per category can be active when its kind is `exclusive`: two memory
+            # backends, say, would both answer the same question. The first that would load
+            # wins; the rest are reported as errors rather than silently skipped.
+            active_categories: dict[str, str] = {}
             for name, info in list(self.plugins.items()):
                 decision = self._gate(info, cfg)
                 if decision == "load":
+                    category = info.manifest.category
+                    if info.manifest.kind == KIND_EXCLUSIVE and category in active_categories:
+                        self._stand_down(
+                            info,
+                            f"another {KIND_EXCLUSIVE} plugin of category {category!r} is already "
+                            f"active: {active_categories[category]}. Disable one of them.",
+                        )
+                        continue
+                    if info.manifest.kind == KIND_EXCLUSIVE:
+                        active_categories[category] = name
                     self.load(name)
                 elif info.status == "loaded":
                     self.unload(name)
@@ -249,6 +264,12 @@ class PluginManager:
             except Exception:  # noqa: BLE001 - a bad hooks section must not stop startup
                 logger.warning("shell hooks could not be registered", exc_info=True)
             self._loaded = True
+
+    def _stand_down(self, info: PluginInfo, reason: str) -> None:
+        """Leave a plugin out of this load, whatever it was doing before."""
+        if info.status == "loaded":
+            self.unload(info.name)
+        info.status, info.error = "error", reason
 
     def ensure_loaded(self) -> None:
         if not self._loaded:
