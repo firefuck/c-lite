@@ -164,7 +164,7 @@ dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
 
 | Task | Judul | Ukuran | Bergantung pada | Status |
 |---|---|---|---|---|
-| F6-T1 | Hub skill | L | F1-T4 | ⬜ |
+| F6-T1 | Hub skill | L | F1-T4 | ✅ |
 | F6-T2 | Porting skill bawaan dari Hermes | L | - | ⬜ |
 | F6-T3 | Plugin provider memori contoh | M | - | ✅ |
 | F6-T4 | Server ACP | L | - | ⬜ |

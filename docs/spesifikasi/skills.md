@@ -26,7 +26,8 @@ Tool yang menghadap model (`skills_list`, `skill_view`, `skill_manage`) ada di
 | `index.py` | Indeks untuk system prompt, aktivasi bersyarat |
 | `manager.py` | Tulis: buat, patch, tulis ulang, hapus, file pendukung |
 | `commands.py` | Skill sebagai slash command |
-| `hub.py` | Pemasangan dari sumber luar (`LocalDirSource`, `GitHubSource`) |
+| `hub.py` | Pemasangan dari sumber luar (`LocalDirSource`, `GitHubSource`), indeks, tap, pembaruan |
+| `scanner.py` | Pemindaian dalam untuk bundel dari luar |
 | `usage.py` | Catatan siapa pembuat skill dan seberapa sering dipakai |
 | `curator.py` | Pengarsipan skill buatan agent yang basi |
 
@@ -95,9 +96,40 @@ skill.
   tidak disentuh.
 
 **Pemasangan**
-- Semua sumber melewati jalur yang sama: validasi `SKILL.md`, pindai setiap file teks, tulis ke
+- Semua sumber melewati jalur yang sama: validasi `SKILL.md`, pindai setiap file, tulis ke
   tingkat lokal. Tidak ada yang dieksekusi.
 - Skill yang kena pemindaian ditolak kecuali dipaksa.
+
+**Indeks hub**
+- Satu berkas JSON: `{"version": 1, "skills": [{"name", "description", "category", "source",
+  "identifier", "version", "hash"}]}`. `scripts/build_skills_index.py` membuatnya dari pohon
+  direktori skill; versi bawaan ada di dalam paket (`bundled/skills-index.json`), dibangun dari
+  skill bawaan dengan awalan `dragovics/clite/src/clite/bundled/skills`, dan dijaga tes agar
+  tetap sama dengan sumbernya.
+- Lokasi: `skills.hub.index` (kosong berarti indeks bawaan), lalu tiap tap dari
+  `clite skills tap add owner/repo|path|url` (`<home>/skills/.hub/taps.json`). Sebuah tap yang
+  tidak terbaca dilaporkan sebagai peringatan, bukan menghentikan pencarian.
+- `clite skills install <nama>` mengambil entri indeks, dan menolak hasil unduhan yang hashnya
+  tidak sama dengan yang dijanjikan indeks. Sebuah nama yang tidak ada di indeks disebutkan
+  beserta nama yang ada.
+
+**Pemindaian bundel** (`scanner.py`)
+- Setiap file diperiksa, bukan hanya `SKILL.md`. Teks dipindai dengan pola yang sama seperti
+  konten lain yang masuk system prompt.
+- Berkas biner (ada byte NUL di kepala berkas) ditolak.
+- Skrip (`scripts/**` dan berkas berakhiran `.py`, `.sh`, `.js`, …) dilaporkan per file beserta
+  perintah yang dikandungnya (`subprocess`, `os.system`, `shell=True`, `download`, …); URL dan
+  nama host yang disebut dilaporkan juga.
+- Laporan ditampilkan sebelum penulisan, dan pengguna mengonfirmasi. Yang ditolak hanya bisa
+  lewat `--force`.
+
+**Pembaruan**
+- Kunci mencatat sumber, identifier, waktu pasang, versi, dan hash isi. `plan_update`
+  membandingkan versi terbaru dari sumber dengan isi direktori sekarang: `added`, `removed`,
+  `changed` per file.
+- Skill yang disunting pengguna (hash direktori berbeda dari yang dicatat) **tidak** ditimpa
+  tanpa konfirmasi; `--force` yang menimpanya. Suntingan tidak pernah digabung.
+- Versi baru yang ditandai pemindai tidak pernah ditulis oleh `clite skills update`.
 
 **Kurator**
 - Hanya menyentuh skill yang dibuat agent. Skill bawaan dan skill yang ditulis atau dipasang
@@ -119,8 +151,8 @@ skill.
 | Pasang dari GitHub (`GitHubSource`) | ✅ | `owner/repo/path[@ref]`; `GITHUB_TOKEN` opsional dan hanya dikirim ke host API dan host unduhan GitHub; ukuran dicek dari daftar sebelum mengunduh; galat batas laju menyebut waktu reset. Diuji terhadap tiruan lokal dan ke repositori publik sungguhan (`test_install_a_skill_from_a_real_public_github_repository`, `-m network`) |
 | Kurator | ✅ | Manual (`clite skills curate`) dan otomatis paling banyak sekali per `curator.interval_hours` dari `run_startup_maintenance` (`curator.enabled`, `curator.stale_days`). Dijaga `tests/skills/test_skills.py` dan `tests/agent/test_review.py`. F2-T12 |
 | Skill bawaan | 🟡 | 4 skill. Hermes mengirim 58: F6-T2 |
-| Hub: indeks registry, pencarian, pembaruan | ⬜ | F6-T1 |
-| Pemindai keamanan skill yang lebih dalam | ⬜ | Hermes: `tools/skills_guard.py`. F6-T1 |
+| Hub: indeks registry, pencarian, pembaruan | ✅ | F6-T1: indeks JSON (+ tap lewat `clite skills tap`), `clite skills search`/`info`/`install <nama>`/`update`, hash isi dicatat di kunci dan diverifikasi saat memasang; `update` menampilkan diff per file dan tidak menimpa skill yang disunting pengguna tanpa konfirmasi. Dijaga `tests/skills/test_hub.py` |
+| Pemindai keamanan skill yang lebih dalam | ✅ | F6-T1: `scanner.py` membaca setiap file (bukan hanya `SKILL.md`), menolak berkas biner, dan melaporkan skrip beserta perintahnya serta host yang dituju. Dijaga `tests/skills/test_hub.py` |
 | Variabel lingkungan per skill (`env_passthrough`) | 🟡 | Dibaca dari frontmatter, belum diteruskan ke terminal |
 
 ## Yang sengaja berbeda dari Hermes
@@ -134,5 +166,10 @@ skill.
 ## Celah yang diketahui
 
 - `env_passthrough` di frontmatter belum punya efek.
-- Tidak ada pencarian skill di registry daring; `SkillSource.search` mengembalikan daftar
-  kosong.
+- `SkillSource.search` masih mengembalikan daftar kosong untuk sumber bawaan: pencarian
+  dijawab indeks (`IndexSource` lewat `search_skills`), bukan oleh pencarian di sisi GitHub.
+  Registry pihak ketiga (skills.sh, ClawHub) yang punya API sendiri tinggal menurunkan
+  `SkillSource` dan menimpa `search`.
+- Indeks bawaan hanya memuat skill bawaan; `clite skills search` baru berguna kalau
+  `skills.hub.index` diarahkan ke indeks yang lebih besar atau sebuah tap ditambahkan.
+- Indeks tidak di-cache di disk: setiap pencarian membaca ulang berkasnya.

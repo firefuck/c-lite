@@ -111,7 +111,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `clite model` | show, list or set the model | `show`, `list`, `set`, `providers` |
 | `clite config` | show or change settings | `show`, `get`, `set`, `unset`, `path`, `env`, `edit`, `migrate` |
 | `clite tools` | list, enable or disable toolsets | `list`, `enable`, `disable` |
-| `clite skills` | list, view, install and curate skills | `list`, `view`, `install`, `remove`, `curate` |
+| `clite skills` | list, search, install and curate skills | `list`, `search`, `info`, `view`, `install`, `update`, `tap`, `remove`, `curate` |
 | `clite plugins` | list, enable, disable, install or remove plugins | `list`, `enable`, `disable`, `install`, `remove` |
 | `clite hooks` | review, approve or test shell hooks from config.yaml | `list`, `approve`, `revoke`, `test` |
 | `clite mcp` | add, list, remove and test MCP servers | `list`, `add`, `remove`, `test` |
@@ -361,6 +361,7 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `skills.external_dirs` | `[]` |
 | `skills.disabled` | `[]` |
 | `skills.auto_load` | `[]` |
+| `skills.hub.index` | `""` |
 | `background_review.enabled` | `true` |
 | `background_review.min_tool_calls` | `8` |
 | `background_review.min_interval_seconds` | `900` |

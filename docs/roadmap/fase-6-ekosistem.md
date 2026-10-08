@@ -43,10 +43,17 @@ memperbaruinya, dengan pemindaian yang lebih dalam daripada sekarang.
 `tools/skills_ast_audit.py`, `scripts/build_skills_index.py`.
 
 **Selesai bila.**
-- [ ] Tes terhadap indeks dan repositori tiruan lokal: cari, pasang, perbarui.
-- [ ] Tes: skill dengan skrip yang memuat perintah eksfiltrasi ditolak dengan laporan per file.
-- [ ] Tes: `update` atas skill yang disunting lokal tidak menimpa tanpa konfirmasi.
-- [ ] Baris hub dan pemindai di spesifikasi skills menjadi ✅.
+- [x] Tes terhadap indeks dan repositori tiruan lokal: cari, pasang, perbarui.
+- [x] Tes: skill dengan skrip yang memuat perintah eksfiltrasi ditolak dengan laporan per file.
+- [x] Tes: `update` atas skill yang disunting lokal tidak menimpa tanpa konfirmasi.
+- [x] Baris hub dan pemindai di spesifikasi skills menjadi ✅.
+
+**Catatan.** Indeks adalah berkas JSON biasa, bukan API: `scripts/build_skills_index.py`
+membuatnya dari pohon direktori skill, dan paket membawa satu indeks bawaan yang dibangun dari
+skill bawaan dengan awalan `dragovics/clite/src/clite/bundled/skills` — sehingga memasang nama
+bawaan benar-benar mengunduh berkas yang sama dari repositori ini dan hashnya cocok. Registry
+pihak ketiga yang punya API sendiri belum ada; `SkillSource.search` bawaan tetap kosong karena
+pencarian dijawab indeks. Tap adalah lokasi indeks tambahan, bukan konsep baru.
 
 **Ukuran.** L
 

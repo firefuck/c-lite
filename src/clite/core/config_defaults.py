@@ -136,6 +136,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "external_dirs": [],  # e.g. ["~/.agents/skills"]
         "disabled": [],
         "auto_load": [],  # skill names loaded into every session's stable prompt tier
+        # Where `clite skills search` looks. Empty means the index that ships with the package.
+        # A path or URL replaces it; `clite skills tap add` appends more.
+        "hub": {"index": ""},
     },
     # Background review: after a turn that used at least `min_tool_calls` tool calls, a small
     # forked agent reads a copy of that turn and saves what it learned (memory and skills). It

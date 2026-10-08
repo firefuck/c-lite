@@ -1,0 +1,50 @@
+{
+  "skills": [
+    {
+      "category": "meta",
+      "description": "Write or improve a skill (SKILL.md). Use when saving a reusable procedure with skill_manage, or when a skill turned out wrong or incomplete.",
+      "hash": "sha256:89a99135148c13e9effddc588b111ead1ffbb7135f96c263b5941794b24be704",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/meta/skill-authoring",
+      "name": "skill-authoring",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Break a large or ambiguous task into verifiable steps before starting. Use when a request spans several files or systems, or when the first step is not obvious.",
+      "hash": "sha256:744403c8fbda4f041f14bfd16e09de116fe9881e03a33f7e0b30ab707922d858",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/plan-before-acting",
+      "name": "plan-before-acting",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "category": "software-development",
+      "description": "Find the root cause of a bug before changing code. Use for any failing test, crash, or behaviour that does not match what the code appears to say.",
+      "hash": "sha256:f30208aab19d972b77d5af7092cd899c93f9f9a2fec1df15631602a3a4af6537",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/systematic-debugging",
+      "name": "systematic-debugging",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "category": "software-development",
+      "description": "Implement a feature or fix by writing a failing test first. Use when adding behaviour to tested code or when a bug needs a regression test.",
+      "hash": "sha256:0de8e55fe2d8632696f02f07183397bba103fc8826e8fc2c5560dfe1571b2462",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/test-driven-development",
+      "name": "test-driven-development",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "category": "web",
+      "description": "How to find information when the web_search tool is not available. Use when web_search is not offered and the user asks something that needs current information.",
+      "hash": "sha256:b27ce00f06e1b5b43caca765aa9c6370968f35aab6b3121aeae7f27dc43e938f",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/web/working-without-web-search",
+      "name": "working-without-web-search",
+      "source": "github",
+      "version": "1.0.0"
+    }
+  ],
+  "version": 1
+}

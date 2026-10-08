@@ -110,7 +110,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `serve.py` | ``clite serve`` and ``clite dashboard``: the HTTP + WebSocket backend. | `run_serve()`, `register()` |
 | `sessions.py` | ``clite sessions``: browse, search, export and prune stored conversations. | `run_list()`, `run_show()`, `run_rename()`, `run_delete()`, `run_export()`, `run_search()`, `run_prune()`, `register()` |
 | `setup.py` | ``clite setup``: interactive wizard and non-interactive provider configuration. | `run_setup()`, `register()` |
-| `skills.py` | ``clite skills``: browse, install and curate skills. | `run_list()`, `run_view()`, `run_install()`, `run_remove()`, `run_curate()`, `register()` |
+| `skills.py` | ``clite skills``: browse, install and curate skills. | `run_list()`, `run_view()`, `run_search()`, `run_info()`, `run_install()`, `run_update()`, `run_tap()`, `run_remove()`, `run_curate()`, `register()` |
 | `tools.py` | ``clite tools``: see and switch toolsets. | `run_list()`, `register()` |
 | `tui.py` | ``clite tui``: the Node terminal interface, which talks to this package over JSON-RPC. | `find_tui_bundle()`, `tui_arguments()`, `launch_tui()`, `run_tui()`, `register()` |
 | `uninstall.py` | ``clite uninstall``: remove the package and optionally purge the home directory. | `run_uninstall()`, `register()` |
@@ -257,9 +257,10 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `commands.py` | Skills as slash commands: ``/<skill-name> [instruction]``. | `skill_slug()`, `skill_commands()`, `build_skill_message()` |
 | `curator.py` | Curator: keep the agent's own skill library from growing without bound. | `archive_dir()`, `find_stale_skills()`, `archive_skill()`, `restore_skill()`, `run_curator()` |
 | `frontmatter.py` | SKILL.md parsing and validation. | `SkillFormatError`, `SkillMeta`, `validate_skill_name()`, `split_frontmatter()`, `parse_skill_text()`, `platform_matches()`, `render_skill()` |
-| `hub.py` | Skill installation from outside sources. | `SkillBundle`, `SkillSource`, `LocalDirSource`, `GitHubSource`, `register_skill_source()`, `installed_skills()`, `install_skill()` |
+| `hub.py` | Skill installation from outside sources. | `SkillBundle`, `SkillSource`, `LocalDirSource`, `GitHubSource`, `register_skill_source()`, `installed_skills()`, `install_skill()`, `bundle_digest()`, `directory_digest()`, `bundled_index_path()`, … (+13) |
 | `index.py` | The skills index: the only part of the skill system that costs tokens on every request. | `visible_skills()`, `build_skills_index()` |
 | `manager.py` | Skill writes: create, patch, rewrite, delete, and supporting files. | `SkillError`, `create_skill()`, `edit_skill()`, `patch_skill()`, `delete_skill()`, `write_skill_file()`, `remove_skill_file()` |
+| `scanner.py` | Deeper scan for a skill that came from outside. | `ScanReport`, `looks_binary()`, `extract_commands()`, `scan_bundle()` |
 | `usage.py` | Skill usage sidecar: who created a skill and how often it is used. | `load_usage()`, `record_created()`, `record_use()` |
 
 ## `clite/state/`
@@ -325,4 +326,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 189 modul.
+Jumlah: 190 modul.
