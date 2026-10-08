@@ -42,8 +42,9 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` |  |  |
-| `compressor.py` | The default context engine: summarise the middle, keep the ends. | `missing_summary_sections()`, `serialize_for_summary()`, `prune_images()`, `prune_tool_outputs()`, `repair_tool_pairs()`, `ContextCompressor` |
-| `engine.py` | ``ContextEngine``: the strategy that keeps a conversation inside the model's window. | `ContextEngine`, `register_context_engine()`, `create_context_engine()` |
+| `compressor.py` | The default context engine: summarise the middle, keep the ends. | `missing_summary_sections()`, `serialize_for_summary()`, `prune_images()`, `prune_tool_outputs()`, `ContextCompressor` |
+| `contract.py` | The contract every ``ContextEngine`` must honour, in one reusable check. | `contract_messages()`, `check_context_engine()` |
+| `engine.py` | ``ContextEngine``: the strategy that keeps a conversation inside the model's window. | `repair_tool_pairs()`, `ContextEngine`, `register_context_engine()`, `engine_names()`, `reset_context_engines()`, `create_context_engine()` |
 | `tokens.py` | Token estimates, anchored to the last number the provider reported. | `estimate_text_tokens()`, `estimate_message_tokens()`, `estimate_messages_tokens()`, `estimate_prompt_tokens()` |
 
 ## `clite/agent/memory/`
@@ -321,4 +322,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 185 modul.
+Jumlah: 186 modul.

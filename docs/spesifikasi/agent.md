@@ -26,7 +26,7 @@ terminal, WebSocket, atau Telegram. Semua surface memakainya lewat `AIAgent` dan
 | Pesan | `messages.py` | Membersihkan riwayat sebelum dikirim, mem-parse argumen tool |
 | Lampiran | `attachments.py` | Gambar yang dilampirkan pengguna: muat, validasi, kecilkan, jadikan bagian konten |
 | Prompt | `prompt/` | Tiga tingkat prompt, file konteks, penanda cache |
-| Konteks | `context/` | `ContextEngine` dan kompresor bawaan |
+| Konteks | `context/` | `ContextEngine`, kompresor bawaan, dan kontrak yang dicek `check_context_engine` |
 | Memori | `memory/` | `MemoryStore` bawaan, `MemoryProvider` eksternal, `MemoryManager` |
 | Review | `review.py` | Review latar belakang: agent kecil yang membaca salinan giliran panjang dan menulis memori/skill |
 | Lain-lain | `delegation.py`, `title.py`, `todo.py`, `budget.py`, `callbacks.py` | Subagent, judul sesi, daftar tugas, anggaran iterasi, callback |
@@ -156,6 +156,12 @@ Setiap butir dijaga oleh tes di `tests/agent/`.
   diganti penanda, teks sekitarnya tetap.
 - Kompresi menulis ulang riwayat di sesi yang sama: baris lama diarsipkan (`active=0`), tetap
   bisa dicari.
+- Engine dipilih lewat `context.engine`. Nama yang tidak dikenal bukan galat: ia jatuh ke
+  kompresor bawaan dan mencatat peringatan, jadi salah ketik di config tidak menggagalkan
+  pembuatan agent.
+- Setiap engine yang terdaftar lulus tes kontrak yang sama (`check_context_engine` di
+  `context/contract.py`): tidak mengubah daftar masukan, tidak memisahkan tool call dari
+  hasilnya, menjaga peran tetap berselang, dan mengembalikan transkrip yang lebih pendek.
 
 **Memori**
 - `MEMORY.md` dan `USER.md` dibatasi karakter (2200 dan 1375). Entri dipisah `§`.
@@ -213,7 +219,7 @@ Setiap butir dijaga oleh tes di `tests/agent/`.
 |---|---|---|
 | Loop berfase, pemulihan galat, fallback provider | ✅ | |
 | Prompt tiga tingkat, cache, file konteks | ✅ | |
-| Kompresor bawaan dan registry `ContextEngine` | ✅ | Ringkasan berstruktur, peringkasan bertahap, gambar dibuang lebih dulu (F2-T11) |
+| Kompresor bawaan dan registry `ContextEngine` | ✅ | Ringkasan berstruktur, peringkasan bertahap, gambar dibuang lebih dulu (F2-T11). Engine kedua, jendela geser sebagai plugin bawaan (tanpa model bantu), dan `context.engine` yang tidak dikenal jatuh ke kompresor dengan peringatan. Tes kontrak `check_context_engine` menguji setiap engine terdaftar. F6-T6 |
 | Memori bawaan, provider eksternal, pengingat | ✅ | Provider contoh: F6-T3 |
 | Delegasi sinkron | ✅ | Model per tugas (`model`, dibatasi ke provider terkonfigurasi), progres rinci (nama tool, pratinjau argumen, iterasi, model). F2-T13 |
 | Delegasi latar | ✅ | `delegate_task(background=true)` kembali dengan id; laporan tiba sebagai catatan pada hasil tool berikutnya (pola `/steer`), interupsi induk menjalar. Dijaga `tests/agent/test_memory_and_delegation.py`. F2-T13 |

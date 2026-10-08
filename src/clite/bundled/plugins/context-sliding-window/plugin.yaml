@@ -1,0 +1,5 @@
+name: context-sliding-window
+version: 1.0.0
+description: "Sliding-window context engine: drop the middle, keep a protected head and tail (no summariser call)"
+author: C-lite
+kind: backend

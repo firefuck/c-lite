@@ -7,12 +7,16 @@ and retrieves by relevance instead of summarising.
 
 from __future__ import annotations
 
+import json
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import Any
 
 from clite.core.config import get_path
 from clite.providers.transports.types import Usage
+
+logger = logging.getLogger("clite.agent.context")
 
 # Below this window size the threshold is floored: at 50% of a small window, the part that
 # cannot be compressed (system prompt, tools, protected messages) eats what was reclaimed and
@@ -21,6 +25,41 @@ SMALL_WINDOW_LIMIT = 512_000
 SMALL_WINDOW_THRESHOLD = 0.75
 
 Summarizer = Callable[[str], str]  # prompt text in, summary text out; raises on failure
+
+
+def repair_tool_pairs(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Drop tool results whose call is gone, and add a stub result for a call whose result is
+    gone. Every provider rejects a transcript where the two do not pair up.
+
+    Any engine that cuts a conversation in two needs this: the cut can land between a call and
+    its result. It lives next to the base class because it is part of the engine contract, not
+    of any one engine.
+    """
+    call_ids = {call.get("id") for message in messages for call in message.get("tool_calls") or []}
+    repaired: list[dict[str, Any]] = []
+    for message in messages:
+        if message.get("role") == "tool" and message.get("tool_call_id") not in call_ids:
+            continue
+        repaired.append(message)
+    answered = {
+        message.get("tool_call_id") for message in repaired if message.get("role") == "tool"
+    }
+    result: list[dict[str, Any]] = []
+    for message in repaired:
+        result.append(message)
+        for call in message.get("tool_calls") or []:
+            if call.get("id") not in answered:
+                result.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": call.get("id"),
+                        "name": (call.get("function") or {}).get("name"),
+                        "content": json.dumps(
+                            {"error": "result unavailable (removed during context compression)"}
+                        ),
+                    }
+                )
+    return result
 
 
 class ContextEngine(ABC):
@@ -124,11 +163,33 @@ def register_context_engine(name: str, factory: Callable[[], ContextEngine]) -> 
     _ENGINES[name] = factory
 
 
-def create_context_engine(name: str) -> ContextEngine:
+def engine_names() -> list[str]:
+    """Names a ``context.engine`` value can take, sorted. ``compressor`` is always present."""
+    _ensure_builtin()
+    return sorted(_ENGINES)
+
+
+def reset_context_engines() -> None:
+    """Forget every registered engine (called between tests). ``compressor`` comes back on use."""
+    _ENGINES.clear()
+
+
+def _ensure_builtin() -> None:
     from clite.agent.context.compressor import ContextCompressor
 
     _ENGINES.setdefault("compressor", ContextCompressor)
+
+
+def create_context_engine(name: str) -> ContextEngine:
+    """Build the engine ``context.engine`` names. An unknown name is a typo in config, not a
+    reason to fail: fall back to the built-in compressor and say so in the log."""
+    _ensure_builtin()
     factory = _ENGINES.get(name)
     if factory is None:
-        raise ValueError(f"unknown context.engine {name!r}; available: {sorted(_ENGINES)}")
+        logger.warning(
+            "unknown context.engine %r; falling back to 'compressor'. Available: %s",
+            name,
+            ", ".join(engine_names()),
+        )
+        factory = _ENGINES["compressor"]
     return factory()

@@ -18,11 +18,10 @@ fit must be made to fit, even at the cost of detail.
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
-from clite.agent.context.engine import ContextEngine, Summarizer
+from clite.agent.context.engine import ContextEngine, Summarizer, repair_tool_pairs
 from clite.agent.context.tokens import CHARS_PER_TOKEN
 from clite.core.redact import redact
 
@@ -200,34 +199,6 @@ def prune_tool_outputs(messages: list[dict[str, Any]], keep_last: int) -> tuple[
         else:
             pruned.append(message)
     return pruned, saved
-
-
-def repair_tool_pairs(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Drop tool results whose call is gone, and add a stub result for a call whose result is
-    gone. Every provider rejects a transcript where the two do not pair up."""
-    call_ids = {call.get("id") for message in messages for call in message.get("tool_calls") or []}
-    repaired: list[dict[str, Any]] = []
-    for message in messages:
-        if message.get("role") == "tool" and message.get("tool_call_id") not in call_ids:
-            continue
-        repaired.append(message)
-    answered = {message.get("tool_call_id") for message in repaired if message.get("role") == "tool"}
-    result: list[dict[str, Any]] = []
-    for message in repaired:
-        result.append(message)
-        for call in message.get("tool_calls") or []:
-            if call.get("id") not in answered:
-                result.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": call.get("id"),
-                        "name": (call.get("function") or {}).get("name"),
-                        "content": json.dumps(
-                            {"error": "result unavailable (removed during context compression)"}
-                        ),
-                    }
-                )
-    return result
 
 
 def _splice_summary(

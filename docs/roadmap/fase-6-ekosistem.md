@@ -224,7 +224,7 @@ plugin punya cara memastikan engine buatannya benar.
   model bantu), untuk dibandingkan dengan kompresor bawaan.
 - Engine ketiga bila provider mendukungnya: kompaksi di sisi provider. Perhatikan aturan A2:
   apa pun yang dilakukan provider terhadap riwayat harus tetap membuat permintaan berikutnya
-  sah.
+  sah. *(Ditunda: belum ada provider terkonfigurasi yang menawarkan kompaksi sisi server.)*
 - **Tes kontrak** yang bisa dipakai ulang: satu fungsi yang menerima sebuah `ContextEngine`
   dan memeriksa semua janji antarmukanya (tidak mengubah masukan, tidak memisahkan tool call
   dari hasilnya, peran tetap berselang, hasil lebih kecil dari masukan). Kompresor bawaan dan
@@ -239,10 +239,10 @@ plugin punya cara memastikan engine buatannya benar.
 `website/docs/developer-guide/context-engine-plugin.md`.
 
 **Selesai bila.**
-- [ ] Tes kontrak lulus untuk setiap engine yang terdaftar.
-- [ ] Tes: engine dipilih lewat `context.engine`, dan nama yang tidak dikenal jatuh ke
+- [x] Tes kontrak lulus untuk setiap engine yang terdaftar.
+- [x] Tes: engine dipilih lewat `context.engine`, dan nama yang tidak dikenal jatuh ke
       kompresor bawaan dengan peringatan.
-- [ ] Resep "Menambah context engine" di `src/clite/agent/AGENTS.md` merujuk tes kontrak.
+- [x] Resep "Menambah context engine" di `src/clite/agent/AGENTS.md` merujuk tes kontrak.
 
 **Ukuran.** M
 

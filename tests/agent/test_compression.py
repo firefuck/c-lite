@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
+import logging
 
 from clite.agent.context.compressor import (
     FAILED_SUMMARY,
@@ -14,13 +14,20 @@ from clite.agent.context.compressor import (
     missing_summary_sections,
     prune_images,
     prune_tool_outputs,
-    repair_tool_pairs,
     serialize_for_summary,
 )
-from clite.agent.context.engine import ContextEngine, create_context_engine, register_context_engine
+from clite.agent.context.contract import check_context_engine
+from clite.agent.context.engine import (
+    ContextEngine,
+    create_context_engine,
+    engine_names,
+    register_context_engine,
+    repair_tool_pairs,
+)
 from clite.agent.context.tokens import estimate_prompt_tokens
 from clite.agent.memory.manager import MemoryManager
 from clite.core.config import load_config
+from clite.plugins.manager import ensure_plugins_loaded
 from clite.providers.testing import text_response, tool_call_response
 from clite.providers.transports.types import Usage
 from clite.state import get_session_db
@@ -89,7 +96,7 @@ def test_should_compress_follows_reported_usage():
     assert engine.status()["usage_percent"] == 80.0
 
 
-def test_engine_registry():
+def test_engine_registry(caplog):
     class Keeper(ContextEngine):
         name = "keeper"
 
@@ -99,8 +106,52 @@ def test_engine_registry():
     register_context_engine("keeper", Keeper)
     assert isinstance(create_context_engine("keeper"), Keeper)
     assert isinstance(create_context_engine("compressor"), ContextCompressor)
-    with pytest.raises(ValueError):
-        create_context_engine("nope")
+    # A typo in context.engine is not a reason to fail agent construction: fall back and warn.
+    with caplog.at_level(logging.WARNING, logger="clite.agent.context"):
+        assert isinstance(create_context_engine("nope"), ContextCompressor)
+    assert "nope" in caplog.text
+
+
+# ── the contract every engine must honour ────────────────────────────────────────────────
+
+
+def test_every_registered_engine_honours_the_contract(clite_home):
+    ensure_plugins_loaded()
+    names = engine_names()
+    # The built-in and the bundled sliding window are both registered, so neither hides.
+    assert {"compressor", "sliding-window"} <= set(names)
+    for name in names:
+        check_context_engine(create_context_engine(name))
+
+
+def test_the_sliding_window_engine_drops_the_middle_without_summarising(clite_home):
+    ensure_plugins_loaded()
+    engine = create_context_engine("sliding-window")
+    engine.configure(
+        context_length=1_000_000, config={"compression": {"protect_first_n": 2, "protect_last_n": 3}}
+    )
+    calls = []
+
+    result = engine.compress(_chat(16), summarize=lambda prompt: calls.append(prompt) or "unused")
+
+    assert calls == []  # no auxiliary model call: that is the whole point of this engine
+    assert len(result) < 16
+    assert result[0]["content"] == "message 0" and result[-1]["content"] == "message 15"
+
+
+def test_a_configured_context_engine_is_selected_by_name(make_agent, clite_home):
+    (clite_home / "config.yaml").write_text("context:\n  engine: sliding-window\n")
+    ensure_plugins_loaded()
+    agent, _ = make_agent([text_response("hi")])
+    assert agent.context_engine.name == "sliding-window"
+
+
+def test_an_unknown_context_engine_falls_back_to_the_compressor(make_agent, clite_home, caplog):
+    (clite_home / "config.yaml").write_text("context:\n  engine: does-not-exist\n")
+    with caplog.at_level(logging.WARNING, logger="clite.agent.context"):
+        agent, _ = make_agent([text_response("hi")])
+    assert isinstance(agent.context_engine, ContextCompressor)
+    assert "does-not-exist" in caplog.text
 
 
 # ── the algorithm ────────────────────────────────────────────────────────────────────────

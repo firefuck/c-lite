@@ -48,8 +48,10 @@ Tes: `pytest tests/agent -q`
 
 Turunkan `ContextEngine` (`context/engine.py`), implementasikan `compress`, daftarkan dengan
 `register_context_engine`. Dari plugin: `ctx.register_context_engine`. Kontraknya: jangan
-mengubah daftar masukan, dan jangan memisahkan tool call dari hasilnya (`repair_tool_pairs`
-tersedia di `context/compressor.py`).
+mengubah daftar masukan, jangan memisahkan tool call dari hasilnya (`repair_tool_pairs` ada di
+`context/engine.py`), dan jaga peran tetap berselang. Buktikan dengan `check_context_engine`
+(`context/contract.py`); tes yang sama dijalankan untuk setiap engine terdaftar di
+`tests/agent/test_compression.py`.
 
 ### Menambah provider memori
 
