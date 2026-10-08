@@ -179,6 +179,8 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `credentials.set` | `name`, `value` | `credentials` | Store one credential in .env; the value is never read back. |
 | `credentials.delete` | `name` | `credentials` | Remove one stored credential. |
 | `memory.get` | (kosong) | `memory?`, `user?`, `memory_limit?`, `user_limit?`, `provider?` |  |
+| `hooks.status` | (kosong) | `hooks`, `pending?`, `allowlist_path?` | Configured shell hooks and whether each one is approved on this machine. |
+| `mcp.status` | (kosong) | `servers`, `configured?` | Known MCP servers, their transport, and what they serve. |
 | `memory.set` | `action`, `target`, `content?`, `old_text?` | `success`, `message?`, `memory?`, `user?`, `memory_limit?`, `user_limit?`, `provider?` | Add, replace or remove one memory entry, through the same store the tool uses. |
 | `cron.list` | (kosong) | `jobs` |  |
 | `cron.create` | `prompt`, `schedule`, `name?`, `deliver?`, `repeat?` | `id`, `name?`, `prompt?`, `schedule_display?`, `enabled?`, `deliver?`, `next_run_at?`, `last_run_at?`, `last_status?`, `last_error?`, `run_count?` |  |

@@ -111,19 +111,20 @@ Daftar lengkap method, event, dan permintaan server ada di
 
 | Fitur | Status | Catatan |
 |---|---|---|
-| 44 method, 13 event, 2 permintaan server | ✅ | Hermes: 251 method, 69 event, 13 permintaan server |
+| 46 method, 13 event, 2 permintaan server | ✅ | Hermes: 251 method, 69 event, 13 permintaan server |
 | Transport stdio dan WebSocket | ✅ | |
 | Generator TypeScript dan pemeriksaan kesegaran | ✅ | |
 | Klien TypeScript bersama (`apps/shared`) | ✅ | 21 tes |
 | Pemutaran ulang event setelah sambung ulang | ⬜ | `seq` sudah ada di tiap event; belum ada penyangga: F5-T5 |
 | Lampiran gambar pada prompt | ✅ | `prompt.submit.attachments` (bidang opsional baru); path buruk menjadi galat 4004, bukan giliran gagal. Lampiran berkas lain: F2-T6 |
-| Method untuk profil, MCP, hook, log | ⬜ | F5-T2 |
+| Method untuk profil, MCP, hook, log | ✅ | `hooks.status`, `mcp.status`, `logs.tail`; method profil: F5-T5 |
 | Halaman Sesi: cari, ganti judul, sematkan, arsipkan, hapus, ekspor | ✅ | `session.search`/`rename`/`pin`/`archive`/`export`; halaman Sesi di dashboard (`test_dashboard_browser.py`) |
 | Halaman Config: nilai efektif + default, sunting dengan konfirmasi | ✅ | `config.list`, `config.set.confirm`; `config.get` tidak lagi mengekspansi `${VAR}` |
 | Halaman Kredensial: daftar nama, isi, hapus | ✅ | `credentials.list`/`set`/`delete`; nilai tidak pernah dikirim ke klien |
 | Halaman Cron: daftar, buat, jeda, jalankan, hapus, keluaran terakhir | ✅ | `cron.output` mengembalikan keluaran run terakhir yang sudah diredaksi dan dibatasi |
 | Halaman Memori: lihat, tambah, sunting, hapus | ✅ | `memory.set` lewat `MemoryStore` yang sama dengan tool `memory`: pemindaian keamanan dan batas ukuran tetap berlaku |
 | Halaman Log: ekor dengan penyaring tingkat | ✅ | `logs.tail` membaca jendela di ujung berkas, menyaring per tingkat, dan meredaksi sebelum mengirim |
+| Halaman Hook & MCP: status saja | ✅ | `hooks.status`/`mcp.status`; menyetujui hook tetap lewat `clite hooks approve` di mesin itu |
 | Versi protokol dinegosiasikan | 🟡 | `gateway.ready` membawa `protocol_version`; klien belum menolak versi yang tidak cocok |
 
 ## Yang sengaja berbeda dari Hermes

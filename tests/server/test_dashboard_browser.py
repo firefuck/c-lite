@@ -328,6 +328,20 @@ def test_logs_page_shows_a_filtered_tail(dashboard, clite_home):
     assert "clite.rpc" in dashboard.inner_text("#logs-body")
 
 
+def test_hooks_and_mcp_page_reports_status_only(dashboard, clite_home):
+    (clite_home / "config.yaml").write_text(
+        "model:\n  provider: mock\n  default: mock-1\n"
+        "hooks:\n  pre_tool_call:\n    - command: 'echo checking'\n"
+    )
+    dashboard.click("[data-tab=hooks]")
+    dashboard.wait_for_selector("#panel-hooks .row")
+    text = dashboard.inner_text("#panel-hooks")
+    assert "pre_tool_call" in text and "waiting for approval" in text
+    assert "clite hooks approve" in text
+    # Approving is deliberately not offered here: it stays a local command.
+    assert dashboard.locator("#panel-hooks button").count() == 0
+
+
 def test_other_tabs_list_what_is_installed(dashboard):
     dashboard.click("[data-tab=skills]")
     dashboard.wait_for_selector("#panel-skills .row")

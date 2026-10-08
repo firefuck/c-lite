@@ -89,8 +89,9 @@ luar event loop dijaga oleh `tests/server/test_context.py`.
 | Fitur | Status | Catatan |
 |---|---|---|
 | Server, token, pemeriksaan origin, baris siap | ✅ | |
-| Dashboard obrolan | ✅ | 15 tes browser |
-| Halaman konfigurasi, cron, log, memori, analitik | ⬜ | F5-T2 (halaman Sesi sudah ✅) |
+| Dashboard obrolan | ✅ | 16 tes browser |
+| Halaman sesi, config, kredensial, cron, memori, log, hook/MCP | ✅ | F5-T2 |
+| Halaman analitik | ⬜ | Belum ada task-nya |
 | Dashboard React + Vite | ⬜ | Hanya bila JS polos tidak lagi cukup: F5-T3 |
 | TLS, autentikasi pengguna, akses jarak jauh | ⬜ | F5-T6 |
 | Endpoint kompatibel OpenAI (`/v1/chat/completions`) | ⬜ | F4-T10 |

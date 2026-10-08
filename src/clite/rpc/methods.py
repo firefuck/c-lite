@@ -583,6 +583,45 @@ def memory_get(server: RpcServer, params: Empty) -> schema.MemoryGetResult:
     )
 
 
+@rpc_method("hooks.status")
+def hooks_status(server: RpcServer, params: Empty) -> schema.HooksStatusResult:
+    from clite.plugins.shell_hooks import allowlist_path, configured_hooks, is_approved
+
+    hooks = [
+        schema.ShellHookEntry(
+            event=hook.event,
+            command=hook.command,
+            matcher=hook.matcher,
+            timeout=hook.timeout,
+            fail_closed=hook.fail_closed,
+            approved=is_approved(hook),
+        )
+        for hook in configured_hooks()
+    ]
+    # Approval stays a local act (`clite hooks approve`): the dashboard only reports.
+    return schema.HooksStatusResult(
+        hooks=hooks,
+        pending=sum(1 for hook in hooks if not hook.approved),
+        allowlist_path=str(allowlist_path()),
+    )
+
+
+@rpc_method("mcp.status")
+def mcp_status(server: RpcServer, params: Empty) -> schema.McpStatusResult:
+    from clite.tools.mcp.client import mcp_servers_snapshot
+
+    configured = get_path(load_config(), "mcp_servers", {}) or {}
+    return schema.McpStatusResult(
+        servers=[
+            schema.McpServerEntry.model_validate(
+                {key: row.get(key) for key in schema.McpServerEntry.model_fields if row.get(key) is not None}
+            )
+            for row in mcp_servers_snapshot()
+        ],
+        configured=len(configured) if isinstance(configured, Mapping) else 0,
+    )
+
+
 @rpc_method("memory.set")
 def memory_set(server: RpcServer, params: schema.MemoryEditParams) -> schema.MemoryEditResult:
     store = _memory_store()

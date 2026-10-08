@@ -515,6 +515,36 @@ class MemoryGetResult(Result):
     provider: str = ""
 
 
+class ShellHookEntry(Result):
+    event: str
+    command: str = ""
+    matcher: str = ""
+    timeout: float = 0.0
+    fail_closed: bool = False
+    approved: bool = False
+
+
+class HooksStatusResult(Result):
+    hooks: list[ShellHookEntry]
+    pending: int = 0
+    allowlist_path: str = ""
+
+
+class McpServerEntry(Result):
+    name: str
+    transport: str = ""
+    alive: bool = False
+    tools: list[str] = []
+    resources: int = 0
+    prompts: int = 0
+    tools_changed: bool = False
+
+
+class McpStatusResult(Result):
+    servers: list[McpServerEntry]
+    configured: int = 0
+
+
 class MemoryEditParams(Params):
     action: Literal["add", "replace", "remove"]
     target: Literal["memory", "user"]
@@ -601,6 +631,13 @@ method(
 )
 method("credentials.delete", CredentialNameParams, CredentialsListResult, "Remove one stored credential.")
 method("memory.get", Empty, MemoryGetResult)
+method(
+    "hooks.status",
+    Empty,
+    HooksStatusResult,
+    "Configured shell hooks and whether each one is approved on this machine.",
+)
+method("mcp.status", Empty, McpStatusResult, "Known MCP servers, their transport, and what they serve.")
 method(
     "memory.set",
     MemoryEditParams,

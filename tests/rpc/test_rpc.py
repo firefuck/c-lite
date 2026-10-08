@@ -668,6 +668,28 @@ def test_logs_tail_filters_by_level_and_redacts(client, clite_home):
     assert rpc.call("logs.tail", {"source": "errors"})["lines"] == []
 
 
+def test_hooks_and_mcp_status(client, clite_home):
+    rpc = client()
+    (clite_home / "config.yaml").write_text(
+        "model:\n  provider: mock\n  default: mock-1\n"
+        "hooks:\n  pre_tool_call:\n    - command: 'echo checking'\n"
+        "mcp_servers:\n  files:\n    command: ['python', '-m', 'example']\n"
+    )
+    hooks = rpc.call("hooks.status")
+    assert hooks["pending"] == 1  # configured, not approved on this machine yet
+    assert hooks["hooks"][0]["event"] == "pre_tool_call"
+    assert hooks["hooks"][0]["command"] == "echo checking"
+    assert hooks["hooks"][0]["approved"] is False
+    assert hooks["allowlist_path"].endswith("shell-hooks-allowlist.json")
+
+    mcp = rpc.call("mcp.status")
+    assert mcp["configured"] == 1
+    assert mcp["servers"] == []  # configured, but nothing has connected yet
+
+    # Nothing here approves a hook: that stays a local command.
+    assert not any("approve" in name for name in METHODS)
+
+
 def test_config_tools_skills_plugins_memory_cron(client):
     rpc = client()
     rpc.call("config.set", {"key": "display.skin", "value": "mono"})

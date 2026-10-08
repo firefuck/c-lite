@@ -695,6 +695,26 @@ const panels = {
     );
     await load();
   },
+  async hooks(panel) {
+    const [hooks, mcp] = await Promise.all([
+      state.rpc.request("hooks.status"),
+      state.rpc.request("mcp.status"),
+    ]);
+    panel.replaceChildren(
+      h("h2", {}, "Shell hooks"),
+      h("p", { class: "desc" }, hooks.pending
+        ? `${hooks.pending} hook(s) are waiting for approval. Approving one is a local act: run "clite hooks approve" on this machine.`
+        : "Every configured hook is approved on this machine."),
+      ...(hooks.hooks.length ? hooks.hooks.map((hook) => row(
+        `${hook.event}${hook.matcher ? ` · ${hook.matcher}` : ""}`,
+        `${hook.command} · ${hook.approved ? "approved" : "waiting for approval"}${hook.fail_closed ? " · fail-closed" : ""}`))
+        : [h("p", { class: "empty" }, "No shell hooks configured.")]),
+      h("h2", {}, "MCP servers"),
+      ...(mcp.servers.length ? mcp.servers.map((server) => row(server.name,
+        `${server.transport} · ${server.alive ? "connected" : "not connected"} · ${server.tools.length} tools · ${server.resources} resources · ${server.prompts} prompts`))
+        : [h("p", { class: "empty" }, `${mcp.configured} configured; none connected in this session.`)]),
+    );
+  },
 };
 
 function selectTab(name) {

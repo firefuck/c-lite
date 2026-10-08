@@ -159,6 +159,12 @@ export interface ErrorPayload {
   code: number;
 }
 
+export interface HooksStatusResult {
+  hooks: ShellHookEntry[];
+  pending: number;
+  allowlist_path: string;
+}
+
 export interface LogTailParams {
   source?: "agent" | "errors";
   level?: "all" | "info" | "warning" | "error";
@@ -169,6 +175,21 @@ export interface LogTailResult {
   path: string;
   lines: string[];
   truncated: boolean;
+}
+
+export interface McpServerEntry {
+  name: string;
+  transport: string;
+  alive: boolean;
+  tools: string[];
+  resources: number;
+  prompts: number;
+  tools_changed: boolean;
+}
+
+export interface McpStatusResult {
+  servers: McpServerEntry[];
+  configured: number;
 }
 
 export interface MemoryEditParams {
@@ -431,6 +452,15 @@ export interface SetupApplyResult {
   model: string;
 }
 
+export interface ShellHookEntry {
+  event: string;
+  command: string;
+  matcher: string;
+  timeout: number;
+  fail_closed: boolean;
+  approved: boolean;
+}
+
 export interface SkillEntry {
   name: string;
   description: string;
@@ -641,6 +671,10 @@ export interface Methods {
   /** Remove one stored credential. */
   "credentials.delete": { params: CredentialNameParams; result: CredentialsListResult };
   "memory.get": { params: Empty; result: MemoryGetResult };
+  /** Configured shell hooks and whether each one is approved on this machine. */
+  "hooks.status": { params: Empty; result: HooksStatusResult };
+  /** Known MCP servers, their transport, and what they serve. */
+  "mcp.status": { params: Empty; result: McpStatusResult };
   /** Add, replace or remove one memory entry, through the same store the tool uses. */
   "memory.set": { params: MemoryEditParams; result: MemoryEditResult };
   "cron.list": { params: Empty; result: CronListResult };
@@ -677,7 +711,7 @@ export interface ServerRequests {
   "clarify.request": { params: ClarifyRequestParams; result: ClarifyRequestResult };
 }
 
-export const METHOD_NAMES = ["ping", "system.info", "session.create", "session.info", "session.list", "session.history", "session.close", "session.interrupt", "session.steer", "session.title", "session.delete", "session.rename", "session.search", "session.pin", "session.archive", "session.export", "session.compress", "session.usage", "prompt.submit", "slash.exec", "commands.catalog", "complete.slash", "config.get", "config.list", "config.set", "model.list", "model.set", "providers.list", "setup.apply", "tools.list", "skills.list", "skills.view", "plugins.list", "plugins.set_enabled", "credentials.list", "credentials.set", "credentials.delete", "memory.get", "memory.set", "cron.list", "cron.create", "cron.action", "cron.output", "logs.tail"] as const;
+export const METHOD_NAMES = ["ping", "system.info", "session.create", "session.info", "session.list", "session.history", "session.close", "session.interrupt", "session.steer", "session.title", "session.delete", "session.rename", "session.search", "session.pin", "session.archive", "session.export", "session.compress", "session.usage", "prompt.submit", "slash.exec", "commands.catalog", "complete.slash", "config.get", "config.list", "config.set", "model.list", "model.set", "providers.list", "setup.apply", "tools.list", "skills.list", "skills.view", "plugins.list", "plugins.set_enabled", "credentials.list", "credentials.set", "credentials.delete", "memory.get", "hooks.status", "mcp.status", "memory.set", "cron.list", "cron.create", "cron.action", "cron.output", "logs.tail"] as const;
 export const EVENT_TYPES = ["gateway.ready", "session.info", "turn.start", "turn.step", "message.delta", "reasoning.delta", "message.complete", "tool.start", "tool.complete", "status.update", "subagent.update", "turn.complete", "error"] as const;
 export const SERVER_REQUEST_NAMES = ["approval.request", "clarify.request"] as const;
 
