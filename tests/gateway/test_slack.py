@@ -46,7 +46,9 @@ class FakeSlackServer:
 
                 if self.path == "/chat.postMessage":
                     server_self.posted_messages.append(body)
-                    return self._reply({"ok": True, "ts": f"1700000000.{len(server_self.posted_messages)}", "message": body})
+                    return self._reply(
+                        {"ok": True, "ts": f"1700000000.{len(server_self.posted_messages)}", "message": body}
+                    )
 
                 self._reply({"ok": True})
 

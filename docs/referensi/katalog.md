@@ -16,6 +16,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `search_files` | `file` | safe | Search the project. |
 | `write_file` | `file` | path | Create a file or replace its whole content. |
 | `memory` | `memory` | never | Save durable facts to persistent memory. |
+| `send_message` | `messaging` | never | Send a message to a chat on a connected platform, for example to tell the user something later on Telegram while working elsewhere. |
 | `session_search` | `session_search` | safe | Search past conversations (all sessions, including parts that were summarised away) by keyword. |
 | `skill_manage` | `skills` | never | Create and maintain skills: your procedural memory. |
 | `skill_view` | `skills` | safe | Load a skill's full instructions. |
@@ -44,8 +45,9 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `clarify` | Ask the user a question | `clarify` |
 | `delegation` | Spawn subagents with isolated context | `delegate_task` |
 | `cronjob` | Schedule recurring or one-off agent tasks | `cronjob` |
-| `clite-cli` | Everything, for the interactive terminal | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob` |
-| `clite-gateway` | Messaging platforms | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob` |
+| `messaging` | Send messages to connected chat platforms | `send_message` |
+| `clite-cli` | Everything, for the interactive terminal | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob`, `send_message` |
+| `clite-gateway` | Messaging platforms | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob`, `send_message` |
 | `clite-cron` | Scheduled runs | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `delegate_task` |
 | `clite-subagent` | Delegated workers | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `todo`, `skills_list`, `skill_view`, `skill_manage`, `session_search` |
 
@@ -391,6 +393,7 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `gateway.session_reset.idle_minutes` | `120` |
 | `gateway.session_reset.daily_hour` | `4` |
 | `gateway.home_channels` | `{}` |
+| `gateway.send_targets` | `[]` |
 | `cron.enabled` | `true` |
 | `cron.catch_up_missed` | `true` |
 | `cron.inactivity_timeout_seconds` | `600` |

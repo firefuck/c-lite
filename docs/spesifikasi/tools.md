@@ -286,7 +286,7 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 | Eksekusi kode (`execute_code`) | ✅ | Program Python pendek lewat lingkungan eksekusi sesi; `stdout`/`stderr`/`exit_code` terpisah, batas waktu mematikan pohon proses, kredensial dibuang, keluaran diredaksi, dan teks kode lewat `check_command`. Dijaga `tests/tools/test_code.py`. F2-T9 |
 | Checkpoint sebelum menulis file | ✅ | `write_file` dan `patch` menyimpan isi lama ke `<home>/checkpoints/<id sesi>/turn-<n>/` sebelum mengubah file; `/rollback [n]` dan `/checkpoints` ada di semua surface. Batasnya: perubahan lewat perintah `terminal` tidak terlihat (lihat "Celah yang diketahui"). Dijaga `tests/tools/test_checkpoints.py`. F2-T8 |
 | Otomasi browser | ⬜ | Belum dijadwalkan |
-| `send_message` lintas platform | ⬜ | F4-T8 |
+| `send_message` lintas platform | ✅ | Hanya ditawarkan saat gateway berjalan (`check_fn`); tujuan dibatasi ke chat asal percakapan, home channel tiap platform, dan daftar `gateway.send_targets`. Dijaga `tests/gateway/test_gateway.py`: F4-T8 |
 | Windows | ✅ | cmd.exe dan Git Bash: cwd, exit code, stdin, timeout/interupsi pohon proses dan penjaga path lulus di Windows nyata. CI `37499972911`, F1-T5 |
 
 ## Yang sengaja berbeda dari Hermes

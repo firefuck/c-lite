@@ -35,6 +35,28 @@ from clite.runtime.session import ACTION_NEW, ACTION_SUBMIT, BUSY_INTERRUPT, Cha
 
 logger = logging.getLogger("clite.gateway")
 
+# Runners started in this process. The `send_message` tool reaches the live gateway through
+# this, so it can reach only platforms that are actually connected. Guarded by a lock and
+# cleared on stop, so a stopped runner is never handed to the model.
+_ACTIVE_RUNNERS: list[GatewayRunner] = []
+_ACTIVE_LOCK = threading.Lock()
+
+
+def active_runner() -> GatewayRunner | None:
+    """The first running gateway in this process, or ``None`` when there is none."""
+    with _ACTIVE_LOCK:
+        for runner in _ACTIVE_RUNNERS:
+            if runner.running:
+                return runner
+    return None
+
+
+def reset_active_runners() -> None:
+    """Forget every runner in this process. Called between tests so one cannot leak."""
+    with _ACTIVE_LOCK:
+        _ACTIVE_RUNNERS.clear()
+
+
 _APPROVAL_WORDS = {
     "approve": "once",
     "yes": "once",
@@ -114,6 +136,9 @@ class GatewayRunner:
             self.adapters[name] = adapter
             started.append(name)
         self.running = True
+        with _ACTIVE_LOCK:
+            if self not in _ACTIVE_RUNNERS:
+                _ACTIVE_RUNNERS.append(self)
         if with_cron and get_path(self.config, "cron.enabled", True):
             from clite.cron.scheduler import Scheduler
 
@@ -125,6 +150,9 @@ class GatewayRunner:
 
     def stop(self) -> None:
         self.running = False
+        with _ACTIVE_LOCK:
+            if self in _ACTIVE_RUNNERS:
+                _ACTIVE_RUNNERS.remove(self)
         if self._scheduler is not None:
             self._scheduler.stop()
         with self._lock:
@@ -189,6 +217,56 @@ class GatewayRunner:
         self.reply(
             SessionSource(platform=platform, chat_id=str(chat_id), thread_id=thread_id), f"[{label}]\n{text}"
         )
+
+    def _allowed_send_targets(self, origin: dict[str, Any] | None) -> set[str]:
+        """The chat destinations the agent may send to: its origin, each home channel, and
+        every entry in ``gateway.send_targets``. Anything else is refused."""
+        allowed: set[str] = set()
+        if origin and origin.get("platform") and origin.get("chat_id"):
+            allowed.add(f"{origin['platform']}:{origin['chat_id']}")
+        for platform in self.adapters:
+            home = self.home_channels.get(platform)
+            if home:
+                allowed.add(f"{platform}:{home}")
+        for entry in get_path(self.config, "gateway.send_targets", []) or []:
+            if isinstance(entry, str) and entry.strip():
+                allowed.add(entry.strip())
+        return allowed
+
+    def send_to(self, target: str, text: str, *, origin: dict[str, Any] | None = None) -> str:
+        """Send ``text`` to ``target`` from the agent, enforcing the destination allowlist.
+
+        ``target`` is a platform name (its home channel) or ``platform:chat``. Returns a short
+        description of where the message went. Raises :class:`CliteError` when the platform is
+        not connected or the destination is not allowed, naming what to change.
+        """
+        text = text.strip()
+        if not text:
+            raise CliteError("the message text is empty; nothing was sent")
+        raw = target.strip()
+        if not raw:
+            raise CliteError("a target is required: a platform name or 'platform:chat id'")
+        if ":" in raw:
+            platform, _, chat_id = raw.partition(":")
+            chat_id = chat_id.strip()
+        else:
+            platform, chat_id = raw, self.home_channels.get(raw) or ""
+        if not platform or not chat_id:
+            raise CliteError(
+                f"target {target!r} has no chat id and no home channel is set; use "
+                f"'platform:chat id' or run /sethome in that chat first"
+            )
+        if platform not in self.adapters:
+            raise CliteError(f"platform {platform!r} is not connected; connect it in gateway.platforms first")
+        destination = f"{platform}:{chat_id}"
+        if destination not in self._allowed_send_targets(origin):
+            raise CliteError(
+                f"destination {destination!r} is not allowed; add it to gateway.send_targets "
+                f"or run /sethome in that chat"
+            )
+        self.reply(SessionSource(platform=platform, chat_id=chat_id), text)
+        logger.info("send_message delivered to %s (%d chars)", destination, len(text))
+        return destination
 
     # ── authorization ────────────────────────────────────────────────────────────────────
 

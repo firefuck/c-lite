@@ -6,9 +6,11 @@ import json
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Any
 
 import pytest
 
+from clite.core.config import load_config
 from clite.gateway.event import CHAT_GROUP, SessionSource
 from clite.gateway.pairing import PairingStore
 from clite.gateway.platforms.base import split_message
@@ -590,9 +592,7 @@ def test_sethome_and_cron_delivery_to_home_channel(gateway):
     runner, local, _ = gateway()
 
     # 1. When no home channel is set: delivery fails with clear message
-    job = get_job_store().create(
-        "report", "every 1h", name="report", deliver="local", now=1_000
-    )
+    job = get_job_store().create("report", "every 1h", name="report", deliver="local", now=1_000)
     with pytest.raises(RuntimeError, match="no home channel configured for 'local'"):
         runner.deliver(job, "Output text")
 
@@ -607,3 +607,68 @@ def test_sethome_and_cron_delivery_to_home_channel(gateway):
     assert any("[report]\nHello home channel" in m["text"] for m in local.outbox)
     assert any(m["chat_id"] == "channel-main" for m in local.outbox)
 
+
+# ── send_message tool (F4-T8) ──────────────────────────────────────────────────────────────
+
+
+def _agent_with_origin(origin: dict) -> Any:
+    from types import SimpleNamespace
+
+    return SimpleNamespace(session_meta={"origin": origin})
+
+
+def test_send_message_reaches_the_origin_chat_and_the_home_channel(gateway):
+    from clite.runtime.home_channel import HomeChannels
+    from clite.tools.builtin.send_message import send_message_tool
+    from clite.tools.context import ToolContext
+
+    runner, local, _ = gateway()
+    origin = {"platform": "local", "chat_id": "origin-chat"}
+    ctx = ToolContext(agent=_agent_with_origin(origin))
+
+    # 1. The chat the conversation came from is always allowed.
+    out = json.loads(send_message_tool({"target": "local:origin-chat", "text": "hi origin"}, ctx))
+    assert out["delivered"] is True and out["destination"] == "local:origin-chat"
+    assert local.outbox[-1]["chat_id"] == "origin-chat"
+    assert local.outbox[-1]["text"] == "hi origin"
+
+    # 2. A platform's home channel is allowed, addressed by the bare platform name.
+    HomeChannels().set("local", "home-chat")
+    out = json.loads(send_message_tool({"target": "local", "text": "hi home"}, ctx))
+    assert out["delivered"] is True and out["destination"] == "local:home-chat"
+    assert local.outbox[-1]["chat_id"] == "home-chat"
+
+
+def test_send_message_refuses_a_destination_outside_the_allowlist(gateway):
+    from clite.tools.builtin.send_message import send_message_tool
+    from clite.tools.context import ToolContext
+
+    runner, local, _ = gateway()
+    origin = {"platform": "local", "chat_id": "origin-chat"}
+    ctx = ToolContext(agent=_agent_with_origin(origin))
+
+    out = json.loads(send_message_tool({"target": "local:some-other-chat", "text": "spam"}, ctx))
+    assert "error" in out
+    assert "gateway.send_targets" in out["error"]  # the message names how to allow it
+    assert local.outbox == []  # nothing was sent
+
+
+def test_send_message_allows_an_explicitly_configured_target(gateway):
+    from clite.tools.builtin.send_message import send_message_tool
+    from clite.tools.context import ToolContext
+
+    runner, local, _ = gateway(extra="  send_targets: ['local:ops-room']\n")
+    runner.config = load_config()  # pick up the freshly written config
+    ctx = ToolContext(agent=_agent_with_origin({"platform": "local", "chat_id": "origin-chat"}))
+
+    out = json.loads(send_message_tool({"target": "local:ops-room", "text": "status"}, ctx))
+    assert out["delivered"] is True and out["destination"] == "local:ops-room"
+    assert local.outbox[-1]["chat_id"] == "ops-room"
+
+
+def test_send_message_is_not_offered_without_a_running_gateway(clite_home):
+    from clite.tools.dispatch import get_tool_definitions
+
+    (clite_home / "config.yaml").write_text("model: {provider: mock, default: mock-1}\n")
+    names = [definition["function"]["name"] for definition in get_tool_definitions()]
+    assert "send_message" not in names

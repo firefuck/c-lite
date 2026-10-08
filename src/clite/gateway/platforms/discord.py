@@ -162,7 +162,9 @@ class DiscordAdapter(BasePlatformAdapter):
             except Exception as exc:
                 if self._stop.is_set():
                     break
-                logger.warning("Discord gateway connection dropped (%s), reconnecting in %.1fs…", exc, backoff)
+                logger.warning(
+                    "Discord gateway connection dropped (%s), reconnecting in %.1fs…", exc, backoff
+                )
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2.0, 60.0)
 
@@ -270,9 +272,7 @@ class DiscordAdapter(BasePlatformAdapter):
             mention_pattern = rf"<@!?{re.escape(self.bot_id)}>"
             is_mentioned = bool(re.search(mention_pattern, content))
             referenced = data.get("referenced_message")
-            is_reply_to_bot = bool(
-                referenced and str(referenced.get("author", {}).get("id")) == self.bot_id
-            )
+            is_reply_to_bot = bool(referenced and str(referenced.get("author", {}).get("id")) == self.bot_id)
 
             if not (is_mentioned or is_reply_to_bot):
                 return

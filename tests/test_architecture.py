@@ -55,6 +55,7 @@ ALLOWED_UPWARD_LAZY_IMPORTS = {
     ("clite.tools.builtin.delegate", "agent"),  # the tool is a thin wrapper over agent.delegation
     ("clite.tools.builtin.vision", "agent"),  # reuses agent.attachments to load/encode the image
     ("clite.tools.builtin.cronjob", "cron"),  # the tool edits the job store
+    ("clite.tools.builtin.send_message", "gateway"),  # the tool sends through the live runner
     ("clite.plugins.context", "gateway"),  # ctx.register_platform()
     ("clite.cron.scheduler", "runtime"),  # a job runs through runtime.factory.build_agent
 }

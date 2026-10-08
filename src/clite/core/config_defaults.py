@@ -203,6 +203,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
             "daily_hour": 4,
         },
         "home_channels": {},  # {platform: chat_id}
+        "send_targets": [],  # allowed destinations for send_message tool: ["telegram:12345", ...]
     },
     "cron": {"enabled": True, "catch_up_missed": True, "inactivity_timeout_seconds": 600},
     "server": {"host": "127.0.0.1", "port": 0},

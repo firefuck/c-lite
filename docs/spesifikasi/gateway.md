@@ -103,7 +103,7 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
 | Jawaban streaming (menyunting pesan), progres tool | ⬜ | Hanya `send_typing`: F4-T5 |
 | Layanan sistem (systemd, launchd), restart dengan drain | ⬜ | `clite gateway run` berjalan di latar depan: F4-T6 |
 | Kebijakan reset sesi (menganggur, harian), home channel | ✅ | `gateway.session_reset` (`idle`, `daily`), notifikasi reset sesi satu kali; `/sethome` menetapkan home channel; cron `deliver: <platform>` mengirim ke home channel platform tersebut. Dijaga `tests/gateway/test_gateway.py`: F4-T7 |
-| Tool `send_message` | ⬜ | F4-T8 |
+| Tool `send_message` | ✅ | Agent mengirim ke chat lain lintas platform; hanya ditawarkan saat gateway berjalan, tujuan dibatasi (chat asal, home channel, `gateway.send_targets`). Dijaga `tests/gateway/test_gateway.py`: F4-T8 |
 | Endpoint API kompatibel OpenAI, webhook masuk | ⬜ | F4-T10 |
 
 ## Yang sengaja berbeda dari Hermes

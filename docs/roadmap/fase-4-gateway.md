@@ -293,10 +293,10 @@ yang tidak berasal dari percakapan mana pun.
 **Rujukan Hermes.** `tools/send_message_tool.py`, `tools/send_message_targets.py`.
 
 **Selesai bila.**
-- [ ] Tes: pengiriman ke home channel dan ke chat asal berhasil lewat adapter `local`.
-- [ ] Tes: tujuan di luar daftar ditolak dengan hasil galat yang menyebut cara mengizinkannya.
-- [ ] Tes: tanpa gateway, tool tidak ada di definisi tool.
-- [ ] Baris `send_message` di spesifikasi tools dan gateway menjadi ✅.
+- [x] Tes: pengiriman ke home channel dan ke chat asal berhasil lewat adapter `local`.
+- [x] Tes: tujuan di luar daftar ditolak dengan hasil galat yang menyebut cara mengizinkannya.
+- [x] Tes: tanpa gateway, tool tidak ada di definisi tool.
+- [x] Baris `send_message` di spesifikasi tools dan gateway menjadi ✅.
 
 **Ukuran.** S
 

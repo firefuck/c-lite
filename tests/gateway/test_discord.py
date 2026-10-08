@@ -115,8 +115,18 @@ class FakeDiscordServer:
     def ws_url(self) -> str:
         return f"ws://127.0.0.1:{self.ws_port}"
 
-    def push_message(self, content: str, *, author_id="user-1", username="alice", channel_id="chan-1",
-                     guild_id=None, channel_type=0, is_bot=False, referenced_author_id=None):
+    def push_message(
+        self,
+        content: str,
+        *,
+        author_id="user-1",
+        username="alice",
+        channel_id="chan-1",
+        guild_id=None,
+        channel_type=0,
+        is_bot=False,
+        referenced_author_id=None,
+    ):
         payload = {
             "op": 0,
             "t": "MESSAGE_CREATE",
@@ -192,12 +202,16 @@ def test_discord_connect_and_message_handling(fake_discord, monkeypatch):
     assert ev1.source.chat_id == "dm-chan-1"
 
     # 2. Guild message WITHOUT mention: ignored
-    fake_discord.push_message("just chat in server", author_id="user-1", channel_id="guild-chan", guild_id="guild-1")
+    fake_discord.push_message(
+        "just chat in server", author_id="user-1", channel_id="guild-chan", guild_id="guild-1"
+    )
     time.sleep(0.1)
     assert len(runner.dispatched) == 1
 
     # 3. Guild message WITH mention: stripped and answered
-    fake_discord.push_message("<@bot-999> what is python?", author_id="user-1", channel_id="guild-chan", guild_id="guild-1")
+    fake_discord.push_message(
+        "<@bot-999> what is python?", author_id="user-1", channel_id="guild-chan", guild_id="guild-1"
+    )
     time.sleep(0.2)
     assert len(runner.dispatched) == 2
     ev2 = runner.dispatched[1]
@@ -206,7 +220,13 @@ def test_discord_connect_and_message_handling(fake_discord, monkeypatch):
     assert ev2.source.chat_id == "guild-chan"
 
     # 4. Message in a Thread: thread_id populated
-    fake_discord.push_message("<@!bot-999> in thread", author_id="user-1", channel_id="thread-chan", guild_id="guild-1", channel_type=11)
+    fake_discord.push_message(
+        "<@!bot-999> in thread",
+        author_id="user-1",
+        channel_id="thread-chan",
+        guild_id="guild-1",
+        channel_type=11,
+    )
     time.sleep(0.2)
     assert len(runner.dispatched) == 3
     ev3 = runner.dispatched[2]

@@ -77,7 +77,9 @@ class SlackAdapter(BasePlatformAdapter):
         self._seen_events: collections.deque[str] = collections.deque(maxlen=2000)
         self._seen_lock = threading.Lock()
 
-    def _call_web(self, endpoint: str, payload: dict[str, Any] | None = None, token: str | None = None) -> Any:
+    def _call_web(
+        self, endpoint: str, payload: dict[str, Any] | None = None, token: str | None = None
+    ) -> Any:
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
         data = json.dumps(payload).encode("utf-8") if payload is not None else None
         auth_token = token or self.bot_token
@@ -169,7 +171,9 @@ class SlackAdapter(BasePlatformAdapter):
         while not self._stop.is_set():
             try:
                 # Request a new WebSocket URL via apps.connections.open using app token
-                conn_res = await asyncio.to_thread(self._call_web, "apps.connections.open", token=self.app_token)
+                conn_res = await asyncio.to_thread(
+                    self._call_web, "apps.connections.open", token=self.app_token
+                )
                 ws_url = conn_res.get("url")
                 if not ws_url:
                     raise CliteError("no url returned from apps.connections.open")
@@ -182,7 +186,9 @@ class SlackAdapter(BasePlatformAdapter):
             except Exception as exc:
                 if self._stop.is_set():
                     break
-                logger.warning("Slack Socket Mode connection dropped (%s), reconnecting in %.1fs…", exc, backoff)
+                logger.warning(
+                    "Slack Socket Mode connection dropped (%s), reconnecting in %.1fs…", exc, backoff
+                )
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2.0, 60.0)
 
@@ -221,7 +227,12 @@ class SlackAdapter(BasePlatformAdapter):
     def _handle_event(self, event: dict[str, Any]) -> None:
         # Ignore bot messages and own messages
         user_id = str(event.get("user") or "")
-        if not user_id or user_id == self.bot_user_id or event.get("bot_id") or event.get("subtype") == "bot_message":
+        if (
+            not user_id
+            or user_id == self.bot_user_id
+            or event.get("bot_id")
+            or event.get("subtype") == "bot_message"
+        ):
             return
 
         ev_type = event.get("type")

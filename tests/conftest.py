@@ -44,6 +44,7 @@ def _reset_process_state() -> None:
         ("clite.plugins.manager", "reset_plugin_managers"),
         ("clite.skills.catalog", "reset_skill_cache"),
         ("clite.cron.jobs", "reset_job_stores"),
+        ("clite.gateway.runner", "reset_active_runners"),
         ("clite.rpc.server", "reset_server_state"),
         ("clite.runtime.maintenance", "reset_maintenance_state"),
         ("clite.agent.review", "reset_review_state"),

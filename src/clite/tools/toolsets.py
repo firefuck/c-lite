@@ -37,16 +37,20 @@ TOOLSETS: dict[str, dict[str, Any]] = {
     "clarify": {"description": "Ask the user a question", "tools": ["clarify"]},
     "delegation": {"description": "Spawn subagents with isolated context", "tools": ["delegate_task"]},
     "cronjob": {"description": "Schedule recurring or one-off agent tasks", "tools": ["cronjob"]},
+    "messaging": {
+        "description": "Send messages to connected chat platforms",
+        "tools": ["send_message"],
+    },
     # ── platform composites ──────────────────────────────────────────────────────────────
     "clite-cli": {
         "description": "Everything, for the interactive terminal",
         "tools": [],
-        "includes": [*_CORE, "clarify", "delegation", "cronjob"],
+        "includes": [*_CORE, "clarify", "delegation", "cronjob", "messaging"],
     },
     "clite-gateway": {
         "description": "Messaging platforms",
         "tools": [],
-        "includes": [*_CORE, "clarify", "delegation", "cronjob"],
+        "includes": [*_CORE, "clarify", "delegation", "cronjob", "messaging"],
     },
     # A cron run has no user to ask and must not schedule more cron jobs.
     "clite-cron": {"description": "Scheduled runs", "tools": [], "includes": [*_CORE, "delegation"]},
