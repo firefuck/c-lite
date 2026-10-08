@@ -31,7 +31,14 @@ _SYSTEM_PREFIXES = ("/etc", "/boot", "/usr", "/bin", "/sbin", "/lib", "/sys", "/
 # shell-hooks-allowlist.json records which shell hooks the user consented to run, and
 # gateway/pairing.json records which chat users may talk to the agent. The command approval
 # gate guards the same list.
-PROTECTED_PATHS = (".env", "config.yaml", "auth.json", "shell-hooks-allowlist.json", "gateway/pairing.json")
+PROTECTED_PATHS = (
+    ".env",
+    "config.yaml",
+    "auth.json",
+    "shell-hooks-allowlist.json",
+    "gateway/pairing.json",
+    "cron/scripts",
+)
 # The subset that holds secrets. config.yaml references secrets by name only.
 _CREDENTIAL_PATHS = (".env", "auth.json")
 
@@ -66,7 +73,7 @@ def protected_path(path: str | os.PathLike[str]) -> str | None:
     if _is_within(target, get_profiles_root()):
         inside.append(target.relative_to(get_profiles_root().resolve(strict=False)).parts[1:])
     names = {"/".join(parts).lower() for parts in inside}
-    return next((name for name in PROTECTED_PATHS if name in names), None)
+    return next((name for name in PROTECTED_PATHS if any(value == name or value.startswith(f"{name}/") for value in names)), None)
 
 
 def write_denied_reason(path: str | os.PathLike[str]) -> str | None:

@@ -10,20 +10,24 @@ from __future__ import annotations
 import errno
 import logging
 import os
+import subprocess
 import sys
 import threading
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from clite.agent import AgentCallbacks
 from clite.core.config import config_get
 from clite.core.constants import ensure_dir, get_cron_dir
 from clite.core.threads import start_thread
+from clite.cron.history import CronHistory
 from clite.cron.jobs import JobStore, get_job_store
 from clite.providers.client import ModelClient
 from clite.skills.catalog import get_skill
 from clite.skills.commands import build_skill_message
+from clite.tools.environments.local import build_child_env
 
 if sys.platform == "win32":
     import msvcrt
@@ -40,8 +44,38 @@ MISSED_GRACE_SECONDS = 300
 Deliver = Callable[[dict[str, Any], str], None]
 
 
-def build_job_prompt(job: dict[str, Any]) -> str:
-    """The job's prompt, preceded by any skills it asked for."""
+def _run_script(job: dict[str, Any], store: JobStore) -> tuple[str, str | None]:
+    """Run a user-owned collector from cron/scripts and return its output or failure."""
+    script = job.get("script")
+    if not script:
+        return "", None
+    path = (store.directory / "scripts" / str(script)).resolve(strict=False)
+    scripts = (store.directory / "scripts").resolve(strict=False)
+    try:
+        path.relative_to(scripts)
+    except ValueError:
+        return "", "script is outside cron/scripts"
+    if not path.is_file():
+        return "", f"script {script!r} does not exist in cron/scripts"
+    try:
+        completed = subprocess.run(
+            [sys.executable, str(path)],
+            text=True,
+            capture_output=True,
+            timeout=60,
+            check=False,
+            env=build_child_env(),
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return "", f"script failed: {exc}"
+    output = (completed.stdout or "").strip()
+    if completed.returncode:
+        return output, f"script exited with status {completed.returncode}: {(completed.stderr or '').strip()}"
+    return output, None
+
+
+def build_job_prompt(job: dict[str, Any], script_output: str = "") -> str:
+    """The job's prompt, preceded by its skills and optional script-collected data."""
     parts = []
     for name in job.get("skills") or []:
         skill = get_skill(name)
@@ -49,6 +83,8 @@ def build_job_prompt(job: dict[str, Any]) -> str:
             logger.warning("cron job %s names an unknown skill: %s", job["id"], name)
             continue
         parts.append(build_skill_message(skill))
+    if script_output:
+        parts.append(f"Data collected before this run:\n{script_output}")
     parts.append(job["prompt"])
     return "\n\n".join(parts)
 
@@ -64,6 +100,9 @@ def run_job(
     from clite.runtime.factory import build_agent
 
     store = store or get_job_store()
+    history = CronHistory(store.directory)
+    started_at = time.time()
+    script_output, script_error = _run_script(job, store)
     timeout = float(config_get("cron.inactivity_timeout_seconds", 600) or 0)
     last_activity = [time.monotonic()]
 
@@ -72,6 +111,7 @@ def run_job(
 
     callbacks = AgentCallbacks(on_step=touch, on_delta=touch, on_tool_start=touch, on_tool_complete=touch)
     outcome: dict[str, Any] = {"job_id": job["id"], "status": "failed", "delivered": False}
+    usage: dict[str, int] = {}
     agent = None
     try:
         agent = build_agent(
@@ -89,7 +129,7 @@ def run_job(
 
         def work() -> None:
             try:
-                box["result"] = agent.run_conversation(build_job_prompt(job))
+                box["result"] = agent.run_conversation(build_job_prompt(job, script_output))
             except Exception as exc:  # noqa: BLE001
                 box["error"] = exc
             finally:
@@ -108,6 +148,13 @@ def run_job(
         if result is None:
             raise TimeoutError(f"no activity for {int(timeout)}s")
         text = (result.final_response or "").strip()
+        usage = {
+            "input_tokens": result.usage.input_tokens,
+            "output_tokens": result.usage.output_tokens,
+            "cache_read_tokens": result.usage.cache_read_tokens,
+            "cache_write_tokens": result.usage.cache_write_tokens,
+            "reasoning_tokens": result.usage.reasoning_tokens,
+        }
         output_path = store.save_output(job["id"], text or "(no output)")
         outcome.update(
             status="ok" if result.completed else "failed",
@@ -124,6 +171,7 @@ def run_job(
             except Exception as exc:  # noqa: BLE001 - the output is on disk either way
                 logger.warning("delivery for cron job %s failed: %s", job["id"], exc)
                 outcome["delivery_error"] = str(exc)
+                history.enqueue_delivery(job, str(job.get("deliver") or "local"), text, str(exc))
         store.mark_finished(
             job["id"], status=outcome["status"], error=result.error, output_path=str(output_path)
         )
@@ -134,6 +182,18 @@ def run_job(
     finally:
         if agent is not None:
             agent.close("cron_done")
+        history.record(
+            {
+                "job_id": job["id"],
+                "started_at": started_at,
+                "duration_seconds": round(time.time() - started_at, 3),
+                "status": outcome["status"],
+                "usage": usage,
+                "output_path": outcome.get("output_path"),
+                "error": outcome.get("error"),
+                "script_error": script_error,
+            }
+        )
     return outcome
 
 
@@ -190,16 +250,21 @@ def tick(
         return []
     try:
         store = get_job_store()
+        if deliver is not None:
+            CronHistory(store.directory).retry_deliveries(
+                deliver, int(config_get("cron.delivery_max_attempts", 3) or 3)
+            )
         current = time.time() if now is None else now
         catch_up = bool(config_get("cron.catch_up_missed", True))
-        outcomes = []
+        dispatched_jobs = []
         for job in store.due(current):
             if not catch_up and current - job["next_run_at"] > MISSED_GRACE_SECONDS:
                 store.skip_missed(job["id"], current)
                 continue
-            dispatched = store.mark_dispatched(job["id"], current)  # before running: at-most-once
-            outcomes.append(run_job(dispatched, store=store, client=client, deliver=deliver))
-        return outcomes
+            dispatched_jobs.append(store.mark_dispatched(job["id"], current))  # before running: at-most-once
+        workers = max(1, int(config_get("cron.max_concurrent_jobs", 4) or 1))
+        with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="clite-cron-tick") as executor:
+            return list(executor.map(lambda job: run_job(job, store=store, client=client, deliver=deliver), dispatched_jobs))
     finally:
         lock.release()
 

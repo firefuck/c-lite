@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import time
 
+from clite.cron.history import CronHistory
 from clite.cron.jobs import JobError, get_job_store
 from clite.cron.scheduler import Scheduler, tick
 
@@ -27,6 +28,16 @@ def run_list(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_history(args: argparse.Namespace) -> int:
+    store = get_job_store()
+    entries = CronHistory(store.directory).list(args.job_id)
+    for entry in entries:
+        print(f"{entry['job_id']}  {entry['status']:<7} {entry['duration_seconds']:.3f}s {entry.get('output_path') or '-'}")
+    if not entries:
+        print("No cron execution history.")
+    return 0
+
+
 def run_add(args: argparse.Namespace) -> int:
     try:
         job = get_job_store().create(
@@ -36,6 +47,7 @@ def run_add(args: argparse.Namespace) -> int:
             deliver=args.deliver,
             repeat=args.repeat,
             skills=args.skill or [],
+            script=args.script,
         )
     except JobError as exc:
         print(f"Not scheduled: {exc}")
@@ -95,7 +107,11 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     add.add_argument("--deliver", default="local", help="'local' (save to a file) or '<platform>:<chat id>'")
     add.add_argument("--repeat", type=int, help="stop after this many runs")
     add.add_argument("--skill", action="append", help="skill to load into each run (repeatable)")
+    add.add_argument("--script", help="user-owned collector relative to cron/scripts")
     add.set_defaults(handler=run_add)
+    history = actions.add_parser("history", help="list execution history")
+    history.add_argument("job_id", nargs="?", help="optional job id or unique prefix")
+    history.set_defaults(handler=run_history)
     for action, method, done in (
         ("pause", "pause", "paused"),
         ("resume", "resume", "resumed"),

@@ -215,6 +215,34 @@ def test_a_full_turn_over_websocket_then_rest(backend):
     assert backend.get("/api/sessions?limit=abc", token=backend.token)[0] == 400
 
 
+def test_openai_routes_return_openai_objects_and_sse_when_enabled(clite_home):
+    (clite_home / "config.yaml").write_text(
+        "model:\n  provider: mock\n  default: mock-1\nserver:\n  openai_api_enabled: true\n"
+    )
+    instance, server, thread = start_backend(token="test-token-123")
+    try:
+        def post(path, body, headers=None):
+            request = urllib.request.Request(instance.base + path, data=json.dumps(body).encode(), method="POST")
+            request.add_header("Authorization", f"Bearer {instance.token}")
+            request.add_header("Content-Type", "application/json")
+            for key, value in (headers or {}).items():
+                request.add_header(key, value)
+            with urllib.request.urlopen(request, timeout=10) as response:
+                return response.read().decode()
+        with pytest.raises(urllib.error.HTTPError) as missing:
+            urllib.request.urlopen(instance.base + "/v1/models", timeout=5)
+        assert missing.value.code == 401
+        models = instance.get("/v1/models", token=instance.token)
+        assert models == (200, {"object": "list", "data": [{"id": "mock-1", "object": "model", "owned_by": "clite"}]})
+        normal = json.loads(post("/v1/chat/completions", {"model": "mock-1", "messages": [{"role": "user", "content": "hi"}]}))
+        assert normal["object"] == "chat.completion" and normal["choices"][0]["message"]["content"] == "You said: hi"
+        sse = post("/v1/chat/completions", {"model": "mock-1", "stream": True, "messages": [{"role": "user", "content": "hi"}]})
+        assert "data: [DONE]" in sse and '"object": "chat.completion.chunk"' in sse
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+
+
 def test_disconnecting_ends_the_connections_sessions(backend):
     from clite.state import get_session_db
 

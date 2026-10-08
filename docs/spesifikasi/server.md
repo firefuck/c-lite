@@ -76,7 +76,7 @@ luar event loop dijaga oleh `tests/server/test_context.py`.
 | Halaman konfigurasi, cron, log, memori, analitik | ⬜ | F5-T2 |
 | Dashboard React + Vite | ⬜ | Hanya bila JS polos tidak lagi cukup: F5-T3 |
 | TLS, autentikasi pengguna, akses jarak jauh | ⬜ | F5-T6 |
-| Endpoint kompatibel OpenAI (`/v1/chat/completions`) | ⬜ | F4-T10 |
+| Endpoint kompatibel OpenAI (`/v1/chat/completions`) | ✅ | Nonstreaming dan SSE, token API, serta penolakan Host asing pada loopback dijaga `tests/server/test_server.py`: F4-T10 |
 | Halaman dari plugin | ⬜ | F6-T5 |
 
 ## Yang sengaja berbeda dari Hermes

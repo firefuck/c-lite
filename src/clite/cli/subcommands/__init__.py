@@ -18,6 +18,7 @@ SUBCOMMAND_MODULES = (
     "profile",
     "cron",
     "gateway",
+    "webhook",
     "serve",
     "tui",
     "completion",

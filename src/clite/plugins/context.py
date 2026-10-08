@@ -205,6 +205,24 @@ class PluginContext:
         base.register_platform(name, factory)
         self._record("platform", name, lambda: base.PLATFORMS.pop(name, None))
 
+    def gateway_message_event(self, **kwargs: Any) -> Any:
+        """Build an inbound gateway event without a platform plugin importing gateway internals."""
+        from clite.gateway.event import MessageEvent
+
+        return MessageEvent(**kwargs)
+
+    def gateway_session_source(self, **kwargs: Any) -> Any:
+        """Build the source for an inbound gateway event through the plugin API."""
+        from clite.gateway.event import SessionSource
+
+        return SessionSource(**kwargs)
+
+    def gateway_send_result(self, success: bool, message_id: str = "", error: str = "") -> Any:
+        """Build the outcome of a platform send through the plugin API."""
+        from clite.gateway.event import SendResult
+
+        return SendResult(success, message_id=message_id, error=error)
+
     def register_skills_dir(self, path: str | Path) -> None:
         """Expose a directory of skills that ship with this plugin (read-only tier)."""
         from clite.skills import catalog

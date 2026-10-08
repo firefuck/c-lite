@@ -1,0 +1,4 @@
+name: signal
+version: 1.0.0
+description: Receive and send Signal messages through a user-run signal-cli REST service
+kind: platform

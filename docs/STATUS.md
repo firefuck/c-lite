@@ -37,6 +37,33 @@ Yang tercakup tes Python itu, selain perilaku tiap modul:
 
 Spesifikasi tiap modul (`docs/spesifikasi/`) menandai fitur yang dijaga tes dengan ✅.
 
+### F4-T3 langkah email, Matrix, dan Signal (8 Oktober 2026)
+
+Plugin platform bawaan `email` memakai polling IMAP dan SMTP dari pustaka standar. Ia hanya
+meneruskan pengirim dalam `allowed_users`, dan memakai `References` sebagai `thread_id` agar
+setiap utas memiliki sesi gateway sendiri. Tes `tests/gateway/test_email.py` menjalankan server
+IMAP dan SMTP tiruan lokal, lalu menjaga penerimaan, pemetaan utas, balasan SMTP, dan penolakan
+pengirim lain. Layanan email asli belum pernah dicoba.
+
+Plugin platform bawaan `matrix` memakai Client-Server API dengan long polling `/sync` dan
+mengirim balasan `m.room.message`. Tes `tests/gateway/test_matrix.py` menjalankan server
+Client-Server tiruan lokal untuk menjaga penerimaan event room yang diizinkan, checkpoint sync,
+dan balasan ke room yang sama. E2EE sengaja belum didukung: event atau room terenkripsi tidak
+dibaca atau dibalas. Homeserver Matrix asli belum pernah dicoba.
+
+Plugin platform bawaan `signal` berbicara ke layanan REST `signal-cli` yang dijalankan pengguna:
+ia mem-poll `GET /v1/receive/<akun>` dan mengirim DM melalui `POST /v2/send`. Tes
+`tests/gateway/test_signal.py` menjalankan server REST tiruan lokal untuk menjaga penerimaan
+pesan dari `allowed_users`, pemetaan pengirim ke sesi gateway, serta payload balasan. Layanan
+Signal dan `signal-cli` asli belum pernah dicoba.
+
+Plugin platform bawaan `whatsapp` menerima webhook WhatsApp Cloud API setelah memverifikasi
+`X-Hub-Signature-256` memakai rahasia aplikasi, lalu mengirim balasan teks melalui Graph API.
+Tes `tests/gateway/test_whatsapp.py` memakai webhook dan Graph API tiruan lokal untuk menjaga
+verifikasi subscription, signature, penerimaan pengirim `allowed_users`, serta payload balasan.
+Layanan WhatsApp Cloud API asli belum pernah diverifikasi.
+
+
 ### F2-T2 gelombang pertama (7 Oktober 2026)
 
 Sepuluh profil tambahan diuji lewat HTTP loopback, streaming dan nonstreaming, tanpa
@@ -854,6 +881,7 @@ python scripts/check_hermes_refs.py --hermes ../hermes-ref   # butuh clone Herme
 | 8 Oktober 2026 | F4-T5: Jawaban streaming dan progres tool di chat; `gateway/stream.py` (`StreamSender`, `ProgressReporter`), `can_edit`/`edit` pada adapter (Telegram `editMessageText`, `local` untuk tes), batas laju 1.5 detik, pemecahan saat melewati batas karakter, dan fallback saat suntingan ditolak; 6 tes baru `tests/gateway/test_gateway.py` lulus; 5 tes lama disesuaikan dengan kontrak streaming (menunggu teks akhir, bukan indeks pesan); bukti merah: tanpa `stream.py` koleksi gagal (`ModuleNotFoundError`) | Linux, Python 3.11.16 |
 | 8 Oktober 2026 | F4-T4: Lampiran masuk dan keluar; `gateway/media.py` (jenis dari magic bytes, batas ukuran ditolak sebelum ditulis, cleanup per sesi), gambar masuk sebagai bagian konten model, dokumen diberitahukan sebagai path, tool `send_file` dengan batas direktori + `read_denied_reason`, Telegram `fetch_attachment` (foto/dokumen/suara/video) dan `sendDocument`; 8 tes baru `tests/gateway/test_gateway.py` lulus (50 total di `tests/gateway`). Belum diuji terhadap Telegram sungguhan | Linux, Python 3.11.16 |
 | 8 Oktober 2026 | F4-T6: layanan gateway menghasilkan unit systemd user dan LaunchAgent per profil, menolak proses kedua untuk home yang sama, dan SIGTERM menghentikan pesan baru sambil menunggu giliran aktif selesai lalu keluar 0; 3 tes `tests/gateway/test_service.py` lulus. Verifikasi manual systemd Linux belum dilakukan karena tidak memasang atau menjalankan layanan pada home pengguna. | Linux, Python 3.11.16 |
+| 8 Oktober 2026 | F4-T9: skrip pra-jalan pengguna dari `cron/scripts` memasukkan keluaran ke prompt dan terlindung dari tool file/`cronjob`; riwayat persisten dan `clite cron history`/RPC `cron.history`; pengiriman gagal diantrekan lalu dicoba ulang dengan batas; tick menjalankan job paralel terbatas. `tests/cron/test_cron.py` 40 lulus, `tests/tools/test_file_tools.py` dan `tests/cli/test_cli.py` lulus; belum diverifikasi terhadap platform gateway sungguhan. | Linux, Python 3.11.16 |
 
 Setiap task yang memverifikasi sesuatu menambah baris di tabel ini dan memindahkan butirnya
 dari "belum diverifikasi".

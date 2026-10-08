@@ -1,0 +1,4 @@
+name: email
+version: 1.0.0
+description: Receive allowed email senders over IMAP and reply over SMTP
+kind: platform

@@ -427,6 +427,25 @@ class CronListResult(Result):
     jobs: list[CronJob]
 
 
+class CronHistoryEntry(Result):
+    job_id: str
+    started_at: float
+    duration_seconds: float
+    status: str
+    usage: dict[str, int] = {}
+    output_path: str | None = None
+    error: str | None = None
+    script_error: str | None = None
+
+
+class CronHistoryParams(Params):
+    job_id: str | None = None
+
+
+class CronHistoryResult(Result):
+    entries: list[CronHistoryEntry]
+
+
 class CronCreateParams(Params):
     prompt: str
     schedule: str
@@ -447,6 +466,7 @@ method("plugins.list", Empty, PluginsListResult)
 method("plugins.set_enabled", PluginSetEnabledParams, PluginsListResult)
 method("memory.get", Empty, MemoryGetResult)
 method("cron.list", Empty, CronListResult)
+method("cron.history", CronHistoryParams, CronHistoryResult)
 method("cron.create", CronCreateParams, CronJob)
 method("cron.action", CronActionParams, CronListResult)
 

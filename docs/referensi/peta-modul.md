@@ -97,7 +97,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `chat.py` | ``clite chat``: the interactive REPL, or one query with ``-q``. | `add_chat_arguments()`, `session_options()`, `wants_tui()`, `run_chat()`, `register()` |
 | `completion.py` | ``clite completion bash\|zsh\|fish``: shell completion built from the real parser. | `run_completion()`, `register()` |
 | `config.py` | ``clite config``: read and write config.yaml. | `run_show()`, `run_get()`, `run_set()`, `run_unset()`, `run_path()`, `run_env()`, `run_edit()`, `run_migrate()`, `register()` |
-| `cron.py` | ``clite cron``: scheduled agent tasks. | `run_list()`, `run_add()`, `run_tick()`, `run_daemon()`, `register()` |
+| `cron.py` | ``clite cron``: scheduled agent tasks. | `run_list()`, `run_history()`, `run_add()`, `run_tick()`, `run_daemon()`, `register()` |
 | `gateway.py` | ``clite gateway``: run the messaging gateway and manage who may talk to it. | `run_gateway()`, `run_install()`, `run_uninstall()`, `run_start()`, `run_stop()`, `run_restart()`, `run_logs()`, `run_status()`, `run_pair_list()`, `run_pair_approve()`, … (+2) |
 | `hooks.py` | ``clite hooks``: review, approve, revoke and try the shell hooks from ``config.yaml``. | `run_list()`, `run_approve()`, `run_revoke()`, `run_test()`, `register()` |
 | `mcp.py` | ``clite mcp``: add, list, remove and test MCP servers without editing YAML. | `run_add()`, `run_list()`, `run_remove()`, `run_test()`, `register()` |
@@ -113,6 +113,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `tui.py` | ``clite tui``: the Node terminal interface, which talks to this package over JSON-RPC. | `find_tui_bundle()`, `tui_arguments()`, `launch_tui()`, `run_tui()`, `register()` |
 | `uninstall.py` | ``clite uninstall``: remove the package and optionally purge the home directory. | `run_uninstall()`, `register()` |
 | `update.py` | ``clite update``: check for updates and upgrade the installation. | `detect_install_method()`, `check_latest_version()`, `run_update()`, `register()` |
+| `webhook.py` | ``clite webhook``: manage names and HMAC secrets for inbound webhooks. | `run_add()`, `run_list()`, `run_remove()`, `register()` |
 
 ## `clite/core/`
 
@@ -138,6 +139,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | Scheduled jobs: agent tasks that run on a schedule in fresh sessions. |  |
+| `history.py` | Persistent cron execution history and retryable delivery queue. | `CronHistory` |
 | `jobs.py` | Scheduled jobs: storage and state transitions. | `JobError`, `JobStore`, `get_job_store()`, `reset_job_stores()` |
 | `schedule.py` | Schedules: parsing what the user wrote and computing the next run time. | `ScheduleError`, `Schedule`, `get_timezone()`, `parse_duration()`, `CronExpression`, `parse_schedule()`, `next_run()` |
 | `scheduler.py` | Running scheduled jobs. | `build_job_prompt()`, `run_job()`, `tick()`, `Scheduler` |
@@ -212,7 +214,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | --- | --- | --- |
 | `__init__.py` |  |  |
 | `entry.py` | Stdio entry point: ``python -m clite.rpc.entry``. | `serve_stdio()`, `main()` |
-| `methods.py` | RPC method handlers. | `ping()`, `system_info()`, `session_create()`, `session_info()`, `session_list()`, `session_history()`, `session_close()`, `session_interrupt()`, `session_steer()`, `session_title()`, … (+22) |
+| `methods.py` | RPC method handlers. | `ping()`, `system_info()`, `session_create()`, `session_info()`, `session_list()`, `session_history()`, `session_close()`, `session_interrupt()`, `session_steer()`, `session_title()`, … (+23) |
 | `server.py` | The JSON-RPC server: one instance per client connection. | `RpcError`, `rpc_method()`, `RpcServer`, `reset_server_state()` |
 | `session.py` | ``RpcSession``: a ``ChatSession`` whose callbacks become JSON-RPC events. | `RpcSession` |
 | `transport.py` | Transports: how JSON-RPC messages leave the server. | `Transport`, `StdioTransport`, `MemoryTransport`, `WebSocketTransport` |
@@ -223,7 +225,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | --- | --- | --- |
 | `__init__.py` |  |  |
 | `base.py` | Contract registries: every JSON-RPC method, event and server request is declared once. | `Params`, `Result`, `Payload`, `Empty`, `Ok`, `MethodSpec`, `ServerRequestSpec`, `method()`, `event()`, `server_request()` |
-| `schema.py` | The protocol, declared: methods (client to server), events and server requests. | `ContextStatus`, `SessionInfo`, `StoredSession`, `TranscriptMessage`, `UsageTotals`, `CommandEntry`, `PingResult`, `SystemInfoResult`, `SessionCreateParams`, `SessionRef`, … (+59) |
+| `schema.py` | The protocol, declared: methods (client to server), events and server requests. | `ContextStatus`, `SessionInfo`, `StoredSession`, `TranscriptMessage`, `UsageTotals`, `CommandEntry`, `PingResult`, `SystemInfoResult`, `SessionCreateParams`, `SessionRef`, … (+62) |
 
 ## `clite/runtime/`
 
@@ -244,8 +246,10 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | The headless backend: HTTP + WebSocket JSON-RPC for the desktop app and the dashboard. |  |
-| `app.py` | The ASGI app behind ``clite serve`` and ``clite dashboard``. | `presented_token()`, `host_allowed()`, `origin_allowed()`, `create_app()` |
+| `app.py` | The ASGI app behind ``clite serve`` and ``clite dashboard``. | `presented_token()`, `host_allowed()`, `websocket_host_allowed()`, `origin_allowed()`, `create_app()` |
+| `openai_api.py` | OpenAI-compatible chat completions routes for the optional HTTP API. | `routes()` |
 | `run.py` | Starting the backend: bind, announce readiness, serve. | `bind_socket()`, `dashboard_url()`, `serve()` |
+| `webhooks.py` | Configured, HMAC-authenticated inbound webhooks for the optional HTTP server. | `webhook_secret_name()`, `routes()` |
 
 ## `clite/skills/`
 
@@ -325,4 +329,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 189 modul.
+Jumlah: 193 modul.

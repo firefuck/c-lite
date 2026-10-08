@@ -89,6 +89,25 @@ export interface CronCreateParams {
   repeat?: number | null;
 }
 
+export interface CronHistoryEntry {
+  job_id: string;
+  started_at: number;
+  duration_seconds: number;
+  status: string;
+  usage: Record<string, number>;
+  output_path: string | null;
+  error: string | null;
+  script_error: string | null;
+}
+
+export interface CronHistoryParams {
+  job_id?: string | null;
+}
+
+export interface CronHistoryResult {
+  entries: CronHistoryEntry[];
+}
+
 export interface CronJob {
   id: string;
   name: string;
@@ -499,6 +518,7 @@ export interface Methods {
   "plugins.set_enabled": { params: PluginSetEnabledParams; result: PluginsListResult };
   "memory.get": { params: Empty; result: MemoryGetResult };
   "cron.list": { params: Empty; result: CronListResult };
+  "cron.history": { params: CronHistoryParams; result: CronHistoryResult };
   "cron.create": { params: CronCreateParams; result: CronJob };
   "cron.action": { params: CronActionParams; result: CronListResult };
 }
@@ -528,7 +548,7 @@ export interface ServerRequests {
   "clarify.request": { params: ClarifyRequestParams; result: ClarifyRequestResult };
 }
 
-export const METHOD_NAMES = ["ping", "system.info", "session.create", "session.info", "session.list", "session.history", "session.close", "session.interrupt", "session.steer", "session.title", "session.delete", "session.compress", "session.usage", "prompt.submit", "slash.exec", "commands.catalog", "complete.slash", "config.get", "config.set", "model.list", "model.set", "providers.list", "setup.apply", "tools.list", "skills.list", "skills.view", "plugins.list", "plugins.set_enabled", "memory.get", "cron.list", "cron.create", "cron.action"] as const;
+export const METHOD_NAMES = ["ping", "system.info", "session.create", "session.info", "session.list", "session.history", "session.close", "session.interrupt", "session.steer", "session.title", "session.delete", "session.compress", "session.usage", "prompt.submit", "slash.exec", "commands.catalog", "complete.slash", "config.get", "config.set", "model.list", "model.set", "providers.list", "setup.apply", "tools.list", "skills.list", "skills.view", "plugins.list", "plugins.set_enabled", "memory.get", "cron.list", "cron.history", "cron.create", "cron.action"] as const;
 export const EVENT_TYPES = ["gateway.ready", "session.info", "turn.start", "turn.step", "message.delta", "reasoning.delta", "message.complete", "tool.start", "tool.complete", "status.update", "subagent.update", "turn.complete", "error"] as const;
 export const SERVER_REQUEST_NAMES = ["approval.request", "clarify.request"] as const;
 

@@ -384,6 +384,17 @@ def cron_list(server: RpcServer, params: Empty) -> schema.CronListResult:
     return schema.CronListResult(jobs=[_job(job) for job in get_job_store().list()])
 
 
+@rpc_method("cron.history")
+def cron_history(server: RpcServer, params: schema.CronHistoryParams) -> schema.CronHistoryResult:
+    from clite.cron.history import CronHistory
+    from clite.cron.jobs import get_job_store
+
+    store = get_job_store()
+    return schema.CronHistoryResult(
+        entries=[schema.CronHistoryEntry.model_validate(entry) for entry in CronHistory(store.directory).list(params.job_id)]
+    )
+
+
 @rpc_method("cron.create")
 def cron_create(server: RpcServer, params: schema.CronCreateParams) -> schema.CronJob:
     from clite.cron.jobs import JobError, get_job_store

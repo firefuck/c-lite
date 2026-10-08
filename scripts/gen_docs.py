@@ -145,7 +145,7 @@ def catalog() -> str:
         telegram,
     )
     from clite.plugins.hooks import FAIL_CLOSED_HOOKS, VALID_HOOKS
-    from clite.plugins.manager import get_plugin_manager
+    from clite.plugins.manager import ensure_plugins_loaded, get_plugin_manager
     from clite.plugins.shell_hooks import SHELL_HOOK_EVENTS
     from clite.providers.registry import list_providers
     from clite.rpc.contracts import schema  # noqa: F401 - importing registers everything
@@ -156,6 +156,7 @@ def catalog() -> str:
     from clite.tools.toolsets import TOOLSETS, resolve_toolset
 
     discover_builtin_tools()
+    ensure_plugins_loaded()  # bundled platform plugins extend the registry in a fresh install
     lines = [
         HEADER + "# Katalog",
         "",

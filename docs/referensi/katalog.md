@@ -118,8 +118,9 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `clite mcp` | add, list, remove and test MCP servers | `list`, `add`, `remove`, `test` |
 | `clite sessions` | list, show, search, export or delete sessions | `list`, `show`, `rename`, `delete`, `export`, `search`, `prune` |
 | `clite profile` | manage profiles (separate homes) | `list`, `show`, `create`, `use`, `delete` |
-| `clite cron` | schedule agent tasks | `list`, `add`, `pause`, `resume`, `run`, `remove`, `tick`, `daemon` |
+| `clite cron` | schedule agent tasks | `list`, `add`, `history`, `pause`, `resume`, `run`, `remove`, `tick`, `daemon` |
 | `clite gateway` | run the messaging gateway | `run`, `install`, `uninstall`, `start`, `stop`, `restart`, `logs`, `status`, `pair` |
+| `clite webhook` | manage inbound HMAC webhooks | `add`, `list`, `remove` |
 | `clite serve` | run the headless backend (for the desktop app or a remote client) |  |
 | `clite dashboard` | run the backend and open the web dashboard |  |
 | `clite tui` | start the terminal UI (needs Node.js) |  |
@@ -171,6 +172,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `plugins.set_enabled` | `name`, `enabled` | `plugins` |  |
 | `memory.get` | (kosong) | `memory?`, `user?`, `memory_limit?`, `user_limit?`, `provider?` |  |
 | `cron.list` | (kosong) | `jobs` |  |
+| `cron.history` | `job_id?` | `entries` |  |
 | `cron.create` | `prompt`, `schedule`, `name?`, `deliver?`, `repeat?` | `id`, `name?`, `prompt?`, `schedule_display?`, `enabled?`, `deliver?`, `next_run_at?`, `last_run_at?`, `last_status?`, `last_error?`, `run_count?` |  |
 | `cron.action` | `job_id`, `action` | `jobs` |  |
 
@@ -255,18 +257,26 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | Platform |
 | --- |
 | `discord` |
+| `email` |
 | `local` |
+| `matrix` |
+| `signal` |
 | `slack` |
 | `telegram` |
+| `whatsapp` |
 
 ## Plugin bawaan
 
 | Plugin | Jenis | Deskripsi |
 | --- | --- | --- |
 | `audit-log` | standalone | Record every tool call to logs/tool-audit.jsonl and show recent ones with /audit |
+| `email` | platform | Receive allowed email senders over IMAP and reply over SMTP |
 | `image-gen-openai` | backend | Image generation via the OpenAI Images API (requires OPENAI_API_KEY) |
+| `matrix` | platform | Receive and send Matrix room messages through the Client-Server API |
+| `signal` | platform | Receive and send Signal messages through a user-run signal-cli REST service |
 | `web-search-ddg` | backend | Web search via the DuckDuckGo HTML endpoint (no API key required) |
 | `web-search-tavily` | backend | Web search via the Tavily API (requires TAVILY_API_KEY) |
+| `whatsapp` | platform | Receive WhatsApp Cloud API webhooks and send replies through the Graph API |
 
 ## Skill bawaan
 
@@ -398,8 +408,14 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `cron.enabled` | `true` |
 | `cron.catch_up_missed` | `true` |
 | `cron.inactivity_timeout_seconds` | `600` |
+| `cron.delivery_max_attempts` | `3` |
+| `cron.max_concurrent_jobs` | `4` |
+| `cron.max_jobs_from_tool` | `20` |
 | `server.host` | `"127.0.0.1"` |
 | `server.port` | `0` |
+| `server.openai_api_enabled` | `false` |
+| `server.webhooks_enabled` | `false` |
+| `webhooks` | `{}` |
 | `sessions.auto_prune` | `false` |
 | `sessions.retention_days` | `90` |
 | `checkpoints.max_bytes` | `100000000` |

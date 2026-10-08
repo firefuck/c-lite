@@ -205,11 +205,15 @@ def test_a_failing_job_is_recorded_and_does_not_stop_the_others():
     store = get_job_store()
     broken = store.create("first", "every 1h", now=NOW)
     healthy = store.create("second", "every 1h", now=NOW)
-    client = ScriptedClient(
-        [ProviderHTTPError(400, '{"error": {"message": "bad request"}}', {}, "u"), text_response("fine")]
-    )
+    def response_for_job(*, messages, **_kwargs):
+        if messages[-1]["content"] == "first":
+            return ProviderHTTPError(400, '{"error": {"message": "bad request"}}', {}, "u")
+        return text_response("fine")
+
+    # Jobs run concurrently, so response order cannot identify the job that receives it.
+    client = ScriptedClient([response_for_job, response_for_job])
     outcomes = tick(NOW + 3600, client=client)
-    assert [o["status"] for o in outcomes] == ["failed", "ok"]
+    assert sorted(o["status"] for o in outcomes) == ["failed", "ok"]
     assert "bad request" in store.get(broken["id"])["last_error"]
     assert store.get(healthy["id"])["last_status"] == "ok"
 
@@ -300,6 +304,58 @@ def test_missed_runs_can_be_skipped_instead_of_caught_up(clite_home):
     job = store.create("ping", "every 1h", now=NOW)
     assert tick(NOW + 10 * 3600, client=ScriptedClient([])) == []  # ten hours late: skipped, not run
     assert store.get(job["id"])["next_run_at"] == NOW + 11 * 3600
+
+
+def test_pre_run_script_output_is_appended_to_the_job_prompt(clite_home):
+    scripts = clite_home / "cron" / "scripts"
+    scripts.mkdir(parents=True)
+    script = scripts / "collect.py"
+    script.write_text("print('queue depth: 7')\n")
+    job = get_job_store().create("Summarise the queue", "30m", script="collect.py", now=NOW)
+    client = ScriptedClient([text_response("Seven queued items.")])
+
+    run_job(job, client=client)
+
+    prompt = client.calls[0]["messages"][1]["content"]
+    assert "queue depth: 7" in prompt and prompt.rstrip().endswith("Summarise the queue")
+
+
+def test_failed_delivery_is_queued_and_retried_on_the_next_tick():
+    store = get_job_store()
+    store.create("Report status", "every 1h", deliver="origin", now=NOW)
+    attempts = []
+
+    def deliver(job, text):
+        attempts.append((job["deliver"], text))
+        if len(attempts) == 1:
+            raise ConnectionError("offline")
+
+    first = tick(NOW + 3600, client=ScriptedClient([text_response("healthy")]), deliver=deliver)
+    assert first[0]["delivered"] is False and first[0]["delivery_error"] == "offline"
+    assert tick(NOW + 3601, client=ScriptedClient([]), deliver=deliver) == []
+    assert attempts == [("origin", "healthy"), ("origin", "healthy")]
+
+
+def test_history_records_execution_details_and_can_be_filtered(clite_home):
+    store = get_job_store()
+    job = store.create("Report", "30m", now=NOW)
+    outcome = run_job(job, client=ScriptedClient([text_response("done")]))
+
+    from clite.cron.history import CronHistory
+
+    entry = CronHistory(store.directory).list(job["id"])[0]
+    assert entry["status"] == "ok" and entry["output_path"] == outcome["output_path"]
+    assert entry["duration_seconds"] >= 0 and "input_tokens" in entry["usage"]
+
+
+def test_cron_scripts_are_protected_and_the_agent_cannot_attach_one(clite_home):
+    from clite.tools.file_safety import write_denied_reason
+
+    assert write_denied_reason(clite_home / "cron" / "scripts" / "collect.py")
+    result = json.loads(
+        cronjob_tool({"action": "create", "prompt": "x", "schedule": "30m", "script": "collect.py"})
+    )
+    assert "script" in result["error"]
 
 
 def test_job_skills_are_loaded_into_the_prompt(clite_home):
