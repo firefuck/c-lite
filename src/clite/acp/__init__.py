@@ -1,7 +1,8 @@
 """Agent Client Protocol server: lets an editor (Zed and others) drive the agent over stdio.
 
-Not implemented yet. ``clite acp`` prints where the work is specified
-(``docs/roadmap/fase-6-ekosistem.md``, task F6-T4). The package exists so the layer has a
-place in the import rules (see ``tests/test_architecture.py``): it is a surface, at the same
-level as ``server``, and will sit on top of ``clite.runtime`` like every other surface.
+``clite acp`` runs it; ``python -m clite.acp.entry`` does the same thing. The protocol is an
+external one (JSON-RPC 2.0, newline-delimited on stdout) and what this agent implements of it
+is written down in ``docs/spesifikasi/acp.md``. The layer sits on ``clite.runtime`` like every
+other surface — ``acp/server.py`` is the wire, ``acp/session.py`` the translation layer, and
+neither holds conversation logic.
 """

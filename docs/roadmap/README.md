@@ -167,7 +167,7 @@ dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
 | F6-T1 | Hub skill | L | F1-T4 | ✅ |
 | F6-T2 | Porting skill bawaan dari Hermes | L | - | ⬜ |
 | F6-T3 | Plugin provider memori contoh | M | - | ✅ |
-| F6-T4 | Server ACP | L | - | ⬜ |
+| F6-T4 | Server ACP | L | - | 🟡 |
 | F6-T5 | Ekosistem plugin | L | - | ✅ |
 | F6-T6 | Context engine alternatif | M | F2-T11 | ✅ |
 | F6-T7 | Suara | L | F4-T4 | ⬜ |

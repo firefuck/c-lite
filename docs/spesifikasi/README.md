@@ -31,6 +31,7 @@ pernah dijalankan di lingkungan nyata ada di [STATUS.md](../STATUS.md).
 | `rpc` | 8 | [rpc.md](rpc.md) |
 | `gateway` | 8 | [gateway.md](gateway.md) |
 | `server` (dan dashboard) | 9 | [server.md](server.md) |
+| `acp` | 9 | [acp.md](acp.md) |
 | `cli` | 10 | [cli.md](cli.md) |
 | TUI dan klien bersama (TypeScript) | - | [tui.md](tui.md) |
 | Desktop (Electron) | - | [desktop.md](desktop.md) |

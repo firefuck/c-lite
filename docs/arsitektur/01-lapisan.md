@@ -24,7 +24,7 @@ menjelaskannya.
 | 8 | `rpc` | Server JSON-RPC | `gateway`, `server`, `cli` |
 | 8 | `gateway` | Gateway pesan dan adapter platform | `rpc`, `server`, `cli` |
 | 9 | `server` | HTTP + WebSocket di atas `rpc`, dashboard statis | `cli` |
-| 9 | `acp` | Server ACP (baru penanda tempat) | `cli` |
+| 9 | `acp` | Server Agent Client Protocol untuk editor, di atas stdio | `server`, `cli` |
 | 10 | `cli` | Perintah `clite`, REPL klasik; merangkai semuanya | - |
 | 11 | `__main__` | `python -m clite` | - |
 

@@ -18,6 +18,9 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | Agent Client Protocol server: lets an editor (Zed and others) drive the agent over stdio. |  |
+| `entry.py` | Stdio entry point: ``python -m clite.acp.entry`` and ``clite acp``. | `serve_stdio()`, `main()` |
+| `server.py` | The Agent Client Protocol server: an editor (Zed and others) drives the agent over stdio. | `AcpError`, `Method`, `acp_method()`, `mapping()`, `required_text()`, `AcpServer`, `handle_initialize()`, `handle_session_new()` |
+| `session.py` | ``AcpSession``: a ``ChatSession`` as one ACP session. | `AcpSession` |
 
 ## `clite/agent/`
 
@@ -122,10 +125,10 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | --- | --- | --- |
 | `__init__.py` | Leaf layer: brand, home resolution, config, secrets, logging, profiles. |  |
 | `brand.py` | Every product-name string in one place. |  |
-| `config.py` | Configuration: ``config.yaml`` holds settings, ``.env`` holds secrets. | `deep_merge()`, `get_path()`, `load_user_config_raw()`, `load_config()`, `config_get()`, `reset_config_cache()`, `atomic_config_update()`, `config_set()`, `config_unset()`, `migrate_config_file()`, … (+1) |
-| `config_defaults.py` | ``DEFAULT_CONFIG``: every setting, its default, and the reason for that default. |  |
+| `config.py` | Configuration: ``config.yaml`` holds settings, ``.env`` holds secrets. | `deep_merge()`, `get_path()`, `load_user_config_raw()`, `load_config()`, `config_get()`, `load_config_unexpanded()`, `reset_config_cache()`, `atomic_config_update()`, `config_set()`, `config_unset()`, … (+2) |
+| `config_defaults.py` | ``DEFAULT_CONFIG``: every setting, its default, and the reason for that default. | `is_sensitive_config_key()` |
 | `constants.py` | Profile-aware home resolution. | `set_home_override()`, `reset_home_override()`, `get_home_override()`, `home_scope()`, `get_default_root()`, `get_process_home()`, `get_home()`, `home_key()`, `display_home()`, `ensure_dir()`, … (+14) |
-| `env.py` | Secrets: ``<home>/.env`` and nothing else. | `SecretSpec`, `register_secret()`, `read_env_file()`, `load_env()`, `loaded_secret_names()`, `secret_names()`, `secret_scope()`, `get_secret()`, `save_secret()`, `remove_secret()`, … (+1) |
+| `env.py` | Secrets: ``<home>/.env`` and nothing else. | `SecretSpec`, `register_secret()`, `read_env_file()`, `load_env()`, `loaded_secret_names()`, `secret_names()`, `secret_scope()`, `get_secret()`, `save_secret()`, `remove_secret()`, … (+2) |
 | `errors.py` | Exception types shared across packages. | `CliteError`, `ConfigError`, `AuthError`, `ProviderError`, `ProfileError` |
 | `io.py` | Atomic file writes. | `atomic_write_text()`, `atomic_write_json()`, `read_json()` |
 | `locking.py` | Cross-process file locks that lock on POSIX and on Windows. | `exclusive_lock()` |
@@ -214,7 +217,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | --- | --- | --- |
 | `__init__.py` |  |  |
 | `entry.py` | Stdio entry point: ``python -m clite.rpc.entry``. | `serve_stdio()`, `main()` |
-| `methods.py` | RPC method handlers. | `ping()`, `system_info()`, `session_create()`, `session_info()`, `session_list()`, `session_history()`, `session_close()`, `session_interrupt()`, `session_steer()`, `session_title()`, … (+35) |
+| `methods.py` | RPC method handlers. | `ping()`, `system_info()`, `session_create()`, `session_info()`, `session_list()`, `session_history()`, `session_close()`, `session_interrupt()`, `session_steer()`, `session_title()`, … (+34) |
 | `server.py` | The JSON-RPC server: one instance per client connection. | `RpcError`, `rpc_method()`, `RpcServer`, `reset_server_state()` |
 | `session.py` | ``RpcSession``: a ``ChatSession`` whose callbacks become JSON-RPC events. | `RpcSession` |
 | `transport.py` | Transports: how JSON-RPC messages leave the server. | `Transport`, `StdioTransport`, `MemoryTransport`, `WebSocketTransport` |
@@ -225,7 +228,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | --- | --- | --- |
 | `__init__.py` |  |  |
 | `base.py` | Contract registries: every JSON-RPC method, event and server request is declared once. | `Params`, `Result`, `Payload`, `Empty`, `Ok`, `MethodSpec`, `ServerRequestSpec`, `method()`, `event()`, `server_request()` |
-| `schema.py` | The protocol, declared: methods (client to server), events and server requests. | `ContextStatus`, `SessionInfo`, `StoredSession`, `TranscriptMessage`, `UsageTotals`, `CommandEntry`, `PingResult`, `SystemInfoResult`, `SessionCreateParams`, `SessionRef`, … (+59) |
+| `schema.py` | The protocol, declared: methods (client to server), events and server requests. | `ContextStatus`, `SessionInfo`, `StoredSession`, `TranscriptMessage`, `UsageTotals`, `CommandEntry`, `PingResult`, `SystemInfoResult`, `SessionCreateParams`, `SessionRef`, … (+80) |
 
 ## `clite/runtime/`
 
@@ -329,4 +332,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 193 modul.
+Jumlah: 196 modul.

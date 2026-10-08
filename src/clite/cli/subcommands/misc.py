@@ -178,11 +178,9 @@ def run_memory(args: argparse.Namespace) -> int:
 
 
 def run_acp(args: argparse.Namespace) -> int:
-    print(
-        "The ACP (editor integration) server is not implemented yet. See docs/roadmap/fase-6-ekosistem.md, task F6-T4.",
-        file=sys.stderr,
-    )
-    return 2
+    from clite.acp.entry import main as acp_main
+
+    return acp_main([])
 
 
 def run_insights(args: argparse.Namespace) -> int:
@@ -211,9 +209,9 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     logs.add_argument("-f", "--follow", action="store_true")
     logs.set_defaults(handler=run_logs)
     subparsers.add_parser("memory", help="show persistent memory").set_defaults(handler=run_memory)
-    subparsers.add_parser("acp", help="editor integration server (not implemented yet)").set_defaults(
-        handler=run_acp
-    )
+    subparsers.add_parser(
+        "acp", help="Agent Client Protocol server for editors (Zed and others), on stdio"
+    ).set_defaults(handler=run_acp)
     insights = subparsers.add_parser("insights", help="show usage analytics, tokens and costs")
     insights.add_argument("--days", type=int, default=30, help="number of days to analyze (default: 30)")
     insights.add_argument("--json", action="store_true", help="output raw JSON data")

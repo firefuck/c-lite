@@ -81,6 +81,12 @@ pakai (argumen, profil tak dikenal), 130 Ctrl+C.
   (`--online` mencoba mengambil daftar model), backend terminal, plugin aktif bisa dimuat,
   shell hook yang menunggu persetujuan, dan Node.js. Kode keluar 1 bila ada masalah wajib.
 
+**`clite acp`**
+- Menjalankan server ACP di atas stdin/stdout untuk editor; tidak menerima argumen. Stdout
+  menjadi kawat protokol dan `sys.stdout` dialihkan ke stderr selama proses hidup, sehingga
+  `print` nyasar tidak merusak aliran. Proses keluar ketika stdin ditutup.
+- Yang belum ada dan yang sudah ada di [acp.md](acp.md).
+
 **Distribusi dan versi**
 - Distribusi bernama `c-lite` (MIT), sementara import dan perintah tetap `clite`.
 - `src/clite/__init__.py` adalah sumber versi tunggal; metadata `pyproject.toml` membaca
@@ -101,7 +107,7 @@ pakai (argumen, profil tak dikenal), 130 Ctrl+C.
 | Input multi-baris, tempel gambar | ✅ | F3-T1: multi-baris (`\` atau Alt+Enter) dan tempel berkurung lewat `prompt_toolkit`, dengan fallback pustaka standar. Tempel gambar: `clite chat --image` dan `/image` (F2-T6) |
 | Render Markdown dan diff | ✅ | F3-T2: `cli/markdown.py` merender jawaban BERTAHAP saat mengalir (baris lengkap dirender, baris belum selesai ditahan), blok kode tidak pernah dibaca sebagai Markdown, tabel lebar dipotong sesuai lebar terminal. Diff `patch`/`write_file` berwarna per baris dengan batas panjang. Warna datang dari skin lewat `MarkdownStyle` (perender tidak mengeja kode warna sendiri); `NO_COLOR`, terminal dumb, dan keluaran dialihkan ke berkas menghasilkan teks polos. Dijaga `tests/cli/test_markdown.py` |
 | `clite setup` | ✅ | Alur bertahap: provider, kunci (diuji dengan satu panggilan nyata; ditolak bila salah), model dari provider, toolset, dan opsi keselamatan/Telegram; flag non-interaktif menghasilkan config yang sama. Dijaga `tests/cli/test_cli.py`: F3-T5 |
-| `clite acp` | ⬜ | Hanya mencetak penunjuk ke roadmap: F6-T4 |
+| `clite acp` | 🟡 | F6-T4: server ACP di stdio untuk editor. Handshake dan `session/new` jalan dan diuji lewat pipa nyata; giliran prompt, pembatalan, tool call, dan pemuatan sesi belum. Uraiannya di [acp.md](acp.md) |
 | `clite update`, `backup`, `uninstall` | ✅ | Update mendeteksi cara pasang (git/pipx/pip) dan mengecek versi baru (`--check`); backup create membuat arsip home (rahasia hanya dengan `--include-secrets` mode 0600) dan restore memulihkan ke home baru; uninstall mencopot paket (`--purge` menghapus data home); ketiganya dijaga `detect_self_access`. Dijaga `tests/cli/test_cli.py`: F3-T6 |
 | `clite completion bash`, `zsh`, `fish` | ✅ | Skrip pelengkapan dibangun dari parser `main` yang sama, jadi tiap sub-perintah dan opsi (termasuk dari plugin) selalu ikut; nilai dinamis lewat `clite completion --values profiles\|models\|sessions` yang cepat dan tidak memuat plugin. Dijaga `tests/cli/test_cli.py` (termasuk `bash -n`) |
 | `clite auth`, `clite webhook` | ⬜ | F2-T14, F4-T10 |

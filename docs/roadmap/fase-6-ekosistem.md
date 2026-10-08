@@ -178,6 +178,23 @@ nama agent). Catat sebagai task lanjutan.
 
 **Bergantung pada.** -
 
+**Catatan.** Kemajuan per langkah:
+1. Kawat, handshake, dan sesi — **selesai 9 Oktober 2026**. `initialize` (versi yang tidak
+   dikenal dijawab dengan versi kita, bukan ditolak), `session/new` di atas `ChatSession`,
+   tabel method berjalan di pool pekerja, permintaan ke klien dengan batas waktu, dan entry
+   point `clite acp`/`python -m clite.acp.entry` yang memindahkan `sys.stdout` ke stderr.
+   Kawatnya NDJSON `clite.rpc.transport` yang sama dengan TUI. 22 tes di
+   `tests/acp/test_acp.py`, termasuk satu yang menjalankan proses sungguhan lewat pipa dan
+   satu yang memastikan `print` nyasar tidak mendarat di kawat.
+2. Giliran prompt — belum: `session/prompt`, potongan pesan dan pikiran, `stopReason`,
+   `session/cancel`.
+3. Tool call dan izin — belum: `tool_call`/`tool_call_update`, pemetaan izin ke `approve`
+   (diam berarti tolak).
+4. Rencana dan perintah — belum: `plan` dari `agent.todos`, `available_commands_update` dari
+   `command_catalog`, `session/load` memutar ulang riwayat.
+5. Dokumentasi dan uji tangan di editor — halaman `docs/spesifikasi/acp.md` sudah ada; uji
+   tangan di editor belum (tidak ada editor di lingkungan ini) dan akan dicatat apa adanya.
+
 ---
 
 ### F6-T5 Ekosistem plugin

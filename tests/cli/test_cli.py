@@ -596,7 +596,7 @@ def test_status_version_doctor_logs_memory(cli, clite_home):
     )  # nothing is waiting, so nothing is said about waiting
     cli("logs", "--errors", "-n", "5")
     assert "entries" in cli("memory")
-    cli("acp", expect=2)
+    # `clite acp` is a server on stdin/stdout, so it is driven over pipes in tests/acp/.
 
 
 def test_doctor_reports_real_problems(clite_home, capsys):
