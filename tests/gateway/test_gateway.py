@@ -182,20 +182,25 @@ def test_pairing_store_limits(clite_home):
 def test_slash_commands_work_in_chat(gateway):
     runner, local, client = gateway()
     local.inject("/status", user_id="owner")
-    assert "mock-1 via mock" in local.wait_for_messages(1)[0]
+    local.wait_for_text("mock-1 via mock")
     local.inject("first message", user_id="owner")
     local.wait_for_messages(2)
+    # Streaming sends the answer before the turn is fully unwound, so wait for the session to
+    # go idle before sending a command that is not allowed while busy.
+    deadline = time.monotonic() + 5
+    while runner.sessions["local:dm:owner"].busy and time.monotonic() < deadline:
+        time.sleep(0.02)
     old = runner.sessions["local:dm:owner"].chat.session_id
 
     local.inject("/new", user_id="owner")
-    assert local.wait_for_messages(3)[2] == "Started a new session."
+    local.wait_for_text("Started a new session.")
     assert (
         runner.session_map.get("local:dm:owner") != old
     )  # a restart resumes the new session, not the old one
     local.inject("/quit", user_id="owner")
-    assert "only available in the terminal" in local.wait_for_messages(4)[3]
+    local.wait_for_text("only available in the terminal")
     local.inject("/approve", user_id="owner")
-    assert local.wait_for_messages(5)[4] == "Nothing is waiting for approval."
+    local.wait_for_text("Nothing is waiting for approval.")
 
 
 def test_a_message_during_a_turn_interrupts_it_by_default(gateway):
@@ -263,9 +268,9 @@ def test_dangerous_command_is_approved_by_replying(gateway, tmp_path):
     prompt = local.wait_for_messages(1)[0]
     assert f"rm -rf {target}" in prompt and "/approve" in prompt and target.exists()
     local.inject("maybe?", user_id="owner")
-    assert "Please answer" in local.wait_for_messages(2)[1]
+    local.wait_for_text("Please answer")
     local.inject("/approve", user_id="owner")
-    assert local.wait_for_messages(3)[2] == "Removed."
+    local.wait_for_text("Removed.")
     assert not target.exists()
 
 
@@ -281,9 +286,9 @@ def test_deny_and_silence_both_refuse(gateway, tmp_path):
     local.inject("clean up", user_id="owner")
     local.wait_for_messages(1)
     local.inject("/deny", user_id="owner")
-    assert local.wait_for_messages(2)[1] == "Left it alone."
+    local.wait_for_text("Left it alone.")
     local.inject("clean up again", user_id="owner")
-    assert local.wait_for_messages(4)[3] == "No answer, so I did not."  # nobody replied within the timeout
+    local.wait_for_text("No answer, so I did not.")  # nobody replied within the timeout
     assert target.exists()
 
 
@@ -295,7 +300,7 @@ def test_clarifying_question_is_answered_by_number_or_text(gateway):
     local.inject("deploy", user_id="owner")
     assert local.wait_for_messages(1)[0] == "Which environment?\n1. staging\n2. production"
     local.inject("2", user_id="owner")
-    assert local.wait_for_messages(2)[1] == "Deploying to production."
+    local.wait_for_text("Deploying to production.")
     answer = json.loads(runner.sessions["local:dm:owner"].chat.agent.messages[2]["content"])
     assert answer["answer"] == "production"
 
@@ -461,8 +466,20 @@ def telegram(clite_home, monkeypatch):
 def test_telegram_round_trip(telegram):
     api, runner = telegram
     api.push("hello from telegram")
-    sent = api.wait_sent(1)
-    assert sent[0] == {"chat_id": "111", "text": "You said: hello from telegram"}
+    api.wait_sent(1)
+    # The answer streams: the message is sent as soon as the first chunk arrives and then edited
+    # into its final form, so the test waits for the final text rather than the first send.
+    expected = "You said: hello from telegram"
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        texts = [
+            body.get("text") for method, body in api.calls if method in ("sendMessage", "editMessageText")
+        ]
+        if expected in texts:
+            break
+        time.sleep(0.02)
+    else:
+        raise AssertionError(f"the answer never became {expected!r}: {texts}")
     assert ("sendChatAction", {"chat_id": "111", "action": "typing"}) in api.calls
     offsets = [body["offset"] for method, body in api.calls if method == "getUpdates"]
     assert offsets[0] == 0 and offsets[-1] == 2  # the update was acknowledged and is not fetched again
@@ -672,3 +689,115 @@ def test_send_message_is_not_offered_without_a_running_gateway(clite_home):
     (clite_home / "config.yaml").write_text("model: {provider: mock, default: mock-1}\n")
     names = [definition["function"]["name"] for definition in get_tool_definitions()]
     assert "send_message" not in names
+
+
+# ── streaming answers and tool progress (F4-T5) ────────────────────────────────────────────
+
+
+class _FakeChat:
+    """A chat that records what was sent and remembers each message's current text."""
+
+    def __init__(self, *, allow_edit: bool = True, max_length: int = 4000) -> None:
+        self.messages: dict[str, str] = {}  # message id -> current text, in send order
+        self.send_count = 0
+        self.edit_count = 0
+        self.allow_edit = allow_edit
+        self.max_length = max_length
+
+    def send(self, text: str) -> str | None:
+        self.send_count += 1
+        message_id = f"m{self.send_count}"
+        self.messages[message_id] = text
+        return message_id
+
+    def edit(self, message_id: str, text: str) -> bool:
+        if not self.allow_edit or len(text) > self.max_length:
+            return False
+        self.edit_count += 1
+        self.messages[message_id] = text
+        return True
+
+    @property
+    def transcript(self) -> str:
+        return "".join(self.messages.values())
+
+
+def test_streamed_edits_are_rate_limited_and_end_with_the_whole_answer():
+    from clite.gateway.stream import StreamSender
+
+    chat = _FakeChat()
+    clock = [0.0]
+    sender = StreamSender(chat.send, chat.edit, max_length=100, min_interval=1.0, now=lambda: clock[0])
+
+    for chunk in ("Hel", "lo ", "wor", "ld"):
+        sender.push(chunk)  # all inside the same second: only the first shows
+    assert chat.send_count == 1 and chat.edit_count == 0
+
+    clock[0] = 2.0
+    sender.push("!")
+    assert chat.edit_count == 1
+    assert sender.finish() == "Hello world!"
+    assert chat.transcript == "Hello world!"
+    assert chat.send_count == 1  # the whole answer stayed in one message
+
+
+def test_an_answer_longer_than_the_limit_is_split_across_messages():
+    from clite.gateway.stream import StreamSender
+
+    chat = _FakeChat(max_length=5)
+    sender = StreamSender(chat.send, chat.edit, max_length=5, min_interval=0.0)
+
+    whole = "abcdefghijklm"  # 13 characters, so 5 + 5 + 3
+    for character in whole:
+        sender.push(character)
+    sender.finish()
+
+    assert all(len(text) <= 5 for text in chat.messages.values())
+    assert chat.transcript == whole
+    assert chat.send_count == 3  # three messages had to exist
+
+
+def test_a_refused_edit_never_loses_the_answer():
+    from clite.gateway.stream import StreamSender
+
+    chat = _FakeChat(allow_edit=False)  # the platform rate-limits every edit
+    clock = [0.0]
+    sender = StreamSender(chat.send, chat.edit, max_length=1000, min_interval=0.0, now=lambda: clock[0])
+
+    sender.push("Hello ")
+    clock[0] = 1.0
+    sender.push("world")
+    sender.push("!")
+    assert sender.finish() == "Hello world!"
+    assert chat.transcript == "Hello world!"  # the tail was sent as its own message
+    assert chat.edit_count == 0
+
+
+def test_tool_progress_is_one_message_that_is_updated():
+    from clite.gateway.stream import ProgressReporter
+
+    chat = _FakeChat()
+    reporter = ProgressReporter(chat.send, chat.edit)
+    reporter.note("✓ read_file (0.1s)")
+    reporter.note("✓ terminal (0.2s)")
+
+    assert chat.send_count == 1  # one status message, not one per tool
+    assert chat.messages["m1"] == "✓ read_file (0.1s)\n✓ terminal (0.2s)"
+    assert reporter.lines == ["✓ read_file (0.1s)", "✓ terminal (0.2s)"]
+
+
+def test_tool_progress_keeps_only_the_last_lines():
+    from clite.gateway.stream import ProgressReporter
+
+    chat = _FakeChat()
+    reporter = ProgressReporter(chat.send, chat.edit, max_lines=2)
+    for index in range(5):
+        reporter.note(f"tool {index}")
+    assert chat.messages["m1"] == "tool 3\ntool 4"
+
+
+def test_a_platform_that_refuses_edits_still_delivers_the_whole_answer(gateway):
+    runner, local, client = gateway([text_response("the whole answer comes through")])
+    local.fail_edits = True  # every edit is rejected, as a rate-limited platform would
+    local.inject("question", user_id="owner")
+    local.wait_for_text("the whole answer comes through")

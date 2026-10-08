@@ -190,11 +190,11 @@ agent, alih-alih menunggu dalam diam.
 `gateway/stream_events.py`.
 
 **Selesai bila.**
-- [ ] Tes dengan adapter `local` yang mendukung `edit`: jumlah suntingan dibatasi lajunya dan
+- [x] Tes dengan adapter `local` yang mendukung `edit`: jumlah suntingan dibatasi lajunya dan
       isi akhirnya sama dengan jawaban utuh.
-- [ ] Tes: suntingan yang gagal (batas laju platform) tidak menggagalkan giliran; jawaban
+- [x] Tes: suntingan yang gagal (batas laju platform) tidak menggagalkan giliran; jawaban
       akhir tetap terkirim.
-- [ ] Baris "Jawaban streaming" di spesifikasi gateway menjadi ✅.
+- [x] Baris "Jawaban streaming" di spesifikasi gateway menjadi ✅.
 
 **Ukuran.** M
 

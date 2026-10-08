@@ -172,5 +172,25 @@ class TelegramAdapter(BasePlatformAdapter):
         except Exception:  # noqa: BLE001 - cosmetic
             pass
 
+    def can_edit(self) -> bool:
+        return True
+
+    def edit(self, chat_id: str, message_id: str, text: str) -> bool:
+        """Rewrite a sent message. Telegram rejects edits that change nothing, so an identical
+        body counts as success; a rate limit answers ``False`` and the answer is sent whole."""
+        payload: dict[str, Any] = {"chat_id": chat_id, "text": text}
+        if str(message_id).isdigit():
+            payload["message_id"] = int(message_id)
+        else:
+            payload["message_id"] = message_id
+        try:
+            self._call("editMessageText", payload, timeout=15)
+            return True
+        except Exception as exc:  # noqa: BLE001 - a rejected edit is not a failed turn
+            if "message is not modified" in str(exc):
+                return True
+            logger.debug("telegram edit failed for %s: %s", message_id, exc)
+            return False
+
 
 register_platform("telegram", TelegramAdapter)

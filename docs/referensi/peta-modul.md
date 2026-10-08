@@ -151,6 +151,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `pairing.py` | DM pairing: how an unknown user gets access without the owner editing config. | `PairingStore` |
 | `runner.py` | ``GatewayRunner``: the policy layer between chat platforms and the agent. | `active_runner()`, `reset_active_runners()`, `GatewaySession`, `GatewayRunner` |
 | `session.py` | Session keys: which conversation a message belongs to. | `build_session_key()`, `SessionMap` |
+| `stream.py` | Streaming answers into a chat: one message that grows, instead of a long silence. | `StreamSender`, `ProgressReporter`, `tool_line()` |
 
 ## `clite/gateway/platforms/`
 
@@ -321,4 +322,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 185 modul.
+Jumlah: 186 modul.

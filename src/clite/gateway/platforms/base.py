@@ -43,6 +43,18 @@ class BasePlatformAdapter(ABC):
     def send_typing(self, chat_id: str, *, thread_id: str | None = None) -> None:
         """Show a "typing" indicator, where the platform has one."""
 
+    def can_edit(self) -> bool:
+        """Whether this adapter implements :meth:`edit`. The runner streams only when it does."""
+        return False
+
+    def edit(self, chat_id: str, message_id: str, text: str) -> bool:
+        """Replace the text of a message this adapter sent. ``False`` when it cannot be done.
+
+        Never raises: a failed edit (rate limit, message too old) leaves the answer to be sent
+        whole at the end of the turn.
+        """
+        return False
+
     def handle_message(self, event: MessageEvent) -> None:
         """Hand an inbound message to the gateway. Never blocks on the agent's turn."""
         self.runner.dispatch(event)

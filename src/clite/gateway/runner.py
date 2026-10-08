@@ -28,6 +28,7 @@ from clite.gateway.event import CHAT_DM, MessageEvent, SessionSource
 from clite.gateway.pairing import PairingStore
 from clite.gateway.platforms.base import PLATFORMS, BasePlatformAdapter, split_message
 from clite.gateway.session import HomeChannels, SessionMap, build_session_key
+from clite.gateway.stream import ProgressReporter, StreamSender, tool_line
 from clite.plugins.hooks import has_hook, invoke_hook
 from clite.plugins.manager import ensure_plugins_loaded
 from clite.runtime.commands import BUSY_ALLOW, resolve_command, split_command
@@ -502,13 +503,49 @@ class GatewayRunner:
         adapter = self.adapters.get(session.source.platform)
         if adapter is not None:
             adapter.send_typing(session.source.chat_id, thread_id=session.source.thread_id)
+
+        # A chat that can edit a sent message gets the answer as it is written and one status
+        # message for tool activity. A chat that cannot keeps the old behaviour: typing
+        # indicator, then the whole answer.
+        stream: StreamSender | None = None
+        progress: ProgressReporter | None = None
+        if adapter is not None:
+            chat_id, thread_id = session.source.chat_id, session.source.thread_id
+
+            def send(text: str) -> str | None:
+                result = adapter.send(chat_id, text, thread_id=thread_id)
+                return result.message_id if result.success else None
+
+            def edit(message_id: str, text: str) -> bool:
+                return adapter.edit(chat_id, message_id, text)
+
+            if adapter.can_edit():
+                stream = StreamSender(send, edit, max_length=adapter.max_message_length)
+                if session.chat.tool_progress != "off":
+                    progress = ProgressReporter(send, edit)
+
+        callbacks = session.chat.callbacks
+        saved_on_delta, saved_on_tool = callbacks.on_delta, callbacks.on_tool_complete
+        if stream is not None:
+            callbacks.on_delta = stream.push
+        if progress is not None:
+            callbacks.on_tool_complete = lambda _call_id, name, _args, result, seconds: progress.note(
+                tool_line(name, result, seconds)
+            )
         try:
             result = session.chat.submit(turn.text)
         except Exception as exc:  # noqa: BLE001
             logger.exception("gateway turn failed for %s", session.key)
             self.reply(session.source, f"Something went wrong: {type(exc).__name__}: {exc}")
             return
+        finally:
+            callbacks.on_delta, callbacks.on_tool_complete = saved_on_delta, saved_on_tool
         session.last_used = time.monotonic()
+        if stream is not None:
+            # Settle whatever is already on screen. An interrupted turn has no final answer, so
+            # it is left as the partial text the user already saw rather than a placeholder.
+            stream.finish(None if result.interrupted else (result.final_response or "(no response)"))
         if result.interrupted:
             return  # the user moved on; whatever interrupted this turn runs next
-        self.reply(session.source, result.final_response or "(no response)")
+        if stream is None:
+            self.reply(session.source, result.final_response or "(no response)")

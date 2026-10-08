@@ -100,7 +100,7 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
 | Adapter Slack | 🟡 | Socket Mode dan Web API diuji terhadap server tiruan lokal; event diakui (ack), deduplikasi event ganda, balasan di thread. Belum terhadap ruang kerja Slack sungguhan: F4-T2 |
 | WhatsApp, Signal, Matrix, email, lainnya | ⬜ | F4-T3 |
 | Lampiran masuk dan keluar (gambar, suara, dokumen) | ⬜ | `MessageEvent.attachments` ada, belum dipakai: F4-T4 |
-| Jawaban streaming (menyunting pesan), progres tool | ⬜ | Hanya `send_typing`: F4-T5 |
+| Jawaban streaming (menyunting pesan), progres tool | ✅ | Adapter yang bisa menyunting (`can_edit`/`edit`) mendapat jawaban bertahap: `gateway/stream.py` mengirim satu pesan lalu menyuntingnya dengan batas laju, dan satu pesan status yang diperbarui untuk progres tool (`display.tool_progress`). Suntingan yang ditolak platform tidak kehilangan jawaban (sisa dikirim sebagai pesan baru). Adapter tanpa `edit` tetap seperti semula. Dijaga `tests/gateway/test_gateway.py`: F4-T5 |
 | Layanan sistem (systemd, launchd), restart dengan drain | ⬜ | `clite gateway run` berjalan di latar depan: F4-T6 |
 | Kebijakan reset sesi (menganggur, harian), home channel | ✅ | `gateway.session_reset` (`idle`, `daily`), notifikasi reset sesi satu kali; `/sethome` menetapkan home channel; cron `deliver: <platform>` mengirim ke home channel platform tersebut. Dijaga `tests/gateway/test_gateway.py`: F4-T7 |
 | Tool `send_message` | ✅ | Agent mengirim ke chat lain lintas platform; hanya ditawarkan saat gateway berjalan, tujuan dibatasi (chat asal, home channel, `gateway.send_targets`). Dijaga `tests/gateway/test_gateway.py`: F4-T8 |
