@@ -141,6 +141,9 @@ class AcpServer:
         self._next_request = 0
         self._in_flight = 0  # requests submitted but not yet answered
         self._pending: dict[str, concurrent.futures.Future] = {}
+        # What to run once a request's reply has gone out (see ``after_reply``), kept per
+        # thread: two requests answer on two workers and their replies are not ours to reorder.
+        self._after_reply = threading.local()
         self._pool = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="clite-acp")
 
     # ── outgoing ─────────────────────────────────────────────────────────────────────────
@@ -171,6 +174,28 @@ class AcpServer:
         finally:
             self._pending.pop(request_id, None)
         return reply if isinstance(reply, dict) else None
+
+    def after_reply(self, action: Callable[[], None]) -> None:
+        """Run ``action`` once this request's reply has been written.
+
+        ``session/new`` hands back an id the client has not been told yet, and an editor that
+        keeps state per session would drop an update naming a session it has never heard of.
+        Queuing the work until the reply is out keeps the two in order without the handler
+        having to know when that is.
+        """
+        pending = getattr(self._after_reply, "value", None)
+        if pending is None:
+            pending = self._after_reply.value = []
+        pending.append(action)
+
+    def _drain_after_reply(self) -> None:
+        pending = getattr(self._after_reply, "value", None)
+        self._after_reply.value = []
+        for action in pending or []:
+            try:
+                action()
+            except Exception:  # noqa: BLE001 - a late announcement must not fail the request
+                logger.debug("an after-reply action failed", exc_info=True)
 
     def _respond(self, request_id: Any, result: Any = None, error: AcpError | None = None) -> None:
         if request_id is NO_REPLY:
@@ -238,6 +263,9 @@ class AcpServer:
         else:
             self._respond(request_id, result)
         finally:
+            # After the reply, and before this request stops counting as in flight: the
+            # announcement belongs to a connection that is still there to receive it.
+            self._drain_after_reply()
             with self._lock:
                 self._in_flight = max(0, self._in_flight - 1)
 
@@ -359,6 +387,9 @@ def handle_session_new(server: AcpServer, params: dict[str, Any]) -> dict[str, A
             len(servers) if isinstance(servers, list) else 1,
         )
     session = server.new_session(cwd=cwd)
+    # The id means nothing to the client until this reply arrives, so the list of commands it
+    # may type follows the reply rather than racing it.
+    server.after_reply(session.announce_commands)
     return {"sessionId": session.id}
 
 

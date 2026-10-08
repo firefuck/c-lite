@@ -13,6 +13,9 @@ ACP asks for a turn the way the RPC protocol does not: ``session/prompt`` is one
 result is the end of the turn, so its handler blocks for the length of the turn while the text
 travels ahead of it as notifications. That is why the protocol is spoken on a worker pool (see
 ``clite.acp.server``): ``session/cancel`` has to be read while the prompt is still running.
+
+A slash command arrives the same way as any other prompt — that is how ACP runs one — and is
+answered by the command itself, without the model ever seeing it.
 """
 
 from __future__ import annotations
@@ -24,8 +27,9 @@ from typing import TYPE_CHECKING, Any
 from clite.acp.server import REQUEST_FAILED, SESSION_BUSY, AcpError
 from clite.agent import AgentCallbacks, TurnResult
 from clite.core.config import config_get
+from clite.runtime.commands import command_catalog
 from clite.runtime.presentation import result_failed, tool_preview
-from clite.runtime.session import ChatSession
+from clite.runtime.session import ChatSession, SlashResult
 
 if TYPE_CHECKING:
     from clite.acp.server import AcpServer
@@ -92,6 +96,25 @@ def plan_entries(todos: list[dict[str, Any]]) -> list[dict[str, Any]]:
             {"content": str(item.get("content") or ""), "priority": PLAN_PRIORITY, "status": status}
         )
     return entries
+
+
+def command_list(commands: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The slash commands an editor may type, in the protocol's own words.
+
+    A name and a description, plus the argument hint — the one thing ACP has a place for. The
+    rest of the catalog (aliases, category, subcommands) is the terminal's business.
+    """
+    listed: list[dict[str, Any]] = []
+    for entry in commands:
+        command: dict[str, Any] = {
+            "name": str(entry.get("name") or ""),
+            "description": str(entry.get("description") or ""),
+        }
+        hint = entry.get("args_hint")
+        if hint:
+            command["input"] = {"hint": str(hint)}
+        listed.append(command)
+    return listed
 
 
 def permission_choice(reply: dict[str, Any] | None) -> str:
@@ -284,10 +307,32 @@ class AcpSession:
         if not self._running.acquire(blocking=False):
             raise AcpError(SESSION_BUSY, "a turn is already running in this session")
         try:
-            result = self.chat.submit(text)
+            result = self.chat.handle_input(text)
         finally:
             self._running.release()
+        if isinstance(result, SlashResult):
+            # ACP has no method for running a command: the client types it as a prompt like any
+            # other, so the command's own output is the answer, and the turn is over as soon as
+            # it is written. The model is never asked.
+            self._chunk("agent_message_chunk", result.text)
+            return "end_turn"
         return stop_reason(result)
+
+    def announce_commands(self) -> None:
+        """Tell the client which commands it can type.
+
+        Sent once, when the session is made. A command list that changed under us — a plugin
+        reloaded, a quick command edited — is not re-sent, so a client keeps showing what it
+        was first told.
+        """
+        self._update(
+            {
+                "sessionUpdate": "available_commands_update",
+                "availableCommands": command_list(
+                    command_catalog(self.chat.platform, cwd=self.cwd or self.chat.agent.cwd)
+                ),
+            }
+        )
 
     def cancel(self) -> None:
         """Ask the running turn to stop; its prompt request answers ``cancelled``."""

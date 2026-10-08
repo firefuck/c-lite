@@ -121,6 +121,25 @@ dibangun `runtime.build_agent` dengan platform `acp`.
   tiga status; butir yang dibatalkan (`cancelled`) tidak ikut sama sekali — menampilkannya
   sebagai `completed` akan bilang pekerjaannya selesai.
 
+**Perintah**
+- Daftar perintah yang bisa diketik klien dikirim sebagai `available_commands_update` setelah
+  balasan `session/new` — bukan sebelumnya: id sesi baru diketahui klien saat balasannya tiba,
+  dan editor yang menyimpan keadaan per sesi akan membuang pembaruan untuk sesi yang belum
+  pernah didengarnya.
+- Isinya nama, deskripsi, dan `input.hint` bila perintahnya menerima argumen (`args_hint` di
+  katalog kita). Alias, kategori, dan subperintah tidak ikut: itu urusan terminal.
+- Yang ditawarkan hanya perintah yang masuk akal di permukaan ini: `quit`, `skin`, `logs`,
+  `copy` hanya untuk terminal, jadi tidak ikut.
+- ACP tidak punya method untuk menjalankan perintah: klien mengirim teksnya sebagai
+  `session/prompt` biasa (`/web agent client protocol`). Karena itu `session/prompt` lewat
+  `handle_input`: teks yang merupakan perintah dijawab oleh perintahnya sebagai
+  `agent_message_chunk` dengan `stopReason: end_turn`, dan model tidak pernah dipanggil.
+  Perintah yang khas terminal dibalas "only available in the terminal", bukan dijalankan;
+  `/nope` dibalas "Unknown command: /nope". Teks yang hanya kebetulan berawalan garis miring
+  (`/ is the root`) tetap jadi prompt biasa.
+- Daftarnya dikirim sekali saat sesi dibuat. Perubahan di tengah jalan (`/reload`, plugin baru,
+  quick command yang diedit) tidak diberitahukan ulang.
+
 **Stdio**
 - Stdout adalah kawat. `entry.py` mengalihkan `sys.stdout` ke stderr selama proses hidup,
   sehingga `print` nyasar dari sebuah tool tidak merusak aliran protokol.
@@ -137,7 +156,7 @@ dibangun `runtime.build_agent` dengan platform `acp`.
 | `session/cancel` | ✅ | Notifikasi, dibaca di thread pembaca; prompt menjawab `cancelled` |
 | Pembaruan tool call dan izin | ✅ | F6-T4: `tool_call`/`tool_call_update` dengan kind, status, `rawInput`, `locations`; izin lewat `session/request_permission` ke callback `approve`, dengan diam berarti tolak. Dijaga `tests/acp/test_acp.py`, termasuk satu giliran sungguhan lewat pipa dengan tool call dan permintaan izin |
 | `plan` dari `agent.todos` | ✅ | F6-T4: dikirim utuh setiap tool `todo` selesai; butir `cancelled` tidak ikut. Dijaga `tests/acp/test_acp.py` |
-| `available_commands_update` | ⬜ | F6-T4 |
+| `available_commands_update` | ✅ | F6-T4: dikirim setelah balasan `session/new`; perintah dijalankan sebagai prompt biasa lewat `handle_input`. Dijaga `tests/acp/test_acp.py` |
 | `session/load`: memutar ulang riwayat tersimpan | ⬜ | F6-T4 |
 | Kemampuan sisi klien (editor menjalankan terminal, membaca berkas) | ⬜ | Di luar lingkup F6-T4 |
 
@@ -152,6 +171,8 @@ dibangun `runtime.build_agent` dengan platform `acp`.
 ## Celah yang diketahui
 
 - Belum pernah dijalankan di editor sungguhan; hanya lewat klien berskrip dan pipa nyata.
+- Daftar perintah dikirim sekali saat sesi dibuat: plugin yang dimuat ulang atau quick command
+  yang baru diedit tidak muncul sampai sesi baru dibuat.
 - Permintaan MCP dari klien dibuang diam-diam kecuali satu baris peringatan di log.
 - Tidak ada batas ukuran pesan masuk.
 - Perubahan berkas tidak dikirim sebagai blok `diff` (hanya teks hasil tool yang dipotong),

@@ -21,6 +21,7 @@ from clite.acp.entry import serve_stdio
 from clite.acp.server import ACP_METHODS, PROTOCOL_VERSION, AcpError, AcpServer
 from clite.acp.session import (
     PERMISSION_OPTIONS,
+    command_list,
     permission_choice,
     plan_entries,
     stop_reason,
@@ -92,6 +93,21 @@ class Client:
             if message.get("method") == "session/update"
             and (name is None or message["params"]["update"]["sessionUpdate"] == name)
         ]
+
+    def wait_update(self, name: str, timeout: float = 5.0) -> dict:
+        """Block until an update of that kind arrives and hand back its params."""
+        message = self.transport.wait_for(
+            lambda message: message.get("method") == "session/update"
+            and message["params"]["update"]["sessionUpdate"] == name,
+            timeout,
+        )
+        return message["params"]
+
+    def answer_text(self) -> str:
+        """Everything the agent said as message text, joined."""
+        return "".join(
+            update["update"]["content"]["text"] for update in self.updates("agent_message_chunk")
+        )
 
     def initialize(self) -> dict:
         return self.call(
@@ -301,6 +317,107 @@ def test_the_method_table_is_the_protocol_we_implement():
     # Cancel is read on the thread that reads the socket, not on the pool: it has to be acted
     # on while the prompt it cancels is still occupying a worker.
     assert ACP_METHODS["session/cancel"].inline is True
+
+
+# ── commands ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_the_command_list_keeps_only_what_a_client_can_show():
+    """The catalog is the terminal's; an editor gets the name, the description and the hint."""
+    catalog = [
+        {
+            "name": "web",
+            "description": "Search the web",
+            "category": "Info",
+            "aliases": ["w"],
+            "args_hint": "query",
+            "subcommands": [],
+            "kind": "builtin",
+        },
+        {
+            "name": "help",
+            "description": "List commands",
+            "category": "Info",
+            "aliases": ["?"],
+            "args_hint": "",
+            "subcommands": [],
+            "kind": "builtin",
+        },
+    ]
+    assert command_list(catalog) == [
+        {"name": "web", "description": "Search the web", "input": {"hint": "query"}},
+        {"name": "help", "description": "List commands"},  # nothing to type after it
+    ]
+
+
+def test_session_new_tells_the_client_which_commands_it_can_type(client):
+    acp = client()
+    acp.initialize()
+    request_id = acp.send("session/new", {"cwd": "/tmp/project"})
+    reply = acp.reply_to(request_id)
+    params = acp.wait_update("available_commands_update")
+    assert params["sessionId"] == reply["result"]["sessionId"]
+
+    commands = {entry["name"]: entry for entry in params["update"]["availableCommands"]}
+    assert {"help", "status", "model"} <= set(commands)
+    assert all(entry["description"] for entry in commands.values())
+    assert commands["insights"]["input"] == {"hint": "[days]"}
+    assert "input" not in commands["help"]
+
+    # The session id is in the reply the client is waiting for; the list follows it, so an
+    # editor that keeps state per session never sees a command list for a session it has not
+    # been told about.
+    reply_at = next(
+        index for index, message in enumerate(acp.transport.messages) if message.get("id") == request_id
+    )
+    update_at = next(
+        index
+        for index, message in enumerate(acp.transport.messages)
+        if message.get("method") == "session/update"
+    )
+    assert reply_at < update_at
+
+
+def test_a_command_the_terminal_keeps_to_itself_is_not_offered(client):
+    """``quit`` and the rest read the terminal or move its state; an editor has no such thing."""
+    acp = client()
+    acp.new_session()
+    names = {entry["name"] for entry in acp.wait_update("available_commands_update")["update"]["availableCommands"]}
+    assert {"quit", "skin", "logs", "copy"}.isdisjoint(names)
+
+
+def test_a_slash_command_is_answered_by_the_command_and_not_by_the_model(client):
+    acp = client()
+    session_id = acp.new_session()
+    assert acp.prompt(session_id, "/status")["result"] == {"stopReason": "end_turn"}
+    assert "Session:" in acp.answer_text()
+    assert acp.scripted.calls == []  # the model was never asked
+
+
+def test_an_unknown_command_is_answered_with_a_refusal_and_not_by_the_model(client):
+    acp = client()
+    session_id = acp.new_session()
+    assert acp.prompt(session_id, "/nope")["result"] == {"stopReason": "end_turn"}
+    assert "Unknown command: /nope" in acp.answer_text()
+    assert acp.scripted.calls == []
+
+
+def test_a_terminal_only_command_typed_at_an_editor_is_refused(client):
+    acp = client()
+    session_id = acp.new_session()
+    acp.prompt(session_id, "/quit")
+    assert "only available in the terminal" in acp.answer_text()
+    assert acp.scripted.calls == []
+    assert acp.server.sessions  # the session is still there: nothing quit
+
+
+def test_a_message_that_only_looks_like_a_command_goes_to_the_model(client):
+    acp = client([text_response("yes, / is the root directory")])
+    session_id = acp.new_session()
+    assert acp.prompt(session_id, "/ is the root directory, right?")["result"] == {
+        "stopReason": "end_turn"
+    }
+    assert len(acp.scripted.calls) == 1  # "/ " is text, not a command
 
 
 # ── a turn ───────────────────────────────────────────────────────────────────────────────
@@ -785,7 +902,8 @@ def test_a_stray_print_never_reaches_the_wire(clite_home):
         sys.stdout = saved_stdout
     lines = [line for line in wire.getvalue().splitlines() if line.strip()]
     messages = [json.loads(line) for line in lines]  # every line is a protocol message
-    assert sorted(message["id"] for message in messages) == [1, 2]  # both were answered
+    replies = [message["id"] for message in messages if "id" in message]
+    assert sorted(replies) == [1, 2]  # both requests were answered
     assert "stray output" not in wire.getvalue()
 
 
