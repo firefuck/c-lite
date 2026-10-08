@@ -175,6 +175,9 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `skills.view` | `name`, `file_path?` | `name`, `content`, `linked_files?` |  |
 | `plugins.list` | (kosong) | `plugins` |  |
 | `plugins.set_enabled` | `name`, `enabled` | `plugins` |  |
+| `credentials.list` | (kosong) | `credentials` | Known credential names and whether they are set. |
+| `credentials.set` | `name`, `value` | `credentials` | Store one credential in .env; the value is never read back. |
+| `credentials.delete` | `name` | `credentials` | Remove one stored credential. |
 | `memory.get` | (kosong) | `memory?`, `user?`, `memory_limit?`, `user_limit?`, `provider?` |  |
 | `cron.list` | (kosong) | `jobs` |  |
 | `cron.create` | `prompt`, `schedule`, `name?`, `deliver?`, `repeat?` | `id`, `name?`, `prompt?`, `schedule_display?`, `enabled?`, `deliver?`, `next_run_at?`, `last_run_at?`, `last_status?`, `last_error?`, `run_count?` |  |

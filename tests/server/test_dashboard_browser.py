@@ -220,6 +220,33 @@ def test_config_page_edits_a_setting_and_confirms_a_sensitive_one(dashboard, cli
     assert "mode: never" in (clite_home / "config.yaml").read_text()
 
 
+def test_credentials_page_stores_and_deletes_a_secret(dashboard, clite_home):
+    from clite.core.env import SecretSpec, register_secret
+
+    register_secret(SecretSpec(name="CLITE_PAGE_CREDENTIAL", description="for the browser test"))
+    dashboard.click("[data-tab=credentials]")
+    row = "#panel-credentials .row[data-name='CLITE_PAGE_CREDENTIAL']"
+    dashboard.wait_for_selector(row)
+    assert "not set" in dashboard.inner_text(row)
+
+    dashboard.fill(f"{row} input", "sk-page-1234567890")
+    dashboard.click(f"{row} [data-action=save]")
+    # The row is rebuilt from the server's answer, which never carries the value.
+    dashboard.wait_for_function(
+        f"document.querySelector(\"{row}\").classList.contains('filled')"
+    )
+    assert "sk-page-1234567890" in (clite_home / ".env").read_text()
+    assert dashboard.input_value(f"{row} input") == ""  # never read back into the page
+
+    dashboard.click(f"{row} [data-action=delete]")
+    dashboard.wait_for_function("document.querySelector('dialog').open === true")
+    dashboard.click("dialog [data-confirm=yes]")
+    dashboard.wait_for_function(
+        f"!document.querySelector(\"{row}\").classList.contains('filled')"
+    )
+    assert "sk-page-1234567890" not in (clite_home / ".env").read_text()
+
+
 def test_other_tabs_list_what_is_installed(dashboard):
     dashboard.click("[data-tab=skills]")
     dashboard.wait_for_selector("#panel-skills .row")

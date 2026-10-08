@@ -161,6 +161,20 @@ def _quote(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
+def secret_source(name: str) -> str:
+    """Where a credential's value comes from: ``"env"``, ``"file"``, or ``""`` when unset.
+
+    ``.env`` wins over the shell because that is the order ``load_env`` applies, and with a
+    secret scope bound (one profile's activity) only that scope counts.
+    """
+    scope = _SECRET_SCOPE.get()
+    if scope is not None:
+        return "env" if scope.get(name) else ""
+    if name in read_env_file():
+        return "file"
+    return "env" if os.environ.get(name) else ""
+
+
 def mask_secret(value: str | None) -> str:
     """A credential as it may be shown: first and last four characters only."""
     if not value:

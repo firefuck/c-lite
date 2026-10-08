@@ -488,6 +488,25 @@ class PluginSetEnabledParams(Params):
     enabled: bool
 
 
+class CredentialEntry(Result):
+    name: str
+    filled: bool = False
+    source: str = ""  # "env" (the shell), "file" (.env), or "" when nothing is set
+
+
+class CredentialsListResult(Result):
+    credentials: list[CredentialEntry]
+
+
+class CredentialSetParams(Params):
+    name: str
+    value: str
+
+
+class CredentialNameParams(Params):
+    name: str
+
+
 class MemoryGetResult(Result):
     memory: list[str] = []
     user: list[str] = []
@@ -532,6 +551,14 @@ method("skills.list", Empty, SkillsListResult)
 method("skills.view", SkillViewParams, SkillViewResult)
 method("plugins.list", Empty, PluginsListResult)
 method("plugins.set_enabled", PluginSetEnabledParams, PluginsListResult)
+method("credentials.list", Empty, CredentialsListResult, "Known credential names and whether they are set.")
+method(
+    "credentials.set",
+    CredentialSetParams,
+    CredentialsListResult,
+    "Store one credential in .env; the value is never read back.",
+)
+method("credentials.delete", CredentialNameParams, CredentialsListResult, "Remove one stored credential.")
 method("memory.get", Empty, MemoryGetResult)
 method("cron.list", Empty, CronListResult)
 method("cron.create", CronCreateParams, CronJob)

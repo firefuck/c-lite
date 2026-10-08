@@ -89,6 +89,25 @@ export interface ContextStatus {
   provider: string;
 }
 
+export interface CredentialEntry {
+  name: string;
+  filled: boolean;
+  source: string;
+}
+
+export interface CredentialNameParams {
+  name: string;
+}
+
+export interface CredentialSetParams {
+  name: string;
+  value: string;
+}
+
+export interface CredentialsListResult {
+  credentials: CredentialEntry[];
+}
+
 export interface CronActionParams {
   job_id: string;
   action: "pause" | "resume" | "run" | "remove";
@@ -574,6 +593,12 @@ export interface Methods {
   "skills.view": { params: SkillViewParams; result: SkillViewResult };
   "plugins.list": { params: Empty; result: PluginsListResult };
   "plugins.set_enabled": { params: PluginSetEnabledParams; result: PluginsListResult };
+  /** Known credential names and whether they are set. */
+  "credentials.list": { params: Empty; result: CredentialsListResult };
+  /** Store one credential in .env; the value is never read back. */
+  "credentials.set": { params: CredentialSetParams; result: CredentialsListResult };
+  /** Remove one stored credential. */
+  "credentials.delete": { params: CredentialNameParams; result: CredentialsListResult };
   "memory.get": { params: Empty; result: MemoryGetResult };
   "cron.list": { params: Empty; result: CronListResult };
   "cron.create": { params: CronCreateParams; result: CronJob };
@@ -605,7 +630,7 @@ export interface ServerRequests {
   "clarify.request": { params: ClarifyRequestParams; result: ClarifyRequestResult };
 }
 
-export const METHOD_NAMES = ["ping", "system.info", "session.create", "session.info", "session.list", "session.history", "session.close", "session.interrupt", "session.steer", "session.title", "session.delete", "session.rename", "session.search", "session.pin", "session.archive", "session.export", "session.compress", "session.usage", "prompt.submit", "slash.exec", "commands.catalog", "complete.slash", "config.get", "config.list", "config.set", "model.list", "model.set", "providers.list", "setup.apply", "tools.list", "skills.list", "skills.view", "plugins.list", "plugins.set_enabled", "memory.get", "cron.list", "cron.create", "cron.action"] as const;
+export const METHOD_NAMES = ["ping", "system.info", "session.create", "session.info", "session.list", "session.history", "session.close", "session.interrupt", "session.steer", "session.title", "session.delete", "session.rename", "session.search", "session.pin", "session.archive", "session.export", "session.compress", "session.usage", "prompt.submit", "slash.exec", "commands.catalog", "complete.slash", "config.get", "config.list", "config.set", "model.list", "model.set", "providers.list", "setup.apply", "tools.list", "skills.list", "skills.view", "plugins.list", "plugins.set_enabled", "credentials.list", "credentials.set", "credentials.delete", "memory.get", "cron.list", "cron.create", "cron.action"] as const;
 export const EVENT_TYPES = ["gateway.ready", "session.info", "turn.start", "turn.step", "message.delta", "reasoning.delta", "message.complete", "tool.start", "tool.complete", "status.update", "subagent.update", "turn.complete", "error"] as const;
 export const SERVER_REQUEST_NAMES = ["approval.request", "clarify.request"] as const;
 

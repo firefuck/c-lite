@@ -541,6 +541,46 @@ def test_config_set_needs_confirmation_for_security_keys(client):
     assert rpc.call("config.set", {"key": "display.skin", "value": "mono"})["ok"] is True
 
 
+def test_credentials_are_listed_but_never_read_back(client, clite_home):
+    from clite.core.env import SecretSpec, register_secret
+
+    register_secret(SecretSpec(name="CLITE_TEST_CREDENTIAL", description="a credential for this test"))
+    rpc = client()
+    listed = {entry["name"]: entry for entry in rpc.call("credentials.list")["credentials"]}
+    assert listed["CLITE_TEST_CREDENTIAL"]["filled"] is False
+
+    after = rpc.call(
+        "credentials.set", {"name": "clite_test_credential", "value": "sk-test-1234567890"}
+    )
+    entry = {e["name"]: e for e in after["credentials"]}["CLITE_TEST_CREDENTIAL"]
+    assert entry["filled"] is True and entry["source"] == "file"
+    assert "sk-test-1234567890" in (clite_home / ".env").read_text()
+    assert rpc.call("credentials.list")["credentials"] == after["credentials"]
+
+    # No method hands a credential value back to the client.
+    secret = "sk-test-1234567890"
+    for method, params in [
+        ("credentials.list", {}),
+        ("config.get", {}),
+        ("config.list", {}),
+        ("system.info", {}),
+        ("providers.list", {}),
+    ]:
+        assert secret not in json.dumps(rpc.call(method, params)), method
+
+    assert "unknown credential" in rpc.error("credentials.set", {"name": "NOPE_KEY", "value": "x"})["message"]
+    assert "empty value" in rpc.error(
+        "credentials.set", {"name": "CLITE_TEST_CREDENTIAL", "value": ""}
+    )["message"]
+
+    removed = rpc.call("credentials.delete", {"name": "CLITE_TEST_CREDENTIAL"})
+    assert {e["name"]: e for e in removed["credentials"]}["CLITE_TEST_CREDENTIAL"]["filled"] is False
+    assert "sk-test-1234567890" not in (clite_home / ".env").read_text()
+    assert "no stored credential" in rpc.error(
+        "credentials.delete", {"name": "CLITE_TEST_CREDENTIAL"}
+    )["message"]
+
+
 def test_config_tools_skills_plugins_memory_cron(client):
     rpc = client()
     rpc.call("config.set", {"key": "display.skin", "value": "mono"})

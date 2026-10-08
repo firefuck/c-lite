@@ -16,6 +16,7 @@ from clite.agent.attachments import AttachmentError
 from clite.core.config import config_set, get_path, load_config, load_config_unexpanded
 from clite.core.config_defaults import DEFAULT_CONFIG, is_sensitive_config_key
 from clite.core.constants import display_home
+from clite.core.env import secret_names
 from clite.core.errors import CliteError
 from clite.core.profiles import get_active_profile_name
 from clite.plugins.manager import get_plugin_manager, set_plugin_enabled
@@ -469,6 +470,49 @@ def plugins_set_enabled(server: RpcServer, params: schema.PluginSetEnabledParams
         raise RpcError(REQUEST_FAILED, f"no plugin named {params.name!r}")
     set_plugin_enabled(params.name, params.enabled)
     return _plugins()
+
+
+def _credentials() -> schema.CredentialsListResult:
+    from clite.core.env import secret_source
+
+    entries = []
+    for name in sorted(secret_names()):
+        source = secret_source(name)
+        entries.append(schema.CredentialEntry(name=name, filled=bool(source), source=source))
+    return schema.CredentialsListResult(credentials=entries)
+
+
+@rpc_method("credentials.list")
+def credentials_list(server: RpcServer, params: Empty) -> schema.CredentialsListResult:
+    return _credentials()
+
+
+@rpc_method("credentials.set")
+def credentials_set(server: RpcServer, params: schema.CredentialSetParams) -> schema.CredentialsListResult:
+    from clite.core.env import save_secret
+
+    name = params.name.strip().upper()
+    if not name:
+        raise RpcError(REQUEST_FAILED, "a credential needs a name")
+    if name not in secret_names():
+        raise RpcError(REQUEST_FAILED, f"unknown credential {params.name!r}")
+    if not params.value:
+        raise RpcError(REQUEST_FAILED, "an empty value would store nothing; delete it instead")
+    try:
+        save_secret(name, params.value)
+    except ValueError as exc:
+        raise RpcError(REQUEST_FAILED, str(exc)) from exc
+    return _credentials()
+
+
+@rpc_method("credentials.delete")
+def credentials_delete(server: RpcServer, params: schema.CredentialNameParams) -> schema.CredentialsListResult:
+    from clite.core.env import remove_secret
+
+    name = params.name.strip()
+    if not remove_secret(name):
+        raise RpcError(REQUEST_FAILED, f"no stored credential named {name!r}")
+    return _credentials()
 
 
 @rpc_method("memory.get")

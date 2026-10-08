@@ -85,6 +85,13 @@ Daftar lengkap method, event, dan permintaan server ada di
   `load_config_unexpanded` karena keduanya untuk ditampilkan.
 - `config.list` mengembalikan setiap kunci `DEFAULT_CONFIG` yang rata (dotted), lengkap dengan
   nilai efektif, nilai default, grup (segmen pertama), dan tanda `sensitive`.
+**Kredensial**
+- `credentials.list` mengembalikan nama yang dikenal, apakah terisi, dan dari mana nilainya
+  (`env` dari shell, `file` dari `.env`). Nilainya sendiri **tidak pernah** dikirim: hanya
+  `credentials.set` (menulis ke `.env`) dan `credentials.delete` yang menyentuhnya. Nama yang
+  tidak dikenal ditolak; nilai kosong juga, karena menghapus punya jalurnya sendiri.
+
+**Konfigurasi**
 - `config.set` menolak kunci yang mengubah perilaku keamanan (`approvals.*`,
   `gateway.allow_all_users`, `plugins.enabled`, `hooks`, `command_allowlist`, `mcp_servers`)
   kecuali permintaan membawa `confirm: true`. Klien yang menampilkan konfirmasi mengirimnya
@@ -104,7 +111,7 @@ Daftar lengkap method, event, dan permintaan server ada di
 
 | Fitur | Status | Catatan |
 |---|---|---|
-| 38 method, 13 event, 2 permintaan server | ✅ | Hermes: 251 method, 69 event, 13 permintaan server |
+| 41 method, 13 event, 2 permintaan server | ✅ | Hermes: 251 method, 69 event, 13 permintaan server |
 | Transport stdio dan WebSocket | ✅ | |
 | Generator TypeScript dan pemeriksaan kesegaran | ✅ | |
 | Klien TypeScript bersama (`apps/shared`) | ✅ | 21 tes |
@@ -113,6 +120,7 @@ Daftar lengkap method, event, dan permintaan server ada di
 | Method untuk profil, MCP, hook, log | ⬜ | F5-T2 |
 | Halaman Sesi: cari, ganti judul, sematkan, arsipkan, hapus, ekspor | ✅ | `session.search`/`rename`/`pin`/`archive`/`export`; halaman Sesi di dashboard (`test_dashboard_browser.py`) |
 | Halaman Config: nilai efektif + default, sunting dengan konfirmasi | ✅ | `config.list`, `config.set.confirm`; `config.get` tidak lagi mengekspansi `${VAR}` |
+| Halaman Kredensial: daftar nama, isi, hapus | ✅ | `credentials.list`/`set`/`delete`; nilai tidak pernah dikirim ke klien |
 | Versi protokol dinegosiasikan | 🟡 | `gateway.ready` membawa `protocol_version`; klien belum menolak versi yang tidak cocok |
 
 ## Yang sengaja berbeda dari Hermes

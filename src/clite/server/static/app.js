@@ -390,6 +390,39 @@ async function exportSession(session) {
 }
 
 const panels = {
+  async credentials(panel) {
+    const show = async () => {
+      const { credentials } = await state.rpc.request("credentials.list");
+      const filled = credentials.filter((credential) => credential.filled).length;
+      const save = async (credential, input) => {
+        if (!input.value) return;
+        await state.rpc.request("credentials.set", { name: credential.name, value: input.value });
+        await show(); // rebuilds the rows, so the value never stays in the DOM
+      };
+      const remove = async (credential) => {
+        if (!(await askConfirm("Delete this credential?", credential.name, "Delete"))) return;
+        await state.rpc.request("credentials.delete", { name: credential.name });
+        await show();
+      };
+      panel.replaceChildren(
+        h("h2", {}, `Credentials (${filled}/${credentials.length} set)`),
+        h("p", { class: "desc" }, "Values live in .env on this machine and are never sent back to this page."),
+        ...credentials.map((credential) => {
+          const input = h("input", {
+            type: "password", id: `credential-${credential.name}`, autocomplete: "off",
+            placeholder: credential.filled ? "(set — type to replace)" : "not set",
+          });
+          return h("div", { class: `row${credential.filled ? " filled" : ""}`, "data-name": credential.name },
+            h("div", { class: "name" }, credential.name),
+            h("div", { class: "desc" }, credential.filled ? `set (from ${credential.source})` : "not set"),
+            h("div", { class: "actions" }, input,
+              h("button", { type: "button", "data-action": "save", onclick: () => save(credential, input).catch((error) => notice(error.message, "error")) }, "Save"),
+              credential.filled ? h("button", { type: "button", "data-action": "delete", class: "danger", onclick: () => remove(credential).catch((error) => notice(error.message, "error")) }, "Delete") : null));
+        }),
+      );
+    };
+    await show();
+  },
   async config(panel) {
     const show = async () => {
       const { entries } = await state.rpc.request("config.list");
