@@ -632,9 +632,40 @@ const panels = {
     for (const block of await frames()) panel.append(...block.flat());
   },
   async memory(panel) {
-    const memory = await state.rpc.request("memory.get");
-    const list = (title, entries) => [h("h2", {}, title), ...(entries.length ? entries.map((entry) => row("", entry)) : [h("p", { class: "empty" }, "Empty.")])];
-    panel.replaceChildren(...list("Agent notes (MEMORY.md)", memory.memory), ...list("User profile (USER.md)", memory.user));
+    const show = async () => {
+      const data = await state.rpc.request("memory.get");
+      const act = async (params) => {
+        const result = await state.rpc.request("memory.set", params);
+        if (!result.success) notice(result.message, "error");
+        await show();
+      };
+      const edit = async (target, entry) => {
+        const content = await askText("Edit memory entry", "Entry", entry);
+        if (content === null || content === entry) return;
+        await act({ action: "replace", target, old_text: entry, content });
+      };
+      const add = async (target) => {
+        const content = await askText("Add a memory entry", "Entry", "");
+        if (content === null || !content.trim()) return;
+        await act({ action: "add", target, content });
+      };
+      const section = (title, target, entries) => [
+        h("h3", {}, title),
+        h("div", { class: "filters" }, h("button", { type: "button", "data-action": `add-${target}`, onclick: () => add(target) }, "+ Add")),
+        ...(entries.length ? entries.map((entry) => h("div", { class: "row", "data-target": target },
+          h("div", { class: "desc" }, entry),
+          h("div", { class: "actions" },
+            h("button", { type: "button", "data-action": "edit", onclick: () => edit(target, entry) }, "Edit"),
+            h("button", { type: "button", "data-action": "remove", class: "danger", onclick: () => act({ action: "remove", target, old_text: entry }) }, "Remove"))))
+          : [h("p", { class: "empty" }, "Empty.")]),
+      ];
+      panel.replaceChildren(
+        h("h2", {}, "Memory"),
+        ...section("Agent notes (MEMORY.md)", "memory", data.memory),
+        ...section("User profile (USER.md)", "user", data.user),
+      );
+    };
+    await show();
   },
 };
 

@@ -273,6 +273,37 @@ def test_cron_page_creates_a_job_and_shows_its_last_output(dashboard, clite_home
     assert dashboard.evaluate("window.__pwned") is None  # output is text, never markup
 
 
+def test_memory_page_adds_edits_and_removes_an_entry(dashboard, clite_home):
+    dashboard.click("[data-tab=memory]")
+    dashboard.wait_for_selector("#panel-memory [data-action='add-memory']")
+
+    dashboard.click("#panel-memory [data-action='add-memory']")
+    dashboard.wait_for_selector("#ask-text")
+    dashboard.fill("#ask-text", "the launch is on friday")
+    dashboard.click("dialog button.primary")
+    dashboard.wait_for_function(
+        "document.querySelector('#panel-memory').innerText.includes('the launch is on friday')"
+    )
+    assert "the launch is on friday" in (clite_home / "memories" / "MEMORY.md").read_text()
+
+    # Edit it through the same dialog.
+    dashboard.click("#panel-memory .row[data-target=memory] [data-action=edit]")
+    dashboard.wait_for_selector("#ask-text")
+    dashboard.fill("#ask-text", "the launch is on monday")
+    dashboard.click("dialog button.primary")
+    dashboard.wait_for_function(
+        "document.querySelector('#panel-memory').innerText.includes('monday')"
+    )
+    assert "monday" in (clite_home / "memories" / "MEMORY.md").read_text()
+
+    # And remove it.
+    dashboard.click("#panel-memory .row[data-target=memory] [data-action=remove]")
+    dashboard.wait_for_function(
+        "document.querySelector('#panel-memory').innerText.includes('Empty.')"
+    )
+    assert "monday" not in (clite_home / "memories" / "MEMORY.md").read_text()
+
+
 def test_other_tabs_list_what_is_installed(dashboard):
     dashboard.click("[data-tab=skills]")
     dashboard.wait_for_selector("#panel-skills .row")

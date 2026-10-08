@@ -515,6 +515,23 @@ class MemoryGetResult(Result):
     provider: str = ""
 
 
+class MemoryEditParams(Params):
+    action: Literal["add", "replace", "remove"]
+    target: Literal["memory", "user"]
+    content: str = ""
+    old_text: str = ""
+
+
+class MemoryEditResult(Result):
+    success: bool
+    message: str = ""
+    memory: list[str] = []
+    user: list[str] = []
+    memory_limit: int = 0
+    user_limit: int = 0
+    provider: str = ""
+
+
 class CronJob(Result):
     id: str
     name: str = ""
@@ -572,6 +589,12 @@ method(
 )
 method("credentials.delete", CredentialNameParams, CredentialsListResult, "Remove one stored credential.")
 method("memory.get", Empty, MemoryGetResult)
+method(
+    "memory.set",
+    MemoryEditParams,
+    MemoryEditResult,
+    "Add, replace or remove one memory entry, through the same store the tool uses.",
+)
 method("cron.list", Empty, CronListResult)
 method("cron.create", CronCreateParams, CronJob)
 method("cron.action", CronActionParams, CronListResult)
