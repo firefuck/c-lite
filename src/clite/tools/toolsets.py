@@ -38,8 +38,8 @@ TOOLSETS: dict[str, dict[str, Any]] = {
     "delegation": {"description": "Spawn subagents with isolated context", "tools": ["delegate_task"]},
     "cronjob": {"description": "Schedule recurring or one-off agent tasks", "tools": ["cronjob"]},
     "messaging": {
-        "description": "Send messages to connected chat platforms",
-        "tools": ["send_message"],
+        "description": "Send messages and files to connected chat platforms",
+        "tools": ["send_message", "send_file"],
     },
     # ── platform composites ──────────────────────────────────────────────────────────────
     "clite-cli": {

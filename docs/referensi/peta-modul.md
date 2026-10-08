@@ -148,6 +148,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | --- | --- | --- |
 | `__init__.py` | The messaging gateway: one long-running process serving every configured chat platform. |  |
 | `event.py` | What a platform adapter hands to the gateway, and what it gets back. | `SessionSource`, `MessageEvent`, `SendResult` |
+| `media.py` | Chat attachments: bring them into the session's directory and check them before use. | `MediaError`, `Attachment`, `media_dir()`, `cleanup_media()`, `classify()`, `StoredFile`, `store()` |
 | `pairing.py` | DM pairing: how an unknown user gets access without the owner editing config. | `PairingStore` |
 | `runner.py` | ``GatewayRunner``: the policy layer between chat platforms and the agent. | `active_runner()`, `reset_active_runners()`, `GatewaySession`, `GatewayRunner` |
 | `session.py` | Session keys: which conversation a message belongs to. | `build_session_key()`, `SessionMap` |
@@ -296,6 +297,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `image_gen.py` | ``image_generate``: draw or edit a picture through a configured ``ImageProvider``. | `image_generate_tool()` |
 | `memory.py` | ``memory``: persistent notes across sessions (MEMORY.md and USER.md). | `memory_tool()` |
 | `process.py` | Background processes: start with ``terminal(background=true)``, manage with ``process``. | `ManagedProcess`, `ProcessRegistry`, `reset_process_registry()`, `process_tool()` |
+| `send_file.py` | ``send_file``: hand a local file to the user over a connected chat platform. | `send_file_tool()` |
 | `send_message.py` | ``send_message``: let the agent message a chat on a connected platform. | `send_message_tool()` |
 | `session_search.py` | ``session_search``: recall past conversations from the session database. | `session_search_tool()` |
 | `skills.py` | Skill tools: list, view (progressive disclosure), and manage (procedural memory). | `skills_list_tool()`, `skill_view_tool()`, `skill_manage_tool()` |
@@ -322,4 +324,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 186 modul.
+Jumlah: 188 modul.

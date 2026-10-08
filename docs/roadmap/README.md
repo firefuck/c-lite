@@ -141,7 +141,7 @@ dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
 | F4-T1 | Discord | M | F1-T3 | 🟡 |
 | F4-T2 | Slack | M | F1-T3 | 🟡 |
 | F4-T3 | WhatsApp, Signal, Matrix, email | L | F1-T3 | ⬜ |
-| F4-T4 | Lampiran masuk dan keluar | M | F2-T6 | ⬜ |
+| F4-T4 | Lampiran masuk dan keluar | M | F2-T6 | ✅ |
 | F4-T5 | Jawaban streaming dan progres tool di chat | M | F1-T3 | ✅ |
 | F4-T6 | Gateway sebagai layanan sistem | M | F1-T3 | ⬜ |
 | F4-T7 | Kebijakan reset sesi dan home channel | S | - | ✅ |

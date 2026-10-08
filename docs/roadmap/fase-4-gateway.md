@@ -155,11 +155,11 @@ file kembali.
 `gateway/platforms/media_cache.py`.
 
 **Selesai bila.**
-- [ ] Tes: gambar dari adapter `local` sampai ke permintaan model sebagai bagian konten.
-- [ ] Tes: file yang melebihi batas ditolak dengan pesan ke pengguna, tanpa mengunduh
+- [x] Tes: gambar dari adapter `local` sampai ke permintaan model sebagai bagian konten.
+- [x] Tes: file yang melebihi batas ditolak dengan pesan ke pengguna, tanpa mengunduh
       seluruhnya.
-- [ ] Tes: `send_file` menolak `.env` milik agent dan path di luar direktori yang diizinkan.
-- [ ] Baris "Lampiran masuk dan keluar" di spesifikasi gateway menjadi ✅ untuk Telegram.
+- [x] Tes: `send_file` menolak `.env` milik agent dan path di luar direktori yang diizinkan.
+- [x] Baris "Lampiran masuk dan keluar" di spesifikasi gateway menjadi ✅ untuk Telegram.
 
 **Ukuran.** M
 

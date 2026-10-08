@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import threading
+import time
 import urllib.error
 import urllib.request
 from typing import Any
@@ -25,6 +26,7 @@ from clite.core.env import SecretSpec, get_secret, register_secret
 from clite.core.redact import redact
 from clite.core.threads import start_thread
 from clite.gateway.event import CHAT_CHANNEL, CHAT_DM, CHAT_GROUP, MessageEvent, SendResult, SessionSource
+from clite.gateway.media import AUDIO, DOCUMENT, IMAGE, VIDEO, Attachment, MediaError
 from clite.gateway.platforms.base import BasePlatformAdapter, register_platform
 
 logger = logging.getLogger("clite.gateway.telegram")
@@ -113,11 +115,14 @@ class TelegramAdapter(BasePlatformAdapter):
                     self.handle_message(event)
 
     def to_event(self, update: dict[str, Any]) -> MessageEvent | None:
-        """A Bot API update as a ``MessageEvent``; ``None`` for updates that carry no text."""
+        """A Bot API update as a ``MessageEvent``; ``None`` for updates that carry no text or file."""
         message = update.get("message") or {}
         text = message.get("text") or message.get("caption") or ""
         chat, sender = message.get("chat") or {}, message.get("from") or {}
-        if not text or not chat or sender.get("is_bot"):
+        if not chat or sender.get("is_bot"):
+            return None
+        attachments = self._attachments(message)
+        if not text and not attachments:
             return None
         chat_type = _CHAT_TYPES.get(str(chat.get("type") or ""), CHAT_GROUP)
         if text.startswith("/"):
@@ -149,8 +154,119 @@ class TelegramAdapter(BasePlatformAdapter):
             chat_name=chat.get("title") or "",
         )
         return MessageEvent(
-            text=text, source=source, message_id=str(message.get("message_id", "")), raw=update
+            text=text,
+            source=source,
+            message_id=str(message.get("message_id", "")),
+            attachments=attachments,
+            raw=update,
         )
+
+    def _attachments(self, message: dict[str, Any]) -> list[Attachment]:
+        """Files on a message, as attachments the runner can fetch and store.
+
+        Telegram sends several sizes of a photo; the largest is taken. ``file_id`` is what
+        ``fetch_attachment`` turns into bytes, and the declared ``file_size`` lets the runner
+        refuse an oversized file before downloading it.
+        """
+        found: list[Attachment] = []
+        photos = message.get("photo") or []
+        if photos:
+            largest = max(photos, key=lambda size: int(size.get("file_size") or size.get("width") or 0))
+            found.append(
+                Attachment(
+                    kind=IMAGE,
+                    name="photo.jpg",
+                    size=int(largest.get("file_size") or -1),
+                    file_id=str(largest.get("file_id") or ""),
+                )
+            )
+        document = message.get("document")
+        if document:
+            found.append(
+                Attachment(
+                    kind=DOCUMENT,
+                    name=str(document.get("file_name") or "document"),
+                    size=int(document.get("file_size") or -1),
+                    file_id=str(document.get("file_id") or ""),
+                )
+            )
+        for key, kind, name in (("voice", AUDIO, "voice.ogg"), ("audio", AUDIO, ""), ("video", VIDEO, "")):
+            entry = message.get(key)
+            if entry:
+                found.append(
+                    Attachment(
+                        kind=kind,
+                        name=str(entry.get("file_name") or name or f"{key}.bin"),
+                        size=int(entry.get("file_size") or -1),
+                        file_id=str(entry.get("file_id") or ""),
+                    )
+                )
+        return found
+
+    def fetch_attachment(self, attachment: Attachment, *, max_bytes: int) -> bytes:
+        """Download one file by ``file_id``. The size is refused before the bytes are pulled."""
+        if attachment.data is not None:
+            return attachment.data
+        if attachment.size >= 0 and attachment.size > max_bytes:
+            raise MediaError(f"{attachment.describe()} is larger than the {max_bytes} byte limit")
+        if not attachment.file_id:
+            raise MediaError(f"{attachment.describe()} has no file id to download")
+        info = self._call("getFile", {"file_id": attachment.file_id}, timeout=30)
+        file_path = str((info or {}).get("file_path") or "")
+        if not file_path:
+            raise MediaError(f"Telegram did not return a path for {attachment.describe()}")
+        request = urllib.request.Request(f"{self.base_url}/file/bot{self.token}/{file_path}")
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310
+                data = response.read(max_bytes + 1)
+        except Exception as exc:  # noqa: BLE001 - a failed download is reported, not raised raw
+            raise MediaError(f"could not download {attachment.describe()}: {exc}") from exc
+        if len(data) > max_bytes:
+            raise MediaError(f"{attachment.describe()} is larger than the {max_bytes} byte limit")
+        return data
+
+    def send_file(
+        self, chat_id: str, path: str, *, caption: str = "", thread_id: str | None = None
+    ) -> SendResult:
+        """Upload a file with ``sendDocument`` over multipart/form-data."""
+        from pathlib import Path
+
+        target = Path(path)
+        if not target.is_file():
+            return SendResult(False, error=f"no file at {target}")
+        boundary = f"----clite{time.time_ns():x}"
+        body = bytearray()
+
+        def field(name: str, value: str) -> None:
+            body.extend(
+                f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode()
+            )
+
+        field("chat_id", str(chat_id))
+        if caption:
+            field("caption", caption[:1024])
+        if thread_id:
+            field("message_thread_id", str(thread_id))
+        body.extend(
+            f'--{boundary}\r\nContent-Disposition: form-data; name="document"; filename="{target.name}"\r\n'
+            f"Content-Type: application/octet-stream\r\n\r\n".encode()
+        )
+        body.extend(target.read_bytes())
+        body.extend(f"\r\n--{boundary}--\r\n".encode())
+
+        request = urllib.request.Request(  # noqa: S310 - the scheme comes from configuration
+            f"{self.base_url}/bot{self.token}/sendDocument",
+            data=bytes(body),
+            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:  # noqa: S310
+                payload = json.loads(response.read())
+        except Exception as exc:  # noqa: BLE001
+            return SendResult(False, error=redact(str(exc)))
+        result = payload.get("result") or {}
+        return SendResult(True, message_id=str(result.get("message_id", "")))
 
     def send(
         self, chat_id: str, text: str, *, reply_to: str | None = None, thread_id: str | None = None

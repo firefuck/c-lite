@@ -16,6 +16,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `search_files` | `file` | safe | Search the project. |
 | `write_file` | `file` | path | Create a file or replace its whole content. |
 | `memory` | `memory` | never | Save durable facts to persistent memory. |
+| `send_file` | `messaging` | never | Send a local file to the user through a connected chat platform, for example a report or a generated image. |
 | `send_message` | `messaging` | never | Send a message to a chat on a connected platform, for example to tell the user something later on Telegram while working elsewhere. |
 | `session_search` | `session_search` | safe | Search past conversations (all sessions, including parts that were summarised away) by keyword. |
 | `skill_manage` | `skills` | never | Create and maintain skills: your procedural memory. |
@@ -45,9 +46,9 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `clarify` | Ask the user a question | `clarify` |
 | `delegation` | Spawn subagents with isolated context | `delegate_task` |
 | `cronjob` | Schedule recurring or one-off agent tasks | `cronjob` |
-| `messaging` | Send messages to connected chat platforms | `send_message` |
-| `clite-cli` | Everything, for the interactive terminal | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob`, `send_message` |
-| `clite-gateway` | Messaging platforms | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob`, `send_message` |
+| `messaging` | Send messages and files to connected chat platforms | `send_message`, `send_file` |
+| `clite-cli` | Everything, for the interactive terminal | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob`, `send_message`, `send_file` |
+| `clite-gateway` | Messaging platforms | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob`, `send_message`, `send_file` |
 | `clite-cron` | Scheduled runs | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `delegate_task` |
 | `clite-subagent` | Delegated workers | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `todo`, `skills_list`, `skill_view`, `skill_manage`, `session_search` |
 

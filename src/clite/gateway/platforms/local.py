@@ -22,6 +22,7 @@ class LocalAdapter(BasePlatformAdapter):
         super().__init__(config, runner)
         self.outbox: list[dict[str, Any]] = []
         self.edits: list[dict[str, Any]] = []
+        self.files: list[dict[str, Any]] = []
         self.fail_edits = False  # a test sets this to simulate a platform edit rate limit
         self.typing: list[str] = []
         self.connected = False
@@ -85,6 +86,7 @@ class LocalAdapter(BasePlatformAdapter):
         chat_type: str = CHAT_DM,
         thread_id: str | None = None,
         user_name: str = "Test User",
+        attachments: list[Any] | None = None,
     ) -> None:
         source = SessionSource(
             platform=self.name,
@@ -94,7 +96,25 @@ class LocalAdapter(BasePlatformAdapter):
             chat_type=chat_type,
             thread_id=thread_id,
         )
-        self.handle_message(MessageEvent(text=text, source=source, message_id=str(time.time_ns())))
+        self.handle_message(
+            MessageEvent(
+                text=text,
+                source=source,
+                message_id=str(time.time_ns()),
+                attachments=list(attachments or []),
+            )
+        )
+
+    def send_file(
+        self, chat_id: str, path: str, *, caption: str = "", thread_id: str | None = None
+    ) -> SendResult:
+        """Record an outgoing file. The bytes are not read here; the test asserts on the path."""
+        if not self.connected:
+            return SendResult(False, error="not connected")
+        with self._condition:
+            self.files.append({"chat_id": chat_id, "path": path, "caption": caption})
+            self._condition.notify_all()
+            return SendResult(True, message_id=f"file-{len(self.files)}")
 
     def wait_for_messages(self, count: int, timeout: float = 5.0) -> list[str]:
         """Block until ``count`` messages have been sent; return all their texts."""

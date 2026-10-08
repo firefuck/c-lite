@@ -44,7 +44,9 @@ class MessageEvent:
     source: SessionSource
     message_id: str = ""
     reply_to: str | None = None
-    attachments: list[str] = field(default_factory=list)  # local paths the adapter downloaded
+    # Files the user attached. An adapter fills in what it knows; the runner decides what may be
+    # stored (size, real kind) before anything reaches the model. See ``gateway.media``.
+    attachments: list[Any] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
     raw: Any = None
 

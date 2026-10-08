@@ -55,6 +55,15 @@ class BasePlatformAdapter(ABC):
         """
         return False
 
+    def send_file(
+        self, chat_id: str, path: str, *, caption: str = "", thread_id: str | None = None
+    ) -> SendResult:
+        """Send a local file to a chat. ``False`` when the platform has no upload path.
+
+        Never raises: the tool that calls this reports an unsupported platform to the model.
+        """
+        return SendResult(False, error=f"{self.name} cannot send files")
+
     def handle_message(self, event: MessageEvent) -> None:
         """Hand an inbound message to the gateway. Never blocks on the agent's turn."""
         self.runner.dispatch(event)

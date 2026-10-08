@@ -801,3 +801,125 @@ def test_a_platform_that_refuses_edits_still_delivers_the_whole_answer(gateway):
     local.fail_edits = True  # every edit is rejected, as a rate-limited platform would
     local.inject("question", user_id="owner")
     local.wait_for_text("the whole answer comes through")
+
+
+# ── inbound and outbound attachments (F4-T4) ───────────────────────────────────────────────
+
+_PNG = b"\x89PNG\r\n\x1a\n" + b"pretend-image-bytes"
+
+
+def _image(name: str = "photo.png", data: bytes = _PNG) -> Any:
+    from clite.gateway.media import IMAGE, Attachment
+
+    return Attachment(kind=IMAGE, name=name, size=len(data), data=data)
+
+
+def test_an_image_from_chat_reaches_the_model_request_as_content(gateway):
+    runner, local, client = gateway([text_response("nice picture")])
+    local.inject("what is this?", user_id="owner", attachments=[_image()])
+    local.wait_for_messages(1)
+
+    request = client.calls[0]["messages"][-1]
+    assert request["role"] == "user"
+    parts = request["content"]
+    assert parts[0] == {"type": "text", "text": "what is this?"}
+    assert parts[1]["image_url"]["url"].startswith("data:image/png;base64,")
+
+
+def test_a_document_from_chat_is_announced_as_a_readable_path(gateway, tmp_path):
+    from clite.gateway.media import DOCUMENT, Attachment
+
+    runner, local, client = gateway([text_response("read it")])
+    document = Attachment(kind=DOCUMENT, name="notes.txt", size=11, data=b"hello there")
+    local.inject("see the notes", user_id="owner", attachments=[document])
+    local.wait_for_messages(1)
+
+    sent = client.calls[0]["messages"][-1]["content"]
+    assert "see the notes" in sent
+    assert "notes.txt" in sent  # the model is told what arrived...
+    assert "/gateway/media/" in sent  # ...and where to read it
+
+
+def test_a_file_over_the_limit_is_refused_without_being_stored(gateway, clite_home):
+    from clite.gateway import media
+
+    runner, local, client = gateway([text_response("ok")], extra="attachments:\n  max_bytes: 64\n")
+    local.inject("here is a big one", user_id="owner", attachments=[_image(data=_PNG * 100)])
+    local.wait_for_text("I could not take that file")
+    assert not media.media_dir("local:dm:owner").exists()  # nothing was written
+
+
+def test_media_is_cleaned_up_when_the_session_closes(gateway):
+    from clite.gateway import media
+
+    runner, local, client = gateway([text_response("got it")])
+    local.inject("look", user_id="owner", attachments=[_image()])
+    local.wait_for_messages(1)
+    directory = media.media_dir("local:dm:owner")
+    assert directory.is_dir() and list(directory.iterdir())
+
+    runner.stop()  # closing the session takes its files with it
+    assert not directory.exists()
+
+
+def test_an_attachment_is_downloaded_through_the_adapter_when_it_carries_no_bytes(gateway):
+    from clite.gateway.media import IMAGE, Attachment
+
+    runner, local, client = gateway([text_response("got the picture")])
+    adapter = runner.adapters["local"]
+    adapter.downloads = []
+
+    original = adapter.send  # the adapter gains a fetch hook the way a real one has one
+
+    def fetch(attachment: Attachment, *, max_bytes: int) -> bytes:
+        adapter.downloads.append((attachment.file_id, max_bytes))
+        return _PNG
+
+    adapter.fetch_attachment = fetch  # type: ignore[attr-defined]
+    assert original is not None
+    local.inject(
+        "here",
+        user_id="owner",
+        attachments=[Attachment(kind=IMAGE, name="photo.jpg", size=len(_PNG), file_id="f-1")],
+    )
+    local.wait_for_messages(1)
+    assert adapter.downloads == [("f-1", 5_000_000)]
+    request = client.calls[0]["messages"][-1]
+    assert request["content"][1]["image_url"]["url"].startswith("data:image/png;base64,")
+
+
+def test_send_file_sends_a_workspace_file_and_refuses_credentials(gateway, tmp_path, clite_home):
+    from types import SimpleNamespace
+
+    from clite.tools.builtin.send_file import send_file_tool
+    from clite.tools.context import ToolContext
+
+    runner, local, client = gateway(extra="  send_targets: ['local:ops-room']\n", allowed="owner")
+    runner.config = load_config()
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    report = workspace / "report.txt"
+    report.write_text("all good")
+
+    origin = {"platform": "local", "chat_id": "ops-room"}
+    ctx = ToolContext(
+        cwd=str(workspace),
+        agent=SimpleNamespace(session_meta={"origin": origin, "session_key": "local:dm:owner"}),
+    )
+
+    out = json.loads(send_file_tool({"path": str(report), "caption": "the report"}, ctx))
+    assert out["delivered"] is True
+    assert local.files[-1]["path"] == str(report)
+    assert local.files[-1]["caption"] == "the report"
+
+    # The agent's own .env is refused even though it is a real file.
+    credentials = clite_home / ".env"
+    credentials.write_text("SECRET=1")
+    refused = json.loads(send_file_tool({"path": str(credentials)}, ctx))
+    assert "error" in refused and "credentials" in refused["error"]
+
+    # A file outside the working directory and the media directory is refused too.
+    outside = tmp_path / "elsewhere.txt"
+    outside.write_text("nope")
+    refused = json.loads(send_file_tool({"path": str(outside)}, ctx))
+    assert "error" in refused and "outside the directories" in refused["error"]
