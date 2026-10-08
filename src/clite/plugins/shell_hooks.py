@@ -62,7 +62,10 @@ MESSAGE_LIMIT = 400
 BLOCKING_EVENTS = frozenset({"pre_tool_call"})
 TOOL_EVENTS = frozenset({"pre_tool_call", "post_tool_call"})
 # Hooks whose callbacks return replacement text, or receive live objects, are for Python
-# plugins only: a JSON document on stdin cannot carry them.
+# plugins only: a JSON document on stdin cannot carry them. `on_compaction` is out for the same
+# reason in reverse — it carries whole message lists, a document too large to be useful on
+# stdin — and `pre_memory_write` is short and frequent enough that a process per write is a
+# cost with no matching benefit.
 SHELL_HOOK_EVENTS = frozenset(
     VALID_HOOKS
     - {
@@ -70,6 +73,8 @@ SHELL_HOOK_EVENTS = frozenset(
         "transform_terminal_output",
         "transform_llm_output",
         "pre_gateway_dispatch",
+        "on_compaction",
+        "pre_memory_write",
     }
 )
 _TOP_LEVEL_KEYS = frozenset({"tool_name", "args", "session_id", "cwd"})

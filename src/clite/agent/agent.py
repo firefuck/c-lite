@@ -39,6 +39,14 @@ logger = logging.getLogger("clite.agent")
 _SESSION_META_KEYS = ("session_key", "user_id", "chat_id", "chat_type", "thread_id", "display_name", "origin")
 
 
+def _summary_text(messages: list[dict[str, Any]]) -> str:
+    """The summary a compression left behind, for the plugins watching ``on_compaction``."""
+    for message in messages:
+        if message.get("is_summary") and isinstance(message.get("content"), str):
+            return message["content"]
+    return ""
+
+
 class AIAgent:
     def __init__(
         self,
@@ -451,6 +459,18 @@ class AIAgent:
         if self.memory is not None:
             self.memory.reload()
         self.rebuild_system_prompt()
+        # Observers only (fail-open): the transcript is already rewritten, and a plugin cannot
+        # change that. A memory plugin uses this to keep what just left the window; a metrics
+        # plugin to count compressions.
+        invoke_hook(
+            "on_compaction",
+            session_id=self.session_id,
+            platform=self.platform,
+            reason=reason,
+            messages_before=before,
+            messages_after=list(self.messages),
+            summary=_summary_text(self.messages),
+        )
         self.callbacks.emit(
             "on_status", "compressed", f"context compressed: {len(before)} messages -> {len(cleaned)}"
         )

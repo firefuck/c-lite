@@ -33,13 +33,24 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
 - Kwargs bersifat aditif. Callback hanya menerima kwargs yang ia namai (atau semuanya bila
   memakai `**kwargs`), jadi inti boleh menambah kwarg tanpa mematahkan plugin lama.
 - Callback yang gagal atau kehabisan waktu (`plugins.hook_callback_timeout`) tidak
-  memengaruhi callback lain maupun pemanggil. Pengecualian: `pre_tool_call`, yang gagal
-  tertutup. Guard yang melempar atau kehabisan waktu berarti **blokir**.
+  memengaruhi callback lain maupun pemanggil. Pengecualian: hook di `FAIL_CLOSED_HOOKS`.
+  Guard yang melempar atau kehabisan waktu berarti **blokir**.
 - Tiap home (profil) punya bus sendiri.
 - Arahan yang dipahami inti: `pre_tool_call` boleh mengembalikan
   `{"action": "block", "message": ...}` atau `{"action": "modify", "args": {...}}`;
+  `pre_memory_write` boleh mengembalikan `{"action": "block", "message": ...}`;
   `pre_llm_call` boleh mengembalikan `{"context": "..."}`; hook `transform_*` mengembalikan
   string pengganti (yang pertama menang).
+- **`pre_memory_write` gagal tertutup.** Ditembakkan sebelum setiap tulisan memori
+  (`action`, `target`, `content`, `old_text`) mencapai berkas yang menjadi bagian system prompt
+  setiap sesi berikutnya. Entri yang tidak lolos tidak pernah ditulis.
+- **`on_compaction` hanya pengamat.** Ditembakkan setelah context engine menulis ulang
+  transkrip, dengan `session_id`, `platform`, `reason`, `messages_before`, `messages_after`,
+  dan `summary`. Kompresinya sudah terjadi, jadi hook ini gagal terbuka dan arahan `block`
+  tidak mengubah apa pun; plugin memori memakai ini untuk menyimpan yang keluar dari jendela.
+- Kedua hook di atas bukan event shell hook: `on_compaction` membawa daftar pesan utuh
+  (dokumen terlalu besar untuk stdin), dan `pre_memory_write` terlalu sering untuk harga satu
+  proses per tulisan. Lihat `SHELL_HOOK_EVENTS`.
 - Bagian prompt dari plugin dirender sekali saat sesi dimulai, dibatasi 2000 karakter per
   bagian dan 8000 total.
 
@@ -139,7 +150,7 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
 
 | Fitur | Status | Catatan |
 |---|---|---|
-| Bus hook, 19 hook | ✅ | |
+| Bus hook, 22 hook | ✅ | |
 | Plugin direktori dan entry point pip | ✅ | Entry point pip belum diuji dengan paket terpasang sungguhan |
 | Ledger pembatalan | ✅ | |
 | Shell hook dengan persetujuan | ✅ | |
@@ -152,7 +163,7 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
 | Jenis `exclusive` (satu aktif per kategori) | ✅ | F6-T5: manifest tanpa `category` ditolak; hanya satu plugin per kategori yang dimuat, yang lain berstatus `error` beserta alasannya. Dijaga `tests/plugins/test_manager.py` |
 | Halaman dashboard dari plugin | ⬜ | F6-T5 |
 | Akses LLM untuk plugin (`ctx.llm`) | ✅ | F6-T5: `plugins/llm.py`; anggaran per plugin (`plugins.entries.<id>.llm.calls`, bawaan 0), plafon `plugins.llm.max_tokens`, hanya menerima prompt milik plugin. Dijaga `tests/plugins/test_manager.py` |
-| Hook tambahan (`pre_verify`, middleware permintaan) | ⬜ | F6-T5 |
+| Hook tambahan (`pre_memory_write`, `on_compaction`) | ✅ | F6-T5: `pre_memory_write` gagal tertutup (menahan tulisan memori yang tidak lolos), `on_compaction` pengamat yang gagal terbuka. Keduanya bukan event shell hook, dengan alasan tertulis di `shell_hooks.SHELL_HOOK_EVENTS`. Dijaga `tests/plugins/test_hooks.py`, `tests/agent/test_memory_and_delegation.py`, dan `tests/agent/test_compression.py`. `pre_verify` dan middleware permintaan belum ada: belum ada plugin yang membutuhkannya |
 
 ## Yang sengaja berbeda dari Hermes
 

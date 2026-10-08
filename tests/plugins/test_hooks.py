@@ -104,3 +104,46 @@ def test_each_home_has_its_own_bus(tmp_path):
     with home_scope(tmp_path / "other-profile"):
         assert invoke_hook("post_tool_call") == []
     assert invoke_hook("post_tool_call") == ["default profile"]
+
+
+# ── the memory-write policy hook and the compaction observer ─────────────────────────────
+
+
+def test_pre_memory_write_blocks_when_the_guard_cannot_decide():
+    from clite.plugins.hooks import FAIL_CLOSED_HOOKS
+
+    assert "pre_memory_write" in FAIL_CLOSED_HOOKS  # what lands in memory reaches every prompt
+    assert "on_compaction" not in FAIL_CLOSED_HOOKS  # an observer has nothing to decide
+
+    def guard(content):
+        raise RuntimeError("cannot decide")
+
+    get_hook_bus().register("pre_memory_write", guard, plugin="redactor")
+    (directive,) = invoke_hook("pre_memory_write", action="add", target="memory", content="a fact")
+    assert directive["action"] == "block"
+    assert "pre_memory_write" in directive["message"] and "redactor" in directive["message"]
+
+
+def test_pre_memory_write_passes_a_decision_through():
+    seen = {}
+
+    def guard(action, target, content, old_text):
+        seen.update(action=action, target=target, content=content, old_text=old_text)
+        return {"action": "block", "message": "not that"} if "secret" in content else None
+
+    get_hook_bus().register("pre_memory_write", guard)
+    assert (
+        invoke_hook("pre_memory_write", action="add", target="user", content="likes tea", old_text="") == []
+    )
+    assert seen == {"action": "add", "target": "user", "content": "likes tea", "old_text": ""}
+    assert invoke_hook(
+        "pre_memory_write", action="replace", target="user", content="a secret", old_text="likes tea"
+    ) == [{"action": "block", "message": "not that"}]
+
+
+def test_the_two_new_hooks_are_not_shell_hook_events():
+    from clite.plugins.shell_hooks import SHELL_HOOK_EVENTS
+
+    # A shell hook gets one JSON document on stdin; compaction carries whole transcripts, and a
+    # memory write is too frequent to pay for a process.
+    assert {"on_compaction", "pre_memory_write"}.isdisjoint(SHELL_HOOK_EVENTS)

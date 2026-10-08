@@ -47,6 +47,14 @@ VALID_HOOKS: frozenset[str] = frozenset(
         "on_session_start",
         "on_session_end",
         "on_session_reset",
+        # Memory. Fired before a memory write reaches disk, so a plugin can refuse it:
+        # a bad entry is injected into the system prompt of every future session. Because a
+        # guard that cannot decide must not let a write through, this hook is fail-closed.
+        "pre_memory_write",
+        # Context. Fired once a context engine has rewritten the transcript, with the messages
+        # before and after: what left the window is what a memory or metrics plugin wants.
+        # Observers only — the compression has already happened, so this one is fail-open.
+        "on_compaction",
         # Delegation.
         "subagent_start",
         "subagent_stop",
@@ -60,11 +68,25 @@ VALID_HOOKS: frozenset[str] = frozenset(
     }
 )
 
-FAIL_CLOSED_HOOKS: frozenset[str] = frozenset({"pre_tool_call"})
+# Policy hooks: a guard that raised or timed out made no decision, and "no decision" on a
+# security check must mean *block*. `pre_tool_call` guards a command; `pre_memory_write` guards
+# what becomes part of the system prompt of every later session. Both are cheap to refuse and
+# expensive to get wrong.
+FAIL_CLOSED_HOOKS: frozenset[str] = frozenset({"pre_tool_call", "pre_memory_write"})
 # A plugin's prompt section is paid for on every request, so it is capped.
 MAX_PROMPT_SECTION_CHARS = 2000
 MAX_PROMPT_SECTIONS_TOTAL_CHARS = 8000
-TIMEOUT_BLOCK_MESSAGE = "pre_tool_call plugin callback timed out or is still running"
+
+
+def _timed_out_message(name: str) -> str:
+    return f"{name} plugin callback timed out or is still running"
+
+
+def _failed_message(name: str, label: str, exc: BaseException) -> str:
+    return f"{name} guard {label!r} failed: {type(exc).__name__}"
+
+
+TIMEOUT_BLOCK_MESSAGE = _timed_out_message("pre_tool_call")  # what a timed-out guard reports
 
 
 @dataclass
@@ -170,7 +192,7 @@ class HookBus:
             except TimeoutError:
                 logger.warning("hook %s from plugin %r timed out", name, registration.plugin)
                 if fail_closed:
-                    results.append({"action": "block", "message": TIMEOUT_BLOCK_MESSAGE})
+                    results.append({"action": "block", "message": _timed_out_message(name)})
                 continue
             except Exception as exc:  # noqa: BLE001 - a plugin must never take the agent down
                 logger.warning(
@@ -178,12 +200,7 @@ class HookBus:
                 )
                 if fail_closed:
                     label = registration.plugin or getattr(registration.callback, "__name__", "callback")
-                    results.append(
-                        {
-                            "action": "block",
-                            "message": f"pre_tool_call guard {label!r} failed: {type(exc).__name__}",
-                        }
-                    )
+                    results.append({"action": "block", "message": _failed_message(name, label, exc)})
                 continue
             if outcome is not None:
                 results.append(outcome)

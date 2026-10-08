@@ -762,3 +762,46 @@ def test_a_flat_budget_still_blocks_the_first_child_from_delegating(make_agent, 
     agent.run_conversation("go")
     child_tools = {tool["function"]["name"] for tool in client.calls[1]["tools"]}
     assert "delegate_task" not in child_tools
+
+
+# ── the pre_memory_write guard ───────────────────────────────────────────────────────────
+
+
+def test_a_plugin_can_refuse_a_memory_write(clite_home):
+    store = MemoryStore()
+    seen = []
+
+    def guard(action, target, content, old_text):
+        seen.append((action, target, content or old_text))
+        if "password" in content:
+            return {"action": "block", "message": "Secrets do not belong in memory."}
+
+    get_hook_bus().register("pre_memory_write", guard, plugin="redactor")
+
+    blocked = store.add("memory", "The staging password is hunter2")
+    assert blocked["success"] is False and blocked["error"] == "Secrets do not belong in memory."
+    assert store.entries("memory") == []  # nothing was written
+    assert not (clite_home / "memories" / "MEMORY.md").exists()
+
+    assert store.add("memory", "Project uses pnpm")["success"] is True  # other writes still pass
+    assert store.replace("memory", "pnpm", "Project uses uv")["success"] is True
+    assert store.remove("memory", "uv")["success"] is True
+    assert seen == [
+        ("add", "memory", "The staging password is hunter2"),
+        ("add", "memory", "Project uses pnpm"),
+        ("replace", "memory", "Project uses uv"),
+        ("remove", "memory", "uv"),  # a removal carries the target as old_text, not as content
+    ]
+
+
+def test_a_memory_guard_that_raises_refuses_the_write(clite_home):
+    # Fail-closed: an entry that reaches memory is injected into every later system prompt, so a
+    # guard that cannot decide must not let it through. See hooks.FAIL_CLOSED_HOOKS.
+    def guard(**kwargs):
+        raise RuntimeError("cannot decide")
+
+    get_hook_bus().register("pre_memory_write", guard, plugin="redactor")
+    refused = MemoryStore().add("user", "Prefers tabs")
+    assert refused["success"] is False
+    assert refused["error"] == "pre_memory_write guard 'redactor' failed: RuntimeError"
+    assert not (clite_home / "memories" / "USER.md").exists()

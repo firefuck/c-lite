@@ -21,6 +21,7 @@ from clite.core.constants import ensure_dir, get_memories_dir
 from clite.core.io import atomic_write_text
 from clite.core.locking import exclusive_lock
 from clite.core.threats import describe, scan_text
+from clite.plugins.hooks import has_hook, invoke_hook
 
 ENTRY_DELIMITER = "\n§\n"
 TARGETS = {"memory": "MEMORY.md", "user": "USER.md"}
@@ -30,6 +31,24 @@ _HEADINGS = {
 }
 
 _PROCESS_LOCK = threading.RLock()
+
+
+def _write_guard(action: str, target: str, content: str, old_text: str = "") -> str | None:
+    """Ask plugins whether this write may happen, and return their reason when it may not.
+
+    A plugin's `pre_memory_write` hook is the last word before an entry reaches the file that
+    every later session's system prompt is built from. The hook is fail-closed (see
+    ``clite.plugins.hooks.FAIL_CLOSED_HOOKS``): a guard that raised or timed out arrives here as
+    a block, so an unvetted entry is never written.
+    """
+    if not has_hook("pre_memory_write"):
+        return None
+    for directive in invoke_hook(
+        "pre_memory_write", action=action, target=target, content=content, old_text=old_text
+    ):
+        if isinstance(directive, dict) and directive.get("action") == "block":
+            return str(directive.get("message") or "A plugin blocked this memory write.")
+    return None
 
 
 class MemoryStore:
@@ -138,6 +157,9 @@ class MemoryStore:
         rejected = self._check(content)
         if rejected:
             return self._error(target, rejected)
+        blocked = _write_guard("add", target, content)
+        if blocked:
+            return self._error(target, blocked)
         with self._locked():
             entries = self._read(target)
             if content in entries:
@@ -163,6 +185,9 @@ class MemoryStore:
         rejected = self._check(content)
         if rejected:
             return self._error(target, rejected)
+        blocked = _write_guard("replace", target, content, old_text)
+        if blocked:
+            return self._error(target, blocked)
         with self._locked():
             entries = self._read(target)
             index, error = self._locate(target, entries, old_text)
@@ -182,6 +207,9 @@ class MemoryStore:
     def remove(self, target: str, old_text: str) -> dict[str, Any]:
         if target not in TARGETS:
             return self._error(target, "target must be 'memory' or 'user'")
+        blocked = _write_guard("remove", target, "", old_text)
+        if blocked:
+            return self._error(target, blocked)
         with self._locked():
             entries = self._read(target)
             index, error = self._locate(target, entries, old_text)

@@ -27,6 +27,7 @@ from clite.agent.context.engine import (
 from clite.agent.context.tokens import estimate_prompt_tokens
 from clite.agent.memory.manager import MemoryManager
 from clite.core.config import load_config
+from clite.plugins.hooks import get_hook_bus
 from clite.plugins.manager import ensure_plugins_loaded
 from clite.providers.testing import text_response, tool_call_response
 from clite.providers.transports.types import Usage
@@ -659,3 +660,31 @@ def test_the_compression_eval_script_reports_facts_a_summary_dropped():
     report = module.evaluate(provider="mock", summarize=lambda prompt: "## Goal\nNone")
     assert report["facts_kept"] < report["facts_total"]
     assert report["missing"]
+
+
+def test_compaction_observers_see_what_left_the_window(make_agent, clite_home):
+    (clite_home / "config.yaml").write_text("compression:\n  protect_first_n: 2\n  protect_last_n: 2\n")
+    seen = []
+
+    def observer(**kwargs):
+        seen.append(kwargs)
+        return {"action": "block", "message": "too late"}
+
+    get_hook_bus().register("on_compaction", observer, plugin="recall")
+    agent, _ = make_agent(
+        [text_response(f"answer {n}") for n in range(5)] + [text_response("HANDOFF SUMMARY")]
+    )
+    for n in range(5):
+        agent.run_conversation(f"question {n}")
+    assert seen == []  # nothing compressed yet
+
+    assert agent.compress_context(focus="the deploy setup") is True
+    (event,) = seen
+    assert event["session_id"] == agent.session_id
+    assert event["platform"] == agent.platform
+    assert event["reason"] == "manual"
+    assert len(event["messages_before"]) > len(event["messages_after"]) == len(agent.messages)
+    assert event["messages_after"] == agent.messages
+    assert "HANDOFF SUMMARY" in event["summary"]
+    # Fail-open: the transcript is already rewritten, so a block directive changes nothing.
+    assert "HANDOFF SUMMARY" in next(m for m in agent.messages if m.get("is_summary"))["content"]

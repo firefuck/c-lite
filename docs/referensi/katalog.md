@@ -204,6 +204,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | Hook | Bisa dari shell hook | Gagal = blokir |
 | --- | --- | --- |
 | `api_request_error` | ya |  |
+| `on_compaction` |  |  |
 | `on_session_end` | ya |  |
 | `on_session_reset` | ya |  |
 | `on_session_start` | ya |  |
@@ -216,6 +217,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `pre_approval_request` | ya |  |
 | `pre_gateway_dispatch` |  |  |
 | `pre_llm_call` | ya |  |
+| `pre_memory_write` |  | ya |
 | `pre_tool_call` | ya | ya |
 | `subagent_result` | ya |  |
 | `subagent_start` | ya |  |

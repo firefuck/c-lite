@@ -230,7 +230,12 @@ aturan opt-in.
    didaftar di atas, seperti `hub.py`); anggaran per plugin lewat
    `plugins.entries.<id>.llm.calls` (bawaan 0), plafon `plugins.llm.max_tokens`, dan hanya
    prompt milik plugin yang pernah dikirim.
-6. Hook tambahan — belum.
+6. Hook tambahan — **selesai**. Dua hook, keduanya dengan alasan: `pre_memory_write` (menahan
+   entri yang tidak lolos sebelum masuk ke system prompt setiap sesi berikutnya; **gagal
+   tertutup**, masuk `FAIL_CLOSED_HOOKS`) dan `on_compaction` (pengamat setelah transkrip
+   ditulis ulang, membawa `messages_before`/`messages_after`/`summary`; **gagal terbuka**).
+   Keduanya dikecualikan dari `SHELL_HOOK_EVENTS` dengan alasan tertulis. `pre_verify` dan
+   middleware permintaan tidak dibuat: belum ada plugin nyata yang membutuhkannya.
 7. Halaman dashboard dari plugin — belum.
 
 **Ukuran.** L
