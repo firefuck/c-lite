@@ -116,9 +116,11 @@ class AIAgent:
         self.total_usage = Usage()
         self.interrupt_event: threading.Event = threading.Event()
         self._steer: list[str] = []
+        self._notes: list[str] = []
         self._lock = threading.RLock()
         self._turn_lock = threading.Lock()
         self._children: list[AIAgent] = []
+        self._background_threads: list[threading.Thread] = []
         self._fallback_routes: list[RuntimeRoute] | None = None
         self._session_ready = False
         self._closed = False
@@ -199,6 +201,9 @@ class AIAgent:
             children = list(self._children)
         for child in children:
             child.interrupt()
+        # A background subagent may still be winding down; give it a moment so it does not
+        # write to a session database that is about to close.
+        self.wait_for_background(timeout=5)
         if self._session_ready:
             if self.memory is not None:
                 self.memory.on_session_end(self.messages)
@@ -281,6 +286,27 @@ class AIAgent:
         with self._lock:
             taken, self._steer = self._steer, []
             return taken
+
+    def queue_note(self, text: str) -> None:
+        """Queue a note for the parent (a finished background delegation, for instance).
+
+        A note rides on the next tool result (``run_tool_round``), or becomes a new internal
+        message if none follows. It is never written into a message that was already sent to
+        the provider, so the cached prefix stays valid — the same rule as ``/steer``.
+        """
+        if text.strip():
+            with self._lock:
+                self._notes.append(text.strip())
+
+    def take_notes(self) -> list[str]:
+        with self._lock:
+            taken, self._notes = self._notes, []
+            return taken
+
+    def pending_notes(self) -> list[str]:
+        """The notes queued but not yet delivered, without consuming them."""
+        with self._lock:
+            return list(self._notes)
 
     def record_usage(self, state: TurnState, usage: Usage | None) -> None:
         with self._lock:
@@ -399,6 +425,19 @@ class AIAgent:
         with self._lock:
             if child in self._children:
                 self._children.remove(child)
+
+    def register_background_thread(self, thread: threading.Thread) -> None:
+        """Track a background subagent so ``close`` can wait for it before the DB goes away."""
+        with self._lock:
+            self._background_threads = [t for t in self._background_threads if t.is_alive()]
+            self._background_threads.append(thread)
+
+    def wait_for_background(self, timeout: float | None = None) -> None:
+        """Block until the background subagents this agent started have finished."""
+        with self._lock:
+            threads = list(self._background_threads)
+        for thread in threads:
+            thread.join(timeout)
 
     def maybe_generate_title(self, user_text: str) -> None:
         if not self.auto_title or self._title_requested or self.db is None or self.depth > 0:

@@ -91,6 +91,18 @@ test("reasoning, status, subagent and error events become their own items", () =
   ]);
 });
 
+test("a richer subagent event shows the tool, its arguments, the iteration and the model", () => {
+  const state = play([
+    event("subagent.update", {
+      event: "tool", index: 0, goal: "g", tool: "search_files", status: "",
+      args: "pattern=TODO", iteration: 3, model: "mock-2", spawn_id: "",
+    }),
+  ]);
+  assert.deepEqual(state.items, [
+    { kind: "notice", level: "info", text: "subagent 1 on mock-2: tool search_files(pattern=TODO) [iter 3]" },
+  ]);
+});
+
 test("an interrupted or failed turn ends with a notice and no dangling stream", () => {
   const interrupted = play([event("message.delta", { text: "partial" }), turnComplete({ completed: false, interrupted: true })]);
   assert.deepEqual(interrupted.items, [

@@ -413,6 +413,53 @@ Log lokal: `/tmp/clite-f2t12-red-collection.log` (merah koleksi), `/tmp/clite-f2
 file bersih. Clone rujukan tetap `../hermes-ref` tidak tersedia; perilaku diambil dari salinan
 Hermes Agent lain di mesin ini (commit `a0a7d765`, bukan commit yang dipatok).
 
+### F2-T13: delegasi yang lebih kaya (8 Oktober 2026)
+
+`src/clite/agent/delegation.py` menambah tiga kemampuan. **Model per tugas**: argumen `model`
+pada `delegate_task` (dan pada tiap entri `tasks`) diresolusi lewat `parse_model_input` —
+sebuah nama polos mempertahankan provider induk (`parent.route.with_model`), sedangkan
+`provider:model` dan alias berpindah provider lewat `resolve_runtime_provider`. Provider yang
+tidak bisa diresolusi melempar `CliteError` yang ditangkap per tugas, jadi ia menjadi hasil
+galat untuk tugas itu saja (`_run_child` mengembalikan laporan `failed`); tugas lain tetap
+jalan. **Kemajuan**: `_Progress` menyampaikan `on_subagent` dengan `tool`, `args` (pratinjau
+argumen yang diredaksi lewat `core.redact`), `iteration` (dari `on_step`), dan `model`. Event
+RPC `subagent.update` diperluas dengan bidang opsional `args`, `iteration`, `model`, `spawn_id`
+(`rpc/contracts/schema.py`, `rpc/session.py`), dan surface menampilkannya (`cli/repl.py`,
+`ui-tui/src/plain.ts`, `apps/shared/src/transcript.ts`). **Delegasi latar**:
+`delegate_task(background=true)` memanggil `_run_background`, yang menjalankan tiap tugas di
+thread sendiri dan langsung kembali dengan id. Laporan yang selesai masuk ke antrean catatan
+induk (`AIAgent.queue_note`/`take_notes`); catatan itu ditempelkan pada hasil tool berikutnya
+di `run_tool_round` — bukan dengan menulis ulang pesan yang sudah dikirim — dan menjadi pesan
+internal baru bila tiba di antara giliran (`turn/iteration.py::_apply_notes`). Interupsi induk
+menjalar ke subagent latar (anak terdaftar di `_children`), dan `AIAgent.close()` menunggu
+thread latar (`wait_for_background`) sebelum menutup database sesi. **Peran pengatur**: dengan
+`delegation.max_spawn_depth > 1`, `may_delegate` membuat anak tingkat tengah mendapat toolset
+`delegation`, sedangkan cucu di dasar kedalaman tidak.
+
+Bukti regresi merah/hijau pada worktree bersih dari `e53fda8`. **Merah:** dengan tes baru saja
+dan implementasi belum ada, 10 dari 11 tes baru menggagalkan (`tests/agent/test_memory_and_
+delegation.py`), dan tes baru `apps/shared/test/transcript.test.ts` gagal (1 dari 11). Untuk
+membuktikan tiap guard secara terpisah, implementasi disalin ke worktree terisolasi lalu satu
+perilaku dikembalikan ke bentuk yang salah:
+
+- **catatan menulis ulang pesan terkirim**: membuang lampiran catatan di `run_tool_round`
+  sehingga hanya jalur `_fold_note` yang menulis ulang hasil tool yang sudah dikirim
+  menggagalkan `test_a_background_report_reaches_the_parent_as_a_note_without_rewriting_sent_messages`.
+- **model per tugas diabaikan**: mengembalikan `_child_route` ke rute induk menggagalkan
+  `test_a_task_with_a_model_runs_on_that_route`; membuat provider tak terkonfigurasi tidak
+  melempar menggagalkan `test_an_unconfigured_model_fails_only_that_task`.
+- **peran pengatur dimatikan**: `may_delegate` selalu `False` menggagalkan
+  `test_a_middle_child_may_delegate_again_and_a_grandchild_may_not`.
+- **interupsi tidak menjalar**: membuang penjalaran anak di `AIAgent.interrupt` menggagalkan
+  `test_parent_interrupt_stops_a_background_subagent`.
+
+**Hijau:** 38 tes `tests/agent/test_memory_and_delegation.py` lulus (11 baru). Suite Python
+penuh: 1122 lulus, 29 terlewati, satu tes `tests/server` gagal yang sudah gagal sebelum tugas
+ini (`websockets`). Ruff bersih, mypy 174 file bersih. `scripts/gen_rpc_contracts.py` dan
+`scripts/gen_docs.py` dijalankan; bundle TUI dibangun ulang; `apps/shared` 22 tes lulus dan
+`tsc --noEmit` bersih; `ui-tui` 18 tes lulus (11 e2e, 7 render). Clone rujukan `../hermes-ref`
+tetap tidak tersedia, sehingga file rujukan belum dibaca.
+
 ## Pemasangan yang sudah diverifikasi
 
 Pada 6 Oktober 2026 CI repo `https://github.com/dragovics/clite` run `37356398420` pada
@@ -579,6 +626,7 @@ python scripts/check_hermes_refs.py --hermes ../hermes-ref   # butuh clone Herme
 | 8 Oktober 2026 | F2-T10: 13 tes baru merah pada worktree bersih `4156234` dengan tes baru saja, 21 tes `tests/tools/test_mcp.py` lulus sesudah implementasi; empat guard diuji terpisah pada salinan terisolasi (A1, jeda membesar, header `.env`, tool resources) dan masing-masing menggagalkan tesnya; MCP HTTP diuji terhadap server Streamable HTTP dari SDK resmi (termasuk middleware bearer token), terlewati bila SDK tidak terpasang; suite Python penuh 1092 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini), Ruff bersih, mypy 173 file bersih. Sampling dan OAuth belum ada | Linux, Python 3.11.16 (SDK `mcp` 2.0.0) |
 | 8 Oktober 2026 | F2-T11: merah pada worktree bersih `f119b29` dengan tes baru saja (koleksi gagal: `cannot import name 'SUMMARY_SECTIONS'`); enam guard diuji terpisah pada salinan terisolasi (bagian tetap, peringkasan bertahap, pemangkasan gambar, jangkar token, persistensi penghitung nudge, skrip pengukuran) dan masing-masing menggagalkan tesnya; 10 tes baru lulus sesudah implementasi, seluruh `tests/agent/test_compression.py` 33 lulus; suite Python penuh 1109 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 173 file bersih. `scripts/eval_compression.py --provider mock` melaporkan 5/5 fakta bertahan | Linux, Python 3.11.16 |
 | 8 Oktober 2026 | F2-T12: merah pada worktree bersih `a976469` dengan tes baru saja (koleksi `tests/agent/test_review.py` gagal: `cannot import name 'review' from 'clite.agent'`); enam guard diuji terpisah pada worktree terisolasi (riwayat sesi utama, gagal ditelan, timeout ditelan, gate interval kurator, gerbang enabled/depth/cron/busy, anggaran reviewer) dan masing-masing menggagalkan tesnya; 23 tes baru lulus sesudah implementasi; suite Python penuh 1132 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 174 file bersih. Clone rujukan tetap `../hermes-ref` tidak tersedia | Linux, Python 3.11.16 |
+| 8 Oktober 2026 | F2-T13: merah pada worktree bersih `e53fda8` dengan tes baru saja (10 dari 11 tes baru `tests/agent/test_memory_and_delegation.py` gagal, tes baru `apps/shared/test/transcript.test.ts` gagal); empat guard diuji terpisah pada worktree terisolasi (catatan tidak menulis ulang pesan terkirim, model per tugas, peran pengatur, penjalaran interupsi) dan masing-masing menggagalkan tesnya; 11 tes baru + 27 lama lulus sesudah implementasi; suite Python penuh 1122 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 174 file bersih, `apps/shared` 22 tes lulus, bundle TUI dibangun ulang. Clone rujukan `../hermes-ref` tidak tersedia | Linux, Python 3.11.16, Node 26.7.0 |
 
 Setiap task yang memverifikasi sesuatu menambah baris di tabel ini dan memindahkan butirnya
 dari "belum diverifikasi".

@@ -370,6 +370,10 @@ export interface SubagentPayload {
   goal: string;
   tool: string;
   status: string;
+  args: string;
+  iteration: number;
+  model: string;
+  spawn_id: string;
 }
 
 export interface SystemInfoResult {

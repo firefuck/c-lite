@@ -14,8 +14,10 @@ DELEGATE_SCHEMA = {
         "to keep large intermediate output (research, wide code searches, log analysis) out of your own "
         "context, or to do independent tasks in parallel. A subagent starts with no knowledge of this "
         "conversation: put everything it needs (paths, constraints, what to return) in goal and context. "
-        "For one task pass goal; for several pass tasks. Subagents cannot ask the user questions, write "
-        "memory, or delegate further."
+        "For one task pass goal; for several pass tasks. Set model to run a task on another configured "
+        "model (a bare name keeps this provider; provider:model or an alias switches provider). Set "
+        "background=true to return at once and receive the reports later as a note. Subagents cannot ask "
+        "the user questions or write memory."
     ),
     "parameters": {
         "type": "object",
@@ -24,15 +26,20 @@ DELEGATE_SCHEMA = {
             "context": {"type": "string", "description": "Background the subagent needs: file paths, constraints, findings so far."},
             "toolsets": {"type": "array", "items": {"type": "string"},
                          "description": "Toolsets for the subagent (default: terminal, file, web, skills, session_search, todo)."},
+            "model": {"type": "string",
+                      "description": "Model for this task: a name for the current provider, or provider:model. Must be a configured provider."},
+            "background": {"type": "boolean",
+                           "description": "Return immediately with an id per task; the reports arrive later as a note. Use for long tasks you can work alongside."},
             "tasks": {
                 "type": "array",
-                "description": "Several tasks to run in parallel, each with its own goal, context and toolsets.",
+                "description": "Several tasks to run in parallel, each with its own goal, context, toolsets and model.",
                 "items": {
                     "type": "object",
                     "properties": {
                         "goal": {"type": "string"},
                         "context": {"type": "string"},
                         "toolsets": {"type": "array", "items": {"type": "string"}},
+                        "model": {"type": "string"},
                     },
                     "required": ["goal"],
                 },
@@ -50,10 +57,11 @@ def delegate_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
 
     tasks = args.get("tasks")
     if not tasks:
-        tasks = [{"goal": args.get("goal"), "context": args.get("context"), "toolsets": args.get("toolsets")}]
+        tasks = [{"goal": args.get("goal"), "context": args.get("context"),
+                  "toolsets": args.get("toolsets"), "model": args.get("model")}]
     if not isinstance(tasks, list):
-        return tool_error("tasks must be a list of {goal, context?, toolsets?} objects")
-    return tool_result(delegate(agent, tasks))
+        return tool_error("tasks must be a list of {goal, context?, toolsets?, model?} objects")
+    return tool_result(delegate(agent, tasks, background=bool(args.get("background"))))
 
 
 registry.register("delegate_task", "delegation", DELEGATE_SCHEMA, delegate_tool, emoji="🤝")

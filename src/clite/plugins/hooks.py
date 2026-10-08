@@ -50,6 +50,7 @@ VALID_HOOKS: frozenset[str] = frozenset(
         # Delegation.
         "subagent_start",
         "subagent_stop",
+        "subagent_result",
         # Approvals (observers only; use pre_tool_call to veto).
         "pre_approval_request",
         "post_approval_response",

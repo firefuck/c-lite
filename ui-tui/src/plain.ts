@@ -153,9 +153,14 @@ export class PlainTui {
       case "status.update":
         this.line(paint(`[${event.payload.kind}] ${event.payload.text}`, "yellow", this.color));
         break;
-      case "subagent.update":
-        this.line(paint(`  subagent ${event.payload.index + 1}: ${event.payload.event} ${event.payload.tool || event.payload.status}`.trimEnd(), "dim", this.color));
+      case "subagent.update": {
+        const { event: kind, index, tool, status, args, iteration, model } = event.payload;
+        const detail = kind === "tool" && args ? `${tool}(${args})` : tool || status;
+        const where = iteration ? ` [iter ${iteration}]` : "";
+        const on = model ? ` on ${model}` : "";
+        this.line(paint(`  subagent ${index + 1}${on}: ${kind} ${detail}${where}`.trimEnd(), "dim", this.color));
         break;
+      }
       case "error":
         this.line(paint(event.payload.message, "red", this.color));
         break;

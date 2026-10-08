@@ -55,9 +55,25 @@ def _apply_steer(agent: AIAgent) -> None:
     first iteration), so the cached prefix before it stays valid.
     """
     steer = agent.take_steer()
-    if not steer or not agent.messages:
+    if steer:
+        _fold_note(agent, "[The user adds, while you work: " + " ".join(steer) + "]")
+
+
+def _apply_notes(agent: AIAgent) -> None:
+    """Deliver notes that no tool round has picked up yet (the usual path is ``run_tool_round``).
+
+    A note normally rides on the next tool result. When it arrives between turns instead, it
+    becomes a new internal message: nothing already sent to the provider is rewritten.
+    """
+    notes = agent.take_notes()
+    if notes:
+        agent.append_message(internal_user_message(" ".join(notes)))
+
+
+def _fold_note(agent: AIAgent, note: str) -> None:
+    if not agent.messages:
+        agent.append_message(internal_user_message(note))
         return
-    note = "[The user adds, while you work: " + " ".join(steer) + "]"
     last = agent.messages[-1]
     if last.get("role") in ("tool", "user"):
         agent.replace_last_content(append_to_content(last.get("content"), note))
@@ -77,6 +93,7 @@ def begin_iteration(agent: AIAgent, state: TurnState) -> Verdict:
         return _wrap_up(agent, state, "iteration budget")
     state.iteration += 1
     _apply_steer(agent)
+    _apply_notes(agent)
     agent.callbacks.emit("on_step", state.iteration)
     return PROCEED
 

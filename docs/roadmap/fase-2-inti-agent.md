@@ -661,11 +661,26 @@ tidak harus menunggu subagent yang lama.
 `website/docs/developer-guide/subagent-lifecycle-api.md`.
 
 **Selesai bila.**
-- [ ] Tes: tugas dengan `model` berjalan pada rute itu, dan model yang tidak terkonfigurasi
+- [x] Tes: tugas dengan `model` berjalan pada rute itu, dan model yang tidak terkonfigurasi
       menjadi hasil galat untuk tugas itu saja.
-- [ ] Tes: hasil delegasi latar sampai ke induk tanpa melanggar aturan awalan kawat.
-- [ ] Tes: interupsi induk menghentikan subagent latar.
-- [ ] Baris delegasi di spesifikasi agent menjadi ✅ untuk ketiga butir.
+- [x] Tes: hasil delegasi latar sampai ke induk tanpa melanggar aturan awalan kawat.
+- [x] Tes: interupsi induk menghentikan subagent latar.
+- [x] Baris delegasi di spesifikasi agent menjadi ✅ untuk ketiga butir.
+
+**Kemajuan 8 Oktober 2026.** `agent/delegation.py` menambah argumen `model` per tugas
+(memakai `parse_model_input`: nama polos mempertahankan provider induk, `provider:model`/alias
+berpindah provider, dibatasi ke provider terkonfigurasi). Progres `on_subagent` membawa nama
+tool, pratinjau argumen yang diredaksi, jumlah iterasi, dan model; event `subagent.update`
+diperluas dengan `args`, `iteration`, `model`, `spawn_id` (semua opsional). Delegasi latar
+(`delegate_task(background=true)`) kembali dengan id per tugas dan menyampaikan laporan
+sebagai catatan pada hasil tool berikutnya lewat `AIAgent.queue_note`/`take_notes` (pola
+`/steer`); catatan ditempelkan di `run_tool_round`, bukan dengan menulis ulang pesan yang sudah
+dikirim. Interupsi induk menjalar ke subagent latar, dan `close()` menunggu thread latar
+sebelum database sesi ditutup. Peran pengatur: dengan `max_spawn_depth > 1`, anak tingkat
+tengah mendapat toolset `delegation` dan boleh mendelegasikan lagi, cucu tidak. Dijaga
+`tests/agent/test_memory_and_delegation.py` (11 tes baru), `apps/shared/test/transcript.test.ts`,
+dan `subagent.update` di `docs/referensi/katalog.md`. Bukti regresi merah/hijau ada di
+`docs/STATUS.md`. Clone rujukan Hermes tidak tersedia, sehingga file rujukan belum dibaca.
 
 **Ukuran.** M
 
