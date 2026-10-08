@@ -176,6 +176,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `llm.py` | The auxiliary model a plugin may call: ``ctx.llm``. | `LlmError`, `calls_used()`, `reset_llm_budgets()`, `PluginLLM` |
 | `manager.py` | Plugin discovery and loading (and, with them, the shell hooks from ``config.yaml``). | `PluginInfo`, `PluginManager`, `get_plugin_manager()`, `ensure_plugins_loaded()`, `reset_plugin_managers()`, `set_plugin_enabled()`, `install_plugin()`, `remove_plugin()` |
 | `manifest.py` | ``plugin.yaml``: what a plugin says about itself before any of its code runs. | `ManifestError`, `PluginManifest`, `validate_plugin_name()`, `parse_manifest()`, `load_manifest()` |
+| `pages.py` | The dashboard page a plugin ships, and the files around it. | `set_plugin_origin()`, `plugin_origin()`, `DashboardPage`, `dashboard_pages()`, `find_page()`, `resolve_asset()`, `reset_plugin_origin()` |
 | `shell_hooks.py` | Shell hooks: run your own commands on lifecycle events, configured in ``config.yaml``. | `ShellHook`, `HookRun`, `configured_hooks()`, `allowlist_path()`, `is_approved()`, `approve_hooks()`, `revoke_hooks()`, `build_payload()`, `run_hook()`, `evaluate()`, … (+1) |
 
 ## `clite/providers/`
@@ -247,8 +248,8 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | The headless backend: HTTP + WebSocket JSON-RPC for the desktop app and the dashboard. |  |
-| `app.py` | The ASGI app behind ``clite serve`` and ``clite dashboard``. | `presented_token()`, `host_allowed()`, `origin_allowed()`, `create_app()` |
-| `run.py` | Starting the backend: bind, announce readiness, serve. | `bind_socket()`, `dashboard_url()`, `serve()` |
+| `app.py` | The ASGI app behind ``clite serve`` and ``clite dashboard``. | `presented_token()`, `host_allowed()`, `origin_allowed()`, `create_app()`, `create_plugin_pages_app()` |
+| `run.py` | Starting the backend: bind, announce readiness, serve. | `bind_socket()`, `dashboard_url()`, `start_plugin_pages()`, `serve()` |
 
 ## `clite/skills/`
 
@@ -328,4 +329,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 192 modul.
+Jumlah: 193 modul.

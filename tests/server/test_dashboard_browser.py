@@ -175,3 +175,57 @@ def test_first_run_setup_screen(clite_home, browser):
         page.close()
         box["server"].should_exit = True
         thread.join(timeout=10)
+
+
+def test_a_plugin_page_runs_in_an_isolated_frame(clite_home, browser):
+    """The page a plugin ships is another origin and cannot reach into the dashboard.
+
+    This is the behaviour the server tests can only argue about: here a browser decides. The
+    frame has no ``allow-same-origin``, so its document gets an opaque origin (``"null"``) and
+    every attempt to read the dashboard — its DOM, its storage, its socket — fails.
+    """
+    (clite_home / "plugins" / "board" / "dashboard").mkdir(parents=True)
+    (clite_home / "plugins" / "board" / "plugin.yaml").write_text(
+        "name: board\ndashboard:\n  title: Deploy board\n  page: dashboard/index.html\n"
+    )
+    (clite_home / "plugins" / "board" / "__init__.py").write_text("def register(ctx):\n    pass\n")
+    (clite_home / "plugins" / "board" / "dashboard" / "index.html").write_text(
+        "<!doctype html><h1>deploy board</h1>"
+    )
+    box, thread = _start(
+        "model:\n  provider: mock\n  default: mock-1\nplugins:\n  enabled: [board]\n", clite_home
+    )
+    page = browser.new_page()
+    try:
+        page.goto(f"http://127.0.0.1:{box['port']}/#token={box['token']}")
+        page.wait_for_selector("#status-connection.online")
+        page.click("[data-tab=plugins]")
+        page.wait_for_selector("iframe.plugin-page")
+        frame = page.frame_locator("iframe.plugin-page")
+
+        sandbox = page.get_attribute("iframe.plugin-page", "sandbox")
+        assert "allow-scripts" in sandbox and "allow-same-origin" not in sandbox
+        assert page.get_attribute("iframe.plugin-page", "referrerpolicy") == "no-referrer"
+        # Its own origin: a different port from the dashboard's.
+        url = page.get_attribute("iframe.plugin-page", "src")
+        assert url.startswith("http://127.0.0.1:") and not url.startswith(f"http://127.0.0.1:{box['port']}/")
+        frame.locator("h1").wait_for()
+        assert frame.locator("h1").inner_text() == "deploy board"
+
+        # The frame's document has an opaque origin, and the dashboard is out of reach.
+        # `self.origin` is the document's own; `location.origin` still serializes the URL.
+        handle = page.query_selector("iframe.plugin-page")
+        child = handle.content_frame()
+        assert child.evaluate("self.origin") == "null"
+        with pytest.raises(sync_api.Error):
+            child.evaluate("window.parent.document.title")
+        # And it neither sees the session token nor can store anything on this origin.
+        storage = child.evaluate(
+            "(() => { try { return JSON.stringify(Object.entries(sessionStorage)); }"
+            " catch (error) { return 'blocked: ' + error.name; } })()"
+        )
+        assert storage == "[]" or storage.startswith("blocked:")
+    finally:
+        page.close()
+        box["server"].should_exit = True
+        thread.join(timeout=10)

@@ -6,6 +6,7 @@ Surface area, deliberately small:
 ``GET  /api/status``                   version, profile, configured model
 ``GET  /api/sessions``                 stored sessions
 ``GET  /api/sessions/{id}/messages``   a stored transcript
+``GET  /api/plugin-pages``             dashboard pages plugins ship, with their own-origin URL
 ``WS   /api/ws``                       JSON-RPC, the same protocol the TUI speaks over stdio
 ``GET  /``                             the bundled dashboard (static files)
 
@@ -20,6 +21,9 @@ Two more locks sit behind the token, both aimed at a web page in the user's brow
 * a server bound to loopback only answers ``/api`` requests addressed to a loopback name, so a
   site whose name was re-pointed at 127.0.0.1 (DNS rebinding) gets nothing;
 * a WebSocket from a browser must come from the dashboard's own origin.
+
+``create_plugin_pages_app`` is the other half of that second lock: the pages plugins ship run
+on a listener of their own, so their origin is not the dashboard's (see ``clite.plugins.pages``).
 """
 
 from __future__ import annotations
@@ -41,6 +45,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from clite import __version__
 from clite.agent.messages import content_text, is_internal
+from clite.plugins.pages import dashboard_pages, find_page, resolve_asset
 from clite.rpc.server import RpcServer
 from clite.rpc.transport import WebSocketTransport
 from clite.state.db import get_session_db
@@ -140,6 +145,16 @@ def create_app(
         keys = ("id", "title", "source", "model", "message_count", "started_at", "last_activity_at")
         return JSONResponse({"sessions": [{key: row.get(key) for key in keys} for row in rows]})
 
+    def plugin_pages(request: Request) -> Response:
+        return JSONResponse(
+            {
+                "plugins": [
+                    {"name": page.plugin, "title": page.title, "url": page.url()}
+                    for page in dashboard_pages()
+                ]
+            }
+        )
+
     def session_messages(request: Request) -> Response:
         db = get_session_db()
         row = db.find_session(request.path_params["session_id"])
@@ -186,8 +201,63 @@ def create_app(
             Route("/api/status", guarded(status)),
             Route("/api/sessions", guarded(sessions)),
             Route("/api/sessions/{session_id}/messages", guarded(session_messages)),
+            Route("/api/plugin-pages", guarded(plugin_pages)),
             WebSocketRoute("/api/ws", websocket_endpoint),
             Route("/", index),
             Mount("/static", StaticFiles(directory=STATIC_DIR), name="static"),
         ]
     )
+
+
+def _content_type(path: Path) -> str:
+    return {
+        ".html": "text/html; charset=utf-8",
+        ".css": "text/css; charset=utf-8",
+        ".js": "text/javascript; charset=utf-8",
+        ".mjs": "text/javascript; charset=utf-8",
+        ".json": "application/json",
+        ".svg": "image/svg+xml",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+        ".woff2": "font/woff2",
+    }.get(path.suffix.lower(), "application/octet-stream")
+
+
+def create_plugin_pages_app(*, bind_host: str = "127.0.0.1") -> Starlette:
+    """The listener that serves plugin dashboard pages, on its own origin.
+
+    It answers only ``GET /<plugin>/<file>`` for plugins that are loaded and only for files
+    inside the plugin's own directory. No token: the page is the plugin's own file, carries no
+    secret of the backend, and is readable on disk by whoever is running the agent anyway. What
+    it cannot do is reach the dashboard: it is another origin, so the WebSocket refuses it and
+    it never sees the session token.
+
+    Everything unknown is a 404 with the same body, so the listener says nothing about which
+    plugins exist or which files a page tried to read.
+    """
+
+    async def page(request: Request) -> Response:
+        if not host_allowed(request, bind_host):
+            return _not_found()
+        target = find_page(request.path_params["plugin"])
+        if target is None:
+            return _not_found()
+        asset = resolve_asset(target, request.path_params.get("asset") or "")
+        if asset is None:
+            return _not_found()
+        return FileResponse(asset, media_type=_content_type(asset), headers={"Cache-Control": "no-store"})
+
+    return Starlette(
+        routes=[
+            Route("/{plugin}/{asset:path}", page),
+            Route("/{plugin}", page),
+            Route("/{path:path}", lambda request: _not_found()),
+        ]
+    )
+
+
+def _not_found() -> Response:
+    return JSONResponse({"error": "no such page"}, status_code=404)

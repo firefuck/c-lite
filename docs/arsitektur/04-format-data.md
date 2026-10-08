@@ -153,6 +153,9 @@ kind: standalone             # standalone | backend | exclusive | platform | mod
 category: memory             # wajib untuk `exclusive`: satu plugin aktif per kategori
 manifest_version: 1
 requires_env: [SOME_TOKEN]   # diperiksa sebelum kode plugin dijalankan
+dashboard:                   # opsional: halaman dashboard milik plugin
+  title: Audit trail         # bawaannya nama plugin
+  page: dashboard/index.html # harus .html dan di dalam direktori plugin
 ```
 
 Di samping manifest ada `__init__.py` yang mendefinisikan `register(ctx)`.

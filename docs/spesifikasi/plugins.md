@@ -23,6 +23,7 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
 | `hub.py` | Asal-usul pemasangan, katalog plugin, pencarian, pembaruan |
 | `llm.py` | `ctx.llm`: panggilan model bantu milik plugin, beranggaran |
 | `shell_hooks.py` | Perintah shell pada event siklus hidup, dengan persetujuan per perintah |
+| `pages.py` | Halaman dashboard yang dibawa plugin, dan berkas di sekitarnya |
 
 ## Kontrak
 
@@ -131,6 +132,22 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
 `register_skills_dir`, `register_skill_source`, serta `settings`, `home`, `plugin_dir`,
 `logger`, `llm`.
 
+**Halaman dashboard dari plugin**
+- Manifest: `dashboard: {title, page}`, dengan `page` sebuah berkas `.html` **di dalam** direktori
+  plugin. Jalur absolut, jalur yang keluar direktori, dan berkas bukan-HTML ditolak saat manifest
+  dibaca; judul boleh kosong (bawaannya nama plugin).
+- Hanya plugin yang **aktif** punya halaman: `dashboard_pages()` membaca plugin yang sedang
+  dimuat, jadi opt-in tetap berlaku.
+- Halaman dilayani dari **origin sendiri**: `clite serve` membuka listener kedua di port lain
+  (`create_plugin_pages_app`) ketika ada halaman, dan `GET /api/plugin-pages` memberi dashboard
+  URL absolutnya. Dari origin lain itu halaman tidak bisa membuka WebSocket backend (ditolak
+  pemeriksaan origin) dan tidak pernah diberi token sesi.
+- Bingkai di dashboard ber-sandbox tanpa `allow-same-origin`, jadi halaman tidak bisa membaca
+  DOM atau `sessionStorage` dashboard.
+- Listener melayani hanya berkas di dalam direktori plugin itu dan hanya dengan akhiran aset web;
+  jalur yang keluar direktori, symlink ke luar, dan berkas titik menjadi 404.
+- Dijaga `tests/plugins/test_pages.py` dan `tests/server/test_server.py`.
+
 **Shell hook**
 - Konfigurasi: `hooks: {event: [perintah | {command, matcher, timeout, fail_closed}]}`.
 - Kawat: stdin satu objek JSON `{hook_event_name, tool_name, tool_input, session_id, cwd,
@@ -161,7 +178,7 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
 | Asal-usul pemasangan dan `clite plugins update` | ✅ | F6-T5: sumber, commit, versi, dan hash dicatat; `update` menampilkan diff per berkas, menolak menimpa plugin yang disunting tanpa `--force`, dan meninggalkan plugin **nonaktif** sesudah diperbarui. Dijaga `tests/plugins/test_plugin_hub.py` |
 | Katalog plugin dan `clite plugins search` | ✅ | F6-T5: indeks JSON (`plugins.hub.index`, bawaan dari plugin bawaan), `clite plugins search`/`info`/`install <nama>` dengan hash yang diverifikasi |
 | Jenis `exclusive` (satu aktif per kategori) | ✅ | F6-T5: manifest tanpa `category` ditolak; hanya satu plugin per kategori yang dimuat, yang lain berstatus `error` beserta alasannya. Dijaga `tests/plugins/test_manager.py` |
-| Halaman dashboard dari plugin | ⬜ | F6-T5 |
+| Halaman dashboard dari plugin | ✅ | F6-T5: manifest `dashboard: {title, page}`, dilayani listener di port sendiri (origin sendiri), bingkai ber-sandbox, hanya aset web di dalam direktori plugin. Dijaga `tests/plugins/test_pages.py` dan `tests/server/test_server.py` |
 | Akses LLM untuk plugin (`ctx.llm`) | ✅ | F6-T5: `plugins/llm.py`; anggaran per plugin (`plugins.entries.<id>.llm.calls`, bawaan 0), plafon `plugins.llm.max_tokens`, hanya menerima prompt milik plugin. Dijaga `tests/plugins/test_manager.py` |
 | Hook tambahan (`pre_memory_write`, `on_compaction`) | ✅ | F6-T5: `pre_memory_write` gagal tertutup (menahan tulisan memori yang tidak lolos), `on_compaction` pengamat yang gagal terbuka. Keduanya bukan event shell hook, dengan alasan tertulis di `shell_hooks.SHELL_HOOK_EVENTS`. Dijaga `tests/plugins/test_hooks.py`, `tests/agent/test_memory_and_delegation.py`, dan `tests/agent/test_compression.py`. `pre_verify` dan middleware permintaan belum ada: belum ada plugin yang membutuhkannya |
 
@@ -188,5 +205,9 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
   ke versi sebelumnya selain memasang ulang.
 - `register_provider` dari plugin menulis ke lapisan dasar registry, bukan ke lapisan milik
   profil.
+- Halaman plugin belum punya jembatan data: ia tidak bisa memanggil RPC atau membaca berkas di
+  luar direktorinya, jadi halaman yang menampilkan keadaan agen belum bisa dibuat. Listenernya
+  juga dibuka sekali di awal `serve`, sehingga plugin yang diaktifkan belakangan perlu
+  menjalankan ulang `clite serve`.
 - Anggaran `ctx.llm` dihitung per proses, bukan kuota tersimpan: agent yang dijalankan ulang
   memberi plugin anggaran penuh lagi. Kuota lintas-run menunggu mesin biaya (F2-T3).

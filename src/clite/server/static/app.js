@@ -377,7 +377,29 @@ const panels = {
           type: "button",
           onclick: async () => show(await state.rpc.request("plugins.set_enabled", { name: plugin.name, enabled: plugin.status !== "loaded" })),
         }, plugin.status === "loaded" ? "Disable" : "Enable")))));
-    show(await state.rpc.request("plugins.list"));
+    // Pages plugins ship are frames, not markup: the sandbox drops allow-same-origin, so the
+    // frame gets an origin of its own (and the served page comes from a port of its own too).
+    // It cannot read this document, this origin's storage, or the session token.
+    const frames = async () => {
+      const response = await fetch("/api/plugin-pages", {
+        headers: { "X-Clite-Token": sessionStorage.getItem("clite-token") || "" },
+      });
+      const { plugins } = await response.json();
+      return plugins.filter((page) => page.url).map((page) => [
+        h("h2", {}, page.title),
+        h("iframe", {
+          class: "plugin-page",
+          src: page.url,
+          sandbox: "allow-scripts allow-forms allow-popups",
+          loading: "lazy",
+          referrerpolicy: "no-referrer",
+          title: `${page.name} dashboard page`,
+        }),
+      ]);
+    };
+    const listed = await state.rpc.request("plugins.list");
+    show(listed);
+    for (const block of await frames()) panel.append(...block.flat());
   },
   async memory(panel) {
     const memory = await state.rpc.request("memory.get");

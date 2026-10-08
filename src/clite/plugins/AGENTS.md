@@ -1,6 +1,6 @@
 # plugins: aturan kerja
 
-Bus hook, pemuatan plugin, shell hook. Spesifikasi: `docs/spesifikasi/plugins.md`.
+Bus hook, pemuatan plugin, shell hook, halaman dashboard. Spesifikasi: `docs/spesifikasi/plugins.md`.
 
 Tes: `pytest tests/plugins -q`
 
@@ -21,6 +21,10 @@ Tes: `pytest tests/plugins -q`
 7. **`ctx.llm` tidak pernah melihat percakapan.** Ia hanya menerima prompt yang ditulis plugin
    sendiri dan membatasi jumlah panggilan per plugin (`llm.py`). Jangan menambahkan
    parameter, kwarg, atau jalur yang memasukkan pesan sesi ke dalamnya.
+8. **Halaman dashboard dilayani dari origin sendiri.** `pages.py` tidak boleh menyerahkan apa
+   pun kepada browser selain aset web di dalam direktori plugin itu sendiri, dan halaman tidak
+   pernah diberi token sesi. Jembatan menuju RPC tidak ada dengan sengaja; menambahkannya
+   berarti membatalkan isolasinya.
 
 ## Resep
 

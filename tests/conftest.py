@@ -42,6 +42,7 @@ def _reset_process_state() -> None:
         ("clite.providers.registry", "reset_providers"),
         ("clite.providers.credentials", "reset_credential_pools"),
         ("clite.plugins.manager", "reset_plugin_managers"),
+        ("clite.plugins.pages", "reset_plugin_origin"),
         ("clite.skills.catalog", "reset_skill_cache"),
         ("clite.cron.jobs", "reset_job_stores"),
         ("clite.gateway.runner", "reset_active_runners"),

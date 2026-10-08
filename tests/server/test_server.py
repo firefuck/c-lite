@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import threading
 import time
 import urllib.error
@@ -229,3 +230,130 @@ def test_disconnecting_ends_the_connections_sessions(backend):
             break
         time.sleep(0.05)
     assert get_session_db().get_session(session["stored_session_id"])["end_reason"] == "rpc_closed"
+
+
+# ── plugin dashboard pages, on an origin of their own ────────────────────────────────────
+
+PAGE_PLUGIN = """name: board
+description: a plugin with a dashboard page
+dashboard:
+  title: Deploy board
+  page: dashboard/index.html
+"""
+
+
+def write_page_plugin(clite_home, *, enabled=True, name="board"):
+    from clite.plugins.manifest import parse_manifest  # noqa: F401  (keeps the shape obvious)
+
+    directory = clite_home / "plugins" / name
+    (directory / "dashboard").mkdir(parents=True)
+    (directory / "plugin.yaml").write_text(PAGE_PLUGIN.replace("board", name))
+    (directory / "__init__.py").write_text("def register(ctx):\n    pass\n")
+    (directory / "dashboard" / "index.html").write_text("<!doctype html><h1>deploy board</h1>")
+    (directory / "dashboard" / "app.js").write_text("console.log('board');")
+    (directory / "notes.env").write_text("SOMETHING=private")
+    (clite_home / "config.yaml").write_text(
+        "model:\n  provider: mock\n  default: mock-1\n"
+        + (f"plugins:\n  enabled: [{name}]\n" if enabled else "")
+    )
+    return directory
+
+
+def fetch(url, *, token=None):
+    request = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"} if token else {})
+    with urllib.request.urlopen(request, timeout=10) as response:
+        return response.status, response.headers.get("content-type", ""), response.read().decode()
+
+
+def fetch_status(url):
+    try:
+        return fetch(url)[0]
+    except urllib.error.HTTPError as error:
+        return error.code
+
+
+def test_a_plugin_page_is_listed_and_served_from_its_own_origin(clite_home):
+    write_page_plugin(clite_home)
+    backend, server, thread = start_backend(token="test-token-123")
+    try:
+        assert backend.get("/api/plugin-pages")[0] == 401  # a list of what is installed needs the token
+        status, body = backend.get("/api/plugin-pages", token=backend.token)
+        assert status == 200
+        (page,) = body["plugins"]
+        assert (page["name"], page["title"]) == ("board", "Deploy board")
+        url = page["url"]
+        origin = url.split("/board/")[0]
+        assert origin.startswith("http://127.0.0.1:")
+        assert int(origin.rsplit(":", 1)[1]) != backend.port  # its own port, hence its own origin
+
+        # Served there, without a token: it is the plugin's own file, not the backend's data.
+        status, content_type, html = fetch(url)
+        assert status == 200 and content_type.startswith("text/html") and "deploy board" in html
+        assert fetch(f"{origin}/board/dashboard/app.js")[1].startswith("text/javascript")
+        # The dashboard's own origin has no such route.
+        assert fetch_status(f"{backend.base}/board/dashboard/index.html") == 404
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+
+
+def test_a_plugin_without_a_load_has_no_page(clite_home):
+    write_page_plugin(clite_home, enabled=False)
+    backend, server, thread = start_backend(token="test-token-123")
+    try:
+        assert backend.get("/api/plugin-pages", token=backend.token) == (200, {"plugins": []})
+        # No page, no listener: nothing of the plugin is reachable at all.
+        assert fetch_status(f"{backend.base}/board/dashboard/index.html") == 404
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+
+
+def test_the_page_listener_serves_web_assets_only(clite_home):
+    write_page_plugin(clite_home)
+    backend, server, thread = start_backend(token="test-token-123")
+    try:
+        url = backend.get("/api/plugin-pages", token=backend.token)[1]["plugins"][0]["url"]
+        origin = url.split("/board/")[0]
+        assert "deploy board" in fetch(f"{origin}/board/")[2]  # a bare /<plugin>/ is the entry page
+        for path in (
+            "/board/notes.env",  # a file in the plugin, but not a web asset
+            "/board/plugin.yaml",
+            "/board/dashboard/%2e%2e/%2e%2e/notes.env",  # tries to climb out
+            "/somewhere-else/index.html",  # no such plugin
+            "/static/style.css",  # the dashboard's own static files are not here
+        ):
+            assert fetch_status(origin + path) == 404, path
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+
+
+def test_a_page_cannot_open_the_dashboard_socket(clite_home):
+    write_page_plugin(clite_home)
+    backend, server, thread = start_backend(token="test-token-123")
+    try:
+        url = backend.get("/api/plugin-pages", token=backend.token)[1]["plugins"][0]["url"]
+        page_origin = url.split("/board/")[0]
+        with pytest.raises(Exception) as refused:
+            # The token is not enough: a page from another origin is not the dashboard.
+            backend.connect(token=backend.token, origin=page_origin).__enter__()
+        assert "4401" in str(refused.value) or "rejected" in str(refused.value).lower()
+        # The dashboard's own origin still connects.
+        backend.connect(token=backend.token, origin=backend.base).__enter__().close()
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+    assert page_origin != backend.base
+
+
+def test_the_dashboard_embeds_plugin_pages_without_same_origin():
+    """The behavioural version of this needs a browser (see test_dashboard_browser.py); what can
+    be checked here is the frame the dashboard builds, and it must not carry allow-same-origin."""
+    from clite.server.app import STATIC_DIR
+
+    script = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
+    match = re.search(r'sandbox: "([^"]+)"', script)
+    assert match, "the dashboard does not set a sandbox on plugin pages"
+    assert "allow-scripts" in match.group(1) and "allow-same-origin" not in match.group(1)
+    assert 'referrerpolicy: "no-referrer"' in script

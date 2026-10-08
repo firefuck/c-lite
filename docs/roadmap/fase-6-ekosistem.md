@@ -212,10 +212,10 @@ aturan opt-in.
 `website/docs/developer-guide/observer-hooks.md`.
 
 **Selesai bila.**
-- [ ] Tes: plugin yang diperbarui tidak berjalan sampai diaktifkan lagi.
-- [ ] Tes: dua plugin `exclusive` dalam kategori yang sama tidak bisa aktif bersamaan.
-- [ ] Tes: `ctx.llm` berhenti pada anggarannya dan tidak pernah menerima pesan sesi.
-- [ ] Baris terkait di spesifikasi plugins menjadi ✅, satu per sub-langkah.
+- [x] Tes: plugin yang diperbarui tidak berjalan sampai diaktifkan lagi.
+- [x] Tes: dua plugin `exclusive` dalam kategori yang sama tidak bisa aktif bersamaan.
+- [x] Tes: `ctx.llm` berhenti pada anggarannya dan tidak pernah menerima pesan sesi.
+- [x] Baris terkait di spesifikasi plugins menjadi ✅, satu per sub-langkah.
 
 **Catatan.** Kemajuan per sub-langkah:
 1. Asal-usul dan pembaruan — **selesai**. Modul baru `src/clite/plugins/hub.py`
@@ -236,7 +236,12 @@ aturan opt-in.
    ditulis ulang, membawa `messages_before`/`messages_after`/`summary`; **gagal terbuka**).
    Keduanya dikecualikan dari `SHELL_HOOK_EVENTS` dengan alasan tertulis. `pre_verify` dan
    middleware permintaan tidak dibuat: belum ada plugin nyata yang membutuhkannya.
-7. Halaman dashboard dari plugin — belum.
+7. Halaman dashboard dari plugin — **selesai**. Manifest boleh mendeklarasikan
+   `dashboard: {title, page}`; halaman dilayani **listener kedua di port sendiri**
+   (`clite/plugins/pages.py` dan `create_plugin_pages_app` di `server/app.py`), jadi originnya
+   sendiri: bingkai ber-sandbox di dashboard tidak berbagi DOM, `sessionStorage`, maupun token
+   dengannya, dan WebSocket backend menolaknya lewat pemeriksaan origin. Hanya plugin yang
+   aktif punya halaman, dan listener hanya menyerahkan aset web di dalam direktori plugin.
 
 **Ukuran.** L
 

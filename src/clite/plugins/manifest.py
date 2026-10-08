@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import yaml
@@ -16,6 +16,7 @@ KIND_PLATFORM = "platform"  # a gateway adapter
 KIND_MODEL_PROVIDER = "model-provider"  # an inference provider profile
 KINDS = (KIND_STANDALONE, KIND_BACKEND, KIND_EXCLUSIVE, KIND_PLATFORM, KIND_MODEL_PROVIDER)
 SUPPORTED_MANIFEST_VERSION = 1
+DASHBOARD_SUFFIX = ".html"  # a dashboard page is an HTML file inside the plugin directory
 # Directories under a plugins root that are not plugins: provider profiles (the provider
 # registry loads them itself) and the owner id shell hooks register under.
 RESERVED_DIRS = frozenset({"model-providers", "shell-hooks"})
@@ -39,6 +40,8 @@ class PluginManifest:
     provides_tools: tuple[str, ...] = ()
     provides_hooks: tuple[str, ...] = ()
     pip_dependencies: tuple[str, ...] = ()
+    dashboard_title: str = ""  # a dashboard page the plugin ships; "" = none
+    dashboard_page: str = ""  # its path inside the plugin directory
     raw: dict[str, Any] = field(default_factory=dict)
 
 
@@ -60,6 +63,29 @@ def validate_plugin_name(name: str) -> str:
     return name
 
 
+def _dashboard(value: Any, name: str) -> tuple[str, str]:
+    """``(title, entry)`` of a plugin-shipped dashboard page; ``("", "")`` when there is none.
+
+    The entry is checked here, not when the page is served: a plugin that points outside its
+    own directory is a manifest error, and it should be reported like any other.
+    """
+    if value is None or value is False or value == "" or value == {}:
+        return "", ""
+    if isinstance(value, str):
+        value = {"page": value}
+    if not isinstance(value, dict):
+        raise ManifestError(f"plugin {name!r}: `dashboard` must be a mapping with a `page` key")
+    entry = str(value.get("page") or "").strip()
+    if not entry:
+        raise ManifestError(f"plugin {name!r}: `dashboard` needs a `page`")
+    parts = PurePosixPath(entry.replace("\\", "/")).parts
+    if entry.startswith(("/", "\\")) or ".." in parts or ":" in entry:
+        raise ManifestError(f"plugin {name!r}: dashboard page {entry!r} must stay inside the plugin")
+    if not entry.lower().endswith(DASHBOARD_SUFFIX):
+        raise ManifestError(f"plugin {name!r}: dashboard page {entry!r} must be a {DASHBOARD_SUFFIX} file")
+    return str(value.get("title") or name), entry
+
+
 def parse_manifest(data: Any, *, fallback_name: str = "") -> PluginManifest:
     if not isinstance(data, dict):
         raise ManifestError("plugin.yaml must be a mapping")
@@ -73,6 +99,7 @@ def parse_manifest(data: Any, *, fallback_name: str = "") -> PluginManifest:
             f"plugin {name!r} is of kind 'exclusive', which needs a category: "
             "at most one plugin of a category can be active at a time"
         )
+    dashboard_title, dashboard_page = _dashboard(data.get("dashboard"), name)
     try:
         manifest_version = int(data.get("manifest_version") or SUPPORTED_MANIFEST_VERSION)
     except (TypeError, ValueError):
@@ -94,6 +121,8 @@ def parse_manifest(data: Any, *, fallback_name: str = "") -> PluginManifest:
         provides_tools=_strings(data.get("provides_tools")),
         provides_hooks=_strings(data.get("provides_hooks")),
         pip_dependencies=_strings(data.get("pip_dependencies")),
+        dashboard_title=dashboard_title,
+        dashboard_page=dashboard_page,
         raw=data,
     )
 

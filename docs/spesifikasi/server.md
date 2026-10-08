@@ -21,8 +21,10 @@ statis.
 | `GET /api/status` | ya | Versi, profil, model terkonfigurasi |
 | `GET /api/sessions` | ya | Sesi tersimpan |
 | `GET /api/sessions/{id}/messages` | ya | Satu transkrip |
+| `GET /api/plugin-pages` | ya | Halaman dashboard dari plugin, beserta URL-nya di origin sendiri |
 | `WS /api/ws` | ya | JSON-RPC, protokol yang sama dengan TUI |
 | `GET /` dan `/static/*` | tidak | Dashboard (tidak memuat rahasia) |
+| `GET /<plugin>/<berkas>` | tidak | Halaman plugin, di **listener dan port sendiri** (lihat di bawah) |
 
 Semua yang bisa **dilakukan** klien lewat WebSocket. Rute REST hanya untuk integrasi baca dan
 pemeriksaan kesehatan.
@@ -67,6 +69,21 @@ Handler REST dan penutupan WebSocket membawa konteks pemanggil ke worker melalui
 hanya membaca database home yang aktif. Dua scope bersamaan serta penutupan WebSocket di
 luar event loop dijaga oleh `tests/server/test_context.py`.
 
+**Halaman dari plugin**
+- Plugin yang mendeklarasikan `dashboard: {title, page}` di manifest dan sedang aktif dilayani
+  oleh **listener kedua** (`create_plugin_pages_app`) di port sendiri, dibuka di awal `serve`
+  hanya bila ada halaman. Port sendiri itulah yang memberi halaman itu **origin sendiri**:
+  bingkai di dashboard tidak berbagi apa pun dengannya, dan handshake WebSocket-nya ditolak
+  oleh pemeriksaan origin karena portnya berbeda.
+- Selain origin, bingkainya juga ber-sandbox (`allow-scripts allow-forms allow-popups`, tanpa
+  `allow-same-origin`): tidak bisa membaca DOM dashboard, `sessionStorage`, atau token sesi.
+  Halaman tidak pernah diberi token.
+- Listener hanya melayani berkas di dalam direktori plugin itu sendiri, hanya dengan akhiran
+  aset web (`.html`, `.css`, `.js`, `.json`, `.svg`, gambar, font). Jalur yang keluar direktori,
+  symlink ke luar, dan berkas titik dijawab 404 dengan badan yang sama, jadi listener tidak
+  membocorkan plugin mana yang ada.
+- Dijaga `tests/server/test_server.py` (empat tes) dan `tests/plugins/test_pages.py`.
+
 ## Status fitur
 
 | Fitur | Status | Catatan |
@@ -77,7 +94,7 @@ luar event loop dijaga oleh `tests/server/test_context.py`.
 | Dashboard React + Vite | ⬜ | Hanya bila JS polos tidak lagi cukup: F5-T3 |
 | TLS, autentikasi pengguna, akses jarak jauh | ⬜ | F5-T6 |
 | Endpoint kompatibel OpenAI (`/v1/chat/completions`) | ⬜ | F4-T10 |
-| Halaman dari plugin | ⬜ | F6-T5 |
+| Halaman dari plugin | ✅ | F6-T5: listener dan port sendiri (origin sendiri), bingkai ber-sandbox, hanya aset web di dalam direktori plugin. Tanpa jembatan data: halaman tidak bisa meminta sesuatu ke backend |
 
 ## Yang sengaja berbeda dari Hermes
 
