@@ -76,11 +76,13 @@ DANGEROUS_PATTERNS: list[tuple[str, str, str]] = [
     (r"\bkubectl\s+delete\b", "kubectl_delete", "delete cluster resources"),
     (r"\bterraform\s+(destroy|apply\b.*-auto-approve)", "terraform_destroy", "destroy or auto-apply infrastructure"),
     (r"\bcrontab\s+-r\b", "crontab_remove", "remove the crontab"),
-    (r"(^|[;&|]\s*)(python3?|node|perl|ruby)\s+-[ce]\s+.*(rmtree|unlink|rm\s+-)", "script_delete", "script that deletes files"),
-    # The same deletes spelled directly in code, which is what `execute_code` runs: a call that
-    # removes a tree or a file is the destructive command it wraps, whatever syntax it is
-    # written in. This is why the code-execution tool sends its text through this gate.
-    (r"\brmtree\s*\(|\bos\.(remove|unlink|rmdir|removedirs)\s*\(", "script_delete", "script that deletes files"),
+    # Deletes spelled directly in code, which is what `execute_code` runs: a call that removes
+    # a tree or a file is the destructive command it wraps, whatever syntax spells it. This is
+    # why the code-execution tool sends its text through this gate. The same call inside
+    # ``python -c``/``node -e``/``perl -e``/``ruby -e`` is caught when that payload is re-read.
+    (r"\brmtree\s*\(|\bos\.(remove|unlink|rmdir|removedirs)\s*\(|\bshutil\.rmtree\s*\(", "script_delete", "script that deletes files"),
+    (r"\b(unlinkSync|rmSync|rmdirSync|deleteSync)\s*\(|\bFile\.(delete|unlink)\s*\(|\bunlink\s*[\"']", "script_delete", "script that deletes files"),
+    (r"\b(os|shutil)\.(unlink|rmdir|remove|rmtree)\s*\(", "script_delete", "script that deletes files"),
     (r"\bsubprocess\.\w+\s*\(\s*[\[\(]?\s*[\"']rm[\"']\s*,\s*[\"']-", "script_delete", "script that deletes files"),
     (r"\b(mv|cp)\b.*\s(~/)?\.(ssh|aws|gnupg)/", "credential_dir_write", "write into a credential directory"),
     (r">\s*~?/?\S*\.(bashrc|zshrc|profile|bash_profile)\b", "shell_rc_overwrite", "overwrite a shell startup file"),
@@ -95,6 +97,16 @@ HARDLINE_PATTERNS: list[tuple[str, str]] = [
     (r"\bmkfs(\.\w+)?\s+(-\S+\s+)*/dev/(sd|nvme|hd|vd)", "format a disk"),
     (r"\bdd\b.*\bof=/dev/(sd|nvme|hd|vd|disk)", "overwrite a disk"),
     (r">\s*/dev/(sd|nvme|hd|vd)[a-z0-9]*", "overwrite a disk"),
+    # Absolute prohibitions carried over from Hermes: a signal the machine cannot refuse to
+    # obey, or a power state no agent should change. Only at a command position, so a message
+    # that merely *mentions* them stays data.
+    (r"(?:^|[;&|()`]\s*|\b(?:sudo|doas|env|exec|nohup|setsid|nice|timeout|stdbuf)\b\s+\S*\s*)kill\s+(-[a-zA-Z]*1\b|-[a-zA-Z]*HUP\b|-[a-zA-Z]*SIGHUP\b)",
+     "send a hangup signal to a process"),
+    (r"(?:^|[;&|()`]\s*|\b(?:sudo|doas|env|exec|nohup|setsid|nice|timeout|stdbuf)\b\s+\S*\s*)(shutdown|reboot|halt|poweroff)\b",
+     "shut down, reboot, or change the machine's run level"),
+    (r"(?:^|[;&|()`]\s*|\b(?:sudo|doas|env|exec|nohup|setsid|nice|timeout|stdbuf)\b\s+\S*\s*)init\s+[06]\b",
+     "shut down, reboot, or change the machine's run level"),
+    (r"(?:^|[;&|()`]\s*)(?:sudo\s+)?(\w*/)?mkfs(\.\w+)?\b", "format a disk"),
 ]
 
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
@@ -141,16 +153,260 @@ class ApprovalDecision:
 # ── reading a command the way a shell would ──────────────────────────────────────────────
 
 _LINE_CONTINUATION = re.compile(r"\\\r?\n")
-_ESCAPED = re.compile(r"\\(.)", re.DOTALL)
 _IFS = re.compile(r"\$\{IFS\b[^}]*\}|\$IFS\b")
 _BRACED_VARIABLE = re.compile(r"\$\{(\w+)\}")
-_REPEATED_SLASH = re.compile(r"(?<![:/])/{2,}")  # not the // of a URL
 _QUOTES = str.maketrans("", "", "\"'")
 _COMMAND_BREAK = re.compile(r"&&|\|\||[;&|(){}\n`]|\$\(")
+# The same, without the parentheses and backticks: a delete only counts when its ``rm`` is the
+# head of a whole command, not a word inside a call such as ``print(rm -rf /)``.
+_COMMAND_BREAK_NO_PARENS = re.compile(r"&&|\|\||[;&|\n]")
 _ASSIGNMENT = re.compile(r"[A-Za-z_]\w*=")
+_SEPARATOR = frozenset(";&|\n")
 # Words that run the command named after them.
 _WRAPPERS = frozenset({"sudo", "doas", "env", "exec", "nohup", "setsid", "time", "command", "builtin", "nice", "timeout",
                        "stdbuf", "xargs", "uv", "uvx", "pipx", "poetry"})
+
+# Commands whose whole point is to run the text handed to them: their ``-c``/``-e`` argument
+# is code, and a shell (or interpreter) inside it runs whatever that text says.
+_CODE_COMMANDS = frozenset({"sh", "bash", "zsh", "dash", "ksh", "ash", "eval", "source",
+                            "python", "python2", "python3", "pypy", "py", "node", "nodejs",
+                            "perl", "ruby", "php", "lua", "deno", "bun", "osascript"})
+# Options that introduce a code payload for any command (``psql -c``, ``redis-cli -e``, ...).
+_CODE_OPTIONS = frozenset({"-c", "-e", "--command", "--eval", "--execute"})
+
+# Anything past these is refused rather than parsed: a command too big or too deeply nested to
+# read is exactly where a pattern match would go quiet, so it fails closed instead.
+MAX_COMMAND_CHARS = 20000
+MAX_COMMAND_DEPTH = 12
+
+
+class CommandTooComplexError(Exception):
+    """A command that is too long or too deeply nested to read safely."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(reason)
+
+
+def _nesting_depth(command: str) -> int:
+    """The deepest run of command substitutions and subshells in ``command``."""
+    depth = deepest = 0
+    index, length = 0, len(command)
+    while index < length:
+        pair = command[index:index + 2]
+        if pair == "$(" or command[index] == "`":
+            depth += 1
+            deepest = max(deepest, depth)
+            index += 2 if pair == "$(" else 1
+            continue
+        if command[index] == ")":
+            depth = max(0, depth - 1)
+        index += 1
+    return deepest
+
+
+def _guard_parse_limits(command: str, depth: int = 0) -> None:
+    """Refuse a command past the size or nesting we are willing to read (fail closed).
+
+    A command too big or too deeply nested to read is exactly where a pattern match would go
+    quiet, so it is refused with the reason spelled out rather than waved through."""
+    if len(command) > MAX_COMMAND_CHARS:
+        raise CommandTooComplexError(f"the command is longer than the {MAX_COMMAND_CHARS}-character limit")
+    nesting = _nesting_depth(command)
+    if depth + nesting > MAX_COMMAND_DEPTH:
+        raise CommandTooComplexError(f"the command nests commands more than {MAX_COMMAND_DEPTH} levels deep")
+
+
+def _shell_read(command: str) -> tuple[str, list[tuple[int, int, int]]]:
+    """``command`` as a shell reads its spelling, plus where each quoted run came from.
+
+    Returns the text without quotes, escapes and other spellings a shell ignores (the same
+    string :func:`shell_plain` returns), and for every quoted run the ``(start, end,
+    segment_start)`` it occupies in that text. ``start``/``end`` are the bare contents; the
+    segment start is where the simple command that owns the run begins, which is what decides
+    whether the run is data or code."""
+    text = _LINE_CONTINUATION.sub("", normalize_command(command))
+    out: list[str] = []
+    quoted: list[bool] = []
+    segment: list[int] = []
+    seg = 0
+    index, length = 0, len(text)
+    while index < length:
+        character = text[index]
+        if character == "\\" and index + 1 < length:
+            out.append(text[index + 1])
+            quoted.append(False)
+            segment.append(seg)
+            index += 2
+            continue
+        if character in ("'", '"'):
+            quote = character
+            index += 1
+            while index < length and text[index] != quote:
+                if quote == '"' and text[index] == "\\" and index + 1 < length:
+                    out.append(text[index + 1])
+                    index += 2
+                else:
+                    out.append(text[index])
+                    index += 1
+                quoted.append(True)
+                segment.append(seg)
+            index += 1
+            continue
+        if character in _SEPARATOR:
+            out.append(character)
+            quoted.append(False)
+            segment.append(seg)
+            seg += 1
+            index += 1
+            continue
+        out.append(character)
+        quoted.append(False)
+        segment.append(seg)
+        index += 1
+    return _rebase("".join(out), quoted, segment)
+
+
+def _rebase(plain: str, quoted: list[bool], segment: list[int]) -> tuple[str, list[tuple[int, int, int]]]:
+    """``${NAME}`` to ``$NAME``, ``$IFS`` to a space, ``//`` to ``/`` while keeping quote spans."""
+    out: list[str] = []
+    flags: list[bool] = []
+    owners: list[int] = []
+    index, length = 0, len(plain)
+    while index < length:
+        ifs = _IFS.match(plain, index)
+        if ifs:
+            out.append(" ")
+            flags.append(quoted[index])
+            owners.append(segment[index])
+            index = ifs.end()
+            continue
+        braced = _BRACED_VARIABLE.match(plain, index)
+        if braced:
+            for offset, replacement in enumerate("$" + braced.group(1)):
+                out.append(replacement)
+                flags.append(quoted[index + offset])
+                owners.append(segment[index + offset])
+            index = braced.end()
+            continue
+        if plain.startswith("//", index) and (index == 0 or plain[index - 1] not in ":/"):
+            out.append("/")
+            flags.append(quoted[index])
+            owners.append(segment[index])
+            index += 2
+            continue
+        out.append(plain[index])
+        flags.append(quoted[index])
+        owners.append(segment[index])
+        index += 1
+    spans: list[tuple[int, int, int]] = []
+    start: int | None = None
+    for position, is_quoted in enumerate(flags):
+        if is_quoted and start is None:
+            start = position
+        elif not is_quoted and start is not None:
+            spans.append((start, position, owners[start]))
+            start = None
+    if start is not None:
+        spans.append((start, len(flags), owners[start]))
+    return "".join(out), spans
+
+
+def _head_of(segment_text: str) -> str | None:
+    """The command a segment runs, with its leading ``NAME=value`` words dropped."""
+    words = segment_text.split()
+    index = 0
+    while index < len(words) and _ASSIGNMENT.match(words[index]):
+        index += 1
+    return posixpath.basename(words[index]).lower() if index < len(words) else None
+
+
+def _owns_code(plain: str, span: tuple[int, int, int]) -> bool:
+    """Whether the quoted run at ``span`` is code an executor will run, not data."""
+    start, _end, segment_start = span
+    head = _head_of(plain[segment_start:start])
+    if head is None:
+        return False
+    if head in _CODE_COMMANDS:
+        return True
+    # The word right before the run decides: ``psql -c '...'`` runs its argument as code too.
+    preceding = plain[segment_start:start].split()
+    return bool(preceding) and preceding[-1] in _CODE_OPTIONS
+
+
+def _quoted_spans(plain: str, spans: list[tuple[int, int, int]]) -> list[tuple[int, int]]:
+    """Every quoted run of ``plain``. Patterns never see inside one: a mention is data, and a
+    code payload (``bash -c "..."``) is handed back separately and read as its own command."""
+    return [(start, end) for start, end, _segment in spans]
+
+
+def _written_quoted_spans(text: str) -> list[tuple[int, int]]:
+    """The quoted runs of the command as written, with the quotes themselves included."""
+    spans: list[tuple[int, int]] = []
+    index, length = 0, len(text)
+    while index < length:
+        character = text[index]
+        if character == "\\" and index + 1 < length:
+            index += 2
+            continue
+        if character in ("'", '"'):
+            quote, start = character, index
+            index += 1
+            while index < length and text[index] != quote:
+                if quote == '"' and text[index] == "\\" and index + 1 < length:
+                    index += 2
+                else:
+                    index += 1
+            index += 1
+            spans.append((start, index))
+            continue
+        index += 1
+    return spans
+
+
+def _contained(span: tuple[int, int], text: str, data_spans: list[tuple[int, int]]) -> bool:
+    """Whether a match lies wholly inside one quoted data run, and so is only a mention.
+
+    Whitespace at the edges of the match is not part of the mention: ``rm -rf / `` matched
+    inside ``echo "rm -rf /"`` reaches one space past the closing quote."""
+    body = text[span[0]:span[1]]
+    start = span[0] + (len(body) - len(body.lstrip()))
+    end = span[1] - (len(body) - len(body.rstrip()))
+    return any(start >= low and end <= high for low, high in data_spans)
+
+
+_SEGMENT_SPLIT = re.compile(r"&&|\|\||[;&|\n]")
+_VARIABLE_USE = re.compile(r"\$\{(\w+)\}|\$(\w+)")
+
+
+def _variable_values(plain: str) -> dict[str, str]:
+    """``NAME=value`` assignments on the line, in order, so a later mention can be resolved."""
+    values: dict[str, str] = {}
+    for segment in _SEGMENT_SPLIT.split(plain):
+        segment = segment.strip()
+        match = re.match(r"^([A-Za-z_]\w*)=(.*)$", segment, re.DOTALL)
+        if match and " " not in segment.split("=", 1)[0]:
+            values[match.group(1)] = match.group(2)
+    return values
+
+
+def _expand_variables(text: str, values: dict[str, str]) -> str:
+    """``$NAME`` and ``${NAME}`` replaced by the value assigned to them on the same line."""
+    if not values:
+        return text
+    return _VARIABLE_USE.sub(lambda match: values.get(match.group(1) or match.group(2), match.group(0)), text)
+
+
+_SHELL_CALL = re.compile(r"\b(?:os\.(?:system|popen)|subprocess\.(?:run|call|check_call|check_output|Popen)|commands\.getoutput)\s*\(\s*[\"']([^\"']+)[\"']")
+
+
+def _code_payloads(command: str) -> list[str]:
+    """The text handed to a code executor: the argument of ``sh -c``, an interpreter, or an
+    ``os.system``/``subprocess`` call, all of which run whatever the text says."""
+    plain, spans = _shell_read(command)
+    payloads = [plain[start:end] for span in spans if _owns_code(plain, span) for start, end in [(span[0], span[1])]]
+    payloads.extend(match.group(1) for match in _SHELL_CALL.finditer(normalize_command(command)))
+    return payloads
 
 
 def shell_plain(command: str) -> str:
@@ -158,12 +414,9 @@ def shell_plain(command: str) -> str:
     escapes, quotes, ``${NAME}`` for ``$NAME``, ``$IFS`` for a space, repeated slashes.
 
     Every detector reads this form as well as the original, so ``rm -rf "$HOME"`` and
-    ``r\\m -rf ~`` are judged like the plain command they run as.
+    ``r\\\\m -rf ~`` are judged like the plain command they run as.
     """
-    text = _LINE_CONTINUATION.sub("", normalize_command(command))
-    text = _ESCAPED.sub(r"\1", text).translate(_QUOTES)
-    text = _BRACED_VARIABLE.sub(r"$\1", _IFS.sub(" ", text))
-    return _REPEATED_SLASH.sub("/", text)
+    return _shell_read(command)[0]
 
 
 def _readings(command: str) -> list[str]:
@@ -172,10 +425,30 @@ def _readings(command: str) -> list[str]:
     return [written] if plain == written else [written, plain]
 
 
-def _simple_commands(text: str) -> list[list[str]]:
-    """The words of each simple command in ``text``, leading ``NAME=value`` words dropped."""
+def _position_readings(command: str) -> list[tuple[str, list[tuple[int, int]], dict[str, str]]]:
+    """Each reading with the quoted runs that patterns must not see inside, and the line's
+    variable assignments.
+
+    A match wholly inside a quoted run is only a mention (``git commit -m "rm -rf /"``). The
+    runs that carry code (``bash -c "..."``, ``python -c "..."``) are not matched here either;
+    they are handed back separately and read as commands in their own right."""
+    written, plain = normalize_command(command), shell_plain(command)
+    pairs = [(written, _written_quoted_spans(written))]
+    if plain != written:
+        pairs.append((plain, _quoted_spans(plain, _shell_read(command)[1])))
+    values = _variable_values(plain)
+    return [(text, spans, values) for text, spans in pairs]
+
+
+def _simple_commands(text: str, *, break_on_parens: bool = True) -> list[list[str]]:
+    """The words of each simple command in ``text``, leading ``NAME=value`` words dropped.
+
+    With ``break_on_parens`` false, ``(``/``)``/backticks do not start a new command. The
+    delete detector uses that: ``print(rm -rf /)`` is a call whose head is ``print``, not a
+    subshell running ``rm``."""
+    splitter = _COMMAND_BREAK if break_on_parens else _COMMAND_BREAK_NO_PARENS
     commands = []
-    for segment in _COMMAND_BREAK.split(text):
+    for segment in splitter.split(text):
         words = segment.split()
         while words and _ASSIGNMENT.match(words[0]):
             words.pop(0)
@@ -261,7 +534,7 @@ def _recursive_delete_victim(text: str, cwd: str = "") -> str | None:
     resolves them (``~``, ``$HOME``, ``..``, a trailing ``/*``), from ``cwd`` when it is
     known, following any ``cd`` earlier on the same command line."""
     where: str | None = _path_text(cwd) if cwd else None
-    for words in _simple_commands(text):
+    for words in _simple_commands(text, break_on_parens=False):
         if words[0] in ("cd", "pushd"):
             target = words[1] if len(words) > 1 else "~"
             where = None if target.startswith("-") else _absolute(target, where)
@@ -446,10 +719,25 @@ def detect_self_access(command: str, cwd: str = "") -> DangerMatch | None:
     the agent's own management command, it names a path into one of the agent's homes that is
     (or could expand to) a protected file or a directory holding one, or it runs from inside
     such a directory."""
+    try:
+        return _detect_self_access(command, cwd, 0)
+    except CommandTooComplexError:
+        return SELF_ACCESS
+
+
+def _detect_self_access(command: str, cwd: str, depth: int) -> DangerMatch | None:
+    _guard_parse_limits(command, depth)
     # Windows backslashes are separators, not POSIX escapes. Keep both readings.
-    readings = _readings(command) + [normalize_command(command).replace("\\", "/").translate(_QUOTES)]
+    plain = shell_plain(command)
+    values = _variable_values(plain)
+    readings = [normalize_command(command), plain, normalize_command(command).replace("\\", "/").translate(_QUOTES)]
     for text in readings:
-        if _own_cli().search(text) or _runs_own_cli(text) or _reaches_into_agent_home(text, cwd):
+        # A name assembled from a variable on the same line is the name it runs as.
+        for expanded in (text, _expand_variables(text, values)):
+            if _own_cli().search(expanded) or _runs_own_cli(expanded) or _reaches_into_agent_home(expanded, cwd):
+                return SELF_ACCESS
+    for payload in _code_payloads(command):
+        if _detect_self_access(payload, cwd, depth + 1) is not None:
             return SELF_ACCESS
     return None
 
@@ -471,28 +759,79 @@ def normalize_command(command: str) -> str:
     return unicodedata.normalize("NFKC", text)
 
 
+class _Collected:
+    """The patterns found so far, keyed so a later, richer description does not overwrite one."""
+
+    def __init__(self) -> None:
+        self.matches: dict[str, DangerMatch] = {}
+
+    def add(self, key: str, description: str) -> None:
+        self.matches.setdefault(key, DangerMatch(key, description))
+
+
 def detect_dangerous_command(command: str) -> list[DangerMatch]:
-    found: dict[str, DangerMatch] = {}
-    for text in _readings(command):
+    """The soft patterns ``command`` matches, read at its command positions.
+
+    A quoted run that is only data (``git commit -m "rm -rf /"``) is a mention, not a command,
+    so a match wholly inside it is skipped. A run that carries code (``bash -c "..."``,
+    ``python -c "..."``) is read as a command in its own right."""
+    try:
+        return list(_detect_dangerous(command, 0).matches.values())
+    except CommandTooComplexError:
+        # The size and depth limits are enforced by ``check_command``; here a command too big
+        # to read is treated as matching every pattern, which is the safe side for a caller
+        # that only asks "is this dangerous".
+        return [DangerMatch("parse_limit", "command too large or too deeply nested to inspect")]
+
+
+def _detect_dangerous(command: str, depth: int) -> _Collected:
+    _guard_parse_limits(command, depth)
+    collected = _Collected()
+    for text, data_spans, values in _position_readings(command):
+        text = _expand_variables(text, values)
         for pattern, key, description in _COMPILED_DANGEROUS:
-            if key not in found and pattern.search(text):
-                found[key] = DangerMatch(key, description)
-    return list(found.values())
+            if key in collected.matches:
+                continue
+            for hit in pattern.finditer(text):
+                if not _contained(hit.span(), text, data_spans):
+                    collected.add(key, description)
+                    break
+    for payload in _code_payloads(command):
+        for found in _detect_dangerous(payload, depth + 1).matches.values():
+            collected.matches.setdefault(found.key, found)
+    return collected
 
 
 def detect_hardline(command: str, cwd: str = "") -> str | None:
     """Why ``command`` is refused in every mode, or ``None``. ``cwd`` is the directory it would
     run in, when known: a relative ``rm -rf *`` is only catastrophic in some places."""
-    for text in _readings(command):
+    try:
+        return _detect_hardline(command, cwd, 0)
+    except CommandTooComplexError as exc:
+        return str(exc.reason)
+
+
+def _detect_hardline(command: str, cwd: str, depth: int) -> str | None:
+    _guard_parse_limits(command, depth)
+    for text, data_spans, values in _position_readings(command):
+        text = _expand_variables(text, values)
         for pattern, description in _COMPILED_HARDLINE:
-            if pattern.search(text):
-                return description
-    # Preserve Windows separators as well as the POSIX escape reading.
-    for text in (shell_plain(command), normalize_command(command).replace("\\", "/").translate(_QUOTES)):
-        victim = _recursive_delete_victim(text, cwd)
-        if victim:
-            return victim
+            for match in pattern.finditer(text):
+                if not _contained(match.span(), text, data_spans):
+                    return description
+        # Read the target both ways: as the shell resolves escapes, and with Windows
+        # separators, where a backslash is a path separator and not an escape. Quotes go, so
+        # a quoted target (``rm -rf "C:\\Users\\me"``) is read as the path it names.
+        for candidate in (text, text.replace("\\", "/").translate(_QUOTES)):
+            victim = _recursive_delete_victim(candidate, cwd)
+            if victim:
+                return victim
+    for payload in _code_payloads(command):
+        reason = _detect_hardline(payload, cwd, depth + 1)
+        if reason:
+            return reason
     return None
+
 
 
 def _non_interactive_policy(ctx: ToolContext) -> str:
@@ -532,6 +871,15 @@ def check_command(command: str, ctx: ToolContext | None = None, *, cwd: str = ""
     """
     ctx = ctx or ToolContext()
     cwd = cwd or ctx.cwd
+    try:
+        _guard_parse_limits(command)
+    except CommandTooComplexError as exc:
+        return ApprovalDecision(
+            False,
+            f"Refused: {exc.reason}, so it cannot be read safely. Split it into smaller commands, "
+            "or explain to the user what needs to be run and why.",
+            "too_complex",
+        )
     hardline = detect_hardline(command, cwd)
     if hardline:
         return ApprovalDecision(False, f"Refused: this command would {hardline}. No setting allows it.", "hardline")

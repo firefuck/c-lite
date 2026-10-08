@@ -754,13 +754,28 @@ dirakit dari variabel, dan berhenti menolak teks yang hanya *menyebut* perintah 
 tanda kutip, muatan interpreter) dan `tools/approval_floors.py`.
 
 **Selesai bila.**
-- [ ] Setiap contoh di baris "Gerbang persetujuan tidak menjalankan shell" pada daftar celah
+- [x] Setiap contoh di baris "Gerbang persetujuan tidak menjalankan shell" pada daftar celah
       `docs/arsitektur/06-keamanan.md` punya tes yang menangkapnya, atau tetap terdaftar
       sebagai celah beserta alasannya.
-- [ ] Pesan commit dan `echo` yang menyebut perintah terlarang tidak lagi ditolak mutlak,
+- [x] Pesan commit dan `echo` yang menyebut perintah terlarang tidak lagi ditolak mutlak,
       sedangkan `bash -c` dengan perintah yang sama tetap ditolak.
-- [ ] Perintah yang melampaui batas penguraian ditolak dengan pesan yang menyebut sebabnya.
-- [ ] Tidak ada tes yang sudah ada dilemahkan.
+- [x] Perintah yang melampaui batas penguraian ditolak dengan pesan yang menyebut sebabnya.
+- [x] Tidak ada tes yang sudah ada dilemahkan.
+
+**Kemajuan 8 Oktober 2026.** Selesai di branch `f2-t15-obfuscation`. `shell_plain` kini
+dihasilkan oleh satu pembaca (`_shell_read`) yang juga mencatat rentang tiap bagian berkutip,
+jadi posisi perintah bisa dinilai: kecocokan yang seluruhnya berada di dalam satu bagian
+berkutip dianggap data (`git commit -m "buang rm -rf / ..."` dan `echo "rm -rf /"` tidak lagi
+ditolak), sedangkan bagian berkutip yang memuat kode dibaca ulang sebagai perintah
+(`sh -c`/`bash -c`/`zsh -c`/`eval`, `python -c`, `node -e`, `perl -e`, `ruby -e`, `psql -c`,
+dan teks `os.system`/`subprocess.*`). Penugasan variabel di baris yang sama diselesaikan lebih
+dulu (`c=clite; $c config set ...` → perintah pengelolaan agent sendiri; `d=/; rm -rf $d` →
+`rm -rf /`). Larangan mutlak bertambah: `kill -1`/`kill -HUP`, `shutdown`/`reboot`/`halt`/
+`poweroff`, `init 0`/`init 6`, dan `mkfs` di posisi perintah. Perintah yang lebih panjang dari
+`MAX_COMMAND_CHARS` (20.000) atau lebih bersarang dari `MAX_COMMAND_DEPTH` (12) ditolak dengan
+alasan. `detect_dangerous_command`, `detect_hardline`, dan `detect_self_access` semuanya
+melewati pemeriksaan ini. Dijaga 58 tes (`tests/tools/test_approval.py`, total 148). Bukti
+regresi merah/hijau ada di `docs/STATUS.md`. Clone rujukan `../hermes-ref` tidak tersedia.
 
 **Ukuran.** L
 
