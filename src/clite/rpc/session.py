@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import threading
 import uuid
 from typing import TYPE_CHECKING, Any
 
@@ -13,11 +12,19 @@ from clite.agent import AgentCallbacks
 from clite.agent.messages import content_text, is_internal
 from clite.core.config import config_get
 from clite.core.errors import CliteError
-from clite.core.threads import start_thread
 from clite.rpc.contracts import schema
 from clite.runtime.commands import BUSY_ALLOW, resolve_command, split_command
 from clite.runtime.presentation import result_failed, tool_preview
-from clite.runtime.session import ACTION_NEW, ACTION_SUBMIT, ChatSession
+from clite.runtime.session import (
+    ACTION_NEW,
+    ACTION_SUBMIT,
+    SUBMIT_QUEUED,
+    SUBMIT_REJECTED,
+    SUBMIT_STEERED,
+    ChatSession,
+    Turn,
+    TurnQueue,
+)
 from clite.state.db import get_session_db
 
 if TYPE_CHECKING:
@@ -43,9 +50,9 @@ class RpcSession:
             model=params.model, provider=params.provider, toolsets=params.toolsets, cwd=params.cwd, yolo=params.yolo,
             client=server.client_factory() if server.client_factory else None,
         )
-        self._lock = threading.Lock()
-        self._queue: list[tuple[str, str, list[dict[str, Any]] | None]] = []  # (turn id, text, loaded image parts)
-        self._worker: threading.Thread | None = None
+        # The queue, the worker and the busy policy live in runtime; this class only turns a
+        # drained turn into events. ``merge_bursts`` follows the config at drain time.
+        self._turns = TurnQueue(self.chat, self._run_turn, thread_name=f"clite-turn-{id(self):x}")
 
     # ── callbacks -> events ──────────────────────────────────────────────────────────────
 
@@ -104,8 +111,7 @@ class RpcSession:
 
     @property
     def busy(self) -> bool:
-        worker = self._worker
-        return self.chat.busy or (worker is not None and worker.is_alive())
+        return self._turns.busy
 
     def info(self) -> schema.SessionInfo:
         info = self.chat.info()
@@ -128,37 +134,21 @@ class RpcSession:
                attachments: list[str] | None = None) -> schema.PromptSubmitResult:
         from clite.rpc.server import SESSION_BUSY, RpcError
 
-        mode = busy_mode or str(config_get("display.busy_input_mode", "interrupt"))
         turn_id = uuid.uuid4().hex[:12]
         # Load images here, on the caller's thread, so a missing or oversized file is a clean
         # error reply instead of a turn that fails after it has already started.
         image_parts = self.chat.load_attachments(list(attachments or [])) or None
-        with self._lock:
-            if self.busy:
-                if mode == "steer":
-                    self.chat.steer(text)
-                    return schema.PromptSubmitResult(accepted=True, queued=False)
-                if mode == "reject":
-                    raise RpcError(SESSION_BUSY, "a turn is running; interrupt it or wait for turn.complete")
-                self._queue.append((turn_id, text, image_parts))
-                if mode == "interrupt":
-                    self.chat.interrupt()
-                return schema.PromptSubmitResult(accepted=True, turn_id=turn_id, queued=True)
-            self._queue.append((turn_id, text, image_parts))
-            self._worker = start_thread(self._drain, name=f"clite-turn-{self.id}")
+        outcome = self._turns.submit(Turn(text=text, id=turn_id, payload=image_parts), busy_mode)
+        if outcome == SUBMIT_REJECTED:
+            raise RpcError(SESSION_BUSY, "a turn is running; interrupt it or wait for turn.complete")
+        if outcome == SUBMIT_STEERED:
+            return schema.PromptSubmitResult(accepted=True, queued=False)
+        if outcome == SUBMIT_QUEUED:
+            return schema.PromptSubmitResult(accepted=True, turn_id=turn_id, queued=True)
         return schema.PromptSubmitResult(accepted=True, turn_id=turn_id)
 
-    def _drain(self) -> None:
-        while True:
-            with self._lock:
-                if not self._queue:
-                    self._worker = None
-                    return
-                turn_id, text, image_parts = self._queue.pop(0)
-            self._run_turn(turn_id, text, image_parts)
-
-    def _run_turn(self, turn_id: str, text: str,
-                  image_parts: list[dict[str, Any]] | None = None) -> None:
+    def _run_turn(self, turn: Turn) -> None:
+        turn_id, text, image_parts = turn.id, turn.text, turn.payload
         self._emit("turn.start", {"turn_id": turn_id, "text": text[:2000]})
         try:
             result = self.chat.submit(text, image_parts=image_parts or None)
@@ -190,12 +180,9 @@ class RpcSession:
         return schema.SlashExecResult(text=result.text, action=result.action, data=_jsonable(result.data))
 
     def close(self) -> None:
-        with self._lock:
-            self._queue.clear()
+        self._turns.clear()
         self.chat.interrupt()
-        worker = self._worker
-        if worker is not None and worker is not threading.current_thread():
-            worker.join(timeout=5)
+        self._turns.join(timeout=5)
         self.chat.close("rpc_closed")
 
 

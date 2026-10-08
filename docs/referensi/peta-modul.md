@@ -82,6 +82,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | --- | --- | --- |
 | `__init__.py` | The command-line surface: ``clite <subcommand>`` and the classic interactive REPL. |  |
 | `display.py` | Terminal output for the classic CLI: colours, tool progress lines, the banner. | `load_skin()`, `Display` |
+| `input.py` | Line input for the classic REPL: multi-line, bracketed paste, completion. | `split_paste()`, `continuation_text()`, `needs_continuation()`, `join_lines()`, `read_message()`, `StdlibReader`, `PromptToolkitReader`, `prompt_toolkit_available()`, `make_reader()`, `Suggestion`, … (+2) |
 | `main.py` | ``clite``: the command-line entry point. | `build_parser()`, `main()` |
 | `repl.py` | The classic interactive CLI: a read-eval-print loop over a ``ChatSession``. | `Repl`, `run_single_query()` |
 
@@ -222,7 +223,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `factory.py` | ``build_agent``: the one place a surface turns "what the user asked for" into an ``AIAgent``. | `default_toolsets()`, `build_agent()` |
 | `maintenance.py` | Housekeeping a surface runs when it starts. | `reset_maintenance_state()`, `auto_prune_sessions()`, `run_startup_maintenance()`, `run_curator_maintenance()`, `prune_checkpoints()` |
 | `presentation.py` | Small presentation helpers shared by every surface (terminal, RPC clients, gateway). | `tool_preview()`, `result_failed()` |
-| `session.py` | ``ChatSession``: one conversation as a surface sees it. | `SlashResult`, `ChatSession` |
+| `session.py` | ``ChatSession``: one conversation as a surface sees it. | `Turn`, `TurnQueue`, `busy_input_mode()`, `SlashResult`, `ChatSession` |
 | `setup.py` | Applying a provider choice: shared by ``clite setup`` and the setup screens of the UIs. | `apply_setup()` |
 | `slash.py` | Slash command handlers. | `run_mcp_prompt()` |
 
@@ -310,4 +311,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 174 modul.
+Jumlah: 175 modul.

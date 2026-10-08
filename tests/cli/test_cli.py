@@ -8,6 +8,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 
 import pytest
 
@@ -166,6 +167,133 @@ def test_display_helpers(clite_home):
     display = Display(stream=out, color=True, skin="ocean")
     display.tool_done("terminal", {"command": "ls"}, '{"error": "x"}', 0.25)
     assert "\x1b[34m" in out.getvalue() and "✗ terminal ls" in out.getvalue()
+
+
+# ── classic REPL input: multi-line, paste, completion, the stdlib fallback (F3-T1) ─────────
+
+
+def test_multi_line_input_with_a_trailing_backslash_reaches_the_model_as_one_message(clite_home):
+    (clite_home / "config.yaml").write_text(MOCK)
+    out, client = _repl(["first part \\", "second part", "/quit"], [text_response("ok")])
+    assert len(client.calls) == 1  # the two lines were one message, not two
+    sent = client.calls[0]["messages"][1]["content"]
+    assert sent == "first part\nsecond part"
+    assert "\\" not in sent
+
+
+def test_bracketed_paste_arrives_as_one_message(clite_home):
+    (clite_home / "config.yaml").write_text(MOCK)
+    pasted = "\x1b[200~line one\nline two\nline three\x1b[201~"
+    _, client = _repl([pasted, "/quit"], [text_response("ok")])
+    assert len(client.calls) == 1
+    assert client.calls[0]["messages"][1]["content"] == "line one\nline two\nline three"
+
+
+def test_the_stdlib_reader_handles_multi_line_and_paste_without_prompt_toolkit():
+    from clite.cli.input import PASTE_END, PASTE_START, StdlibReader, needs_continuation
+
+    assert needs_continuation("keep going \\") and not needs_continuation("closing \\\\")
+
+    lines = iter(["hello \\", "world"])
+    reader = StdlibReader(lambda prompt="": next(lines))
+    assert reader.read_message("> ") == "hello\nworld"
+
+    lines = iter([f"{PASTE_START}a\nb{PASTE_END}"])
+    assert StdlibReader(lambda prompt="": next(lines)).read_message("> ") == "a\nb"
+
+    def eof(prompt=""):
+        raise EOFError
+
+    assert StdlibReader(eof).read_message("> ") is None
+
+
+def test_the_reader_is_the_standard_library_one_when_input_is_injected():
+    from clite.cli.input import StdlibReader, make_reader
+
+    # Tests and embedded callers pass input_fn; the REPL must use it, not prompt_toolkit.
+    assert isinstance(make_reader(input_fn=lambda prompt="": ""), StdlibReader)
+
+
+def test_tab_completion_offers_commands_and_their_arguments(clite_home):
+    (clite_home / "config.yaml").write_text(MOCK)
+    from clite.cli.input import Suggestion, build_completer
+
+    completer = build_completer(surface="cli")
+    commands = [s.text for s in completer.suggest("/mod")]
+    assert "/model" in commands and all(text.startswith("/mod") for text in commands)
+
+    models = [s.text for s in completer.suggest("/model mo")]
+    assert "mock-1" in models  # from the configured default
+    assert all(s.kind == "model" for s in completer.suggest("/model mo"))
+
+    sessions = [s.text for s in completer.suggest("/resume ")]
+    assert completer.suggest("/nothing-here") == []
+    if sessions:  # there may be none yet, but the pool must be the session ids
+        assert all(s.kind == "session" for s in completer.suggest("/resume "))
+    assert Suggestion("x", "session").display() == "x  (session)"
+
+
+def test_completion_includes_skills_by_name(clite_home):
+    skill = clite_home / "skills" / "deploy-check"
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text("---\nname: deploy-check\ndescription: Check a deploy.\n---\n\nDo it.\n")
+    (clite_home / "config.yaml").write_text(MOCK)
+    from clite.cli.input import build_completer
+
+    completer = build_completer(surface="cli")
+    assert "deploy-check" in [s.text for s in completer.suggest("/skills dep")]
+
+
+def _blocking_repl(clite_home, mode, responses):
+    """A Repl whose client blocks on the first turn, so a second line arrives "while busy"."""
+    from clite.providers.testing import ScriptedClient
+
+    class BlockingClient(ScriptedClient):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.release = threading.Event()
+
+        def complete(self, *args, **kwargs):
+            self.release.wait(timeout=5)
+            return super().complete(*args, **kwargs)
+
+    (clite_home / "config.yaml").write_text(f"{MOCK}\ndisplay:\n  busy_input_mode: {mode}\n")
+    client = BlockingClient(list(responses), default=text_response("ok"))
+    out = io.StringIO()
+    repl = Repl(display=Display(stream=out, color=False), client=client, input_fn=lambda prompt="": "")
+    return repl, client, out
+
+
+def test_a_line_sent_over_the_classic_loop_follows_the_busy_mode(clite_home):
+    repl, client, out = _blocking_repl(clite_home, "queue", [text_response("first"), text_response("second")])
+    try:
+        assert repl._dispatch("first") is True       # starts the worker; it blocks inside the client
+        assert repl.busy                              # a turn is now running
+        assert repl._dispatch("second") is True       # typed while busy -> queued (mode: queue)
+        assert "queued" in out.getvalue().lower()
+        client.release.set()
+        repl.turns.join(timeout=5)
+        assert len(client.calls) == 2                 # both lines reached the model, in order
+        assert [c["messages"][-1]["content"] for c in client.calls] == ["first", "second"]
+    finally:
+        client.release.set()
+        repl.turns.join(timeout=5)
+        repl.session.close("test")
+
+
+def test_a_slash_command_that_must_wait_is_refused_while_busy(clite_home):
+    repl, client, out = _blocking_repl(clite_home, "queue", [text_response("first")])
+    try:
+        repl._dispatch("hello")
+        assert repl.busy
+        assert repl._dispatch("/model") is True        # a command that touches the session must wait
+        assert "waits for the running turn" in out.getvalue()
+        assert repl._dispatch("/stop") is True          # BUSY_ALLOW: runs at once, no refusal
+        assert "waits for the running turn" in out.getvalue().split("/stop")[0]
+    finally:
+        client.release.set()
+        repl.turns.join(timeout=5)
+        repl.session.close("test")
 
 
 # ── management subcommands ───────────────────────────────────────────────────────────────

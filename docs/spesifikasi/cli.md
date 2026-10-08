@@ -18,6 +18,7 @@ CLI adalah satu-satunya surface yang selalu jalan: lewat SSH, di container, tanp
 |---|---|
 | `main.py` | Entry point, parser, pendaftaran sub-perintah bawaan dan dari plugin |
 | `repl.py` | `Repl` (interaktif) dan `run_single_query` (`-q`) |
+| `input.py` | Pembaca baris: `prompt_toolkit` bila ada (extra `clite[cli]`), fallback pustaka standar; input multi-baris, tempel berkurung, pelengkapan |
 | `display.py` | Keluaran terminal: warna, baris progres tool, banner, skin |
 | `subcommands/` | Satu modul per kelompok sub-perintah, masing-masing punya `register(subparsers)` |
 
@@ -46,8 +47,18 @@ pakai (argumen, profil tak dikenal), 130 Ctrl+C.
   (default tolak).
 
 **REPL klasik**
-- Pustaka standar saja (`input` dan `readline` bila ada). Riwayat di `<home>/.cli_history`,
-  pelengkapan Tab untuk slash command.
+- Dua jalur input. Dengan `prompt_toolkit` (extra `clite[cli]`) REPL memakai penyunting baris
+  yang mempertahankan baris yang sedang diketik saat keluaran streaming datang, riwayat di
+  `<home>/.cli_history`, pelengkapan Tab untuk perintah dan argumennya, input multi-baris, dan
+  tempel berkurung. Tanpa `prompt_toolkit` REPL jatuh ke `input`/`readline` pustaka standar
+  dengan perilaku yang sama seperti sebelumnya — jalur ini tetap didukung dan diuji.
+- Giliran berjalan di thread pekerja; thread utama terus membaca masukan. Baris yang dikirim
+  saat agent bekerja mengikuti `display.busy_input_mode` (`steer`, `interrupt`, `queue`,
+  `reject`), sama seperti RPC dan gateway: ketiganya memakai antrean `runtime` yang sama.
+  Perintah slash yang menyentuh sesi menunggu giliran selesai; `/stop` dan `/status` boleh
+  jalan saat sibuk.
+- Input multi-baris: akhiri baris dengan `\` (atau Alt+Enter di `prompt_toolkit`). Tempel
+  berkurung (`bracketed paste`) masuk sebagai satu pesan, bukan sebagai beberapa giliran.
 - Ctrl+C saat agent bekerja menginterupsi giliran. Ctrl+C kedua dalam dua detik keluar.
 - Persetujuan: `[o]nce [s]ession [a]lways [d]eny`. Jawaban kosong atau tak dikenal berarti
   tolak. Pertanyaan `clarify` dijawab dengan nomor atau teks.
@@ -86,8 +97,8 @@ pakai (argumen, profil tak dikenal), 130 Ctrl+C.
 | Versi CLI, metadata dinamis, dan calon tag konsisten | ✅ | `tests/test_release.py` |
 | Distribusi `c-lite` melalui GitHub Releases | ✅ | F1-T7: workflow `37563420757`, aset terbit/pipx/doctor lulus |
 | REPL klasik, `-q`, `--json`, lanjut sesi (`-r`, `-c`) | ✅ | |
-| Mengetik saat agent bekerja | ⬜ | Hanya TUI yang bisa. REPL klasik membaca input setelah giliran selesai: F3-T1 |
-| Input multi-baris, tempel gambar | 🟡 | `clite chat --image` dan `/image` ada (F2-T6); input multi-baris dan tempel di terminal: F3-T1 |
+| Mengetik saat agent bekerja | ✅ | F3-T1: giliran di thread pekerja, thread utama terus membaca; baris saat sibuk ikut `display.busy_input_mode` lewat antrean `runtime` bersama RPC dan gateway |
+| Input multi-baris, tempel gambar | ✅ | F3-T1: multi-baris (`\` atau Alt+Enter) dan tempel berkurung lewat `prompt_toolkit`, dengan fallback pustaka standar. Tempel gambar: `clite chat --image` dan `/image` (F2-T6) |
 | Render Markdown dan diff | ⬜ | Teks polos: F3-T2 |
 | `clite setup` | 🟡 | Satu alur: provider, kunci, model. Tiga belas profil tambahan F2-T2 tampil lewat registry tanpa perubahan kode setup, dijaga `tests/providers/test_additional_profiles.py` dan `tests/providers/test_cloud_profiles.py`. Wizard bertahap: F3-T5 |
 | `clite acp` | ⬜ | Hanya mencetak penunjuk ke roadmap: F6-T4 |
@@ -98,8 +109,10 @@ pakai (argumen, profil tak dikenal), 130 Ctrl+C.
 
 ## Yang sengaja berbeda dari Hermes
 
-- **Tanpa `prompt_toolkit` dan `rich`.** REPL klasik sengaja minimal; pengalaman kaya ada di
-  TUI. Hermes menaruh ribuan baris TUI berbasis `prompt_toolkit` di `cli.py`.
+- **`prompt_toolkit` opsional, bukan wajib.** REPL klasik tetap minimal dan jalan dengan
+  pustaka standar saja; penyuntingan baris yang lebih kaya (`prompt_toolkit`) adalah extra
+  `clite[cli]`, bukan ketergantungan inti. Pengalaman kaya penuh ada di TUI. Hermes menaruh
+  ribuan baris TUI berbasis `prompt_toolkit` di `cli.py` sebagai satu-satunya jalur.
 - **Sub-perintah per modul** dengan `register()`, bukan satu `main.py` besar.
 
 ## Celah yang diketahui

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import threading
+import time
+
 import pytest
 
 from clite.core.config import load_config
@@ -15,7 +18,7 @@ from clite.runtime.commands import (
     split_command,
 )
 from clite.runtime.factory import default_toolsets
-from clite.runtime.session import ACTION_NEW, ACTION_QUIT, ACTION_SUBMIT
+from clite.runtime.session import ACTION_NEW, ACTION_QUIT, ACTION_SUBMIT, Turn
 from clite.runtime.slash import SLASH_HANDLERS
 from clite.state import get_session_db
 
@@ -332,3 +335,125 @@ def test_an_image_command_is_not_available_without_a_path(make_session):
     session, _ = make_session()
     assert "Usage: /image" in session.run_slash("/image").text
     assert "Usage: /image" in session.run_slash("/attach").text  # the alias works too
+
+
+# ── busy input: the queue the REPL, RPC and gateway share (F3-T1) ──────────────────────────
+
+
+class BlockingClient(ScriptedClient):
+    """A client whose first call blocks until the test releases it.
+
+    It stops the thread that is on a turn so a second submit arrives while the session is
+    busy — the situation ``display.busy_input_mode`` is about.
+    """
+
+    def __init__(self) -> None:
+        super().__init__([], default=text_response("ok"))
+        self.started = threading.Event()
+        self.release = threading.Event()
+        self._blocked = True
+
+    def complete(self, *args, **kwargs):
+        if self._blocked:
+            self._blocked = False
+            self.started.set()
+            self.release.wait(timeout=5)
+        return super().complete(*args, **kwargs)
+
+
+def _queue_for(session: ChatSession, run, *, mode: str = "interrupt"):
+    """A TurnQueue bound to a session, with ``display.busy_input_mode`` set for the test."""
+    # The mode is read from the config file, the way a real surface reads it.
+    from clite.core.constants import get_home
+    from clite.runtime.session import TurnQueue
+
+    config = get_home() / "config.yaml"
+    config.write_text(f"model:\n  provider: mock\n  default: mock-1\ndisplay:\n  busy_input_mode: {mode}\n")
+    return TurnQueue(session, run, thread_name="clite-test-turn")
+
+
+def _wait_until(predicate, timeout: float = 5.0) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return
+        time.sleep(0.01)
+    raise AssertionError("condition not met in time")
+
+
+def _record(session: ChatSession, ran: list[str]):
+    """A ``run`` callback that actually runs the turn, recording the text in order."""
+    def run(turn: Turn) -> None:
+        ran.append(turn.text)
+        session.submit(turn.text)
+    return run
+
+
+def test_a_line_sent_while_busy_is_queued_and_runs_after(clite_home, tmp_path):
+    client = BlockingClient()
+    ran: list[str] = []
+    session = ChatSession(client=client, cwd=str(tmp_path))
+    try:
+        turns = _queue_for(session, _record(session, ran), mode="queue")
+        assert turns.submit(Turn(text="first")) == "started"
+        assert client.started.wait(timeout=5)
+        assert turns.busy
+        assert turns.submit(Turn(text="second")) == "queued"
+        assert turns.pending == 1
+        client.release.set()
+        _wait_until(lambda: not turns.busy)
+        assert ran == ["first", "second"]  # in order, the running turn first
+    finally:
+        client.release.set()
+        turns.join(timeout=5)
+        session.close("test")
+
+
+def test_a_line_sent_while_busy_interrupts_when_the_mode_says_so(clite_home, tmp_path):
+    client = BlockingClient()
+    ran: list[str] = []
+    session = ChatSession(client=client, cwd=str(tmp_path))
+    try:
+        turns = _queue_for(session, _record(session, ran), mode="interrupt")
+        turns.submit(Turn(text="first"))
+        assert client.started.wait(timeout=5)
+        assert turns.submit(Turn(text="second")) == "queued"
+        assert session.agent.interrupt_event.is_set()  # the running turn was told to stop
+        client.release.set()
+        _wait_until(lambda: not turns.busy)
+        assert ran == ["first", "second"]
+    finally:
+        client.release.set()
+        turns.join(timeout=5)
+        session.close("test")
+
+
+def test_a_line_sent_while_busy_steers_without_interrupting(clite_home, tmp_path):
+    client = BlockingClient()
+    session = ChatSession(client=client, cwd=str(tmp_path))
+    turns = _queue_for(session, _record(session, []), mode="steer")
+    try:
+        turns.submit(Turn(text="first"))
+        assert client.started.wait(timeout=5)
+        assert turns.submit(Turn(text="aim left")) == "steered"
+        assert not session.agent.interrupt_event.is_set()
+        assert turns.pending == 0  # steering does not queue a new turn
+    finally:
+        client.release.set()
+        turns.join(timeout=5)
+        session.close("test")
+
+
+def test_a_line_sent_while_busy_is_rejected_when_the_mode_says_so(clite_home, tmp_path):
+    client = BlockingClient()
+    session = ChatSession(client=client, cwd=str(tmp_path))
+    turns = _queue_for(session, _record(session, []), mode="reject")
+    try:
+        turns.submit(Turn(text="first"))
+        assert client.started.wait(timeout=5)
+        assert turns.submit(Turn(text="second")) == "rejected"
+        assert turns.pending == 0
+    finally:
+        client.release.set()
+        turns.join(timeout=5)
+        session.close("test")

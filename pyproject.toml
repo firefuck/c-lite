@@ -34,6 +34,10 @@ vertex = ["google-auth>=2.35,<3"]
 # Downscaling of oversized image attachments (F2-T6). Without it an image over the byte
 # ceiling is refused with a message instead of being shrunk.
 images = ["Pillow>=10,<13"]
+# The richer classic REPL (F3-T1): line editing that survives streaming output, multi-line
+# input, bracketed paste and Tab completion. Optional on purpose — without it the CLI falls
+# back to the standard-library REPL, which stays supported and tested.
+cli = ["prompt_toolkit>=3.0,<4"]
 dev = [
   "pytest>=8,<10",
   "ruff>=0.6,<1",

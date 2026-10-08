@@ -24,7 +24,6 @@ from typing import Any
 from clite.agent import AgentCallbacks
 from clite.core.config import get_path, load_config
 from clite.core.errors import CliteError
-from clite.core.threads import start_thread
 from clite.gateway.event import CHAT_DM, MessageEvent, SessionSource
 from clite.gateway.pairing import PairingStore
 from clite.gateway.platforms.base import PLATFORMS, BasePlatformAdapter, split_message
@@ -32,7 +31,7 @@ from clite.gateway.session import SessionMap, build_session_key
 from clite.plugins.hooks import has_hook, invoke_hook
 from clite.plugins.manager import ensure_plugins_loaded
 from clite.runtime.commands import BUSY_ALLOW, resolve_command, split_command
-from clite.runtime.session import ACTION_NEW, ACTION_SUBMIT, ChatSession
+from clite.runtime.session import ACTION_NEW, ACTION_SUBMIT, BUSY_INTERRUPT, ChatSession, Turn, TurnQueue
 
 logger = logging.getLogger("clite.gateway")
 
@@ -58,14 +57,12 @@ class GatewaySession:
     source: SessionSource
     chat: ChatSession
     last_used: float = field(default_factory=time.monotonic)
-    queue: list[str] = field(default_factory=list)
-    worker: threading.Thread | None = None
+    turns: TurnQueue | None = None  # set by the runner; owns the queue, the worker and the policy
     pending: _Pending | None = None
-    lock: threading.Lock = field(default_factory=threading.Lock)
 
     @property
     def busy(self) -> bool:
-        return self.chat.busy or (self.worker is not None and self.worker.is_alive())
+        return self.chat.busy if self.turns is None else self.turns.busy
 
 
 class GatewayRunner:
@@ -132,8 +129,8 @@ class GatewayRunner:
         if session.pending is not None:
             session.pending.answered.set()
         session.chat.interrupt()
-        if session.worker is not None and session.worker is not threading.current_thread():
-            session.worker.join(timeout=5)
+        if session.turns is not None:
+            session.turns.join(timeout=5)
         session.chat.close(reason)
 
     # ── sending ──────────────────────────────────────────────────────────────────────────
@@ -228,7 +225,11 @@ class GatewayRunner:
                                   "chat_type": source.chat_type, "thread_id": source.thread_id,
                                   "display_name": source.user_name, "origin": source.to_dict()},
                 )
-                session = self.sessions[key] = GatewaySession(key, source, chat)
+                session = self.sessions[key] = GatewaySession(
+                    key, source, chat,
+                    turns=TurnQueue(chat, lambda turn: self._run_turn(key, turn), merge_bursts=self._merge_bursts(),
+                                    thread_name=f"clite-gw-{key}"),
+                )
                 self.session_map.set(key, chat.session_id, source)
             session.last_used = time.monotonic()
             return session
@@ -306,43 +307,29 @@ class GatewayRunner:
         pending.answered.set()
         return True
 
-    def _submit(self, session: GatewaySession, text: str) -> None:
-        mode = str(get_path(self.config, "display.busy_input_mode", "interrupt"))
-        with session.lock:
-            if session.busy:
-                if mode == "steer":
-                    session.chat.steer(text)
-                    return
-                session.queue.append(text)
-                if mode == "interrupt":
-                    session.chat.interrupt()
-                return
-            session.queue.append(text)
-            session.worker = start_thread(self._drain, session, name=f"clite-gw-{session.key}")
+    def _merge_bursts(self) -> bool:
+        """Several messages sent in quick succession are one thought: answer them together.
+        That only reads right in ``interrupt`` mode; ``queue`` mode keeps them apart."""
+        return str(get_path(self.config, "display.busy_input_mode", "interrupt")) == BUSY_INTERRUPT
 
-    def _drain(self, session: GatewaySession) -> None:
-        merge_bursts = str(get_path(self.config, "display.busy_input_mode", "interrupt")) == "interrupt"
-        while True:
-            with session.lock:
-                if not session.queue:
-                    session.worker = None
-                    return
-                if merge_bursts:
-                    # Several messages sent in quick succession are one thought: answer them together.
-                    text = "\n\n".join(session.queue)
-                    session.queue.clear()
-                else:
-                    text = session.queue.pop(0)
-            adapter = self.adapters.get(session.source.platform)
-            if adapter is not None:
-                adapter.send_typing(session.source.chat_id, thread_id=session.source.thread_id)
-            try:
-                result = session.chat.submit(text)
-            except Exception as exc:  # noqa: BLE001
-                logger.exception("gateway turn failed for %s", session.key)
-                self.reply(session.source, f"Something went wrong: {type(exc).__name__}: {exc}")
-                continue
-            session.last_used = time.monotonic()
-            if result.interrupted:
-                continue  # the user moved on; whatever interrupted this turn runs next
-            self.reply(session.source, result.final_response or "(no response)")
+    def _submit(self, session: GatewaySession, text: str) -> None:
+        assert session.turns is not None
+        session.turns.submit(Turn(text=text))
+
+    def _run_turn(self, key: str, turn: Turn) -> None:
+        session = self.sessions.get(key)
+        if session is None:  # the session was closed while this turn waited
+            return
+        adapter = self.adapters.get(session.source.platform)
+        if adapter is not None:
+            adapter.send_typing(session.source.chat_id, thread_id=session.source.thread_id)
+        try:
+            result = session.chat.submit(turn.text)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("gateway turn failed for %s", session.key)
+            self.reply(session.source, f"Something went wrong: {type(exc).__name__}: {exc}")
+            return
+        session.last_used = time.monotonic()
+        if result.interrupted:
+            return  # the user moved on; whatever interrupted this turn runs next
+        self.reply(session.source, result.final_response or "(no response)")
