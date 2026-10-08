@@ -145,6 +145,15 @@ task ini tidak dikerjakan. Pecahan yang disarankan:
 
 **Bergantung pada.** F5-T2
 
+**Keputusan 8 Oktober 2026: belum dikerjakan, alasannya belum ada.** Setelah F5-T2, dashboard
+adalah `static/app.js` (740 baris), `index.html` (57 baris), dan `style.css`. Sembilan panel
+berbagi satu objek `panels`, satu helper pembuat elemen, dan satu klien RPC; tiap panel punya
+fungsi render sendiri dan tidak ada keadaan yang dibagi antar-halaman selain sesi aktif. Itu
+belum "terlalu besar untuk dirawat", dan keadaan antarhalaman belum sulit dijaga. Menambah
+kerangka build sekarang berarti menambah langkah build pada paket Python yang sengaja belum
+punya satu pun, tanpa masalah yang diselesaikannya. Task ini tetap ⬜ sampai salah satu dari
+dua pemicunya benar-benar terjadi.
+
 ---
 
 ### F5-T4 Pemaketan desktop
