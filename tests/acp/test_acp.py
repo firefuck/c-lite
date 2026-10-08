@@ -11,18 +11,24 @@ import json
 import os
 import subprocess
 import sys
+import threading
 import time
+from typing import Any
 
 import pytest
 
 from clite.acp.entry import serve_stdio
 from clite.acp.server import ACP_METHODS, PROTOCOL_VERSION, AcpError, AcpServer
-from clite.acp.session import stop_reason
+from clite.acp.session import PERMISSION_OPTIONS, permission_choice, stop_reason, tool_kind
 from clite.agent import TurnResult
-from clite.providers.testing import ScriptedClient, text_response
+from clite.providers.testing import ScriptedClient, text_response, tool_call_response
 from clite.rpc.transport import MemoryTransport
 
 MOCK = "model:\n  provider: mock\n  default: mock-1\n"
+
+# A client that says nothing to a permission request is not the same as one that answers
+# "cancelled", so "no answer" needs a value of its own.
+NO_ANSWER = object()
 
 
 def _prompt(session_id: str, text: str) -> dict:
@@ -37,6 +43,16 @@ class Client:
         self.scripted = ScriptedClient(list(responses or []), default=text_response("ok"))
         self.server = AcpServer(self.transport, client_factory=lambda: self.scripted)
         self._next = 0
+        self.answered: set[str] = set()  # the permission requests we have replied to
+
+    @property
+    def permissions(self) -> list[dict]:
+        """The params of every permission request sent to us, answered or not."""
+        return [
+            message["params"]
+            for message in self.transport.messages
+            if message.get("method") == "session/request_permission"
+        ]
 
     # ── sending ──────────────────────────────────────────────────────────────────────────
 
@@ -86,9 +102,31 @@ class Client:
             self.initialize()
         return self.call("session/new", {"cwd": cwd, "mcpServers": []})["sessionId"]
 
-    def prompt(self, session_id: str, text: str = "hello") -> dict:
+    def prompt(self, session_id: str, text: str = "hello", *, answer: Any = NO_ANSWER) -> dict:
+        """Run a prompt and return the reply, answering a permission request on the way.
+
+        ``answer`` is the option id the client picks, a raw outcome object, or ``NO_ANSWER``
+        to keep quiet and let the request time out.
+        """
         request_id = self.send("session/prompt", _prompt(session_id, text))
+        if answer is not NO_ANSWER:
+            self.answer_permission(answer)
         return self.reply_to(request_id)
+
+    def answer_permission(self, answer: str | dict) -> dict:
+        """Wait for the permission request the running turn sends, and answer it.
+
+        The turn runs on a server worker while this thread reads the wire, which is how a real
+        editor behaves: the question arrives in the middle of the request it belongs to.
+        """
+        request = self.transport.wait_for(
+            lambda message: message.get("method") == "session/request_permission"
+            and message.get("id") not in self.answered
+        )
+        self.answered.add(request["id"])
+        outcome = answer if isinstance(answer, dict) else {"outcome": "selected", "optionId": answer}
+        self.server.handle_message({"jsonrpc": "2.0", "id": request["id"], "result": {"outcome": outcome}})
+        return request
 
     def cancel(self, session_id: str) -> None:
         self.send("session/cancel", {"sessionId": session_id}, notify=True)
@@ -377,6 +415,226 @@ def test_a_turn_that_ended_without_an_answer_is_an_error_not_a_stop_reason():
     assert raised.value.code == 4003 and "boom" in raised.value.message
 
 
+# ── tool calls and permissions ───────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("name", "kind"),
+    [
+        ("read_file", "read"),
+        ("vision_analyze", "read"),
+        ("search_files", "search"),
+        ("session_search", "search"),
+        ("web_fetch", "fetch"),
+        ("web_search", "fetch"),
+        ("write_file", "edit"),
+        ("patch", "edit"),
+        ("terminal", "execute"),
+        ("execute_code", "execute"),
+        # A tool the protocol has no word for is still shown, as "other".
+        ("todo", "other"),
+        ("a_tool_added_next_week", "other"),
+    ],
+)
+def test_a_tool_call_kind_says_what_the_tool_does(name, kind):
+    assert tool_kind(name) == kind
+
+
+def test_a_tool_call_streams_before_its_result(client, clite_home):
+    (clite_home / "notes.txt").write_text("hello from the tool\n")
+    acp = client(
+        [
+            tool_call_response(("read_file", {"path": "notes.txt"})),
+            text_response("the file says hello"),
+        ]
+    )
+    session_id = acp.new_session(str(clite_home))
+    assert acp.prompt(session_id, "read the file")["result"] == {"stopReason": "end_turn"}
+
+    start = next(update["update"] for update in acp.updates("tool_call"))
+    assert start["toolCallId"] == "call_0_read_file"
+    assert start["title"] == "notes.txt"  # what the editor shows next to the kind's verb
+    assert start["kind"] == "read"
+    assert start["status"] == "in_progress"
+    assert start["rawInput"] == {"path": "notes.txt"}
+    assert start["locations"] == [{"path": "notes.txt"}]  # an editor can open the file
+
+    done = next(update["update"] for update in acp.updates("tool_call_update"))
+    assert done["toolCallId"] == start["toolCallId"]
+    assert done["status"] == "completed"
+    assert "hello from the tool" in done["content"][0]["content"]["text"]
+
+    # The call is announced before it finishes, and both before the turn's reply.
+    order = [
+        message["params"]["update"]["sessionUpdate"]
+        for message in acp.transport.messages
+        if message.get("method") == "session/update"
+    ]
+    assert order.index("tool_call") < order.index("tool_call_update")
+
+
+def test_a_tool_call_that_fails_is_reported_as_failed(client, clite_home):
+    acp = client(
+        [
+            tool_call_response(("read_file", {"path": str(clite_home / "missing.txt")})),
+            text_response("it is gone"),
+        ]
+    )
+    session_id = acp.new_session(str(clite_home))
+    assert acp.prompt(session_id, "read it")["result"] == {"stopReason": "end_turn"}
+    done = next(update["update"] for update in acp.updates("tool_call_update"))
+    assert done["status"] == "failed"
+    assert "not found" in done["content"][0]["content"]["text"].lower()
+
+
+def _dangerous_command(target) -> str:
+    """A command the approval gate flags, and that is harmless enough to really run."""
+    return f"chmod 777 {target}"
+
+
+def test_a_dangerous_command_asks_the_client_and_runs_only_when_allowed(client, clite_home):
+    target = clite_home / "approve.txt"
+    target.write_text("x\n")
+    target.chmod(0o644)
+    acp = client(
+        [
+            tool_call_response(("terminal", {"command": _dangerous_command(target)})),
+            text_response("done"),
+        ]
+    )
+    session_id = acp.new_session(str(clite_home))
+    assert acp.prompt(session_id, "loosen the file", answer="allow_once")["result"] == {
+        "stopReason": "end_turn"
+    }
+
+    assert len(acp.permissions) == 1
+    request = acp.permissions[0]
+    assert request["sessionId"] == session_id
+    assert request["toolCall"]["toolCallId"] == "call_0_terminal"
+    assert request["toolCall"]["kind"] == "execute"
+    assert request["toolCall"]["rawInput"] == {"command": _dangerous_command(target)}
+    assert request["toolCall"]["title"].startswith("chmod 777 ")  # the preview line, clipped
+    assert "sessionUpdate" not in request["toolCall"]  # a ToolCallUpdate, not an update event
+    assert [option["kind"] for option in request["options"]] == [
+        "allow_once",
+        "allow_once",
+        "allow_always",
+        "reject_once",
+    ]
+    assert [option["optionId"] for option in request["options"]] == [
+        option["optionId"] for option in PERMISSION_OPTIONS
+    ]
+
+    done = next(update["update"] for update in acp.updates("tool_call_update"))
+    assert done["status"] == "completed"
+    assert oct(target.stat().st_mode & 0o777) == "0o777"
+
+
+def test_a_rejected_command_never_runs(client, clite_home):
+    target = clite_home / "keep.txt"
+    target.write_text("x\n")
+    target.chmod(0o644)
+    acp = client(
+        [
+            tool_call_response(("terminal", {"command": _dangerous_command(target)})),
+            text_response("I did not run it"),
+        ]
+    )
+    session_id = acp.new_session(str(clite_home))
+    acp.prompt(session_id, "loosen the file", answer="reject_once")
+    done = next(update["update"] for update in acp.updates("tool_call_update"))
+    assert done["status"] == "failed"
+    assert "denied" in done["content"][0]["content"]["text"]
+    assert oct(target.stat().st_mode & 0o777) == "0o644"  # untouched
+
+
+@pytest.mark.parametrize("answer", [{"outcome": "cancelled"}, "an_option_we_never_offered"])
+def test_an_answer_that_is_not_one_of_our_options_is_a_refusal(client, clite_home, answer):
+    target = clite_home / "keep.txt"
+    target.write_text("x\n")
+    target.chmod(0o644)
+    acp = client(
+        [
+            tool_call_response(("terminal", {"command": _dangerous_command(target)})),
+            text_response("all right"),
+        ]
+    )
+    session_id = acp.new_session(str(clite_home))
+    acp.prompt(session_id, "loosen the file", answer=answer)
+    done = next(update["update"] for update in acp.updates("tool_call_update"))
+    assert done["status"] == "failed"
+    assert oct(target.stat().st_mode & 0o777) == "0o644"
+
+
+def test_a_client_that_never_answers_is_taken_as_a_no(client, clite_home):
+    """A permission request is a question, and a question left hanging is not a yes."""
+    target = clite_home / "keep.txt"
+    target.write_text("x\n")
+    target.chmod(0o644)
+    (clite_home / "config.yaml").write_text(MOCK + "approvals:\n  timeout: 0.2\n")
+    acp = client(
+        [
+            tool_call_response(("terminal", {"command": _dangerous_command(target)})),
+            text_response("I did not run it"),
+        ]
+    )
+    session_id = acp.new_session(str(clite_home))
+    # Our client never answers, so the prompt comes back only after the request times out.
+    assert acp.prompt(session_id, "loosen the file")["result"] == {"stopReason": "end_turn"}
+    assert len(acp.permissions) == 1
+    done = next(update["update"] for update in acp.updates("tool_call_update"))
+    assert done["status"] == "failed"
+    assert oct(target.stat().st_mode & 0o777) == "0o644"
+
+
+def test_approval_outside_a_tool_call_still_has_a_call_to_point_at(client, clite_home):
+    """The protocol wants the request to name a tool call; a question about nothing is not one."""
+    acp = client()
+    session = acp.server.new_session(cwd=str(clite_home))
+    asked: list[dict] = []
+
+    def answer() -> None:
+        request = acp.transport.wait_for(
+            lambda message: message.get("method") == "session/request_permission"
+        )
+        asked.append(request["params"]["toolCall"])
+        acp.server.handle_message(
+            {
+                "jsonrpc": "2.0",
+                "id": request["id"],
+                "result": {"outcome": {"outcome": "selected", "optionId": "allow_once"}},
+            }
+        )
+
+    waiter = threading.Thread(target=answer)
+    waiter.start()
+    choice = session.chat.callbacks.approve(
+        command="chmod 777 /tmp/x", description="make it world-writable", pattern_keys=["chmod_world_writable"]
+    )
+    waiter.join(timeout=5)
+    assert choice == "once"
+    assert asked[0]["toolCallId"].startswith("approval-")
+    assert asked[0]["kind"] == "execute" and asked[0]["rawInput"] == {"command": "chmod 777 /tmp/x"}
+
+
+@pytest.mark.parametrize(
+    ("reply", "expected"),
+    [
+        (None, "deny"),  # no answer: timeout, a dead connection, a client that said nothing
+        ({}, "deny"),
+        ({"outcome": {"outcome": "cancelled"}}, "deny"),
+        ({"outcome": {"outcome": "selected", "optionId": "allow_once"}}, "once"),
+        ({"outcome": {"outcome": "selected", "optionId": "allow_session"}}, "session"),
+        ({"outcome": {"outcome": "selected", "optionId": "allow_always"}}, "always"),
+        ({"outcome": {"outcome": "selected", "optionId": "reject_once"}}, "deny"),
+        ({"outcome": {"outcome": "selected", "optionId": "surprise_me"}}, "deny"),
+        ("yes please", "deny"),  # not even an object
+    ],
+)
+def test_the_answer_to_a_permission_request_becomes_an_approval_choice(reply, expected):
+    assert permission_choice(reply) == expected
+
+
 # ── the real process over pipes ──────────────────────────────────────────────────────────
 
 
@@ -412,6 +670,90 @@ def test_a_stray_print_never_reaches_the_wire(clite_home):
     messages = [json.loads(line) for line in lines]  # every line is a protocol message
     assert sorted(message["id"] for message in messages) == [1, 2]  # both were answered
     assert "stray output" not in wire.getvalue()
+
+
+def test_a_turn_with_a_tool_call_and_a_permission_request_over_real_pipes(clite_home):
+    """The whole way, with nothing scripted at the Python level.
+
+    A real ``clite acp`` process, the offline ``mock`` provider (driven by the directive in the
+    prompt), a real approval gate asking us over the pipe, and a real ``chmod`` running. The
+    client here is the editor: it reads what arrives and answers the question it is asked.
+    """
+    (clite_home / "config.yaml").write_text(MOCK + "approvals:\n  mode: manual\n  timeout: 10\n")
+    target = clite_home.parent / "approved.txt"  # outside the agent's home, as a project file is
+    target.write_text("x\n")
+    target.chmod(0o644)
+    command = f"chmod 777 {target}"
+    env = {**os.environ, "CLITE_HOME": str(clite_home), "PYTHONPATH": os.pathsep.join(sys.path)}
+    process = subprocess.Popen(
+        [sys.executable, "-m", "clite.acp.entry"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+    )
+    seen: list[dict] = []
+
+    def send(message: dict) -> None:
+        process.stdin.write(json.dumps(message) + "\n")
+        process.stdin.flush()
+
+    def read_until(predicate):
+        """Read protocol messages, answering a permission request the way an editor would."""
+        while True:
+            line = process.stdout.readline()
+            assert line, f"the server exited early: {process.stderr.read()}"
+            message = json.loads(line)  # every line on stdout is a protocol message
+            seen.append(message)
+            if message.get("method") == "session/request_permission":
+                send(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": message["id"],
+                        "result": {"outcome": {"outcome": "selected", "optionId": "allow_once"}},
+                    }
+                )
+            if predicate(message):
+                return message
+
+    try:
+        send({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": 1}})
+        assert read_until(lambda m: m.get("id") == 1)["result"]["protocolVersion"] == 1
+        send(
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "session/new",
+                "params": {"cwd": str(clite_home), "mcpServers": []},
+            }
+        )
+        session_id = read_until(lambda m: m.get("id") == 2)["result"]["sessionId"]
+        send(
+            {
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "session/prompt",
+                "params": _prompt(session_id, f"!terminal {json.dumps({'command': command})}"),
+            }
+        )
+        # The permission request arrives between here and the reply; read_until answers it.
+        assert read_until(lambda m: m.get("id") == 3)["result"] == {"stopReason": "end_turn"}
+    finally:
+        process.stdin.close()
+        assert process.wait(timeout=30) == 0
+
+    requests = [message for message in seen if message.get("method") == "session/request_permission"]
+    assert len(requests) == 1  # asked once, not again for the tool result that followed
+    assert requests[0]["params"]["toolCall"]["rawInput"] == {"command": command}
+    assert requests[0]["params"]["toolCall"]["kind"] == "execute"
+    updates = [
+        message["params"]["update"] for message in seen if message.get("method") == "session/update"
+    ]
+    names = [update["sessionUpdate"] for update in updates]
+    assert names.index("tool_call") < names.index("tool_call_update")
+    assert updates[names.index("tool_call_update")]["status"] == "completed"
+    assert oct(target.stat().st_mode & 0o777) == "0o777"  # the command really ran
 
 
 def test_the_entry_point_talks_over_real_pipes(clite_home):

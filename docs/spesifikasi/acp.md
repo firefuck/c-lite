@@ -83,6 +83,35 @@ dibangun `runtime.build_agent` dengan platform `acp`.
   `cancelled`. Ia dibaca di thread pembaca, bukan di pool: ia harus sampai saat giliran yang
   dibatalkannya masih memegang pekerja. Membatalkan sesi yang tidak ada bukan galat.
 
+**Tool call**
+- Tool yang mulai berjalan menjadi `tool_call`: `toolCallId`, `title` (satu baris dari argumen
+  yang paling menjelaskan — path atau perintahnya — dipotong seperti tampilan lain), `kind`
+  dari apa yang dikerjakan tool (`read`, `edit`, `search`, `fetch`, `execute`; yang tidak
+  dikenal `other`, jadi tool baru tetap punya tampilan), `status: in_progress`, `rawInput`,
+  dan `locations` berisi path bila tool menyentuh sebuah berkas supaya editor bisa
+  membukanya. Statusnya `in_progress`, bukan `pending`: callback ini datang saat tool sudah
+  mulai berjalan, dan izin yang mungkin ditanyakannya adalah bagian dari run itu.
+- Tool yang selesai menjadi `tool_call_update` dengan `toolCallId` yang sama dan status
+  `completed`, atau `failed` bila hasilnya muatan galat — termasuk perintah yang ditolak
+  pengguna. Hasilnya dikirim sebagai satu blok teks yang dipotong 400 karakter, sama seperti
+  permukaan RPC. `rawOutput` sengaja tidak dipakai: hasil yang besar tidak boleh masuk ke
+  kawat. Diff juga tidak dikirim sebagai blok `diff` — isi berkas sesudah perubahan tidak ada
+  di hasil tool.
+
+**Izin**
+- `approve` menjadi permintaan `session/request_permission` yang menunggu jawaban klien
+  selama `approvals.timeout` (default 300 detik). Opsinya: `allow_once`, `allow_session`
+  (diingat untuk sesi ini; berjenis `allow_once` karena protokolnya tidak punya jenis "sesi",
+  tapi id opsinya milik kita), `allow_always` (masuk allowlist permanen), dan `reject_once`.
+- Jawaban apa pun selain salah satu optionId itu — `cancelled`, optionId yang tidak pernah
+  ditawarkan, jawaban yang bukan objek — berarti tolak. Diam juga berarti tolak: tanpa
+  jawaban, giliran menunggu sampai batas waktunya lalu perintahnya tidak dijalankan. Klien
+  tidak bisa membuka sebuah perintah hanya dengan tidak menjawab.
+- Permintaan izin menamai tool call yang sedang berjalan; pelacakannya per thread, karena tool
+  bisa berjalan paralel. Izin yang ditanyakan di luar tool call sama sekali (belum ada
+  pemanggil seperti itu, tapi jalurnya ada) diberi tool call buatan ber-id `approval-N`, supaya
+  pertanyaannya tidak menggantung tanpa sasaran.
+
 **Stdio**
 - Stdout adalah kawat. `entry.py` mengalihkan `sys.stdout` ke stderr selama proses hidup,
   sehingga `print` nyasar dari sebuah tool tidak merusak aliran protokol.
@@ -97,7 +126,7 @@ dibangun `runtime.build_agent` dengan platform `acp`.
 | `clite acp` dan `python -m clite.acp.entry` | ✅ | Entry point sungguhan diuji lewat pipa di `tests/acp/test_acp.py` |
 | `session/prompt`: potongan pesan dan alasan berhenti | ✅ | Hanya blok teks; satu giliran per sesi; galat provider menjadi galat permintaan |
 | `session/cancel` | ✅ | Notifikasi, dibaca di thread pembaca; prompt menjawab `cancelled` |
-| Pembaruan tool call dan izin | ⬜ | F6-T4 |
+| Pembaruan tool call dan izin | ✅ | F6-T4: `tool_call`/`tool_call_update` dengan kind, status, `rawInput`, `locations`; izin lewat `session/request_permission` ke callback `approve`, dengan diam berarti tolak. Dijaga `tests/acp/test_acp.py`, termasuk satu giliran sungguhan lewat pipa dengan tool call dan permintaan izin |
 | `plan` dari `agent.todos` dan `available_commands_update` | ⬜ | F6-T4 |
 | `session/load`: memutar ulang riwayat tersimpan | ⬜ | F6-T4 |
 | Kemampuan sisi klien (editor menjalankan terminal, membaca berkas) | ⬜ | Di luar lingkup F6-T4 |
@@ -115,3 +144,7 @@ dibangun `runtime.build_agent` dengan platform `acp`.
 - Belum pernah dijalankan di editor sungguhan; hanya lewat klien berskrip dan pipa nyata.
 - Permintaan MCP dari klien dibuang diam-diam kecuali satu baris peringatan di log.
 - Tidak ada batas ukuran pesan masuk.
+- Perubahan berkas tidak dikirim sebagai blok `diff` (hanya teks hasil tool yang dipotong),
+  dan `rawOutput` tidak dipakai.
+- `clarify` belum dipetakan ke `elicitation/create`: alat itu menjawab bahwa tidak ada yang
+  bisa ditanya. Editor yang mengumumkan kemampuan `elicitation` belum dimanfaatkan.

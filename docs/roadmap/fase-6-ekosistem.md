@@ -167,9 +167,9 @@ nama agent). Catat sebagai task lanjutan.
 `website/docs/developer-guide/acp-internals.md`.
 
 **Selesai bila.**
-- [ ] Tes dengan klien berskrip lewat pipa: satu giliran dengan tool call dan satu permintaan
+- [x] Tes dengan klien berskrip lewat pipa: satu giliran dengan tool call dan satu permintaan
       izin, dari inisialisasi sampai selesai.
-- [ ] Tes: `print` nyasar dari sebuah tool tidak merusak aliran protokol.
+- [x] Tes: `print` nyasar dari sebuah tool tidak merusak aliran protokol.
 - [ ] Dicoba dengan tangan di satu editor dan dicatat di `docs/STATUS.md`.
 - [ ] `clite acp` tidak lagi mencetak penunjuk ke roadmap, dan baris ACP di spesifikasi cli
       menjadi ✅.
@@ -190,12 +190,26 @@ nama agent). Catat sebagai task lanjutan.
    sementara teksnya mengalir sebagai `agent_message_chunk`/`agent_thought_chunk`;
    `session/cancel` dibaca di thread pembaca sehingga sampai saat giliran masih berjalan, dan
    prompt itu menjawab `cancelled`. Satu sesi satu giliran: prompt kedua dibalas `session busy`.
-3. Tool call dan izin — belum: `tool_call`/`tool_call_update`, pemetaan izin ke `approve`
-   (diam berarti tolak).
+3. Tool call dan izin — **selesai 9 Oktober 2026**. `on_tool_start`/`on_tool_complete` menjadi
+   `tool_call`/`tool_call_update` (kind dari apa yang dikerjakan tool, status `in_progress`
+   lalu `completed`/`failed`, `rawInput`, `locations` untuk berkas, hasil dipotong 400
+   karakter). Permintaan izin ACP dikirim ke klien lewat `session/request_permission` dan
+   jawabannya menjadi pilihan `approve`; diam, `cancelled`, dan optionId yang tidak ditawarkan
+   semuanya berarti tolak. Call yang sedang berjalan dilacak per thread, karena tool bisa
+   berjalan paralel. Satu tes menjalankan proses sungguhan lewat pipa: `initialize`,
+   `session/new`, satu giliran dengan tool call `chmod`, satu permintaan izin yang dijawab
+   klien, dan perintahnya benar-benar jalan.
 4. Rencana dan perintah — belum: `plan` dari `agent.todos`, `available_commands_update` dari
    `command_catalog`, `session/load` memutar ulang riwayat.
 5. Dokumentasi dan uji tangan di editor — halaman `docs/spesifikasi/acp.md` sudah ada; uji
    tangan di editor belum (tidak ada editor di lingkungan ini) dan akan dicatat apa adanya.
+   Butir "`print` nyasar" ditutup dengan dua lapis: `entry.py` mengalihkan `sys.stdout` selama
+   proses hidup (diuji lewat proses sungguhan) dan
+   `tests/test_architecture.py::test_only_the_command_line_prints` melarang `print` di luar
+   `clite/cli` — jadi tak ada tool kita yang bisa menulis ke kawat, dan print yang benar-benar
+   berbahaya datang dari plugin atau pustaka pihak ketiga, yang justru ditangkap pengalihan itu.
+   Isi tool yang dijalankan shell tidak bisa bocor ke stdout server karena keluarannya
+   disalurkan lewat pipa oleh backend lingkungan.
 
 ---
 
