@@ -80,7 +80,10 @@ test("reasoning, status, subagent and error events become their own items", () =
     event("reasoning.delta", { text: "think" }),
     event("reasoning.delta", { text: "ing" }),
     event("status.update", { kind: "retry", text: "retrying in 2s" }),
-    event("subagent.update", { event: "tool", index: 1, goal: "g", tool: "search_files", status: "" }),
+    event("subagent.update", {
+      event: "tool", index: 1, goal: "g", tool: "search_files", status: "",
+      args: "", iteration: 0, model: "", spawn_id: "",
+    }),
     event("error", { message: "backend error", code: 0 }),
   ]);
   assert.deepEqual(state.items, [
