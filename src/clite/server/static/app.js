@@ -344,7 +344,160 @@ function row(name, description, ...extra) {
   return h("div", { class: "row" }, h("div", { class: "name" }, name), h("div", { class: "desc" }, description), ...extra);
 }
 
+// A dialog with a text field: used to rename a session. Resolves when saved.
+function askText(title, label, initial) {
+  return new Promise((resolve) => {
+    const input = h("input", { type: "text", id: "ask-text", value: initial });
+    const save = () => {
+      dialog.close();
+      resolve(input.value);
+    };
+    const dialog = showDialog(
+      h("h2", {}, title),
+      h("label", { for: "ask-text" }, label),
+      input,
+      h("div", { class: "buttons" },
+        h("button", { type: "button", onclick: () => { dialog.close(); resolve(null); } }, "Cancel"),
+        h("button", { class: "primary", type: "button", onclick: save }, "Save")),
+    );
+    input.focus();
+    input.select();
+  });
+}
+
+// A yes/no dialog. Resolves true only when the confirming button is pressed.
+function askConfirm(title, body, confirmLabel) {
+  return new Promise((resolve) => {
+    const dialog = showDialog(
+      h("h2", {}, title),
+      h("p", {}, body),
+      h("div", { class: "buttons" },
+        h("button", { type: "button", onclick: () => { dialog.close(); resolve(false); } }, "Cancel"),
+        h("button", { class: "danger", type: "button", "data-confirm": "yes", onclick: () => { dialog.close(); resolve(true); } }, confirmLabel)),
+    );
+  });
+}
+
+// Save a session's JSON through the browser's download machinery.
+async function exportSession(session) {
+  const { filename, content } = await state.rpc.request("session.export", { stored_session_id: session.id });
+  const url = URL.createObjectURL(new Blob([content], { type: "application/json" }));
+  const link = h("a", { href: url, download: filename });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 const panels = {
+  async config(panel) {
+    const show = async () => {
+      const { entries } = await state.rpc.request("config.list");
+      const groups = new Map();
+      for (const entry of entries) {
+        if (!groups.has(entry.group)) groups.set(entry.group, []);
+        groups.get(entry.group).push(entry);
+      }
+      const save = async (entry, input) => {
+        let value;
+        try {
+          value = JSON.parse(input.value);
+        } catch {
+          value = input.value; // a plain string is a value too
+        }
+        if (entry.sensitive) {
+          const ok = await askConfirm(
+            "Change a security setting?",
+            `${entry.key} changes what the agent may do without asking. Set it to ${JSON.stringify(value)}?`,
+            "Change it",
+          );
+          if (!ok) return;
+        }
+        await state.rpc.request("config.set", { key: entry.key, value, confirm: entry.sensitive });
+        await show();
+      };
+      panel.replaceChildren(
+        h("h2", {}, `Configuration (${entries.length} settings)`),
+        ...[...groups].map(([group, groupEntries]) => h("section", { class: "config-group" },
+          h("h3", {}, group),
+          ...groupEntries.map((entry) => {
+            const input = h("input", { type: "text", id: `config-${entry.key}`, value: JSON.stringify(entry.value) });
+            return h("div", { class: `row${entry.sensitive ? " sensitive" : ""}`, "data-key": entry.key },
+              h("div", { class: "name" }, entry.key, entry.sensitive ? h("span", { class: "badge" }, "needs confirmation") : null),
+              h("div", { class: "desc" }, `default: ${JSON.stringify(entry.default)}`),
+              h("div", { class: "actions" }, input,
+                h("button", { type: "button", "data-action": "save", onclick: () => save(entry, input).catch((error) => notice(error.message, "error")) }, "Save")));
+          }))),
+      );
+    };
+    await show();
+  },
+  async sessions(panel) {
+    const query = h("input", { type: "search", id: "session-search", placeholder: "Search every message…", autocomplete: "off" });
+    const archived = h("input", { type: "checkbox", id: "session-archived" });
+    const results = h("div", { id: "session-results" });
+
+    const after = async () => {
+      await refreshSessions();
+      await draw();
+    };
+    const rename = async (session) => {
+      const title = await askText("Rename session", "Title", session.title || "");
+      if (title === null) return;
+      await state.rpc.request("session.rename", { stored_session_id: session.id, title });
+      await after();
+    };
+    const remove = async (session) => {
+      if (!(await askConfirm("Delete this session?", session.title || session.id, "Delete"))) return;
+      await state.rpc.request("session.delete", { stored_session_id: session.id });
+      await after();
+    };
+    const open = (session) => openSession({ resume: session.id }).then(refreshSessions);
+
+    const draw = async () => {
+      const text = query.value.trim();
+      if (text) {
+        const { hits } = await state.rpc.request("session.search", { query: text });
+        results.replaceChildren(
+          h("h3", {}, `${hits.length} match${hits.length === 1 ? "" : "es"}`),
+          ...(hits.length
+            ? hits.map((hit) => h("div", { class: "row" },
+              h("div", { class: "name" }, hit.title || hit.stored_session_id),
+              h("div", { class: "desc" }, `${hit.role} · ${hit.source} · ${hit.snippet}`),
+              h("div", { class: "actions" }, h("button", { type: "button", onclick: () => open({ id: hit.stored_session_id }) }, "Open"))))
+            : [h("p", { class: "empty" }, "Nothing matched.")]),
+        );
+        return;
+      }
+      const { sessions } = await state.rpc.request("session.list", { limit: 100, include_archived: archived.checked });
+      results.replaceChildren(
+        h("h3", {}, `${sessions.length} session${sessions.length === 1 ? "" : "s"}`),
+        ...(sessions.length
+          ? sessions.map((session) => {
+            const flags = [session.pinned && "pinned", session.archived && "archived"].filter(Boolean);
+            return row(session.title || "(untitled)",
+              `${session.message_count} messages · ${session.source}${flags.length ? " · " + flags.join(", ") : ""}`,
+              h("div", { class: "actions" },
+                h("button", { type: "button", "data-action": "open", onclick: () => open(session) }, "Open"),
+                h("button", { type: "button", "data-action": "rename", onclick: () => rename(session) }, "Rename"),
+                h("button", { type: "button", "data-action": "pin", onclick: () => state.rpc.request("session.pin", { stored_session_id: session.id, pinned: !session.pinned }).then(after) }, session.pinned ? "Unpin" : "Pin"),
+                h("button", { type: "button", "data-action": "archive", onclick: () => state.rpc.request("session.archive", { stored_session_id: session.id, archived: !session.archived }).then(after) }, session.archived ? "Restore" : "Archive"),
+                h("button", { type: "button", "data-action": "export", onclick: () => exportSession(session) }, "Export"),
+                h("button", { type: "button", "data-action": "delete", class: "danger", onclick: () => remove(session) }, "Delete")));
+          })
+          : [h("p", { class: "empty" }, "No sessions yet.")]),
+      );
+    };
+
+    query.addEventListener("input", () => draw().catch((error) => notice(error.message, "error")));
+    archived.addEventListener("change", () => draw().catch((error) => notice(error.message, "error")));
+    panel.replaceChildren(
+      h("h2", {}, "Sessions"),
+      h("div", { class: "filters" }, query, h("label", {}, archived, "include archived")),
+      results,
+    );
+    await draw();
+  },
   async skills(panel) {
     const { skills } = await state.rpc.request("skills.list");
     panel.replaceChildren(h("h2", {}, `Skills (${skills.length})`),

@@ -7,11 +7,14 @@ else in config and the session database.
 
 from __future__ import annotations
 
+import json
+from collections.abc import Iterator, Mapping
 from typing import Any
 
 from clite import __version__
 from clite.agent.attachments import AttachmentError
-from clite.core.config import config_set, get_path, load_config
+from clite.core.config import config_set, get_path, load_config, load_config_unexpanded
+from clite.core.config_defaults import DEFAULT_CONFIG, is_sensitive_config_key
 from clite.core.constants import display_home
 from clite.core.errors import CliteError
 from clite.core.profiles import get_active_profile_name
@@ -24,6 +27,7 @@ from clite.rpc.contracts.base import PROTOCOL_VERSION, Empty, Ok
 from clite.rpc.server import REQUEST_FAILED, RpcError, RpcServer, rpc_method
 from clite.rpc.session import RpcSession
 from clite.runtime.commands import command_catalog
+from clite.runtime.trajectory import build_trajectory
 from clite.skills.catalog import discover_skills, get_skill, linked_files, read_skill_file
 from clite.state.db import get_session_db
 from clite.tools.registry import discover_builtin_tools
@@ -74,7 +78,9 @@ def session_info(server: RpcServer, params: schema.SessionRef) -> schema.Session
 @rpc_method("session.list")
 def session_list(server: RpcServer, params: schema.SessionListParams) -> schema.SessionListResult:
     rows = get_session_db().list_sessions(
-        limit=max(1, min(params.limit, 200)), sources=[params.source] if params.source else None
+        limit=max(1, min(params.limit, 200)),
+        sources=[params.source] if params.source else None,
+        include_archived=params.include_archived,
     )
     return schema.SessionListResult(
         sessions=[
@@ -86,6 +92,8 @@ def session_list(server: RpcServer, params: schema.SessionListParams) -> schema.
                 message_count=row.get("message_count") or 0,
                 started_at=row["started_at"],
                 last_activity_at=row.get("last_activity_at"),
+                archived=bool(row.get("archived")),
+                pinned=bool(row.get("pinned")),
             )
             for row in rows
         ]
@@ -133,6 +141,84 @@ def session_delete(server: RpcServer, params: schema.SessionDeleteParams) -> Ok:
     if not get_session_db().delete_session(params.stored_session_id):
         raise RpcError(REQUEST_FAILED, f"no stored session {params.stored_session_id!r}")
     return Ok()
+
+
+@rpc_method("session.rename")
+def session_rename(server: RpcServer, params: schema.SessionRenameParams) -> schema.SessionRenameResult:
+    _require_stored_session(params.stored_session_id)
+    title = get_session_db().set_title(params.stored_session_id, params.title)
+    # If that session is open, its runtime copy carries the old title: refresh it too.
+    for session in list(server.sessions.values()):
+        if session.chat.session_id == params.stored_session_id:
+            session.chat.set_title(title)
+            server.emit("session.info", session.id, session.info())
+            break
+    return schema.SessionRenameResult(title=title)
+
+
+@rpc_method("session.search")
+def session_search(server: RpcServer, params: schema.SessionSearchParams) -> schema.SessionSearchResult:
+    hits = get_session_db().search_messages(params.query, limit=max(1, min(params.limit, 200)))
+    return schema.SessionSearchResult(
+        hits=[
+            schema.SessionSearchHit(
+                stored_session_id=hit["session_id"],
+                title=hit.get("session_title") or "",
+                source=hit.get("session_source") or "",
+                role=hit.get("role") or "",
+                snippet=hit.get("snippet") or "",
+                timestamp=hit.get("timestamp"),
+            )
+            for hit in hits
+        ]
+    )
+
+
+def _require_stored_session(stored_session_id: str) -> dict[str, Any]:
+    row = get_session_db().get_session(stored_session_id)
+    if row is None:
+        raise RpcError(REQUEST_FAILED, f"no stored session {stored_session_id!r}")
+    return row
+
+
+@rpc_method("session.pin")
+def session_pin(server: RpcServer, params: schema.SessionPinParams) -> Ok:
+    _require_stored_session(params.stored_session_id)
+    get_session_db().update_session(params.stored_session_id, pinned=1 if params.pinned else 0)
+    return Ok()
+
+
+@rpc_method("session.archive")
+def session_archive(server: RpcServer, params: schema.SessionArchiveParams) -> Ok:
+    _require_stored_session(params.stored_session_id)
+    get_session_db().update_session(params.stored_session_id, archived=1 if params.archived else 0)
+    return Ok()
+
+
+@rpc_method("session.export")
+def session_export(server: RpcServer, params: schema.SessionExportParams) -> schema.SessionExportResult:
+    row = _require_stored_session(params.stored_session_id)
+    db = get_session_db()
+    if params.format == "trajectory":
+        document = build_trajectory(row, db.get_messages(row["id"]))
+        count = len(document["steps"])
+    else:
+        messages = [
+            {key: value for key, value in message.items() if key != "_row_id"}
+            for message in db.get_messages(row["id"])
+        ]
+        document = {
+            "session": {
+                key: row[key] for key in ("id", "source", "model", "provider", "title", "started_at")
+            },
+            "messages": messages,
+        }
+        count = len(messages)
+    return schema.SessionExportResult(
+        filename=f"{row['id']}.json",
+        content=json.dumps(document, ensure_ascii=False, indent=2),
+        count=count,
+    )
 
 
 @rpc_method("session.compress")
@@ -209,16 +295,48 @@ def complete_slash(server: RpcServer, params: schema.CompleteParams) -> schema.C
 # ── configuration, models, providers ─────────────────────────────────────────────────────
 
 
+def _flatten_config(node: Mapping[str, Any], prefix: str = "") -> Iterator[tuple[str, Any]]:
+    for key, value in node.items():
+        dotted = f"{prefix}{key}"
+        if isinstance(value, Mapping):
+            yield from _flatten_config(value, dotted + ".")
+        else:
+            yield dotted, value
+
+
 @rpc_method("config.get")
 def config_get_method(server: RpcServer, params: schema.ConfigGetParams) -> schema.ConfigGetResult:
-    config = load_config()
+    # Unexpanded: a setting written as ${OPENAI_API_KEY} reads back as that text, never as the
+    # secret. The dashboard shows this; the runtime reads the expanded form elsewhere.
+    config = load_config_unexpanded()
     return schema.ConfigGetResult(value=config if not params.key else get_path(config, params.key))
+
+
+@rpc_method("config.list")
+def config_list_method(server: RpcServer, params: Empty) -> schema.ConfigListResult:
+    effective = load_config_unexpanded()
+    entries = [
+        schema.ConfigEntry(
+            key=key,
+            value=get_path(effective, key),
+            default=default,
+            group=key.split(".", 1)[0],
+            sensitive=is_sensitive_config_key(key),
+        )
+        for key, default in _flatten_config(DEFAULT_CONFIG)
+    ]
+    return schema.ConfigListResult(entries=entries)
 
 
 @rpc_method("config.set")
 def config_set_method(server: RpcServer, params: schema.ConfigSetParams) -> Ok:
     if not params.key or params.key.startswith("_"):
         raise RpcError(REQUEST_FAILED, "invalid config key")
+    if is_sensitive_config_key(params.key) and not params.confirm:
+        raise RpcError(
+            REQUEST_FAILED,
+            f"{params.key} changes what the agent may do without asking; send confirm=true to write it",
+        )
     config_set(params.key, params.value)
     return Ok()
 

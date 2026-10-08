@@ -51,6 +51,14 @@ export interface CompleteResult {
   items: CommandEntry[];
 }
 
+export interface ConfigEntry {
+  key: string;
+  value: unknown;
+  default: unknown;
+  group: string;
+  sensitive: boolean;
+}
+
 export interface ConfigGetParams {
   key?: string | null;
 }
@@ -59,9 +67,14 @@ export interface ConfigGetResult {
   value: unknown;
 }
 
+export interface ConfigListResult {
+  entries: ConfigEntry[];
+}
+
 export interface ConfigSetParams {
   key: string;
   value?: unknown;
+  confirm?: boolean;
 }
 
 export interface ContextStatus {
@@ -220,6 +233,11 @@ export interface ReadyPayload {
   protocol_version: number;
 }
 
+export interface SessionArchiveParams {
+  stored_session_id: string;
+  archived: boolean;
+}
+
 export interface SessionCompressParams {
   session_id: string;
   focus?: string | null;
@@ -242,6 +260,17 @@ export interface SessionCreateParams {
 
 export interface SessionDeleteParams {
   stored_session_id: string;
+}
+
+export interface SessionExportParams {
+  stored_session_id: string;
+  format?: "json" | "trajectory";
+}
+
+export interface SessionExportResult {
+  filename: string;
+  content: string;
+  count: number;
 }
 
 export interface SessionHistoryResult {
@@ -268,14 +297,47 @@ export interface SessionInfo {
 export interface SessionListParams {
   limit?: number;
   source?: string | null;
+  include_archived?: boolean;
 }
 
 export interface SessionListResult {
   sessions: StoredSession[];
 }
 
+export interface SessionPinParams {
+  stored_session_id: string;
+  pinned: boolean;
+}
+
 export interface SessionRef {
   session_id: string;
+}
+
+export interface SessionRenameParams {
+  stored_session_id: string;
+  title: string;
+}
+
+export interface SessionRenameResult {
+  title: string;
+}
+
+export interface SessionSearchHit {
+  stored_session_id: string;
+  title: string;
+  source: string;
+  role: string;
+  snippet: string;
+  timestamp: number | null;
+}
+
+export interface SessionSearchParams {
+  query: string;
+  limit?: number;
+}
+
+export interface SessionSearchResult {
+  hits: SessionSearchHit[];
 }
 
 export interface SessionSteerParams {
@@ -362,6 +424,8 @@ export interface StoredSession {
   message_count: number;
   started_at: number;
   last_activity_at: number | null;
+  archived: boolean;
+  pinned: boolean;
 }
 
 export interface SubagentPayload {
@@ -473,6 +537,16 @@ export interface Methods {
   /** Read the title, or set it when `title` is given. */
   "session.title": { params: SessionTitleParams; result: SessionTitleResult };
   "session.delete": { params: SessionDeleteParams; result: Ok };
+  /** Set the title of a stored session, open or not. */
+  "session.rename": { params: SessionRenameParams; result: SessionRenameResult };
+  /** Full-text search across stored sessions. */
+  "session.search": { params: SessionSearchParams; result: SessionSearchResult };
+  /** Pin or unpin a stored session. */
+  "session.pin": { params: SessionPinParams; result: Ok };
+  /** Archive or restore a stored session. */
+  "session.archive": { params: SessionArchiveParams; result: Ok };
+  /** A stored session as JSON text, for the client to save. */
+  "session.export": { params: SessionExportParams; result: SessionExportResult };
   "session.compress": { params: SessionCompressParams; result: SessionCompressResult };
   "session.usage": { params: SessionRef; result: SessionUsageResult };
   /** Start a turn. Returns at once; the answer arrives as events ending with turn.complete. */
@@ -485,6 +559,9 @@ export interface Methods {
   "complete.slash": { params: CompleteParams; result: CompleteResult };
   /** One value by dotted key, or the whole effective config. */
   "config.get": { params: ConfigGetParams; result: ConfigGetResult };
+  /** Every known setting with its value and default. */
+  "config.list": { params: Empty; result: ConfigListResult };
+  /** Write one setting; a security-relevant key needs `confirm`. */
   "config.set": { params: ConfigSetParams; result: Ok };
   "model.list": { params: ModelListParams; result: ModelListResult };
   /** Switch the session's model; `persist` saves it as the default. */
@@ -528,7 +605,7 @@ export interface ServerRequests {
   "clarify.request": { params: ClarifyRequestParams; result: ClarifyRequestResult };
 }
 
-export const METHOD_NAMES = ["ping", "system.info", "session.create", "session.info", "session.list", "session.history", "session.close", "session.interrupt", "session.steer", "session.title", "session.delete", "session.compress", "session.usage", "prompt.submit", "slash.exec", "commands.catalog", "complete.slash", "config.get", "config.set", "model.list", "model.set", "providers.list", "setup.apply", "tools.list", "skills.list", "skills.view", "plugins.list", "plugins.set_enabled", "memory.get", "cron.list", "cron.create", "cron.action"] as const;
+export const METHOD_NAMES = ["ping", "system.info", "session.create", "session.info", "session.list", "session.history", "session.close", "session.interrupt", "session.steer", "session.title", "session.delete", "session.rename", "session.search", "session.pin", "session.archive", "session.export", "session.compress", "session.usage", "prompt.submit", "slash.exec", "commands.catalog", "complete.slash", "config.get", "config.list", "config.set", "model.list", "model.set", "providers.list", "setup.apply", "tools.list", "skills.list", "skills.view", "plugins.list", "plugins.set_enabled", "memory.get", "cron.list", "cron.create", "cron.action"] as const;
 export const EVENT_TYPES = ["gateway.ready", "session.info", "turn.start", "turn.step", "message.delta", "reasoning.delta", "message.complete", "tool.start", "tool.complete", "status.update", "subagent.update", "turn.complete", "error"] as const;
 export const SERVER_REQUEST_NAMES = ["approval.request", "clarify.request"] as const;
 

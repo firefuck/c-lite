@@ -148,6 +148,21 @@ def config_get(dotpath: str, default: Any = None) -> Any:
     return get_path(load_config(), dotpath, default)
 
 
+def load_config_unexpanded(path: Path | None = None) -> dict[str, Any]:
+    """Effective configuration with ``${VAR}`` left as written.
+
+    For anything that *shows* config to a person: a value written as ``${OPENAI_API_KEY}`` must
+    read back as that text, never as the secret it expands to. ``load_config`` stays the one
+    the runtime uses, because the runtime needs the real value.
+    """
+    raw = load_user_config_raw(path)
+    _normalize(raw)
+    _apply_migrations(raw)
+    effective = deep_merge(DEFAULT_CONFIG, raw)
+    effective["_config_version"] = CONFIG_VERSION
+    return effective
+
+
 def reset_config_cache() -> None:
     with _CACHE_LOCK:
         _CACHE.clear()

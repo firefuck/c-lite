@@ -53,6 +53,8 @@ class StoredSession(Result):
     message_count: int = 0
     started_at: float = 0.0
     last_activity_at: float | None = None
+    archived: bool = False
+    pinned: bool = False
 
 
 class TranscriptMessage(Result):
@@ -124,10 +126,50 @@ class SessionRef(Params):
 class SessionListParams(Params):
     limit: int = 30
     source: str | None = None
+    include_archived: bool = False
 
 
 class SessionListResult(Result):
     sessions: list[StoredSession]
+
+
+class SessionSearchParams(Params):
+    query: str
+    limit: int = 20
+
+
+class SessionSearchHit(Result):
+    stored_session_id: str
+    title: str = ""
+    source: str = ""
+    role: str = ""
+    snippet: str = ""
+    timestamp: float | None = None
+
+
+class SessionSearchResult(Result):
+    hits: list[SessionSearchHit]
+
+
+class SessionPinParams(Params):
+    stored_session_id: str
+    pinned: bool
+
+
+class SessionArchiveParams(Params):
+    stored_session_id: str
+    archived: bool
+
+
+class SessionExportParams(Params):
+    stored_session_id: str
+    format: Literal["json", "trajectory"] = "json"
+
+
+class SessionExportResult(Result):
+    filename: str
+    content: str
+    count: int = 0
 
 
 class SessionHistoryResult(Result):
@@ -145,6 +187,15 @@ class SessionTitleParams(Params):
 
 
 class SessionTitleResult(Result):
+    title: str = ""
+
+
+class SessionRenameParams(Params):
+    stored_session_id: str
+    title: str
+
+
+class SessionRenameResult(Result):
     title: str = ""
 
 
@@ -186,6 +237,26 @@ method(
     "Read the title, or set it when `title` is given.",
 )
 method("session.delete", SessionDeleteParams, Ok)
+method(
+    "session.rename",
+    SessionRenameParams,
+    SessionRenameResult,
+    "Set the title of a stored session, open or not.",
+)
+method(
+    "session.search",
+    SessionSearchParams,
+    SessionSearchResult,
+    "Full-text search across stored sessions.",
+)
+method("session.pin", SessionPinParams, Ok, "Pin or unpin a stored session.")
+method("session.archive", SessionArchiveParams, Ok, "Archive or restore a stored session.")
+method(
+    "session.export",
+    SessionExportParams,
+    SessionExportResult,
+    "A stored session as JSON text, for the client to save.",
+)
 method("session.compress", SessionCompressParams, SessionCompressResult)
 method("session.usage", SessionRef, SessionUsageResult)
 
@@ -263,9 +334,24 @@ class ConfigGetResult(Result):
     value: Any = None
 
 
+class ConfigEntry(Result):
+    key: str
+    value: Any = None  # what the setting is now (user value or default)
+    default: Any = None  # what it would be with no user value
+    group: str = ""  # the first dotted segment, for grouping the page
+    sensitive: bool = False  # writing it needs an explicit confirmation
+
+
+class ConfigListResult(Result):
+    entries: list[ConfigEntry]
+
+
 class ConfigSetParams(Params):
     key: str
     value: Any = None
+    # Required for a security-relevant key (approvals.*, hooks, plugins.enabled, ...): the
+    # client must have asked the user first.
+    confirm: bool = False
 
 
 class ModelListParams(Params):
@@ -327,7 +413,8 @@ class SetupApplyResult(Result):
 method(
     "config.get", ConfigGetParams, ConfigGetResult, "One value by dotted key, or the whole effective config."
 )
-method("config.set", ConfigSetParams, Ok)
+method("config.list", Empty, ConfigListResult, "Every known setting with its value and default.")
+method("config.set", ConfigSetParams, Ok, "Write one setting; a security-relevant key needs `confirm`.")
 method("model.list", ModelListParams, ModelListResult)
 method(
     "model.set",

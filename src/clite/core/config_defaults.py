@@ -15,6 +15,22 @@ from typing import Any
 
 CONFIG_VERSION = 1
 
+# Keys whose change alters what the agent is allowed to do without asking. The dashboard asks
+# for an explicit confirmation before writing one, and `config.set` refuses without `confirm`.
+SECURITY_SENSITIVE_KEYS: tuple[str, ...] = (
+    "approvals",
+    "gateway.allow_all_users",
+    "plugins.enabled",
+    "hooks",
+    "command_allowlist",
+    "mcp_servers",
+)
+
+
+def is_sensitive_config_key(key: str) -> bool:
+    """True when writing ``key`` changes security behaviour and needs a confirmation."""
+    return any(key == sensitive or key.startswith(sensitive + ".") for sensitive in SECURITY_SENSITIVE_KEYS)
+
 DEFAULT_CONFIG: dict[str, Any] = {
     # ── Model route ──────────────────────────────────────────────────────────────────────
     "model": {

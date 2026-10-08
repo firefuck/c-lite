@@ -144,6 +144,82 @@ def test_sessions_can_be_started_and_reopened(dashboard):
     assert dashboard.inner_text(".message.assistant") == "You said: first conversation"
 
 
+def test_sessions_page_searches_renames_and_pins(dashboard):
+    _send(dashboard, "the launch is on friday")
+    dashboard.wait_for_selector(".message.assistant")
+
+    dashboard.click("[data-tab=sessions]")
+    dashboard.wait_for_selector("#session-results .row")
+
+    # Search across every stored message.
+    dashboard.fill("#session-search", "launch")
+    dashboard.wait_for_function(
+        "document.querySelector('#session-results h3')?.textContent.includes('match')"
+    )
+    assert "the launch is on friday" in dashboard.inner_text("#session-results")
+
+    # Rename through the dialog. A title is text: markup in it is never interpreted.
+    dashboard.fill("#session-search", "")
+    dashboard.wait_for_selector("#session-results .row [data-action=rename]")
+    dashboard.click("#session-results .row [data-action=rename]")
+    dashboard.wait_for_selector("#ask-text")
+    dashboard.fill("#ask-text", '<img src=x onerror="window.__pwned = true">')
+    dashboard.click("dialog button.primary")
+    dashboard.wait_for_function(
+        "document.querySelector('#session-results').innerText.includes('<img src=x')"
+    )
+    assert dashboard.evaluate("window.__pwned") is None
+
+    # Pin it: the row says so, and the sidebar list keeps working.
+    dashboard.click("#session-results .row [data-action=pin]")
+    dashboard.wait_for_function(
+        "document.querySelector('#session-results').innerText.includes('pinned')"
+    )
+
+    # Archive hides it; the checkbox brings it back.
+    dashboard.click("#session-results .row [data-action=archive]")
+    dashboard.wait_for_function(
+        "document.querySelector('#session-results').innerText.includes('No sessions yet')"
+    )
+    dashboard.check("#session-archived")
+    dashboard.wait_for_function(
+        "document.querySelector('#session-results').innerText.includes('archived')"
+    )
+
+
+def test_config_page_edits_a_setting_and_confirms_a_sensitive_one(dashboard, clite_home):
+    dashboard.click("[data-tab=config]")
+    dashboard.wait_for_selector("#panel-config .row")
+    assert "Configuration (" in dashboard.inner_text("#panel-config h2")
+
+    # A plain setting saves without a question. Waiting on the *attribute* (not the value we
+    # just typed) is what proves the panel was rebuilt from the server's answer.
+    dashboard.fill("#config-display\\.skin", '"mono"')
+    dashboard.click("#panel-config .row[data-key='display.skin'] [data-action=save]")
+    dashboard.wait_for_function(
+        "document.querySelector('#config-display\\\\.skin').getAttribute('value') === '\"mono\"'"
+    )
+    assert "skin: mono" in (clite_home / "config.yaml").read_text()
+
+    # A security-relevant setting asks first: cancelling writes nothing.
+    dashboard.fill("#config-approvals\\.mode", '"never"')
+    dashboard.click("#panel-config .row[data-key='approvals.mode'] [data-action=save]")
+    dashboard.wait_for_function("document.querySelector('dialog').open === true")
+    assert "without asking" in dashboard.inner_text("#dialog")
+    dashboard.click("dialog button:not([data-confirm])")  # Cancel
+    dashboard.wait_for_function("document.querySelector('dialog').open === false")
+    assert "never" not in (clite_home / "config.yaml").read_text()
+
+    # Confirming writes it. The attribute only changes after the write and the re-render.
+    dashboard.click("#panel-config .row[data-key='approvals.mode'] [data-action=save]")
+    dashboard.wait_for_function("document.querySelector('dialog').open === true")
+    dashboard.click("dialog [data-confirm=yes]")
+    dashboard.wait_for_function(
+        "document.querySelector('#config-approvals\\\\.mode').getAttribute('value') === '\"never\"'"
+    )
+    assert "mode: never" in (clite_home / "config.yaml").read_text()
+
+
 def test_other_tabs_list_what_is_installed(dashboard):
     dashboard.click("[data-tab=skills]")
     dashboard.wait_for_selector("#panel-skills .row")

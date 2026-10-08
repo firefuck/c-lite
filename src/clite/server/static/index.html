@@ -24,6 +24,8 @@
     <main>
       <nav id="tabs" role="tablist">
         <button type="button" role="tab" data-tab="chat" class="active">Chat</button>
+        <button type="button" role="tab" data-tab="sessions">Sessions</button>
+        <button type="button" role="tab" data-tab="config">Config</button>
         <button type="button" role="tab" data-tab="skills">Skills</button>
         <button type="button" role="tab" data-tab="tools">Tools</button>
         <button type="button" role="tab" data-tab="cron">Cron</button>
@@ -39,6 +41,8 @@
           <button id="stop" type="button" hidden>Stop</button>
         </form>
       </section>
+      <section id="view-sessions" class="view"><div class="panel" id="panel-sessions"></div></section>
+      <section id="view-config" class="view"><div class="panel" id="panel-config"></div></section>
       <section id="view-skills" class="view"><div class="panel" id="panel-skills"></div></section>
       <section id="view-tools" class="view"><div class="panel" id="panel-tools"></div></section>
       <section id="view-cron" class="view"><div class="panel" id="panel-cron"></div></section>

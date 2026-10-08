@@ -70,6 +70,25 @@ Daftar lengkap method, event, dan permintaan server ada di
   menghentikan, `reject` membalas galat 4002. Sejak F3-T1 kebijakan ini ditegakkan satu
   `runtime.TurnQueue` yang sama dengan REPL klasik dan gateway, bukan logika milik RPC.
 - Slash command yang tidak `BUSY_ALLOW` ditolak (4002) saat giliran berjalan.
+- `session.rename`, `session.pin`, `session.archive`, `session.delete`, dan `session.export`
+  bekerja pada sesi **tersimpan** (`stored_session_id`), jadi sesi yang sedang tidak dibuka pun
+  bisa dirapikan dari dashboard. `session.rename` menyegarkan judul sesi runtime bila sesi itu
+  sedang terbuka. `session.export` mengembalikan teks JSON (`format: json` untuk apa yang
+  tersimpan, `trajectory` untuk bentuk yang diredaksi); klien yang menyimpannya.
+- `session.search` menelusuri teks semua pesan tersimpan (FTS5, jatuh ke `LIKE` bila ekspresi
+  FTS tidak sah) dan mengembalikan cuplikan bertanda `>>…<<`.
+
+**Konfigurasi**
+- `config.get` membaca **tanpa ekspansi `${VAR}`**: nilai yang ditulis sebagai
+  `${OPENAI_API_KEY}` kembali sebagai teks itu, bukan sebagai rahasianya. Runtime tetap memakai
+  bentuk yang diekspansi lewat `load_config`; `config.get`/`config.list` memakai
+  `load_config_unexpanded` karena keduanya untuk ditampilkan.
+- `config.list` mengembalikan setiap kunci `DEFAULT_CONFIG` yang rata (dotted), lengkap dengan
+  nilai efektif, nilai default, grup (segmen pertama), dan tanda `sensitive`.
+- `config.set` menolak kunci yang mengubah perilaku keamanan (`approvals.*`,
+  `gateway.allow_all_users`, `plugins.enabled`, `hooks`, `command_allowlist`, `mcp_servers`)
+  kecuali permintaan membawa `confirm: true`. Klien yang menampilkan konfirmasi mengirimnya
+  setelah pengguna setuju.
 
 **Permintaan server ke klien**
 - `approval.request` dan `clarify.request` dikirim dengan id `srq-N` dan dijawab klien dengan
@@ -85,13 +104,15 @@ Daftar lengkap method, event, dan permintaan server ada di
 
 | Fitur | Status | Catatan |
 |---|---|---|
-| 32 method, 13 event, 2 permintaan server | ✅ | Hermes: 251 method, 69 event, 13 permintaan server |
+| 38 method, 13 event, 2 permintaan server | ✅ | Hermes: 251 method, 69 event, 13 permintaan server |
 | Transport stdio dan WebSocket | ✅ | |
 | Generator TypeScript dan pemeriksaan kesegaran | ✅ | |
 | Klien TypeScript bersama (`apps/shared`) | ✅ | 21 tes |
 | Pemutaran ulang event setelah sambung ulang | ⬜ | `seq` sudah ada di tiap event; belum ada penyangga: F5-T5 |
 | Lampiran gambar pada prompt | ✅ | `prompt.submit.attachments` (bidang opsional baru); path buruk menjadi galat 4004, bukan giliran gagal. Lampiran berkas lain: F2-T6 |
 | Method untuk profil, MCP, hook, log | ⬜ | F5-T2 |
+| Halaman Sesi: cari, ganti judul, sematkan, arsipkan, hapus, ekspor | ✅ | `session.search`/`rename`/`pin`/`archive`/`export`; halaman Sesi di dashboard (`test_dashboard_browser.py`) |
+| Halaman Config: nilai efektif + default, sunting dengan konfirmasi | ✅ | `config.list`, `config.set.confirm`; `config.get` tidak lagi mengekspansi `${VAR}` |
 | Versi protokol dinegosiasikan | 🟡 | `gateway.ready` membawa `protocol_version`; klien belum menolak versi yang tidak cocok |
 
 ## Yang sengaja berbeda dari Hermes

@@ -132,7 +132,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `clite doctor` | check the installation |  |
 | `clite logs` | show the agent log |  |
 | `clite memory` | show persistent memory |  |
-| `clite acp` | editor integration server (not implemented yet) |  |
+| `clite acp` | Agent Client Protocol server for editors (Zed and others), on stdio |  |
 | `clite insights` | show usage analytics, tokens and costs |  |
 
 ## Protokol JSON-RPC (versi 1)
@@ -145,13 +145,18 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `system.info` | (kosong) | `version`, `protocol_version`, `home`, `profile`, `configured`, `model?`, `provider?` | Version, active profile and whether a model is configured. |
 | `session.create` | `cwd?`, `model?`, `provider?`, `toolsets?`, `yolo?`, `resume?`, `platform?` | `session_id`, `stored_session_id`, `title?`, `platform?`, `model?`, `provider?`, `cwd?`, `busy?`, `yolo?`, `message_count?`, `tools?`, `toolsets?`, `reasoning_effort?`, `context?` | Open a runtime session (new, or resuming a stored one). |
 | `session.info` | `session_id` | `session_id`, `stored_session_id`, `title?`, `platform?`, `model?`, `provider?`, `cwd?`, `busy?`, `yolo?`, `message_count?`, `tools?`, `toolsets?`, `reasoning_effort?`, `context?` |  |
-| `session.list` | `limit?`, `source?` | `sessions` | Stored sessions, most recent first. |
+| `session.list` | `limit?`, `source?`, `include_archived?` | `sessions` | Stored sessions, most recent first. |
 | `session.history` | `session_id` | `messages` | The transcript, in display form. |
 | `session.close` | `session_id` | `ok?` |  |
 | `session.interrupt` | `session_id` | `ok?` | Stop the running turn. |
 | `session.steer` | `session_id`, `text` | `ok?` | Guide the running turn without stopping it. |
 | `session.title` | `session_id`, `title?` | `title?` | Read the title, or set it when `title` is given. |
 | `session.delete` | `stored_session_id` | `ok?` |  |
+| `session.rename` | `stored_session_id`, `title` | `title?` | Set the title of a stored session, open or not. |
+| `session.search` | `query`, `limit?` | `hits` | Full-text search across stored sessions. |
+| `session.pin` | `stored_session_id`, `pinned` | `ok?` | Pin or unpin a stored session. |
+| `session.archive` | `stored_session_id`, `archived` | `ok?` | Archive or restore a stored session. |
+| `session.export` | `stored_session_id`, `format?` | `filename`, `content`, `count?` | A stored session as JSON text, for the client to save. |
 | `session.compress` | `session_id`, `focus?` | `compressed`, `message_count` |  |
 | `session.usage` | `session_id` | `usage`, `context` |  |
 | `prompt.submit` | `session_id`, `text`, `busy_mode?`, `attachments?` | `accepted`, `turn_id?`, `queued?` | Start a turn. Returns at once; the answer arrives as events ending with turn.complete. |
@@ -159,7 +164,8 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `commands.catalog` | `session_id?` | `commands` | Every command available now, for help and autocomplete. |
 | `complete.slash` | `prefix`, `session_id?` | `items` | Commands starting with a prefix. |
 | `config.get` | `key?` | `value?` | One value by dotted key, or the whole effective config. |
-| `config.set` | `key`, `value?` | `ok?` |  |
+| `config.list` | (kosong) | `entries` | Every known setting with its value and default. |
+| `config.set` | `key`, `value?`, `confirm?` | `ok?` | Write one setting; a security-relevant key needs `confirm`. |
 | `model.list` | `provider?`, `refresh?` | `provider`, `models`, `current?` |  |
 | `model.set` | `session_id`, `model`, `persist?` | `success`, `message`, `model?`, `provider?` | Switch the session's model; `persist` saves it as the default. |
 | `providers.list` | (kosong) | `providers`, `current?` |  |

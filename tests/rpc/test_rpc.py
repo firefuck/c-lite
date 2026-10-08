@@ -241,6 +241,72 @@ def test_resume_lists_and_reopens_a_stored_session(client):
     assert get_session_db().get_session(first["stored_session_id"]) is None
 
 
+def test_session_rename_sets_the_title_of_a_stored_session(client):
+    rpc = client()
+    first = rpc.call("session.create")
+    rpc.run_turn(first["session_id"], "hello")
+
+    renamed = rpc.call("session.rename", {"stored_session_id": first["stored_session_id"], "title": "Renamed"})
+    assert renamed["title"] == "Renamed"
+    assert rpc.call("session.info", {"session_id": first["session_id"]})["title"] == "Renamed"
+    assert rpc.call("session.list")["sessions"][0]["title"] == "Renamed"
+    assert "no stored session" in rpc.error(
+        "session.rename", {"stored_session_id": "missing", "title": "x"}
+    )["message"]
+
+
+def test_session_search_finds_stored_messages(client):
+    rpc = client()
+    first = rpc.call("session.create")
+    rpc.run_turn(first["session_id"], "remember the green door")
+    rpc.call("session.title", {"session_id": first["session_id"], "title": "Green door"})
+
+    hits = rpc.call("session.search", {"query": "green door"})["hits"]
+    assert [hit["stored_session_id"] for hit in hits] == [first["stored_session_id"]]
+    assert hits[0]["title"] == "Green door" and hits[0]["role"] == "user"
+    assert "green" in hits[0]["snippet"] and "door" in hits[0]["snippet"]  # FTS marks the match
+    assert rpc.call("session.search", {"query": "nothing matches this"})["hits"] == []
+
+
+def test_session_pin_and_archive_change_what_is_listed(client):
+    rpc = client()
+    first = rpc.call("session.create")
+    rpc.run_turn(first["session_id"], "one")
+    stored = first["stored_session_id"]
+
+    rpc.call("session.pin", {"stored_session_id": stored, "pinned": True})
+    assert [s["pinned"] for s in rpc.call("session.list")["sessions"]] == [True]
+    rpc.call("session.pin", {"stored_session_id": stored, "pinned": False})
+    assert [s["pinned"] for s in rpc.call("session.list")["sessions"]] == [False]
+
+    rpc.call("session.archive", {"stored_session_id": stored, "archived": True})
+    assert rpc.call("session.list")["sessions"] == []  # archived sessions are out of the way
+    archived = rpc.call("session.list", {"include_archived": True})["sessions"]
+    assert [s["id"] for s in archived] == [stored] and archived[0]["archived"] is True
+    rpc.call("session.archive", {"stored_session_id": stored, "archived": False})
+    assert [s["id"] for s in rpc.call("session.list")["sessions"]] == [stored]
+
+    assert "no stored session" in rpc.error("session.pin", {"stored_session_id": "missing", "pinned": True})["message"]
+    assert "no stored session" in rpc.error("session.archive", {"stored_session_id": "missing", "archived": True})["message"]
+
+
+def test_session_export_returns_json_and_trajectory(client):
+    rpc = client()
+    first = rpc.call("session.create")
+    rpc.run_turn(first["session_id"], "export me")
+
+    document = json.loads(rpc.call("session.export", {"stored_session_id": first["stored_session_id"]})["content"])
+    assert document["session"]["id"] == first["stored_session_id"]
+    assert [message["role"] for message in document["messages"]][:2] == ["user", "assistant"]
+
+    exported = rpc.call(
+        "session.export", {"stored_session_id": first["stored_session_id"], "format": "trajectory"}
+    )
+    assert exported["count"] == len(json.loads(exported["content"])["steps"]) >= 1
+    assert exported["filename"] == f"{first['stored_session_id']}.json"
+    assert "no stored session" in rpc.error("session.export", {"stored_session_id": "missing"})["message"]
+
+
 def test_busy_modes(client):
     release = threading.Event()
 
@@ -438,6 +504,41 @@ def test_setup_from_a_client_stores_key_and_choice(client, clite_home):
     info = rpc.call("system.info")
     assert (info["provider"], info["model"]) == ("deepseek", "deepseek-chat")
     assert "unknown provider" in rpc.error("setup.apply", {"provider": "nope"})["message"]
+
+
+def test_config_list_shows_every_setting_with_its_default(client):
+    rpc = client()
+    entries = {entry["key"]: entry for entry in rpc.call("config.list")["entries"]}
+    assert entries["terminal.timeout"]["value"] == entries["terminal.timeout"]["default"] == 180
+    assert entries["terminal.timeout"]["group"] == "terminal"
+    assert entries["approvals.mode"]["sensitive"] is True
+    assert entries["display.skin"]["sensitive"] is False
+
+    rpc.call("config.set", {"key": "terminal.timeout", "value": 42})
+    entries = {entry["key"]: entry for entry in rpc.call("config.list")["entries"]}
+    assert entries["terminal.timeout"]["value"] == 42
+    assert entries["terminal.timeout"]["default"] == 180  # the default never moves
+
+
+def test_config_get_leaves_an_unexpanded_secret_alone(client, clite_home, monkeypatch):
+    monkeypatch.setenv("CLITE_TEST_CREDENTIAL", "super-secret-value")
+    (clite_home / "config.yaml").write_text(
+        "model:\n  provider: mock\n  default: mock-1\nterminal:\n  cwd: ${CLITE_TEST_CREDENTIAL}\n"
+    )
+    rpc = client()
+    whole = rpc.call("config.get")["value"]
+    assert whole["terminal"]["cwd"] == "${CLITE_TEST_CREDENTIAL}"
+    assert "super-secret-value" not in json.dumps(whole)
+    assert rpc.call("config.get", {"key": "terminal.cwd"})["value"] == "${CLITE_TEST_CREDENTIAL}"
+
+
+def test_config_set_needs_confirmation_for_security_keys(client):
+    rpc = client()
+    assert "confirm" in rpc.error("config.set", {"key": "approvals.mode", "value": "never"})["message"]
+    assert rpc.call("config.set", {"key": "approvals.mode", "value": "never", "confirm": True})["ok"] is True
+    assert rpc.call("config.get", {"key": "approvals.mode"})["value"] == "never"
+    # A setting that changes nothing about safety needs no confirmation.
+    assert rpc.call("config.set", {"key": "display.skin", "value": "mono"})["ok"] is True
 
 
 def test_config_tools_skills_plugins_memory_cron(client):
