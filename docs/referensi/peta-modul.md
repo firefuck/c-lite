@@ -19,8 +19,8 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | --- | --- | --- |
 | `__init__.py` | Agent Client Protocol server: lets an editor (Zed and others) drive the agent over stdio. |  |
 | `entry.py` | Stdio entry point: ``python -m clite.acp.entry`` and ``clite acp``. | `serve_stdio()`, `main()` |
-| `server.py` | The Agent Client Protocol server: an editor (Zed and others) drives the agent over stdio. | `AcpError`, `Method`, `acp_method()`, `mapping()`, `required_text()`, `prompt_text()`, `AcpServer`, `handle_initialize()`, `handle_session_new()`, `handle_session_prompt()`, … (+1) |
-| `session.py` | ``AcpSession``: a ``ChatSession`` as one ACP session. | `tool_kind()`, `plan_entries()`, `command_list()`, `permission_choice()`, `stop_reason()`, `AcpSession` |
+| `server.py` | The Agent Client Protocol server: an editor (Zed and others) drives the agent over stdio. | `AcpError`, `Method`, `acp_method()`, `mapping()`, `required_text()`, `prompt_text()`, `AcpServer`, `session_cwd()`, `note_mcp_servers()`, `handle_initialize()`, … (+4) |
+| `session.py` | ``AcpSession``: a ``ChatSession`` as one ACP session. | `tool_kind()`, `tool_call_event()`, `tool_result_event()`, `decode_arguments()`, `plan_entries()`, `command_list()`, `permission_choice()`, `stop_reason()`, `AcpSession` |
 
 ## `clite/agent/`
 

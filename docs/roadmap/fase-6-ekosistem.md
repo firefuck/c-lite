@@ -171,7 +171,7 @@ nama agent). Catat sebagai task lanjutan.
       izin, dari inisialisasi sampai selesai.
 - [x] Tes: `print` nyasar dari sebuah tool tidak merusak aliran protokol.
 - [ ] Dicoba dengan tangan di satu editor dan dicatat di `docs/STATUS.md`.
-- [ ] `clite acp` tidak lagi mencetak penunjuk ke roadmap, dan baris ACP di spesifikasi cli
+- [x] `clite acp` tidak lagi mencetak penunjuk ke roadmap, dan baris ACP di spesifikasi cli
       menjadi ✅.
 
 **Ukuran.** L
@@ -199,10 +199,21 @@ nama agent). Catat sebagai task lanjutan.
    berjalan paralel. Satu tes menjalankan proses sungguhan lewat pipa: `initialize`,
    `session/new`, satu giliran dengan tool call `chmod`, satu permintaan izin yang dijawab
    klien, dan perintahnya benar-benar jalan.
-4. Rencana dan perintah — belum: `plan` dari `agent.todos`, `available_commands_update` dari
-   `command_catalog`, `session/load` memutar ulang riwayat.
+4. Rencana, perintah, dan memuat sesi — **selesai 9 Oktober 2026**. Daftar tugas (`todo`)
+   dikirim utuh sebagai `plan` setiap kali tool itu selesai berjalan; butir `cancelled` tidak
+   ikut karena ACP tidak punya kata untuk pekerjaan yang dibuang. `available_commands_update`
+   dibangun dari `command_catalog` permukaan ini — perintah yang hanya ada di terminal tidak
+   ditawarkan — dan dikirim **setelah** balasan `session/new`, karena id sesi baru berarti bagi
+   klien setelah balasannya tiba; itu yang ditangani antrean kecil `after_reply`. Karena ACP
+   menjalankan perintah sebagai prompt biasa, `session/prompt` lewat `handle_input`: teks yang
+   berupa perintah dijawab perintahnya, dan model tidak dipanggil. `session/load` memutar ulang
+   percakapan tersimpan sebagai `session/update` lalu menjawab `{}`; supaya itu bisa bekerja
+   lintas proses, **id sesi ACP sekarang adalah id percakapan di penyimpanan**
+   (`20261008_192945_4e3cc152`), bukan `sess_<uuid>` yang ditemukan untuk koneksi. Dua batasnya
+   dicatat di spesifikasi: penalaran tidak diputar, dan sesi yang sudah terbuka ditolak.
 5. Dokumentasi dan uji tangan di editor — halaman `docs/spesifikasi/acp.md` sudah ada; uji
-   tangan di editor belum (tidak ada editor di lingkungan ini) dan akan dicatat apa adanya.
+   tangan di editor belum (tidak ada editor di lingkungan ini) dan dicatat apa adanya di
+   `docs/STATUS.md`.
    Butir "`print` nyasar" ditutup dengan dua lapis: `entry.py` mengalihkan `sys.stdout` selama
    proses hidup (diuji lewat proses sungguhan) dan
    `tests/test_architecture.py::test_only_the_command_line_prints` melarang `print` di luar

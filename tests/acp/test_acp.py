@@ -21,6 +21,7 @@ from clite.acp.entry import serve_stdio
 from clite.acp.server import ACP_METHODS, PROTOCOL_VERSION, AcpError, AcpServer
 from clite.acp.session import (
     PERMISSION_OPTIONS,
+    RESULT_PREVIEW_CHARS,
     command_list,
     permission_choice,
     plan_entries,
@@ -278,9 +279,11 @@ def test_an_error_reply_carries_only_code_and_message(client):
 def test_session_new_hands_back_an_id_and_a_live_session(client):
     acp = client()
     session_id = acp.new_session("/tmp/project")
-    assert session_id.startswith("sess_")
     session = acp.server.sessions[session_id]
     assert session.id == session_id
+    # The id is the stored conversation's own, so the client can hand it back to session/load
+    # in a later process. An id invented for the connection could not be looked up again.
+    assert session_id == session.chat.session_id
     assert session.chat.agent.cwd  # the agent was built for the session
     assert session.chat.platform == "acp"
 
@@ -313,7 +316,7 @@ def test_session_new_accepts_the_clients_mcp_servers_without_taking_them(client)
 
 
 def test_the_method_table_is_the_protocol_we_implement():
-    assert set(ACP_METHODS) == {"initialize", "session/new", "session/prompt", "session/cancel"}
+    assert set(ACP_METHODS) == {"initialize", "session/new", "session/load", "session/prompt", "session/cancel"}
     # Cancel is read on the thread that reads the socket, not on the pool: it has to be acted
     # on while the prompt it cancels is still occupying a worker.
     assert ACP_METHODS["session/cancel"].inline is True
@@ -418,6 +421,147 @@ def test_a_message_that_only_looks_like_a_command_goes_to_the_model(client):
         "stopReason": "end_turn"
     }
     assert len(acp.scripted.calls) == 1  # "/ " is text, not a command
+
+
+# ── loading a session ────────────────────────────────────────────────────────────────────
+
+
+def _a_stored_conversation(client, clite_home) -> str:
+    """One real turn, kept in the store, as a conversation an editor could come back to."""
+    (clite_home / "notes.txt").write_text("hello from the file\n")
+    writer = client(
+        [tool_call_response(("read_file", {"path": "notes.txt"})), text_response("it says hello")]
+    )
+    session_id = writer.new_session(str(clite_home))
+    writer.prompt(session_id, "read the notes")
+    return session_id
+
+
+def test_session_load_replays_the_stored_conversation(client, clite_home):
+    stored = _a_stored_conversation(client, clite_home)
+
+    acp = client()  # a new connection: the editor coming back to yesterday's conversation
+    acp.initialize()
+    request_id = acp.send("session/load", {"sessionId": stored, "cwd": str(clite_home)})
+    reply = acp.reply_to(request_id)
+    acp.wait_update("available_commands_update")
+
+    kinds = [update["update"]["sessionUpdate"] for update in acp.updates()]
+    assert kinds[:4] == ["user_message_chunk", "tool_call", "tool_call_update", "agent_message_chunk"]
+    assert kinds[-1] == "available_commands_update"  # the list still follows the reply
+
+    user = acp.updates("user_message_chunk")[0]
+    assert user["sessionId"] == stored  # the id the store knows, not one of ours
+    assert user["update"]["content"]["text"] == "read the notes"
+
+    start = acp.updates("tool_call")[0]["update"]
+    assert start["toolCallId"] == "call_0_read_file"
+    assert start["kind"] == "read" and start["title"] == "notes.txt"
+    assert start["rawInput"] == {"path": "notes.txt"}
+
+    done = acp.updates("tool_call_update")[0]["update"]
+    assert done["toolCallId"] == start["toolCallId"]
+    assert done["status"] == "completed"
+    assert "hello from the file" in done["content"][0]["content"]["text"]
+
+    assert acp.updates("agent_message_chunk")[0]["update"]["content"]["text"] == "it says hello"
+    assert reply["result"] == {}  # the replay is the message; the result is the end of it
+
+    # The whole conversation goes out before the reply, and the command list after it.
+    update_at = [
+        index
+        for index, message in enumerate(acp.transport.messages)
+        if message.get("method") == "session/update"
+    ]
+    reply_at = next(
+        index for index, message in enumerate(acp.transport.messages) if message.get("id") == request_id
+    )
+    assert max(update_at[:-1]) < reply_at < update_at[-1]
+
+
+def test_a_replayed_result_is_clipped_like_a_live_one(client, clite_home):
+    """A replay is not a way around the limit that keeps a huge file off the wire."""
+    (clite_home / "big.txt").write_text("x" * 4000 + "\n")
+    writer = client(
+        [tool_call_response(("read_file", {"path": "big.txt"})), text_response("that is a lot")]
+    )
+    stored = writer.new_session(str(clite_home))
+    writer.prompt(stored, "read the big file")
+
+    acp = client()
+    acp.initialize()
+    acp.call("session/load", {"sessionId": stored, "cwd": str(clite_home)})
+    text = acp.updates("tool_call_update")[0]["update"]["content"][0]["content"]["text"]
+    assert len(text) == RESULT_PREVIEW_CHARS
+
+
+def test_a_replay_leaves_out_what_the_agent_wrote_for_itself(client):
+    acp = client()
+    session_id = acp.new_session()
+    session = acp.server.sessions[session_id]
+    session.chat.agent.messages = [
+        {"role": "user", "content": "hello"},
+        {"role": "user", "content": "[keep going]", "display_kind": "internal"},
+        {
+            "role": "assistant",
+            "content": None,  # a turn that only called a tool says nothing of its own
+            "tool_calls": [{"id": "call_1", "function": {"name": "terminal", "arguments": "not json"}}],
+        },
+        {"role": "tool", "tool_call_id": "call_1", "name": "terminal", "content": '{"error": "boom"}'},
+    ]
+    session.replay()
+
+    kinds = [update["update"]["sessionUpdate"] for update in acp.updates()]
+    assert kinds == ["user_message_chunk", "tool_call", "tool_call_update"]
+    assert acp.updates("user_message_chunk")[0]["update"]["content"]["text"] == "hello"
+    # The request the agent wrote itself is not shown as something the user said.
+    call = acp.updates("tool_call")[0]["update"]
+    assert call["rawInput"] == {}  # arguments that were not JSON, not a call that is lost
+    assert acp.updates("tool_call_update")[0]["update"]["status"] == "failed"
+
+
+def test_a_loaded_session_carries_on_the_conversation(client, clite_home):
+    stored = _a_stored_conversation(client, clite_home)
+
+    acp = client([text_response("yes, still here")])
+    acp.initialize()
+    acp.call("session/load", {"sessionId": stored, "cwd": str(clite_home)})
+    assert acp.prompt(stored, "are you still there?")["result"] == {"stopReason": "end_turn"}
+    # The model was given the old conversation, not a fresh one with just the new message.
+    sent = acp.scripted.calls[0]["messages"]
+    assert any(message.get("content") == "read the notes" for message in sent)
+
+
+def test_session_load_needs_a_session_that_exists(client, clite_home):
+    acp = client()
+    acp.initialize()
+    error = acp.error("session/load", {"sessionId": "20260101_000000_deadbeef", "cwd": str(clite_home)})
+    assert error["code"] == 4001 and "20260101_000000_deadbeef" in error["message"]
+    assert acp.server.sessions == {}
+
+
+def test_loading_a_session_that_is_already_open_is_refused(client, clite_home):
+    stored = _a_stored_conversation(client, clite_home)
+    acp = client()
+    acp.initialize()
+    assert acp.call("session/load", {"sessionId": stored, "cwd": str(clite_home)}) == {}
+    error = acp.error("session/load", {"sessionId": stored, "cwd": str(clite_home)})
+    assert error["code"] == -32600 and "already open" in error["message"]
+
+
+def test_session_load_needs_the_handshake_first(client, clite_home):
+    acp = client()
+    error = acp.error("session/load", {"sessionId": "whatever", "cwd": str(clite_home)})
+    assert error["code"] == -32600 and "initialize" in error["message"]
+
+
+@pytest.mark.parametrize("cwd", ["", "project", "./project", None, 7])
+def test_session_load_needs_an_absolute_cwd(client, cwd):
+    acp = client()
+    acp.initialize()
+    error = acp.error("session/load", {"sessionId": "anything", "cwd": cwd})
+    assert error["code"] in (-32602, -32600)
+    assert acp.server.sessions == {}
 
 
 # ── a turn ───────────────────────────────────────────────────────────────────────────────
@@ -1026,7 +1170,8 @@ def test_the_entry_point_talks_over_real_pipes(clite_home):
                 "params": {"cwd": str(clite_home), "mcpServers": []},
             }
         )
-        assert read_until(lambda m: m.get("id") == 2)["result"]["sessionId"].startswith("sess_")
+        session_id = read_until(lambda m: m.get("id") == 2)["result"]["sessionId"]
+        assert session_id  # the store's own id, handed back by session/new
     finally:
         process.stdin.close()
         assert process.wait(timeout=10) == 0

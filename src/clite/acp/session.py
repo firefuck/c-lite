@@ -16,16 +16,22 @@ travels ahead of it as notifications. That is why the protocol is spoken on a wo
 
 A slash command arrives the same way as any other prompt — that is how ACP runs one — and is
 answered by the command itself, without the model ever seeing it.
+
+Loading a session is the same object again: the session id is the store's own, so the client
+that comes back with it gets its conversation back, replayed as the updates it was first shown
+as.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import threading
 from typing import TYPE_CHECKING, Any
 
-from clite.acp.server import REQUEST_FAILED, SESSION_BUSY, AcpError
+from clite.acp.server import REQUEST_FAILED, SESSION_BUSY, SESSION_NOT_FOUND, AcpError
 from clite.agent import AgentCallbacks, TurnResult
+from clite.agent.messages import content_text, is_internal
 from clite.core.config import config_get
 from clite.runtime.commands import command_catalog
 from clite.runtime.presentation import result_failed, tool_preview
@@ -79,6 +85,68 @@ PLAN_STATUSES = {"pending": "pending", "in_progress": "in_progress", "completed"
 def tool_kind(name: str) -> str:
     """The ACP kind of a tool call, for the icon and the verb an editor shows."""
     return TOOL_KINDS.get(name, "other")
+
+
+def tool_call_event(call_id: str, name: str, args: dict[str, Any]) -> dict[str, Any]:
+    """The ``tool_call`` update for a tool that has started.
+
+    The same shape covers a call arriving live and one replayed from a transcript: the stored
+    call and the running one are the same thing, told at different times.
+    """
+    update: dict[str, Any] = {
+        "sessionUpdate": "tool_call",
+        "toolCallId": call_id,
+        # The title is what the editor puts next to the kind's verb: the file, the command, the
+        # question — not the tool's name, which the kind already says.
+        "title": tool_preview(name, args) or name,
+        "kind": tool_kind(name),
+        # This fires as the tool starts, with the approval it may still ask for as part of the
+        # run, so the call is running, not pending.
+        "status": "in_progress",
+        "rawInput": args,
+        "content": [],
+    }
+    path = args.get("path")
+    if isinstance(path, str) and path:
+        update["locations"] = [{"path": path}]  # an editor can open the file being worked on
+    return update
+
+
+def tool_result_event(call_id: str, result: str) -> dict[str, Any]:
+    """The ``tool_call_update`` for a tool that finished, with its result clipped.
+
+    ``rawOutput`` is left out on purpose: it may hold the same payload unclipped, which is how
+    a tool that read a large file ends up between two protocol messages.
+    """
+    return {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": call_id,
+        "status": "failed" if result_failed(result) else "completed",
+        "content": [
+            {
+                "type": "content",
+                "content": {"type": "text", "text": result[:RESULT_PREVIEW_CHARS] or "(no output)"},
+            }
+        ],
+    }
+
+
+def decode_arguments(raw: Any) -> dict[str, Any]:
+    """A stored tool call's arguments as an object.
+
+    They were written down as JSON text. A call whose arguments are not a JSON object is
+    replayed with what could be read out of them, not dropped: this is a transcript being
+    shown again, not a tool about to run.
+    """
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str) and raw.strip():
+        try:
+            decoded = json.loads(raw)
+        except ValueError:
+            return {}
+        return decoded if isinstance(decoded, dict) else {}
+    return {}
 
 
 def plan_entries(todos: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -154,8 +222,8 @@ class AcpSession:
     def __init__(
         self,
         server: AcpServer,
-        session_id: str,
         *,
+        resume: str | None = None,
         cwd: str | None = None,
         client_factory: Any = None,
         model: str | None = None,
@@ -164,8 +232,8 @@ class AcpSession:
         yolo: bool = False,
     ) -> None:
         self.server = server
-        self.id = session_id
         self.cwd = cwd
+        self.id = ""  # the conversation names itself; set below, once there is one
         # One turn at a time, and the lock is held for as long as the turn runs: a second
         # ``session/prompt`` is refused with ``session busy`` rather than queued, because the
         # protocol has no place to put a turn the client did not ask for yet.
@@ -188,6 +256,12 @@ class AcpSession:
             yolo=yolo,
             client=client_factory() if client_factory else None,
         )
+        if resume is not None and not self.chat.resume(resume):
+            raise AcpError(SESSION_NOT_FOUND, f"no stored session matches {resume!r}")
+        # The id is the one the conversation store uses, not one invented for the connection:
+        # ``session/load`` takes it back, and an id that only lived as long as this process
+        # could not be loaded by the editor that comes back tomorrow.
+        self.id = self.chat.session_id
 
     # ── callbacks -> session/update ──────────────────────────────────────────────────────
 
@@ -232,22 +306,7 @@ class AcpSession:
 
         def on_tool_start(call_id: str, name: str, args: dict[str, Any]) -> None:
             self._call_on_thread.value = call_id
-            call: dict[str, Any] = {
-                "sessionUpdate": "tool_call",
-                "toolCallId": call_id,
-                # The title is what the editor puts next to the kind's verb: the file, the
-                # command, the question — not the tool's name, which the kind already says.
-                "title": tool_preview(name, args) or name,
-                "kind": tool_kind(name),
-                # This fires as the tool starts, with the approval it may still ask for as part
-                # of the run, so the call is running, not pending.
-                "status": "in_progress",
-                "rawInput": args,
-                "content": [],
-            }
-            path = args.get("path")
-            if isinstance(path, str) and path:
-                call["locations"] = [{"path": path}]  # an editor can open the file being worked on
+            call = tool_call_event(call_id, name, args)
             with self._calls_lock:
                 self._calls[call_id] = call
             self._update(call)
@@ -258,22 +317,7 @@ class AcpSession:
             with self._calls_lock:
                 self._calls.pop(call_id, None)
             self._call_on_thread.value = None
-            self._update(
-                {
-                    "sessionUpdate": "tool_call_update",
-                    "toolCallId": call_id,
-                    "status": "failed" if result_failed(result) else "completed",
-                    # The result travels as text and clipped. ``rawOutput`` is left out on
-                    # purpose: it may hold the same payload unclipped, which is how a tool that
-                    # read a large file ends up between two protocol messages.
-                    "content": [
-                        {
-                            "type": "content",
-                            "content": {"type": "text", "text": result[:RESULT_PREVIEW_CHARS] or "(no output)"},
-                        }
-                    ],
-                }
-            )
+            self._update(tool_result_event(call_id, result))
             if name == "todo":
                 # The task list is the only plan there is: an editor shows it as the session's
                 # plan, and it is re-sent whole whenever the tool that edits it has run.
@@ -317,6 +361,39 @@ class AcpSession:
             self._chunk("agent_message_chunk", result.text)
             return "end_turn"
         return stop_reason(result)
+
+    def replay(self) -> None:
+        """Send the stored conversation back as updates, the way ``session/load`` asks for.
+
+        Only what an editor shows — what was typed, what was answered, and the calls in
+        between — in the order it happened. A stored result is clipped exactly like a live one:
+        a replay is not a way around the limit that keeps a huge file off the wire. Reasoning
+        is not replayed: it is not stored in a shape ACP has a place for.
+        """
+        for message in self.chat.agent.messages:
+            if is_internal(message):
+                continue  # compaction summaries and the like are the agent's own bookkeeping
+            role = message.get("role")
+            if role == "user":
+                self._chunk("user_message_chunk", content_text(message.get("content")))
+            elif role == "assistant":
+                self._chunk("agent_message_chunk", content_text(message.get("content")))
+                for call in message.get("tool_calls") or []:
+                    function = call.get("function") or {}
+                    self._update(
+                        tool_call_event(
+                            str(call.get("id") or ""),
+                            str(function.get("name") or ""),
+                            decode_arguments(function.get("arguments")),
+                        )
+                    )
+            elif role == "tool":
+                # The result of the call above it: the same pair a live turn puts on the wire.
+                self._update(
+                    tool_result_event(
+                        str(message.get("tool_call_id") or ""), content_text(message.get("content"))
+                    )
+                )
 
     def announce_commands(self) -> None:
         """Tell the client which commands it can type.

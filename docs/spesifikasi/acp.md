@@ -61,8 +61,11 @@ dibangun `runtime.build_agent` dengan platform `acp`.
   salah tempat.
 - `mcpServers` dari klien diterima tanpa galat tetapi diabaikan: c-lite mengambil server MCP
   dari config-nya sendiri. Diabaikannya dicatat di log.
-- Id sesi berawalan `sess_`. Menutup server menutup semua sesi dan membatalkan permintaan yang
-  menunggu klien.
+- Id sesi adalah id percakapan di penyimpanan c-lite (`20261008_192945_4e3cc152`), bukan id
+  yang dibuat untuk koneksi ini: itulah yang membuatnya bisa dipakai lagi oleh `session/load`
+  di proses berikutnya. Sesi yang baru dibuat belum punya baris di penyimpanan sampai giliran
+  pertamanya berjalan, jadi memuatnya sebelum itu berarti "tidak ada sesi tersimpan". Menutup
+  server menutup semua sesi dan membatalkan permintaan yang menunggu klien.
 
 **Giliran**
 - `session/prompt` adalah satu permintaan yang hasilnya adalah akhir giliran: `{"stopReason"}`.
@@ -121,6 +124,23 @@ dibangun `runtime.build_agent` dengan platform `acp`.
   tiga status; butir yang dibatalkan (`cancelled`) tidak ikut sama sekali — menampilkannya
   sebagai `completed` akan bilang pekerjaannya selesai.
 
+**Memuat sesi**
+- `session/load` menerima `{sessionId, cwd, mcpServers}` seperti `session/new`, tapi id-nya
+  harus menunjuk percakapan tersimpan; id yang tidak ada dibalas 4001, bukan sesi baru yang
+  lahir dengan id itu. `cwd` wajib absolut dan diperiksa sama seperti `session/new`.
+- Seluruh percakapan dikirim ulang lebih dulu sebagai `session/update` — `user_message_chunk`,
+  `agent_message_chunk`, dan pasangan `tool_call`/`tool_call_update` untuk setiap pemanggilan
+  tool, dalam urutan aslinya — lalu permintaannya dibalas `{}`. Urutannya begitu karena
+  protokolnya memang begitu: klien sedang menyusun ulang transkripnya, dan balasan itu adalah
+  akhir dari pemutaran, bukan langkah terpisah.
+- Yang tidak diputar: pesan internal agen (permintaan lanjut yang ditulisnya sendiri,
+  ringkasan kompresi), dan penalaran — bentuknya tidak disimpan dalam wujud yang ACP kenal.
+  Hasil tool dipotong seperti hasil hidup, jadi pemutaran bukan jalan pintas melewati batas itu.
+- Sesi yang sudah terbuka di koneksi yang sama ditolak (-32600): dua agen hidup di satu
+  percakapan tersimpan akan saling menimpa riwayatnya. Setelah dimuat, sesinya hidup seperti
+  sesi baru — `session/prompt` berikutnya melanjutkan percakapan yang sama, dengan riwayat lama
+  ikut dikirim ke model.
+
 **Perintah**
 - Daftar perintah yang bisa diketik klien dikirim sebagai `available_commands_update` setelah
   balasan `session/new` — bukan sebelumnya: id sesi baru diketahui klien saat balasannya tiba,
@@ -157,7 +177,7 @@ dibangun `runtime.build_agent` dengan platform `acp`.
 | Pembaruan tool call dan izin | ✅ | F6-T4: `tool_call`/`tool_call_update` dengan kind, status, `rawInput`, `locations`; izin lewat `session/request_permission` ke callback `approve`, dengan diam berarti tolak. Dijaga `tests/acp/test_acp.py`, termasuk satu giliran sungguhan lewat pipa dengan tool call dan permintaan izin |
 | `plan` dari `agent.todos` | ✅ | F6-T4: dikirim utuh setiap tool `todo` selesai; butir `cancelled` tidak ikut. Dijaga `tests/acp/test_acp.py` |
 | `available_commands_update` | ✅ | F6-T4: dikirim setelah balasan `session/new`; perintah dijalankan sebagai prompt biasa lewat `handle_input`. Dijaga `tests/acp/test_acp.py` |
-| `session/load`: memutar ulang riwayat tersimpan | ⬜ | F6-T4 |
+| `session/load`: memutar ulang riwayat tersimpan | ✅ | F6-T4: id sesi adalah id penyimpanan; riwayat diputar sebelum balasan `{}`, sesi yang sudah terbuka ditolak. Dijaga `tests/acp/test_acp.py` |
 | Kemampuan sisi klien (editor menjalankan terminal, membaca berkas) | ⬜ | Di luar lingkup F6-T4 |
 
 ## Yang sengaja berbeda dari Hermes

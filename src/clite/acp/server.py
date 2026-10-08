@@ -15,10 +15,10 @@ import concurrent.futures
 import json
 import logging
 import threading
-import uuid
 from collections.abc import Callable
 from contextvars import copy_context
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from clite import __version__
@@ -40,7 +40,6 @@ PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, INVALID_PARAMS, INTERNAL_ERROR =
 SESSION_NOT_FOUND, SESSION_BUSY, REQUEST_FAILED = 4001, 4002, 4003
 
 CLIENT_REQUEST_TIMEOUT_SECONDS = 300.0
-SESSION_ID_PREFIX = "sess_"
 NO_REPLY = object()  # a notification: nothing goes back, not even an error
 
 
@@ -274,10 +273,25 @@ class AcpServer:
     def new_session(self, **options: Any) -> Any:
         from clite.acp.session import AcpSession
 
+        session = AcpSession(self, client_factory=self.client_factory, **options)
         with self._lock:
-            session_id = f"{SESSION_ID_PREFIX}{uuid.uuid4().hex[:12]}"
-            session = AcpSession(self, session_id, client_factory=self.client_factory, **options)
-            self.sessions[session_id] = session
+            self.sessions[session.id] = session
+        return session
+
+    def load_session(self, reference: str, **options: Any) -> Any:
+        """Reopen a stored conversation as a live session.
+
+        The id is the store's own — see ``AcpSession`` — which is what makes it outlive the
+        process that handed it out. A session that is already open here is refused rather than
+        opened twice: two live agents on one stored conversation would write over each other.
+        """
+        from clite.acp.session import AcpSession
+
+        session = AcpSession(self, resume=reference, client_factory=self.client_factory, **options)
+        with self._lock:
+            if session.id in self.sessions:
+                raise AcpError(INVALID_REQUEST, f"session {session.id!r} is already open")
+            self.sessions[session.id] = session
         return session
 
     def get_session(self, session_id: str) -> Any:
@@ -339,6 +353,34 @@ class AcpServer:
 # ── methods ──────────────────────────────────────────────────────────────────────────────
 
 
+def session_cwd(params: dict[str, Any], method: str) -> str:
+    """The absolute working directory a session carries.
+
+    Both ``session/new`` and ``session/load`` take one, and a relative path would build an
+    agent somewhere the client did not mean.
+    """
+    cwd = required_text(params, "cwd", f"{method} needs an absolute cwd")
+    if not Path(cwd).is_absolute():
+        raise AcpError(INVALID_PARAMS, f"{method} needs an absolute cwd, got {cwd!r}")
+    return cwd
+
+
+def note_mcp_servers(params: dict[str, Any]) -> None:
+    """Record the MCP servers a client offered, since c-lite will not use them.
+
+    The list is accepted without an error — refusing would fail a session over something the
+    client cannot help — but it is logged, because silently dropping a server a user configured
+    is the kind of thing that is impossible to debug later.
+    """
+    servers = params.get("mcpServers") or []
+    if servers:
+        logger.warning(
+            "the client offered %d MCP server(s); c-lite takes its MCP servers from its own config, "
+            "so these are ignored",
+            len(servers) if isinstance(servers, list) else 1,
+        )
+
+
 @acp_method("initialize")
 def handle_initialize(server: AcpServer, params: dict[str, Any]) -> dict[str, Any]:
     """Negotiate the protocol version and exchange capabilities.
@@ -372,25 +414,33 @@ def handle_initialize(server: AcpServer, params: dict[str, Any]) -> dict[str, An
 
 @acp_method("session/new")
 def handle_session_new(server: AcpServer, params: dict[str, Any]) -> dict[str, Any]:
-    from pathlib import Path
-
     if not server.initialized:
         raise AcpError(INVALID_REQUEST, "initialize first: the session needs the negotiated capabilities")
-    cwd = required_text(params, "cwd", "session/new needs an absolute cwd")
-    if not Path(cwd).is_absolute():
-        raise AcpError(INVALID_PARAMS, f"session/new needs an absolute cwd, got {cwd!r}")
-    servers = params.get("mcpServers") or []
-    if servers:
-        logger.warning(
-            "the client offered %d MCP server(s); c-lite takes its MCP servers from its own config, "
-            "so these are ignored",
-            len(servers) if isinstance(servers, list) else 1,
-        )
+    cwd = session_cwd(params, "session/new")
+    note_mcp_servers(params)
     session = server.new_session(cwd=cwd)
     # The id means nothing to the client until this reply arrives, so the list of commands it
     # may type follows the reply rather than racing it.
     server.after_reply(session.announce_commands)
     return {"sessionId": session.id}
+
+
+@acp_method("session/load")
+def handle_session_load(server: AcpServer, params: dict[str, Any]) -> dict[str, Any]:
+    """Reopen a stored conversation: its history is replayed, then the result is empty.
+
+    The replay comes first because the protocol asks for it that way: the client is rebuilding
+    the transcript on its side, and this reply is the end of that replay, not a separate step.
+    """
+    if not server.initialized:
+        raise AcpError(INVALID_REQUEST, "initialize first: the session needs the negotiated capabilities")
+    session_id = required_text(params, "sessionId", "session/load needs a sessionId")
+    cwd = session_cwd(params, "session/load")
+    note_mcp_servers(params)
+    session = server.load_session(session_id, cwd=cwd)
+    session.replay()
+    server.after_reply(session.announce_commands)
+    return {}
 
 
 @acp_method("session/prompt")
