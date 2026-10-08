@@ -575,6 +575,18 @@ class CronOutputResult(Result):
     truncated: bool = False
 
 
+class LogTailParams(Params):
+    source: Literal["agent", "errors"] = "agent"
+    level: Literal["all", "info", "warning", "error"] = "all"
+    lines: int = 200
+
+
+class LogTailResult(Result):
+    path: str = ""
+    lines: list[str] = []
+    truncated: bool = False
+
+
 method("tools.list", CatalogParams, ToolsListResult)
 method("skills.list", Empty, SkillsListResult)
 method("skills.view", SkillViewParams, SkillViewResult)
@@ -604,6 +616,7 @@ method(
     CronOutputResult,
     "The last run's saved output, redacted and capped.",
 )
+method("logs.tail", LogTailParams, LogTailResult, "The end of a log file, filtered by level and redacted.")
 
 # ── events (server to client notifications) ──────────────────────────────────────────────
 

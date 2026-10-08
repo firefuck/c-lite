@@ -304,6 +304,30 @@ def test_memory_page_adds_edits_and_removes_an_entry(dashboard, clite_home):
     assert "monday" not in (clite_home / "memories" / "MEMORY.md").read_text()
 
 
+def test_logs_page_shows_a_filtered_tail(dashboard, clite_home):
+    from clite.core.constants import get_logs_dir
+
+    logs = get_logs_dir()
+    logs.mkdir(parents=True, exist_ok=True)
+    (logs / "agent.log").write_text(
+        "2026-10-08 10:00:00 INFO    clite.agent: starting up\n"
+        "2026-10-08 10:00:01 ERROR   clite.rpc: <script>window.__pwned = true</script>\n"
+    )
+
+    dashboard.click("[data-tab=logs]")
+    dashboard.wait_for_selector("#logs-body")
+    dashboard.wait_for_function(
+        "document.querySelector('#logs-body').textContent.includes('starting up')"
+    )
+    assert dashboard.evaluate("window.__pwned") is None  # a log line is text, never markup
+
+    dashboard.select_option("#logs-level", "error")
+    dashboard.wait_for_function(
+        "!document.querySelector('#logs-body').textContent.includes('starting up')"
+    )
+    assert "clite.rpc" in dashboard.inner_text("#logs-body")
+
+
 def test_other_tabs_list_what_is_installed(dashboard):
     dashboard.click("[data-tab=skills]")
     dashboard.wait_for_selector("#panel-skills .row")

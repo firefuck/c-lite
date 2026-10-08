@@ -667,6 +667,34 @@ const panels = {
     };
     await show();
   },
+  async logs(panel) {
+    const source = h("select", { id: "logs-source" },
+      h("option", { value: "agent" }, "agent.log"),
+      h("option", { value: "errors" }, "errors.log"));
+    const level = h("select", { id: "logs-level" },
+      ...["all", "info", "warning", "error"].map((value) =>
+        h("option", { value }, value === "all" ? "all levels" : value)));
+    const body = h("pre", { id: "logs-body" });
+    const load = async () => {
+      const { lines, path, truncated } = await state.rpc.request("logs.tail", {
+        source: source.value, level: level.value, lines: 300,
+      });
+      body.textContent = lines.length
+        ? lines.join("\n") + (truncated ? "\n… (older lines omitted)" : "")
+        : "(nothing logged yet)";
+      body.dataset.path = path;
+    };
+    const reload = () => load().catch((error) => notice(error.message, "error"));
+    source.addEventListener("change", reload);
+    level.addEventListener("change", reload);
+    panel.replaceChildren(
+      h("h2", {}, "Logs"),
+      h("div", { class: "filters" }, source, level,
+        h("button", { type: "button", id: "logs-refresh", onclick: reload }, "Refresh")),
+      body,
+    );
+    await load();
+  },
 };
 
 function selectTab(name) {

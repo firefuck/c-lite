@@ -111,7 +111,7 @@ Daftar lengkap method, event, dan permintaan server ada di
 
 | Fitur | Status | Catatan |
 |---|---|---|
-| 43 method, 13 event, 2 permintaan server | ✅ | Hermes: 251 method, 69 event, 13 permintaan server |
+| 44 method, 13 event, 2 permintaan server | ✅ | Hermes: 251 method, 69 event, 13 permintaan server |
 | Transport stdio dan WebSocket | ✅ | |
 | Generator TypeScript dan pemeriksaan kesegaran | ✅ | |
 | Klien TypeScript bersama (`apps/shared`) | ✅ | 21 tes |
@@ -123,6 +123,7 @@ Daftar lengkap method, event, dan permintaan server ada di
 | Halaman Kredensial: daftar nama, isi, hapus | ✅ | `credentials.list`/`set`/`delete`; nilai tidak pernah dikirim ke klien |
 | Halaman Cron: daftar, buat, jeda, jalankan, hapus, keluaran terakhir | ✅ | `cron.output` mengembalikan keluaran run terakhir yang sudah diredaksi dan dibatasi |
 | Halaman Memori: lihat, tambah, sunting, hapus | ✅ | `memory.set` lewat `MemoryStore` yang sama dengan tool `memory`: pemindaian keamanan dan batas ukuran tetap berlaku |
+| Halaman Log: ekor dengan penyaring tingkat | ✅ | `logs.tail` membaca jendela di ujung berkas, menyaring per tingkat, dan meredaksi sebelum mengirim |
 | Versi protokol dinegosiasikan | 🟡 | `gateway.ready` membawa `protocol_version`; klien belum menolak versi yang tidak cocok |
 
 ## Yang sengaja berbeda dari Hermes

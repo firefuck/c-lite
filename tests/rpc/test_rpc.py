@@ -634,6 +634,40 @@ def test_memory_edits_go_through_the_store_and_its_guards(client):
     assert missing["success"] is False and "no entry contains" in missing["message"].lower()
 
 
+def test_logs_tail_filters_by_level_and_redacts(client, clite_home):
+    from clite.core.env import SecretSpec, register_secret
+    from clite.core.constants import get_logs_dir
+
+    register_secret(SecretSpec(name="CLITE_LOG_SECRET", description="a credential for this test"))
+    rpc = client()
+    rpc.call("credentials.set", {"name": "CLITE_LOG_SECRET", "value": "sk-log-secret-1234567890"})
+
+    logs = get_logs_dir()
+    logs.mkdir(parents=True, exist_ok=True)
+    (logs / "agent.log").write_text(
+        "2026-10-08 10:00:00 INFO    clite.agent: starting\n"
+        "2026-10-08 10:00:01 WARNING clite.tools: slow call\n"
+        "2026-10-08 10:00:02 ERROR   clite.rpc: failed with sk-log-secret-1234567890\n"
+    )
+
+    everything = rpc.call("logs.tail", {})
+    assert everything["path"] == str(logs / "agent.log") and len(everything["lines"]) == 3
+    assert "starting" in everything["lines"][0]
+
+    warnings = rpc.call("logs.tail", {"level": "warning"})["lines"]
+    assert len(warnings) == 1 and "slow call" in warnings[0]
+
+    errors = rpc.call("logs.tail", {"level": "error"})["lines"]
+    assert len(errors) == 1
+    assert "sk-log-secret-1234567890" not in errors[0]  # redacted on the way out
+    assert "[REDACTED]" in errors[0]
+
+    # A cap is a cap: asking for two lines returns the last two.
+    assert len(rpc.call("logs.tail", {"lines": 2})["lines"]) == 2
+    # The errors log does not exist yet; that is an empty answer, not an error.
+    assert rpc.call("logs.tail", {"source": "errors"})["lines"] == []
+
+
 def test_config_tools_skills_plugins_memory_cron(client):
     rpc = client()
     rpc.call("config.set", {"key": "display.skin", "value": "mono"})

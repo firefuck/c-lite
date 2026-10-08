@@ -516,6 +516,37 @@ def credentials_delete(server: RpcServer, params: schema.CredentialNameParams) -
     return _credentials()
 
 
+@rpc_method("logs.tail")
+def logs_tail(server: RpcServer, params: schema.LogTailParams) -> schema.LogTailResult:
+    from clite.core.constants import get_logs_dir
+    from clite.core.redact import redact
+
+    path = get_logs_dir() / ("errors.log" if params.source == "errors" else "agent.log")
+    if not path.is_file():
+        return schema.LogTailResult(path=str(path))
+    want = max(1, min(params.lines, 2000))
+    size = path.stat().st_size
+    # Read only a window at the end: a log that has been running for months is still bounded.
+    window = min(size, max(64_000, want * 400))
+    with path.open("rb") as handle:
+        handle.seek(size - window)
+        text = handle.read().decode("utf-8", errors="replace")
+    tail = text.splitlines()[-want:]
+    if params.level != "all":
+        tail = [line for line in tail if _log_level(line) == params.level.upper()]
+    return schema.LogTailResult(
+        path=str(path),
+        lines=[redact(line) for line in tail],
+        truncated=window < size or len(text.splitlines()) > want,
+    )
+
+
+def _log_level(line: str) -> str:
+    """The level field of ``<date> <time> <LEVEL> <name>: <message>``, or "" for anything else."""
+    parts = line.split(maxsplit=3)
+    return parts[2].upper() if len(parts) >= 3 else ""
+
+
 def _memory_store():
     """The same store the `memory` tool writes through, with its limits and guards."""
     from clite.agent.memory import MemoryStore

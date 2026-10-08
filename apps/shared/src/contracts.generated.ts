@@ -159,6 +159,18 @@ export interface ErrorPayload {
   code: number;
 }
 
+export interface LogTailParams {
+  source?: "agent" | "errors";
+  level?: "all" | "info" | "warning" | "error";
+  lines?: number;
+}
+
+export interface LogTailResult {
+  path: string;
+  lines: string[];
+  truncated: boolean;
+}
+
 export interface MemoryEditParams {
   action: "add" | "replace" | "remove";
   target: "memory" | "user";
@@ -636,6 +648,8 @@ export interface Methods {
   "cron.action": { params: CronActionParams; result: CronListResult };
   /** The last run's saved output, redacted and capped. */
   "cron.output": { params: CronOutputParams; result: CronOutputResult };
+  /** The end of a log file, filtered by level and redacted. */
+  "logs.tail": { params: LogTailParams; result: LogTailResult };
 }
 
 /** Events the server emits, by `type`. */
@@ -663,7 +677,7 @@ export interface ServerRequests {
   "clarify.request": { params: ClarifyRequestParams; result: ClarifyRequestResult };
 }
 
-export const METHOD_NAMES = ["ping", "system.info", "session.create", "session.info", "session.list", "session.history", "session.close", "session.interrupt", "session.steer", "session.title", "session.delete", "session.rename", "session.search", "session.pin", "session.archive", "session.export", "session.compress", "session.usage", "prompt.submit", "slash.exec", "commands.catalog", "complete.slash", "config.get", "config.list", "config.set", "model.list", "model.set", "providers.list", "setup.apply", "tools.list", "skills.list", "skills.view", "plugins.list", "plugins.set_enabled", "credentials.list", "credentials.set", "credentials.delete", "memory.get", "memory.set", "cron.list", "cron.create", "cron.action", "cron.output"] as const;
+export const METHOD_NAMES = ["ping", "system.info", "session.create", "session.info", "session.list", "session.history", "session.close", "session.interrupt", "session.steer", "session.title", "session.delete", "session.rename", "session.search", "session.pin", "session.archive", "session.export", "session.compress", "session.usage", "prompt.submit", "slash.exec", "commands.catalog", "complete.slash", "config.get", "config.list", "config.set", "model.list", "model.set", "providers.list", "setup.apply", "tools.list", "skills.list", "skills.view", "plugins.list", "plugins.set_enabled", "credentials.list", "credentials.set", "credentials.delete", "memory.get", "memory.set", "cron.list", "cron.create", "cron.action", "cron.output", "logs.tail"] as const;
 export const EVENT_TYPES = ["gateway.ready", "session.info", "turn.start", "turn.step", "message.delta", "reasoning.delta", "message.complete", "tool.start", "tool.complete", "status.update", "subagent.update", "turn.complete", "error"] as const;
 export const SERVER_REQUEST_NAMES = ["approval.request", "clarify.request"] as const;
 
