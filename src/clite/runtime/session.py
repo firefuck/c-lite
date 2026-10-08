@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import logging
 import subprocess
+import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -17,6 +19,7 @@ from clite.agent import AgentCallbacks, AIAgent, TurnResult
 from clite.agent.attachments import AttachmentError, build_content, load_images
 from clite.agent.messages import content_text, is_internal
 from clite.core.config import load_config
+from clite.core.threads import start_thread
 from clite.plugins.hooks import invoke_hook
 from clite.plugins.manager import get_plugin_manager
 from clite.providers.client import ModelClient
@@ -33,6 +36,130 @@ ACTION_QUIT = "quit"
 ACTION_SUBMIT = "submit"  # ``text`` is a prompt to run as the next turn
 ACTION_NEW = "new"  # the session was replaced; the surface should refresh its view
 QUICK_COMMAND_TIMEOUT = 30
+
+# What a line that arrives while a turn already runs should do (``display.busy_input_mode``).
+BUSY_QUEUE = "queue"  # run it after the current turn finishes
+BUSY_INTERRUPT = "interrupt"  # stop the current turn, run this one next
+BUSY_STEER = "steer"  # hand it to the running turn as guidance, do not interrupt
+BUSY_REJECT = "reject"  # refuse it; the surface decides what to say
+
+BUSY_MODES = (BUSY_QUEUE, BUSY_INTERRUPT, BUSY_STEER, BUSY_REJECT)
+
+# Outcome of ``TurnQueue.submit``:
+SUBMIT_STARTED = "started"  # the session was idle; this turn started a worker
+SUBMIT_QUEUED = "queued"  # accepted, waiting behind the running turn
+SUBMIT_STEERED = "steered"  # handed to the running turn as guidance
+SUBMIT_REJECTED = "rejected"  # refused because a turn is running
+
+
+@dataclass
+class Turn:
+    """One queued turn. ``id`` is the surface's name for it (a turn id, a chat key);
+    ``payload`` carries whatever that surface needs to run it (loaded image parts, the
+    source a reply goes to)."""
+
+    text: str
+    id: str = ""
+    payload: Any = None
+
+
+class TurnQueue:
+    """Serializes turns for one :class:`ChatSession` and applies the busy policy.
+
+    Every surface that lets the user keep typing while the agent works (the REPL, the RPC
+    server, the gateway) shares this: a line that arrives during a turn follows
+    ``display.busy_input_mode`` (steer, interrupt, reject or queue), and the first line while
+    idle starts a worker thread that drains the queue. The caller's thread keeps reading.
+
+    ``run`` does the actual work for one turn (submit it, emit events, reply). Everything
+    surface-specific lives there and in ``on_queued``; this class owns only the queue, the
+    worker and the policy.
+    """
+
+    def __init__(self, session: ChatSession, run: Callable[[Turn], None], *,
+                 merge_bursts: bool = False, thread_name: str = "clite-turn",
+                 lock: threading.Lock | None = None) -> None:
+        self.session = session
+        self._run = run
+        # When several lines pile up in ``interrupt`` mode they are one thought: run them as
+        # a single message, joined by a blank line. ``queue`` mode keeps them apart and in order.
+        self.merge_bursts = merge_bursts
+        self.thread_name = thread_name
+        self._lock = lock or threading.Lock()
+        self._queue: list[Turn] = []
+        self._worker: threading.Thread | None = None
+
+    # ── state ────────────────────────────────────────────────────────────────────────────
+
+    @property
+    def busy(self) -> bool:
+        worker = self._worker
+        return self.session.busy or (worker is not None and worker.is_alive())
+
+    @property
+    def pending(self) -> int:
+        return len(self._queue)
+
+    # ── submitting ───────────────────────────────────────────────────────────────────────
+
+    def submit(self, turn: Turn, mode: str | None = None) -> str:
+        """Enqueue ``turn`` (or steer/reject it) and return one of the ``SUBMIT_*`` outcomes.
+
+        ``mode`` is a ``display.busy_input_mode`` value; the caller passes its own override
+        when it has one (the RPC ``busy_mode`` field). A rejected line raises nothing here:
+        the surface turns ``SUBMIT_REJECTED`` into whatever it says to the user.
+        """
+        mode = mode or busy_input_mode()
+        with self._lock:
+            if self.busy:
+                if mode == BUSY_STEER:
+                    self.session.steer(turn.text)
+                    return SUBMIT_STEERED
+                if mode == BUSY_REJECT:
+                    return SUBMIT_REJECTED
+                self._queue.append(turn)
+                if mode == BUSY_INTERRUPT:
+                    self.session.interrupt()
+                return SUBMIT_QUEUED
+            self._queue.append(turn)
+            self._worker = start_thread(self._drain, name=self.thread_name)
+        return SUBMIT_STARTED
+
+    def _drain(self) -> None:
+        while True:
+            with self._lock:
+                if not self._queue:
+                    self._worker = None
+                    return
+                if self.merge_bursts:
+                    text = "\n\n".join(turn.text for turn in self._queue)
+                    payload = self._queue[-1].payload
+                    turn_id = self._queue[-1].id
+                    self._queue.clear()
+                    turn = Turn(text=text, id=turn_id, payload=payload)
+                else:
+                    turn = self._queue.pop(0)
+            self._run(turn)
+
+    # ── lifecycle ────────────────────────────────────────────────────────────────────────
+
+    def clear(self) -> None:
+        with self._lock:
+            self._queue.clear()
+
+    def join(self, timeout: float | None = None) -> None:
+        worker = self._worker
+        if worker is not None and worker is not threading.current_thread():
+            worker.join(timeout=timeout)
+
+
+def busy_input_mode(config: dict[str, Any] | None = None) -> str:
+    """``display.busy_input_mode``, defaulting to ``interrupt`` and clamped to a known value."""
+    from clite.core.config import get_path
+
+    conf = config if config is not None else load_config()
+    mode = str(get_path(conf, "display.busy_input_mode", BUSY_INTERRUPT) or BUSY_INTERRUPT)
+    return mode if mode in BUSY_MODES else BUSY_INTERRUPT
 
 
 @dataclass

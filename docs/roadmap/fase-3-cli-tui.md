@@ -36,11 +36,14 @@ beberapa baris, dan menempel teks panjang tanpa terkirim sepotong-sepotong.
 (pelengkapan).
 
 **Selesai bila.**
-- [ ] Tes: baris yang masuk saat giliran berjalan diantrekan, menginterupsi, atau
-      mengarahkan, sesuai mode, lewat `ChatSession`.
-- [ ] Tes RPC dan gateway untuk mode sibuk tetap lulus setelah logikanya dipindah.
-- [ ] Tanpa `prompt_toolkit`, REPL tetap jalan dengan perilaku sekarang.
-- [ ] Baris "Mengetik saat agent bekerja" dan "Input multi-baris" di spesifikasi cli menjadi ✅.
+- [x] Tes: baris yang masuk saat giliran berjalan diantrekan, menginterupsi, atau
+      mengarahkan, sesuai mode, lewat `ChatSession` (`tests/runtime/test_session_and_slash.py`,
+      `tests/cli/test_cli.py`).
+- [x] Tes RPC dan gateway untuk mode sibuk tetap lulus setelah logikanya dipindah
+      (`TurnQueue` di `runtime/session.py`; `tests/rpc`, `tests/gateway` hijau).
+- [x] Tanpa `prompt_toolkit`, REPL tetap jalan dengan perilaku sekarang (jalur `StdlibReader`;
+      seluruh `tests/cli` lulus dengan `prompt_toolkit` disembunyikan).
+- [x] Baris "Mengetik saat agent bekerja" dan "Input multi-baris" di spesifikasi cli menjadi ✅.
 
 **Ukuran.** M
 

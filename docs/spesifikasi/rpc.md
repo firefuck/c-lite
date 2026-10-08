@@ -67,7 +67,8 @@ Daftar lengkap method, event, dan permintaan server ada di
   Klien lama yang tidak mengirim bidang ini tetap bekerja.
 - Mode sibuk (`busy_mode` atau `display.busy_input_mode`): `interrupt` menghentikan giliran
   berjalan lalu menjalankan pesan baru, `queue` mengantre, `steer` menyisipkan tanpa
-  menghentikan, `reject` membalas galat 4002.
+  menghentikan, `reject` membalas galat 4002. Sejak F3-T1 kebijakan ini ditegakkan satu
+  `runtime.TurnQueue` yang sama dengan REPL klasik dan gateway, bukan logika milik RPC.
 - Slash command yang tidak `BUSY_ALLOW` ditolak (4002) saat giliran berjalan.
 
 **Permintaan server ke klien**

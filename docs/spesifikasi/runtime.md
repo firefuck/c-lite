@@ -17,7 +17,7 @@ membutuhkan kode yang sama, kode itu tinggal di sini, bukan di salah satu surfac
 | File | Isi |
 |---|---|
 | `factory.py` | `build_agent`: satu-satunya tempat surface membuat `AIAgent` |
-| `session.py` | `ChatSession`: satu percakapan sebagaimana dilihat surface |
+| `session.py` | `ChatSession`: satu percakapan sebagaimana dilihat surface; `TurnQueue`: antrean giliran bersama |
 | `commands.py` | `COMMAND_REGISTRY`: tabel slash command |
 | `slash.py` | Handler slash command (`_handle_<nama>`) |
 | `presentation.py` | Pratinjau tool dan deteksi hasil gagal, dipakai semua surface |
@@ -63,6 +63,18 @@ membutuhkan kode yang sama, kode itu tinggal di sini, bukan di salah satu surfac
   sendiri yang menulisnya ke config.
 - Perintah `cli_only` ditolak di platform pesan.
 
+**`TurnQueue`** (antrean giliran bersama)
+- Satu implementasi untuk semua surface yang menerima masukan saat giliran berjalan: REPL
+  klasik, `RpcSession`, dan gateway. Sebelumnya logika ini hanya ada di `RpcSession` (F3-T1).
+- `TurnQueue(session, run, *, merge_bursts=False, thread_name=...)`: baris pertama saat idle
+  memulai satu thread pekerja yang menguras antrean; surface tetap membaca masukan.
+- `submit(turn, mode)` mengembalikan `started`/`queued`/`steered`/`rejected` sesuai
+  `display.busy_input_mode`: `interrupt` (default) menyela giliran yang jalan, `steer`
+  menyisipkan arahan tanpa menyela, `queue` mengantre, `reject` menolak dengan pesan.
+- `busy` benar selama sesi sibuk atau thread pekerja hidup; `join`/`clear`/`pending` dipakai
+  surface untuk menutup dengan rapi. `Turn` membawa `id`, `text`, dan `payload` (gambar untuk
+  RPC, sumber untuk gateway).
+
 **Registry perintah**
 - Setiap perintah dideklarasikan sekali di `COMMAND_REGISTRY`. Teks bantuan, pelengkapan,
   katalog RPC, dan dispatch di semua surface dibangun dari tabel itu.
@@ -84,6 +96,7 @@ membutuhkan kode yang sama, kode itu tinggal di sini, bukan di salah satu surfac
 | Checkpoint file: `/rollback`, `/checkpoints` | ✅ | `ChatSession.rollback_files` dan `list_file_checkpoints` memanggil `tools/checkpoints.py`; perintah tersedia di semua surface. Perubahan lewat perintah `terminal` tidak tercatat (lihat spesifikasi agent dan tools). Dijaga `tests/tools/test_checkpoints.py`. F2-T8 |
 | Percabangan sesi (`/branch`), `/background`, `/queue` | ⬜ | F3-T4 |
 | `/insights` | ⬜ | F3-T8 |
+| Antrean giliran bersama (`TurnQueue`) untuk masukan saat sibuk | ✅ | F3-T1: dipakai REPL klasik, `RpcSession`, dan gateway; dijaga `tests/runtime/test_session_and_slash.py` |
 
 ## Yang sengaja berbeda dari Hermes
 
@@ -96,5 +109,6 @@ membutuhkan kode yang sama, kode itu tinggal di sini, bukan di salah satu surfac
 ## Celah yang diketahui
 
 - `ChatSession` tidak aman dipakai dari dua thread sekaligus untuk operasi yang mengganti
-  agent (`/new`, `/resume`, `/reload`). Surface yang mengizinkan masukan saat sibuk
-  (`RpcSession`, gateway) menanganinya dengan kebijakan sibuk mereka sendiri.
+  agent (`/new`, `/resume`, `/reload`). Sejak F3-T1 satu `TurnQueue` menjaga satu giliran
+  berjalan pada satu waktu dan menegakkan `display.busy_input_mode` sama di semua surface;
+  perintah yang menyentuh sesi harus menunggu giliran (kecuali yang `BUSY_ALLOW`).
