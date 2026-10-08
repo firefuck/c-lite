@@ -107,9 +107,9 @@ dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
 | F2-T7 | Backend terminal Docker dan SSH | L | - | 🟡 |
 | F2-T8 | Checkpoint dan rollback file | M | - | ✅ |
 | F2-T9 | Eksekusi kode | M | F2-T7 | ✅ |
-| F2-T10 | MCP: HTTP, resources, prompts, `clite mcp` | L | - | ⬜ |
+| F2-T10 | MCP: HTTP, resources, prompts, `clite mcp` | L | - | ✅ |
 | F2-T11 | Kompresi yang lebih baik | M | F1-T2 | ✅ |
-| F2-T12 | Review latar belakang dan kurator terjadwal | M | - | ⬜ |
+| F2-T12 | Review latar belakang dan kurator terjadwal | M | - | ✅ |
 | F2-T13 | Delegasi yang lebih kaya | M | - | ✅ |
 | F2-T14 | OAuth dan `clite auth` | L | F1-T2 | ✅ |
 | F2-T15 | Deteksi perintah yang lebih tahan penyamaran | L | - | ✅ |
@@ -140,7 +140,7 @@ dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
 |---|---|---|---|---|
 | F4-T1 | Discord | M | F1-T3 | 🟡 |
 | F4-T2 | Slack | M | F1-T3 | 🟡 |
-| F4-T3 | WhatsApp, Signal, Matrix, email | L | F1-T3 | ⬜ |
+| F4-T3 | WhatsApp, Signal, Matrix, email | L | F1-T3 | 🟡 |
 | F4-T4 | Lampiran masuk dan keluar | M | F2-T6 | ✅ |
 | F4-T5 | Jawaban streaming dan progres tool di chat | M | F1-T3 | ✅ |
 | F4-T6 | Gateway sebagai layanan sistem | M | F1-T3 | ✅ |
