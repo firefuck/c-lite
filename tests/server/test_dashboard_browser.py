@@ -296,10 +296,11 @@ def test_memory_page_adds_edits_and_removes_an_entry(dashboard, clite_home):
     )
     assert "monday" in (clite_home / "memories" / "MEMORY.md").read_text()
 
-    # And remove it.
+    # And remove it. (The user section is empty from the start, so waiting for the text
+    # "Empty." would pass at once; wait for the memory row itself to go.)
     dashboard.click("#panel-memory .row[data-target=memory] [data-action=remove]")
     dashboard.wait_for_function(
-        "document.querySelector('#panel-memory').innerText.includes('Empty.')"
+        "document.querySelectorAll('#panel-memory .row[data-target=memory]').length === 0"
     )
     assert "monday" not in (clite_home / "memories" / "MEMORY.md").read_text()
 
