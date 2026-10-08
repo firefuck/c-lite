@@ -26,6 +26,8 @@ def _reset_process_state() -> None:
     clite_logging.reset_logging()
     db.close_all_session_dbs()
     env._LOADED.clear()
+    from clite.core.redact import reset_redact_state
+    reset_redact_state()
 
     # Later layers register their own reset hooks here as they are imported.
     for module_name, function_name in (
@@ -41,6 +43,7 @@ def _reset_process_state() -> None:
         ("clite.tools.mcp.client", "shutdown_mcp_servers"),
         ("clite.providers.registry", "reset_providers"),
         ("clite.providers.credentials", "reset_credential_pools"),
+        ("clite.providers.oauth", "reset_oauth_state"),
         ("clite.plugins.manager", "reset_plugin_managers"),
         ("clite.skills.catalog", "reset_skill_cache"),
         ("clite.cron.jobs", "reset_job_stores"),

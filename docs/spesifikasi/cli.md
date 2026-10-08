@@ -104,7 +104,8 @@ pakai (argumen, profil tak dikenal), 130 Ctrl+C.
 | `clite acp` | ⬜ | Hanya mencetak penunjuk ke roadmap: F6-T4 |
 | `clite update`, `backup`, `uninstall` | ✅ | Update mendeteksi cara pasang (git/pipx/pip) dan mengecek versi baru (`--check`); backup create membuat arsip home (rahasia hanya dengan `--include-secrets` mode 0600) dan restore memulihkan ke home baru; uninstall mencopot paket (`--purge` menghapus data home); ketiganya dijaga `detect_self_access`. Dijaga `tests/cli/test_cli.py`: F3-T6 |
 | `clite completion bash`, `zsh`, `fish` | ✅ | Skrip pelengkapan dibangun dari parser `main` yang sama, jadi tiap sub-perintah dan opsi (termasuk dari plugin) selalu ikut; nilai dinamis lewat `clite completion --values profiles\|models\|sessions` yang cepat dan tidak memuat plugin. Dijaga `tests/cli/test_cli.py` (termasuk `bash -n`) |
-| `clite auth`, `clite webhook` | ⬜ | F2-T14, F4-T10 |
+| `clite auth` | ✅ | `login`, `status`, `logout`. PKCE dan device code flow, penyimpanan `<home>/auth.json` izin 0600, dijaga `detect_self_access` dan `tests/providers/test_oauth.py`. F2-T14 |
+| `clite webhook` | ⬜ | F4-T10 |
 | `clite mcp` | ✅ | `add`, `list`, `remove`, `test`. `add` menulis `mcp_servers` lewat `atomic_config_update` (komentar config tetap utuh); `test` menyambung sekali dan melaporkan tool, resources, dan prompts yang ditemukan. Dijaga `tests/tools/test_mcp.py`. F2-T10 |
 | `/mcp` | ✅ | Menampilkan status tiap server MCP: transport, hidup/mati, jumlah tool/resources/prompts, dan catatan bila daftar toolnya berubah untuk sesi berikutnya. F2-T10 |
 

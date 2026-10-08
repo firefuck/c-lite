@@ -93,6 +93,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | One module per subcommand group. |  |
+| `auth.py` | ``clite auth``: log in, inspect, and log out of OAuth model providers. | `run_login()`, `run_status()`, `run_logout()`, `register()` |
 | `backup.py` | ``clite backup``: archive and restore the agent's home directory. | `create_backup()`, `restore_backup()`, `run_backup()`, `register()` |
 | `chat.py` | ``clite chat``: the interactive REPL, or one query with ``-q``. | `add_chat_arguments()`, `session_options()`, `wants_tui()`, `run_chat()`, `register()` |
 | `completion.py` | ``clite completion bash\|zsh\|fish``: shell completion built from the real parser. | `run_completion()`, `register()` |
@@ -130,7 +131,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `locking.py` | Cross-process file locks that lock on POSIX and on Windows. | `exclusive_lock()` |
 | `logging.py` | File logging under ``<home>/logs``: ``agent.log`` (INFO+) and ``errors.log`` (WARNING+). | `setup_logging()`, `reset_logging()` |
 | `profiles.py` | Profiles: fully separate homes under ``<default root>/profiles/<name>``. | `ProfileInfo`, `validate_profile_name()`, `get_sticky_profile()`, `get_active_profile_name()`, `list_profiles()`, `profile_exists()`, `create_profile()`, `delete_profile()`, `set_sticky_profile()`, `apply_profile_override()` |
-| `redact.py` | Redaction: keep credentials out of transcripts and logs. | `redact()` |
+| `redact.py` | Redaction: keep credentials out of transcripts and logs. | `register_credential_value()`, `unregister_credential_value()`, `credential_values()`, `reset_redact_state()`, `redact()` |
 | `threads.py` | Threads that carry the caller's context. | `start_thread()` |
 | `threats.py` | Scan text that will be injected into the system prompt. | `Threat`, `scan_text()`, `describe()` |
 
@@ -192,6 +193,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `http.py` | The HTTP seam for model calls: standard library only, cancellable, proxy-aware. | `ProviderHTTPError`, `Cancelled`, `CancelHandle`, `SSEEvent`, `HttpClient`, `parse_sse()` |
 | `model_switch.py` | Model switching: one pipeline for ``/model`` in the CLI, the TUI, the desktop app and the gateway. | `ModelSwitchResult`, `parse_model_input()`, `switch_model()` |
 | `models.py` | Model catalog: which models a provider offers, and how large their context windows are. | `ModelInfo`, `fetch_models()`, `get_cached_model_pricing()`, `list_models()`, `get_context_length()` |
+| `oauth.py` | OAuth 2.0 PKCE and device code authorization for model providers. | `get_auth_file_path()`, `load_auth_store()`, `save_auth_store()`, `get_provider_tokens()`, `save_provider_tokens()`, `delete_provider_tokens()`, `list_auth_statuses()`, `get_valid_oauth_token()`, `has_valid_token()`, `get_oauth_credential()`, … (+5) |
 | `pricing.py` | Model pricing and cost estimation: rates per million tokens and layered lookup. | `ModelPricing`, `resolve_model_pricing()` |
 | `registry.py` | Provider registry with lazy, layered discovery. | `register_provider()`, `list_providers()`, `get_provider()`, `reset_providers()`, `reset_user_layers()` |
 | `runtime.py` | Runtime provider resolution: from "what the user asked for" to a route that can be called. | `RuntimeRoute`, `resolve_runtime_provider()`, `resolve_fallback_routes()` |
@@ -330,4 +332,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 194 modul.
+Jumlah: 196 modul.

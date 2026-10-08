@@ -62,8 +62,10 @@ def atomic_write_text(path: str | Path, text: str, *, mode: int | None = None) -
         raise
 
 
-def atomic_write_json(path: str | Path, data: Any, *, indent: int | None = 2) -> None:
-    atomic_write_text(path, json.dumps(data, ensure_ascii=False, indent=indent) + "\n")
+def atomic_write_json(
+    path: str | Path, data: Any, *, indent: int | None = 2, mode: int | None = None
+) -> None:
+    atomic_write_text(path, json.dumps(data, ensure_ascii=False, indent=indent) + "\n", mode=mode)
 
 
 def read_json(path: str | Path, default: Any = None) -> Any:

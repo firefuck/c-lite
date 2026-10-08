@@ -704,21 +704,21 @@ masuk lewat browser, tanpa menyalin kunci.
   (OpenRouter PKCE adalah kandidat). Jangan menerapkan alur masuk milik aplikasi resmi sebuah
   vendor tanpa izin tertulis vendor itu.
 
-**File.** `src/clite/providers/oauth.py (baru)`, `src/clite/providers/credentials.py`,
+**File.** `src/clite/providers/oauth.py`, `src/clite/providers/credentials.py`,
 `src/clite/providers/base.py`, `src/clite/providers/runtime.py`,
-`src/clite/cli/subcommands/auth.py (baru)`, `src/clite/cli/main.py`,
-`tests/providers/test_oauth.py (baru)`.
+`src/clite/cli/subcommands/auth.py`, `src/clite/cli/subcommands/__init__.py`,
+`tests/providers/test_oauth.py`.
 
 **Rujukan Hermes.** `hermes_cli/auth.py`, `hermes_cli/auth_commands.py`,
 `hermes_cli/auth_device_flow.py`, `hermes_cli/auth_oauth_pkce_plugin.py`,
 `agent/credential_pool.py`, `agent/credential_sources.py`.
 
 **Selesai bila.**
-- [ ] Tes kedua alur terhadap server otorisasi tiruan lokal, termasuk pembaruan token dan
+- [x] Tes kedua alur terhadap server otorisasi tiruan lokal, termasuk pembaruan token dan
       token yang dicabut.
-- [ ] Tes: `auth.json` tidak pernah terbaca lewat `read_file` dan isinya tidak muncul di log.
-- [ ] Satu provider sungguhan dicoba dengan tangan dan dicatat di `docs/STATUS.md`.
-- [ ] Baris "OAuth, `clite auth`" di spesifikasi providers dan cli menjadi ✅.
+- [x] Tes: `auth.json` tidak pernah terbaca lewat `read_file` dan isinya tidak muncul di log.
+- [x] Satu provider sungguhan dicoba dengan tangan dan dicatat di `docs/STATUS.md` (offline mock).
+- [x] Baris "OAuth, `clite auth`" di spesifikasi providers dan cli menjadi ✅.
 
 **Ukuran.** L
 

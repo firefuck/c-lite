@@ -101,7 +101,7 @@ def _origin(url: str) -> tuple[str, str, int | None]:
 
 def _auto_select(config: dict[str, Any]) -> ProviderProfile | None:
     for profile in list_providers(config):
-        if profile.auto_select and profile.auth_type == "api_key" and profile.is_configured():
+        if profile.auto_select and profile.auth_type in ("api_key", "oauth") and profile.is_configured():
             return profile
     return None
 
@@ -164,7 +164,7 @@ def resolve_runtime_provider(
     credential: Credential | None = None
     credential_env_vars: tuple[str, ...] = ()
     key = api_key or ""
-    if not key and profile.auth_type == "api_key":
+    if not key and (profile.auth_type in ("api_key", "oauth") or profile.supports_oauth()):
         # A vendor key stays on its original scheme, host and port. A custom endpoint
         # needs an explicitly selected credential pool, including during recovery.
         same_origin = not (profile.base_url or native_base_url) or _origin(resolved_base_url) == _origin(
@@ -184,6 +184,12 @@ def resolve_runtime_provider(
             ).current()
             key = credential.value if credential else ""
         if not key:
+            if profile.auth_type == "oauth":
+                raise AuthError(
+                    f"Provider {profile.display_name!r} needs OAuth authentication. Run `clite auth login {profile.name}` to log in.",
+                    provider=profile.name,
+                    code="missing_oauth",
+                )
             names = " or ".join(profile.env_vars) or "an API key"
             hint = (
                 ""
@@ -196,7 +202,7 @@ def resolve_runtime_provider(
                 code="missing_key",
             )
 
-    if profile.auth_type not in ("api_key", "none"):
+    if profile.auth_type not in ("api_key", "none", "oauth"):
         key = profile.resolve_credential(resolved_base_url, key)
 
     resolved_model = (

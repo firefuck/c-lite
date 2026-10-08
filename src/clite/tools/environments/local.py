@@ -19,6 +19,7 @@ from pathlib import Path
 from clite.core.config import config_get
 from clite.core.env import secret_names
 from clite.core.io import atomic_write_text
+from clite.core.redact import credential_values
 from clite.core.threads import start_thread
 from clite.tools.environments.base import BaseEnvironment, DirEntry, ExecResult, FileInfo, FileRead
 
@@ -40,12 +41,19 @@ def build_child_env(
         passthrough if passthrough is not None else (config_get("terminal.env_passthrough", []) or [])
     )
     secrets = secret_names() - allowed
-    env = {key: value for key, value in os.environ.items() if key not in secrets}
+    cred_vals = credential_values()
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if key not in secrets and (not cred_vals or value not in cred_vals)
+    }
     env.setdefault("TERM", "dumb")
     env["PAGER"] = "cat"
     env["GIT_PAGER"] = "cat"
     if extra:
-        env.update(extra)
+        for k, v in extra.items():
+            if k not in secrets and (not cred_vals or v not in cred_vals):
+                env[k] = v
     return env
 
 

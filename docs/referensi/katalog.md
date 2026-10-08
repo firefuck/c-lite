@@ -107,6 +107,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 
 | Perintah | Fungsi | Sub-perintah |
 | --- | --- | --- |
+| `clite auth` | manage OAuth authentication for model providers | `login`, `status`, `logout` |
 | `clite chat` | talk to the agent (default command) |  |
 | `clite setup` | choose a provider, store its API key and pick a model |  |
 | `clite model` | show, list or set the model | `show`, `list`, `set`, `providers` |

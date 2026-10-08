@@ -25,6 +25,30 @@ class OpenRouterProfile(ProviderProfile):
         # vendors cache automatically and reject or ignore the marker.
         return model.startswith("anthropic/") or "claude" in model
 
+    def build_oauth_authorize_url(
+        self, *, redirect_uri: str, code_challenge: str, state: str
+    ) -> str:
+        from urllib.parse import urlencode
+
+        params = {
+            "callback_url": redirect_uri,
+            "code_challenge": code_challenge,
+            "code_challenge_method": "S256",
+        }
+        return f"{self.oauth_authorize_url}?{urlencode(params)}"
+
+    def exchange_oauth_code(
+        self, *, code: str, code_verifier: str, redirect_uri: str, http_post: Any
+    ) -> dict[str, Any]:
+        payload = {
+            "code": code,
+            "code_verifier": code_verifier,
+            "code_challenge_method": "S256",
+        }
+        resp = http_post(self.oauth_token_url, json_data=payload)
+        key = str(resp.get("key") or resp.get("access_token") or "")
+        return {"access_token": key, "token_type": "Bearer"}
+
 
 register_provider(
     OpenRouterProfile(
@@ -36,5 +60,7 @@ register_provider(
         base_url="https://openrouter.ai/api/v1",
         base_url_env="OPENROUTER_BASE_URL",
         default_headers={"HTTP-Referer": "https://github.com/", "X-Title": "C-lite"},
+        oauth_authorize_url="https://openrouter.ai/auth",
+        oauth_token_url="https://openrouter.ai/api/v1/auth/keys",
     )
 )

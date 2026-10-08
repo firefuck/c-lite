@@ -37,6 +37,15 @@ Yang tercakup tes Python itu, selain perilaku tiap modul:
 
 Spesifikasi tiap modul (`docs/spesifikasi/`) menandai fitur yang dijaga tes dengan ✅.
 
+### F2-T14 OAuth dan `clite auth` (8 Oktober 2026)
+
+Dukungan OAuth 2.0 PKCE dan Device Code flow untuk provider model:
+- Subcommand `clite auth login <provider>`, `clite auth status`, `clite auth logout <provider>`.
+- Token disimpan di `<home>/auth.json` dengan izin berkas 0600 (owner-only DACL di Windows), penyegaran token otomatis sebelum kedaluwarsa, dan penanganan pencabutan token.
+- Token akses otomatis terdaftar sebagai kredensial rahasia sehingga diredaksi dari transkrip/log dan dibuang dari lingkungan proses anak (`build_child_env`). Berkas `auth.json` dilindungi dari pembacaan/penulisan via tool (`read_file`, `write_file`, `patch`) dan gerbang persetujuan `detect_self_access`.
+- Kumpulan kredensial (`CredentialPool`) dan resolusi rute (`resolve_runtime_provider`) mengintegrasikan token OAuth sebagai sumber kredensial.
+- Alur PKCE (dengan callback HTTP lokal) dan Device Code flow diuji terhadap server otorisasi tiruan lokal di `tests/providers/test_oauth.py`. Uji langsung terhadap provider asli secara daring belum dilakukan (offline mock).
+
 ### F4-T3 langkah email, Matrix, dan Signal (8 Oktober 2026)
 
 Plugin platform bawaan `email` memakai polling IMAP dan SMTP dari pustaka standar. Ia hanya

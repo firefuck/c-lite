@@ -44,12 +44,24 @@ class ProviderProfile:
     base_url: str = ""
     base_url_env: str = ""  # variable that overrides base_url (self-hosted, proxies)
     models_url: str = ""  # defaults to {base_url}/models
-    auth_type: str = "api_key"  # api_key | none
+    auth_type: str = "api_key"  # api_key | none | oauth
     auth_header: str = "Authorization"  # header carrying the key
     auth_scheme: str = "Bearer"  # prefix before the key; empty for a bare key
     supports_model_listing: bool = True
     # Picked by `auto` resolution only when explicitly chosen (local or offline providers).
     auto_select: bool = True
+
+    # ── oauth configuration ──────────────────────────────────────────────────────────────
+    oauth_flow: str = "pkce"  # pkce | device_code
+    oauth_client_id: str = ""
+    oauth_client_secret: str = ""
+    oauth_authorize_url: str = ""
+    oauth_token_url: str = ""
+    oauth_device_code_url: str = ""
+    oauth_scopes: tuple[str, ...] = ()
+    oauth_redirect_path: str = "/callback"
+    oauth_callback_port: int = 0
+    oauth_audience: str = ""
 
     # ── model catalog ────────────────────────────────────────────────────────────────────
     # Shown when the live catalog cannot be fetched. Model ids rot: keep this short and
@@ -108,7 +120,7 @@ class ProviderProfile:
     def get_headers(self, api_key: str) -> dict[str, str]:
         """Auth plus provider headers for one request."""
         headers = dict(self.default_headers)
-        if api_key and self.auth_type == "api_key":
+        if api_key and self.auth_type in ("api_key", "oauth"):
             headers[self.auth_header] = f"{self.auth_scheme} {api_key}".strip()
         return headers
 
@@ -174,10 +186,84 @@ class ProviderProfile:
     def resolve_aux_model(self) -> str:
         return self.default_aux_model
 
+    def supports_oauth(self) -> bool:
+        """True when this provider can authenticate via OAuth."""
+        return self.auth_type == "oauth" or bool(self.oauth_authorize_url or self.oauth_device_code_url)
+
     def is_configured(self) -> bool:
         """True when the provider can be used without asking the user for anything."""
         if self.auth_type == "none":
             return True
         from clite.core.env import get_secret
 
-        return any(get_secret(name) for name in self.env_vars)
+        if any(get_secret(name) for name in self.env_vars):
+            return True
+        if self.supports_oauth():
+            from clite.providers.oauth import has_valid_token
+
+            return has_valid_token(self.name)
+        return False
+
+    def build_oauth_authorize_url(
+        self, *, redirect_uri: str, code_challenge: str, state: str
+    ) -> str:
+        """Construct the authorization URL for PKCE."""
+        from urllib.parse import urlencode
+
+        params: dict[str, str] = {
+            "response_type": "code",
+            "client_id": self.oauth_client_id,
+            "redirect_uri": redirect_uri,
+            "code_challenge": code_challenge,
+            "code_challenge_method": "S256",
+            "state": state,
+        }
+        if self.oauth_scopes:
+            params["scope"] = " ".join(self.oauth_scopes)
+        if self.oauth_audience:
+            params["audience"] = self.oauth_audience
+        return f"{self.oauth_authorize_url}?{urlencode(params)}"
+
+    def exchange_oauth_code(
+        self, *, code: str, code_verifier: str, redirect_uri: str, http_post: Any
+    ) -> dict[str, Any]:
+        """Exchange authorization code for tokens."""
+        data = {
+            "grant_type": "authorization_code",
+            "client_id": self.oauth_client_id,
+            "code": code,
+            "redirect_uri": redirect_uri,
+            "code_verifier": code_verifier,
+        }
+        if self.oauth_client_secret:
+            data["client_secret"] = self.oauth_client_secret
+        return http_post(self.oauth_token_url, form_data=data)
+
+    def refresh_oauth_token(self, *, refresh_token: str, http_post: Any) -> dict[str, Any]:
+        """Exchange a refresh token for a new access token."""
+        data = {
+            "grant_type": "refresh_token",
+            "client_id": self.oauth_client_id,
+            "refresh_token": refresh_token,
+        }
+        if self.oauth_client_secret:
+            data["client_secret"] = self.oauth_client_secret
+        return http_post(self.oauth_token_url, form_data=data)
+
+    def request_device_code(self, *, http_post: Any) -> dict[str, Any]:
+        """Request device and user codes for device authorization flow."""
+        data: dict[str, str] = {
+            "client_id": self.oauth_client_id,
+        }
+        if self.oauth_scopes:
+            data["scope"] = " ".join(self.oauth_scopes)
+        return http_post(self.oauth_device_code_url, form_data=data)
+
+    def poll_device_token(self, *, device_code: str, http_post: Any) -> dict[str, Any]:
+        """Poll the token endpoint with a device code."""
+        data = {
+            "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+            "client_id": self.oauth_client_id,
+            "device_code": device_code,
+        }
+        return http_post(self.oauth_token_url, form_data=data)

@@ -5,6 +5,7 @@ does not change.
 """
 
 SUBCOMMAND_MODULES = (
+    "auth",
     "chat",
     "setup",
     "model",
