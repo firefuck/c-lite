@@ -105,6 +105,12 @@ def run_tool_round(agent: AIAgent, state: TurnState, tool_calls: list[ToolCall])
         {"role": "tool", "tool_call_id": call.id, "name": call.name, "content": result}
         for (call, _args, _error), result in zip(parsed, results, strict=True)
     ]
+    # Notes that arrived while the model was working (a finished background delegation, say)
+    # ride on the tool result the model is about to see. They are never written into a message
+    # that was already sent to the provider, so the cached prefix stays valid.
+    notes = agent.take_notes()
+    if messages and notes:
+        messages[-1]["content"] += "\n\n" + " ".join(notes)
     remaining = agent.budget.remaining
     if messages and remaining is not None and agent.budget.limit and remaining <= max(1, agent.budget.limit // 10):
         # Tell the model while it can still act on it, on the newest tool result (never in

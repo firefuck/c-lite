@@ -472,6 +472,11 @@ class SubagentPayload(Payload):
     goal: str = ""
     tool: str = ""
     status: str = ""
+    # Progress detail added in F2-T13; every field is optional so older clients keep working.
+    args: str = ""  # a short, redacted preview of the tool's arguments
+    iteration: int = 0  # the child's current iteration, 1-based
+    model: str = ""  # the model the child runs on
+    spawn_id: str = ""  # set for background tasks, empty for synchronous ones
 
 
 class TurnCompletePayload(Payload):

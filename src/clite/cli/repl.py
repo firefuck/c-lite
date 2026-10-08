@@ -70,11 +70,22 @@ class Repl:
             on_tool_start=lambda call_id, name, args: self.display.tool_start(name, args),
             on_tool_complete=lambda call_id, name, args, result, seconds: self.display.tool_done(name, args, result, seconds),
             on_status=self.display.status,
-            on_subagent=lambda event, payload: self.display.info(f"  subagent {payload.get('index', 0) + 1}: {event} "
-                                                                 f"{payload.get('tool') or payload.get('status') or ''}"),
+            on_subagent=self._show_subagent,
             approve=self._approve,
             clarify=self._clarify,
         )
+
+    def _show_subagent(self, event: str, payload: dict[str, Any]) -> None:
+        """One line of subagent progress: the tool, a preview of its arguments, the iteration."""
+        detail = payload.get("tool") or payload.get("status") or ""
+        if event == "tool":
+            preview = payload.get("args") or ""
+            detail = f"{detail}({preview})" if preview else detail
+        iteration = payload.get("iteration") or 0
+        where = f" [iter {iteration}]" if iteration else ""
+        model = payload.get("model") or ""
+        on = f" on {model}" if model else ""
+        self.display.info(f"  subagent {payload.get('index', 0) + 1}{on}: {event} {detail}{where}".rstrip())
 
     def _ask(self, prompt: str) -> str:
         self._prompting = True

@@ -93,7 +93,9 @@ class RpcSession:
             on_status=on_status,
             on_subagent=lambda kind, payload: self._emit("subagent.update", {
                 "event": kind, "index": int(payload.get("index", 0)), "goal": str(payload.get("goal", "")),
-                "tool": str(payload.get("tool", "")), "status": str(payload.get("status", ""))}),
+                "tool": str(payload.get("tool", "")), "status": str(payload.get("status", "")),
+                "args": str(payload.get("args", "")), "iteration": int(payload.get("iteration", 0) or 0),
+                "model": str(payload.get("model", "")), "spawn_id": str(payload.get("spawn_id", ""))}),
             approve=approve,
             clarify=clarify,
         )
