@@ -41,7 +41,8 @@
       <section id="view-chat" class="view active">
         <div id="transcript" aria-live="polite"></div>
         <form id="composer">
-          <textarea id="prompt" rows="2" placeholder="Message, or /help for commands" autocomplete="off"></textarea>
+          <div id="attachments" aria-live="polite"></div>
+          <textarea id="prompt" rows="2" placeholder="Message, /help for commands, or drop a file here" autocomplete="off"></textarea>
           <button id="send" type="submit">Send</button>
           <button id="stop" type="button" hidden>Stop</button>
         </form>

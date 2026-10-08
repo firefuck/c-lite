@@ -8,6 +8,7 @@ import subprocess
 import sys
 import threading
 import time
+from pathlib import Path
 
 import pytest
 
@@ -689,6 +690,46 @@ def test_hooks_and_mcp_status(client, clite_home):
 
     # Nothing here approves a hook: that stays a local command.
     assert not any("approve" in name for name in METHODS)
+
+
+def test_attachment_save_stores_a_file_the_agent_can_read(client, clite_home):
+    import base64
+
+    rpc = client()
+    payload = base64.b64encode(b"notes for the agent\n").decode()
+    saved = rpc.call("attachment.save", {"name": "notes.txt", "data": payload, "mime": "text/plain"})
+    assert saved["image"] is False and saved["bytes"] == 20 and saved["name"] == "notes.txt"
+    stored = Path(saved["path"])
+    assert stored.read_bytes() == b"notes for the agent\n"
+    assert stored.parent == clite_home / "cache" / "attachments"
+
+    # An image is recognised, and its name cannot climb out of the directory.
+    png = base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"0" * 32).decode()
+    image = rpc.call("attachment.save", {"name": "../../evil.png", "data": png})
+    assert image["image"] is True and image["name"] == "evil.png"
+    assert Path(image["path"]).parent == stored.parent
+
+    # Junk is refused, not written.
+    assert "base64" in rpc.error("attachment.save", {"name": "x", "data": "not base64!"})["message"]
+    too_big = base64.b64encode(b"x" * 6_000_000).decode()
+    assert "limit is" in rpc.error("attachment.save", {"name": "big.bin", "data": too_big})["message"]
+
+
+def test_old_attachments_are_pruned(client, clite_home):
+    import os
+
+    from clite.rpc.methods import _prune_attachments, attachments_dir
+
+    directory = attachments_dir()
+    directory.mkdir(parents=True, exist_ok=True)
+    old = directory / "old.txt"
+    old.write_text("stale")
+    os.utime(old, (time.time() - 3 * 86_400, time.time() - 3 * 86_400))
+    fresh = directory / "fresh.txt"
+    fresh.write_text("recent")
+
+    assert _prune_attachments(directory) == 1
+    assert not old.exists() and fresh.exists()
 
 
 def test_config_tools_skills_plugins_memory_cron(client):

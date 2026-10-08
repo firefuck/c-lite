@@ -41,6 +41,9 @@ function createWindow(running: RunningBackend): BrowserWindow {
     return decision === "allow";
   };
   created.webContents.on("will-navigate", (event, target) => {
+    // This also catches a file dropped on the page: Chromium would otherwise navigate to
+    // `file://…` and replace the dashboard. Refusing it leaves the drop to the page, which
+    // turns it into an attachment.
     if (!route(target)) event.preventDefault();
   });
   created.webContents.setWindowOpenHandler(({ url }) => {

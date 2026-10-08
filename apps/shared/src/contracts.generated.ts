@@ -14,6 +14,19 @@ export interface ApprovalRequestResult {
   choice: "once" | "session" | "always" | "deny";
 }
 
+export interface AttachmentSaveParams {
+  name: string;
+  data: string;
+  mime?: string;
+}
+
+export interface AttachmentSaveResult {
+  path: string;
+  name: string;
+  bytes: number;
+  image: boolean;
+}
+
 export interface CatalogParams {
   session_id?: string | null;
 }
@@ -696,6 +709,8 @@ export interface Methods {
   "hooks.status": { params: Empty; result: HooksStatusResult };
   /** Known MCP servers, their transport, and what they serve. */
   "mcp.status": { params: Empty; result: McpStatusResult };
+  /** Store a dropped or pasted file where the agent can read it; returns its path. */
+  "attachment.save": { params: AttachmentSaveParams; result: AttachmentSaveResult };
   /** Add, replace or remove one memory entry, through the same store the tool uses. */
   "memory.set": { params: MemoryEditParams; result: MemoryEditResult };
   "cron.list": { params: Empty; result: CronListResult };
@@ -732,7 +747,7 @@ export interface ServerRequests {
   "clarify.request": { params: ClarifyRequestParams; result: ClarifyRequestResult };
 }
 
-export const METHOD_NAMES = ["ping", "system.info", "session.create", "session.info", "session.list", "session.history", "session.close", "session.attach", "session.interrupt", "session.steer", "session.title", "session.delete", "session.rename", "session.search", "session.pin", "session.archive", "session.export", "session.compress", "session.usage", "prompt.submit", "slash.exec", "commands.catalog", "complete.slash", "config.get", "config.list", "config.set", "model.list", "model.set", "providers.list", "setup.apply", "tools.list", "skills.list", "skills.view", "plugins.list", "plugins.set_enabled", "credentials.list", "credentials.set", "credentials.delete", "memory.get", "hooks.status", "mcp.status", "memory.set", "cron.list", "cron.create", "cron.action", "cron.output", "logs.tail"] as const;
+export const METHOD_NAMES = ["ping", "system.info", "session.create", "session.info", "session.list", "session.history", "session.close", "session.attach", "session.interrupt", "session.steer", "session.title", "session.delete", "session.rename", "session.search", "session.pin", "session.archive", "session.export", "session.compress", "session.usage", "prompt.submit", "slash.exec", "commands.catalog", "complete.slash", "config.get", "config.list", "config.set", "model.list", "model.set", "providers.list", "setup.apply", "tools.list", "skills.list", "skills.view", "plugins.list", "plugins.set_enabled", "credentials.list", "credentials.set", "credentials.delete", "memory.get", "hooks.status", "mcp.status", "attachment.save", "memory.set", "cron.list", "cron.create", "cron.action", "cron.output", "logs.tail"] as const;
 export const EVENT_TYPES = ["gateway.ready", "session.info", "turn.start", "turn.step", "message.delta", "reasoning.delta", "message.complete", "tool.start", "tool.complete", "status.update", "subagent.update", "turn.complete", "error"] as const;
 export const SERVER_REQUEST_NAMES = ["approval.request", "clarify.request"] as const;
 

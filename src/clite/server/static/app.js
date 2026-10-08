@@ -38,6 +38,7 @@ function newView(id, info) {
     // The newest event this view has applied. A reconnect sends it back so the server can
     // replay exactly what was missed.
     lastSeq: 0,
+    attachments: [], // files dropped or pasted but not sent yet
     // Each view owns its transcript element. Only the active one is in the document, so a
     // background session keeps receiving events into its own element without touching the page.
     container: h("div", { class: "transcript-body" }),
@@ -192,6 +193,7 @@ async function activateSession(sessionId) {
   $("#transcript").replaceChildren(view.container);
   setInfo(view.info);
   setBusy(view.busy);
+  renderAttachments();
   renderOpenSessions();
   scrollDown();
   $("#prompt").focus();
@@ -262,6 +264,80 @@ async function refreshSessions() {
       }, session.title || "(untitled)", h("span", { class: "meta" }, `${session.message_count} messages · ${session.source}`))),
     ),
   );
+}
+
+// ── attachments ──────────────────────────────────────────────────────────────────────────
+
+/** Files the user dropped or pasted, waiting to be sent with the next message. */
+function addAttachments(files) {
+  const view = activeView();
+  if (!view || !files.length) return;
+  for (const file of files) {
+    view.attachments.push({
+      file,
+      name: file.name || "attachment",
+      mime: file.type || "",
+      image: (file.type || "").startsWith("image/"),
+    });
+  }
+  renderAttachments();
+}
+
+function renderAttachments() {
+  const view = activeView();
+  const pending = view ? view.attachments : [];
+  $("#attachments").replaceChildren(
+    ...pending.map((entry, index) => h("span", { class: "chip", "data-name": entry.name },
+      entry.image ? "image · " : "file · ",
+      entry.name,
+      h("span", {
+        class: "remove", role: "button", "data-remove": index,
+        onclick: () => {
+          view.attachments.splice(index, 1);
+          renderAttachments();
+        },
+      }, "×"))),
+  );
+}
+
+function base64Of(file) {
+  return file.arrayBuffer().then((buffer) => {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    for (let index = 0; index < bytes.length; index += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+    }
+    return btoa(binary);
+  });
+}
+
+/**
+ * Turn the pending files into paths the server can use, and clear the chips.
+ *
+ * The desktop app can hand over the real path of a dropped file (`cliteDesktop.pathForFile`),
+ * so nothing is copied. A browser cannot: the bytes go up through `attachment.save` and land in
+ * the cache directory, where the agent reads them like any other file.
+ */
+async function takeAttachments(view) {
+  const pending = view.attachments;
+  view.attachments = [];
+  if (view.id === state.activeId) renderAttachments();
+  const images = [];
+  const files = [];
+  for (const entry of pending) {
+    let path = "";
+    if (window.cliteDesktop && window.cliteDesktop.pathForFile) {
+      path = await window.cliteDesktop.pathForFile(entry.file);
+    }
+    if (!path) {
+      const saved = await state.rpc.request("attachment.save", {
+        name: entry.name, data: await base64Of(entry.file), mime: entry.mime,
+      });
+      path = saved.path;
+    }
+    (entry.image ? images : files).push(path);
+  }
+  return { images, files };
 }
 
 // ── transcript ───────────────────────────────────────────────────────────────────────────
@@ -385,7 +461,8 @@ function handleEvent(event) {
 
 async function send(text) {
   const view = activeView();
-  if (!text.trim() || !state.rpc || !view) return;
+  if (!state.rpc || !view) return;
+  if (!text.trim() && !view.attachments.length) return;
   if (text.trim().startsWith("/")) {
     try {
       const result = await state.rpc.request("slash.exec", { session_id: view.id, command: text.trim() });
@@ -402,7 +479,13 @@ async function send(text) {
   }
   addMessage("user", text);
   try {
-    await state.rpc.request("prompt.submit", { session_id: view.id, text });
+    // A dropped image rides along as an image part; anything else is a file the agent can
+    // read, so its path is spelled out in the message.
+    const { images, files } = await takeAttachments(view);
+    const outgoing = files.length ? `${text}\n\n[attached: ${files.join(", ")}]` : text;
+    await state.rpc.request("prompt.submit", {
+      session_id: view.id, text: outgoing, attachments: images.length ? images : null,
+    });
   } catch (error) {
     notice(error.message, "error");
   }
@@ -918,6 +1001,31 @@ $("#new-chat").addEventListener("click", () => openSession({}).catch((error) => 
 // The page is going away on purpose; a reconnect now would only fight the unload.
 window.addEventListener("beforeunload", () => {
   state.closing = true;
+});
+
+// ── dropping and pasting files ───────────────────────────────────────────────────────────
+
+const chatView = $("#view-chat");
+for (const type of ["dragenter", "dragover"]) {
+  chatView.addEventListener(type, (event) => {
+    event.preventDefault(); // without this the browser just opens the file
+    $("#composer").classList.add("dragging");
+  });
+}
+for (const type of ["dragleave", "dragend"]) {
+  chatView.addEventListener(type, () => $("#composer").classList.remove("dragging"));
+}
+chatView.addEventListener("drop", (event) => {
+  event.preventDefault();
+  $("#composer").classList.remove("dragging");
+  addAttachments([...(event.dataTransfer?.files || [])]);
+});
+$("#prompt").addEventListener("paste", (event) => {
+  const files = [...(event.clipboardData?.files || [])];
+  if (files.length) {
+    event.preventDefault();
+    addAttachments(files);
+  }
 });
 
 $("#tabs").addEventListener("click", (event) => {

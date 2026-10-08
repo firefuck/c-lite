@@ -98,6 +98,14 @@ Daftar lengkap method, event, dan permintaan server ada di
   dengan `session.attach`, sehingga sebuah event tidak pernah sekaligus terkirim langsung dan
   diputar ulang.
 
+**Lampiran**
+- `attachment.save {name, data, mime}` menyimpan satu berkas (isi base64, tanpa awalan `data:`)
+  ke `cache/attachments/` dan mengembalikan path-nya. Ukurannya dibatasi `attachments.max_bytes`.
+  Nama berkas dibersihkan dari komponen direktori, dan lampiran yang lebih tua dari sehari
+  dibuang setiap kali ada yang baru: ini salinan, bukan arsip.
+- Di aplikasi desktop, berkas yang diseret punya path sungguhan dan tidak perlu diunggah;
+  `attachment.save` dipakai browser dan tempelan yang tidak punya path.
+
 **Konfigurasi**
 - `config.get` membaca **tanpa ekspansi `${VAR}`**: nilai yang ditulis sebagai
   `${OPENAI_API_KEY}` kembali sebagai teks itu, bukan sebagai rahasianya. Runtime tetap memakai
@@ -131,12 +139,12 @@ Daftar lengkap method, event, dan permintaan server ada di
 
 | Fitur | Status | Catatan |
 |---|---|---|
-| 47 method, 13 event, 2 permintaan server | ✅ | Hermes: 251 method, 69 event, 13 permintaan server |
+| 48 method, 13 event, 2 permintaan server | ✅ | Hermes: 251 method, 69 event, 13 permintaan server |
 | Transport stdio dan WebSocket | ✅ | |
 | Generator TypeScript dan pemeriksaan kesegaran | ✅ | |
 | Klien TypeScript bersama (`apps/shared`) | ✅ | 21 tes |
 | Pemutaran ulang event setelah sambung ulang | ✅ | F5-T5: `session.attach` + penyangga berbatas di `rpc/replay.py` |
-| Lampiran gambar pada prompt | ✅ | `prompt.submit.attachments` (bidang opsional baru); path buruk menjadi galat 4004, bukan giliran gagal. Lampiran berkas lain: F2-T6 |
+| Lampiran gambar pada prompt | ✅ | `prompt.submit.attachments` (bidang opsional baru); path buruk menjadi galat 4004, bukan giliran gagal. Berkas yang tidak bisa dipakai agen langsung disimpan lewat `attachment.save` |
 | Method untuk profil, MCP, hook, log | ✅ | `hooks.status`, `mcp.status`, `logs.tail`; method profil: F5-T5 |
 | Halaman Sesi: cari, ganti judul, sematkan, arsipkan, hapus, ekspor | ✅ | `session.search`/`rename`/`pin`/`archive`/`export`; halaman Sesi di dashboard (`test_dashboard_browser.py`) |
 | Halaman Config: nilai efektif + default, sunting dengan konfirmasi | ✅ | `config.list`, `config.set.confirm`; `config.get` tidak lagi mengekspansi `${VAR}` |

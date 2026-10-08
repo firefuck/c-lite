@@ -9,6 +9,7 @@ from __future__ import annotations
 import io
 import threading
 import time
+from pathlib import Path
 
 import pytest
 
@@ -446,6 +447,31 @@ def test_the_dashboard_reconnects_and_keeps_the_conversation(clite_home, browser
         page.close()
         box["server"].should_exit = True
         thread.join(timeout=10)
+
+
+def test_a_dropped_file_is_attached_and_reaches_the_agent(dashboard, clite_home):
+    """Dropping a file puts a chip in the composer, and sending hands the agent a real path."""
+    dashboard.evaluate(
+        """() => {
+          const transfer = new DataTransfer();
+          transfer.items.add(new File(["notes from a drop\\n"], "dropped.txt", {type: "text/plain"}));
+          document.querySelector("#view-chat").dispatchEvent(
+            new DragEvent("drop", {dataTransfer: transfer, bubbles: true, cancelable: true}));
+        }"""
+    )
+    dashboard.wait_for_selector("#attachments .chip[data-name='dropped.txt']")
+
+    _send(dashboard, "read this")
+    dashboard.wait_for_function(
+        "(() => { const all = document.querySelectorAll('.message.assistant');"
+        " return all.length && all[all.length - 1].textContent.includes('[attached: '); })()"
+    )
+    # The chip is gone, and the file really is on disk where the message said it was.
+    assert dashboard.query_selector("#attachments .chip") is None
+    shown = dashboard.inner_text(".message.assistant")
+    stored = Path(shown.split("[attached: ")[1].rstrip("]"))
+    assert stored.read_text() == "notes from a drop\n"
+    assert stored.parent == clite_home / "cache" / "attachments"
 
 
 def test_other_tabs_list_what_is_installed(dashboard):

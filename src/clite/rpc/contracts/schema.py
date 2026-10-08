@@ -582,6 +582,20 @@ class MemoryEditParams(Params):
     old_text: str = ""
 
 
+class AttachmentSaveParams(Params):
+    name: str
+    # The file's bytes, base64. No `data:` prefix: the client strips it.
+    data: str
+    mime: str = ""
+
+
+class AttachmentSaveResult(Result):
+    path: str
+    name: str = ""
+    bytes: int = 0
+    image: bool = False
+
+
 class MemoryEditResult(Result):
     success: bool
     message: str = ""
@@ -668,6 +682,12 @@ method(
     "Configured shell hooks and whether each one is approved on this machine.",
 )
 method("mcp.status", Empty, McpStatusResult, "Known MCP servers, their transport, and what they serve.")
+method(
+    "attachment.save",
+    AttachmentSaveParams,
+    AttachmentSaveResult,
+    "Store a dropped or pasted file where the agent can read it; returns its path.",
+)
 method(
     "memory.set",
     MemoryEditParams,
