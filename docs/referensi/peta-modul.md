@@ -98,7 +98,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `completion.py` | ``clite completion bash\|zsh\|fish``: shell completion built from the real parser. | `run_completion()`, `register()` |
 | `config.py` | ``clite config``: read and write config.yaml. | `run_show()`, `run_get()`, `run_set()`, `run_unset()`, `run_path()`, `run_env()`, `run_edit()`, `run_migrate()`, `register()` |
 | `cron.py` | ``clite cron``: scheduled agent tasks. | `run_list()`, `run_add()`, `run_tick()`, `run_daemon()`, `register()` |
-| `gateway.py` | ``clite gateway``: run the messaging gateway and manage who may talk to it. | `run_gateway()`, `run_status()`, `run_pair_list()`, `run_pair_approve()`, `run_pair_revoke()`, `register()` |
+| `gateway.py` | ``clite gateway``: run the messaging gateway and manage who may talk to it. | `run_gateway()`, `run_install()`, `run_uninstall()`, `run_start()`, `run_stop()`, `run_restart()`, `run_logs()`, `run_status()`, `run_pair_list()`, `run_pair_approve()`, … (+2) |
 | `hooks.py` | ``clite hooks``: review, approve, revoke and try the shell hooks from ``config.yaml``. | `run_list()`, `run_approve()`, `run_revoke()`, `run_test()`, `register()` |
 | `mcp.py` | ``clite mcp``: add, list, remove and test MCP servers without editing YAML. | `run_add()`, `run_list()`, `run_remove()`, `run_test()`, `register()` |
 | `misc.py` | Small commands: version, status, doctor, logs, memory, acp. | `run_version()`, `run_status()`, `run_doctor()`, `run_logs()`, `run_memory()`, `run_acp()`, `run_insights()`, `register()` |
@@ -151,6 +151,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `media.py` | Chat attachments: bring them into the session's directory and check them before use. | `MediaError`, `Attachment`, `media_dir()`, `cleanup_media()`, `classify()`, `StoredFile`, `store()` |
 | `pairing.py` | DM pairing: how an unknown user gets access without the owner editing config. | `PairingStore` |
 | `runner.py` | ``GatewayRunner``: the policy layer between chat platforms and the agent. | `active_runner()`, `reset_active_runners()`, `GatewaySession`, `GatewayRunner` |
+| `service.py` | System-service lifecycle for the gateway. | `service_name()`, `render_systemd_unit()`, `render_launch_agent()`, `service_path()`, `install()`, `uninstall()`, `GatewayLock`, `GatewayService`, `run_service()` |
 | `session.py` | Session keys: which conversation a message belongs to. | `build_session_key()`, `SessionMap` |
 | `stream.py` | Streaming answers into a chat: one message that grows, instead of a long silence. | `StreamSender`, `ProgressReporter`, `tool_line()` |
 
@@ -324,4 +325,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 188 modul.
+Jumlah: 189 modul.

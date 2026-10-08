@@ -119,7 +119,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `clite sessions` | list, show, search, export or delete sessions | `list`, `show`, `rename`, `delete`, `export`, `search`, `prune` |
 | `clite profile` | manage profiles (separate homes) | `list`, `show`, `create`, `use`, `delete` |
 | `clite cron` | schedule agent tasks | `list`, `add`, `pause`, `resume`, `run`, `remove`, `tick`, `daemon` |
-| `clite gateway` | run the messaging gateway | `run`, `status`, `pair` |
+| `clite gateway` | run the messaging gateway | `run`, `install`, `uninstall`, `start`, `stop`, `restart`, `logs`, `status`, `pair` |
 | `clite serve` | run the headless backend (for the desktop app or a remote client) |  |
 | `clite dashboard` | run the backend and open the web dashboard |  |
 | `clite tui` | start the terminal UI (needs Node.js) |  |

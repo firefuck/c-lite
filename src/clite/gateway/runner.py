@@ -112,6 +112,7 @@ class GatewayRunner:
         self._lock = threading.RLock()
         self._scheduler: Any = None
         self.running = False
+        self.accepting = True
 
     # ── lifecycle ────────────────────────────────────────────────────────────────────────
 
@@ -140,6 +141,7 @@ class GatewayRunner:
             self.adapters[name] = adapter
             started.append(name)
         self.running = True
+        self.accepting = True
         with _ACTIVE_LOCK:
             if self not in _ACTIVE_RUNNERS:
                 _ACTIVE_RUNNERS.append(self)
@@ -152,7 +154,24 @@ class GatewayRunner:
             self._scheduler.start()
         return started
 
+    def begin_drain(self) -> None:
+        """Stop accepting inbound work while existing turns finish."""
+        self.accepting = False
+
+    def has_active_turns(self) -> bool:
+        """Whether a turn is running or queued in any gateway session."""
+        with self._lock:
+            return any(session.busy for session in self.sessions.values())
+
+    def notify_interrupted_turns(self) -> None:
+        """Tell chats whose turns exceeded the service drain deadline."""
+        with self._lock:
+            sessions = [session for session in self.sessions.values() if session.busy]
+        for session in sessions:
+            self.reply(session.source, "The gateway is stopping; this turn was interrupted.")
+
     def stop(self) -> None:
+        self.accepting = False
         self.running = False
         with _ACTIVE_LOCK:
             if self in _ACTIVE_RUNNERS:
@@ -466,6 +485,8 @@ class GatewayRunner:
             self.reply(event.source, "Something went wrong handling that message. The error was logged.")
 
     def _dispatch(self, event: MessageEvent) -> None:
+        if not self.accepting:
+            return
         text = event.text.strip()
         if has_hook("pre_gateway_dispatch"):
             for directive in invoke_hook("pre_gateway_dispatch", event=event, gateway=self):

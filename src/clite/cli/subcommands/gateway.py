@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
-import threading
+import shutil
+import subprocess
+import sys
 import time
 
 from clite.core.config import get_path, load_config
@@ -12,23 +14,66 @@ from clite.gateway.pairing import PairingStore
 
 def run_gateway(args: argparse.Namespace) -> int:
     from clite.gateway.runner import GatewayRunner
+    from clite.gateway.service import run_service
 
-    runner = GatewayRunner()
-    started = runner.start()
-    if not started:
-        print(
-            "No platform started. Enable one under gateway.platforms in config.yaml (see `clite gateway status`)."
-        )
-        runner.stop()
+    return run_service(GatewayRunner())
+
+
+def _service_command(action: str) -> int:
+    from clite.core.profiles import get_active_profile_name
+    from clite.gateway.service import service_name, service_path
+
+    path = service_path()
+    if sys.platform == "darwin":
+        command = ["launchctl", action, str(path)]
+    else:
+        command = ["systemctl", "--user", action, f"{service_name(get_active_profile_name())}.service"]
+    if shutil.which(command[0]) is None:
+        print(f"{command[0]} is not available on this system.")
         return 1
-    print(f"Gateway running: {', '.join(started)}. Ctrl+C to stop.")
-    try:
-        threading.Event().wait()
-    except KeyboardInterrupt:
-        print("\nStopping…")
-    finally:
-        runner.stop()
+    return subprocess.run(command, check=False).returncode
+
+
+def run_install(args: argparse.Namespace) -> int:
+    from clite.gateway.service import install
+
+    path = install(sys.executable)
+    print(f"Installed {path}. Start it with `clite gateway start`.")
     return 0
+
+
+def run_uninstall(args: argparse.Namespace) -> int:
+    from clite.gateway.service import uninstall
+
+    path = uninstall()
+    print(f"Removed {path}.")
+    return 0
+
+
+def run_start(args: argparse.Namespace) -> int:
+    return _service_command("start")
+
+
+def run_stop(args: argparse.Namespace) -> int:
+    return _service_command("stop")
+
+
+def run_restart(args: argparse.Namespace) -> int:
+    return _service_command("restart")
+
+
+def run_logs(args: argparse.Namespace) -> int:
+    if sys.platform == "darwin":
+        print("Use Console.app to view the LaunchAgent log.")
+        return 0
+    from clite.core.profiles import get_active_profile_name
+    from clite.gateway.service import service_name
+
+    command = ["journalctl", "--user-unit", f"{service_name(get_active_profile_name())}.service", "--no-pager"]
+    if shutil.which(command[0]) is None:
+        print("journalctl is not available on this system.")
+        return 1
+    return subprocess.run(command, check=False).returncode
 
 
 def run_status(args: argparse.Namespace) -> int:
@@ -98,6 +143,12 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     actions.add_parser("run", help="start the gateway (stays in the foreground)").set_defaults(
         handler=run_gateway
     )
+    actions.add_parser("install", help="install the user service").set_defaults(handler=run_install)
+    actions.add_parser("uninstall", help="remove the user service").set_defaults(handler=run_uninstall)
+    actions.add_parser("start", help="start the installed service").set_defaults(handler=run_start)
+    actions.add_parser("stop", help="stop the installed service").set_defaults(handler=run_stop)
+    actions.add_parser("restart", help="restart the installed service").set_defaults(handler=run_restart)
+    actions.add_parser("logs", help="show service logs").set_defaults(handler=run_logs)
     actions.add_parser("status", help="show configured platforms").set_defaults(handler=run_status)
     pair = actions.add_parser("pair", help="approve users who asked for access")
     pair.set_defaults(handler=run_pair_list)

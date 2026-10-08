@@ -21,6 +21,7 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
 | `session.py` | `build_session_key`, `SessionMap` (kunci sesi ke id sesi tersimpan) |
 | `pairing.py` | `PairingStore`: kode pairing untuk pengguna tak dikenal |
 | `runner.py` | `GatewayRunner`: lapisan kebijakan antara platform dan agent |
+| `service.py` | Unit systemd/LaunchAgent, kunci per-home, dan drain SIGTERM |
 | `platforms/base.py` | `BasePlatformAdapter`, registry `PLATFORMS`, `split_message` |
 | `platforms/local.py` | Adapter dalam-proses untuk tes dan penyematan |
 | `platforms/telegram.py` | Telegram lewat Bot API dengan long polling (pustaka standar) |
@@ -101,7 +102,7 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
 | WhatsApp, Signal, Matrix, email, lainnya | ⬜ | F4-T3 |
 | Lampiran masuk dan keluar (gambar, suara, dokumen) | 🟡 | `gateway/media.py` menyimpan lampiran ke `<home>/gateway/media/<sesi>`: jenis ditentukan dari isi berkas (bukan nama), batas ukuran ditolak sebelum ditulis, direktori dibersihkan saat sesi tutup. Gambar masuk ke permintaan model sebagai bagian konten; dokumen diberitahukan sebagai path yang bisa dibaca. `send_file` membatasi path ke direktori kerja + media sesi dan tetap lewat `read_denied_reason`. Telegram menerima foto/dokumen/suara/video (`fetch_attachment`) dan mengirim lewat `sendDocument`. Dijaga `tests/gateway/test_gateway.py`. Belum diuji terhadap Telegram sungguhan: F4-T4 |
 | Jawaban streaming (menyunting pesan), progres tool | ✅ | Adapter yang bisa menyunting (`can_edit`/`edit`) mendapat jawaban bertahap: `gateway/stream.py` mengirim satu pesan lalu menyuntingnya dengan batas laju, dan satu pesan status yang diperbarui untuk progres tool (`display.tool_progress`). Suntingan yang ditolak platform tidak kehilangan jawaban (sisa dikirim sebagai pesan baru). Adapter tanpa `edit` tetap seperti semula. Dijaga `tests/gateway/test_gateway.py`: F4-T5 |
-| Layanan sistem (systemd, launchd), restart dengan drain | ⬜ | `clite gateway run` berjalan di latar depan: F4-T6 |
+| Layanan sistem (systemd, launchd), restart dengan drain | ✅ | `clite gateway install`, `uninstall`, `start`, `stop`, `restart`, `status`, dan `logs`; unit user systemd/LaunchAgent dibuat per profil, kunci menolak instance kedua dalam home yang sama, dan SIGTERM menghentikan pesan baru lalu menunggu giliran aktif. Dijaga `tests/gateway/test_service.py`: F4-T6. Verifikasi manual systemd Linux belum dilakukan. |
 | Kebijakan reset sesi (menganggur, harian), home channel | ✅ | `gateway.session_reset` (`idle`, `daily`), notifikasi reset sesi satu kali; `/sethome` menetapkan home channel; cron `deliver: <platform>` mengirim ke home channel platform tersebut. Dijaga `tests/gateway/test_gateway.py`: F4-T7 |
 | Tool `send_message` | ✅ | Agent mengirim ke chat lain lintas platform; hanya ditawarkan saat gateway berjalan, tujuan dibatasi (chat asal, home channel, `gateway.send_targets`). Dijaga `tests/gateway/test_gateway.py`: F4-T8 |
 | Endpoint API kompatibel OpenAI, webhook masuk | ⬜ | F4-T10 |
