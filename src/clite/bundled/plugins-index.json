@@ -19,6 +19,15 @@
       "version": "1.0.0"
     },
     {
+      "description": "Receive allowed email senders over IMAP and reply over SMTP",
+      "hash": "sha256:585eb95d3541b674fa9efdac60351e0d4120f316a998172ada9803630ef208aa",
+      "identifier": "dragovics/clite/src/clite/bundled/plugins/email",
+      "kind": "platform",
+      "name": "email",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
       "description": "Image generation via the OpenAI Images API (requires OPENAI_API_KEY)",
       "hash": "sha256:8eee4a0b3583b0341c31f3f3e9a2d05fdd9e47143e6e981816eccd406a667b61",
       "identifier": "dragovics/clite/src/clite/bundled/plugins/image-gen-openai",
@@ -28,11 +37,29 @@
       "version": "1.0.0"
     },
     {
+      "description": "Receive and send Matrix room messages through the Client-Server API",
+      "hash": "sha256:139d2cb4368a33db2dee08a225fb8c31391f137756485042ba9d90b670a70b53",
+      "identifier": "dragovics/clite/src/clite/bundled/plugins/matrix",
+      "kind": "platform",
+      "name": "matrix",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
       "description": "Long-term memory in SQLite: facts saved with a tool, found again with FTS5 search in later sessions",
       "hash": "sha256:afcde7f4b1b642e89b31126c98110f5565012e995c970804c5945ac5e884191e",
       "identifier": "dragovics/clite/src/clite/bundled/plugins/memory-sqlite",
       "kind": "backend",
       "name": "memory-sqlite",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "description": "Receive and send Signal messages through a user-run signal-cli REST service",
+      "hash": "sha256:230df38edbac43f867643d2ebf70fc90e9a7a8b6f00cbf0e581f8bbdfe3fd497",
+      "identifier": "dragovics/clite/src/clite/bundled/plugins/signal",
+      "kind": "platform",
+      "name": "signal",
       "source": "github",
       "version": "1.0.0"
     },
@@ -51,6 +78,15 @@
       "identifier": "dragovics/clite/src/clite/bundled/plugins/web-search-tavily",
       "kind": "backend",
       "name": "web-search-tavily",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "description": "Receive WhatsApp Cloud API webhooks and send replies through the Graph API",
+      "hash": "sha256:9e155a3b64dab6db7b29ecc8678c69ee111828e5531a8185d72c69040d75a69a",
+      "identifier": "dragovics/clite/src/clite/bundled/plugins/whatsapp",
+      "kind": "platform",
+      "name": "whatsapp",
       "source": "github",
       "version": "1.0.0"
     }

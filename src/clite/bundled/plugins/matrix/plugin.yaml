@@ -1,0 +1,4 @@
+name: matrix
+version: 1.0.0
+description: Receive and send Matrix room messages through the Client-Server API
+kind: platform

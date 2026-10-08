@@ -27,7 +27,7 @@ from clite.cron.schedule import KIND_ONCE, Schedule, ScheduleError, next_run, pa
 
 MAX_PROMPT_CHARS = 20_000
 UPDATABLE_FIELDS = frozenset(
-    {"name", "prompt", "deliver", "model", "provider", "toolsets", "skills", "repeat"}
+    {"name", "prompt", "deliver", "model", "provider", "toolsets", "skills", "repeat", "script"}
 )
 
 
@@ -47,6 +47,15 @@ def _check_prompt(prompt: str) -> str:
         # as anything else that reaches the model with authority.
         raise JobError(f"the prompt was rejected by the security scan ({describe(threats)})")
     return prompt
+
+
+def _check_script(script: str | None) -> str | None:
+    if script is None or not str(script).strip():
+        return None
+    candidate = Path(str(script))
+    if candidate.is_absolute() or ".." in candidate.parts:
+        raise JobError("script must be a relative path inside cron/scripts")
+    return candidate.as_posix()
 
 
 def _check_deliver(deliver: str | None) -> str:
@@ -115,12 +124,14 @@ class JobStore:
         provider: str | None = None,
         toolsets: list[str] | None = None,
         skills: list[str] | None = None,
+        script: str | None = None,
         origin: dict[str, Any] | None = None,
         now: float | None = None,
     ) -> dict[str, Any]:
         current = time.time() if now is None else now
         prompt = _check_prompt(prompt)
         deliver = _check_deliver(deliver)
+        script = _check_script(script)
         try:
             parsed = parse_schedule(schedule, now=current, timezone=self._timezone())
             first_run = next_run(parsed, current, timezone=self._timezone())
@@ -141,6 +152,7 @@ class JobStore:
             "provider": provider,
             "toolsets": toolsets,
             "skills": list(skills or []),
+            "script": script,
             "origin": origin,
             "created_at": current,
             "next_run_at": first_run,
@@ -177,6 +189,8 @@ class JobStore:
             fields["prompt"] = _check_prompt(fields["prompt"])
         if "deliver" in fields:
             fields["deliver"] = _check_deliver(fields["deliver"])
+        if "script" in fields:
+            fields["script"] = _check_script(fields["script"])
         current = time.time() if now is None else now
 
         def change(job: dict[str, Any]) -> None:

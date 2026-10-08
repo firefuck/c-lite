@@ -21,6 +21,7 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
 | `session.py` | `build_session_key`, `SessionMap` (kunci sesi ke id sesi tersimpan) |
 | `pairing.py` | `PairingStore`: kode pairing untuk pengguna tak dikenal |
 | `runner.py` | `GatewayRunner`: lapisan kebijakan antara platform dan agent |
+| `service.py` | Unit systemd/LaunchAgent, kunci per-home, dan drain SIGTERM |
 | `platforms/base.py` | `BasePlatformAdapter`, registry `PLATFORMS`, `split_message` |
 | `platforms/local.py` | Adapter dalam-proses untuk tes dan penyematan |
 | `platforms/telegram.py` | Telegram lewat Bot API dengan long polling (pustaka standar) |
@@ -98,13 +99,16 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
 | Penjadwal cron di dalam gateway | ✅ | |
 | Adapter Discord | 🟡 | Diuji terhadap WebSocket Gateway v10 dan REST API tiruan; token rahasia terdaftar; thread dan mention kanal ditangani; sambung ulang saat heartbeat terlewat. Belum dicoba terhadap server Discord sungguhan: F4-T1 |
 | Adapter Slack | 🟡 | Socket Mode dan Web API diuji terhadap server tiruan lokal; event diakui (ack), deduplikasi event ganda, balasan di thread. Belum terhadap ruang kerja Slack sungguhan: F4-T2 |
-| WhatsApp, Signal, Matrix, email, lainnya | ⬜ | F4-T3 |
-| Lampiran masuk dan keluar (gambar, suara, dokumen) | ⬜ | `MessageEvent.attachments` ada, belum dipakai: F4-T4 |
-| Jawaban streaming (menyunting pesan), progres tool | ⬜ | Hanya `send_typing`: F4-T5 |
-| Layanan sistem (systemd, launchd), restart dengan drain | ⬜ | `clite gateway run` berjalan di latar depan: F4-T6 |
+| Adapter email | 🟡 | Plugin platform bawaan memakai polling IMAP dan SMTP pustaka standar. Hanya pengirim pada `allowed_users` yang diteruskan; `References` menjadi `thread_id` sesi. Diuji terhadap server IMAP dan SMTP tiruan lokal (`tests/gateway/test_email.py`); belum diuji terhadap layanan email asli: F4-T3 |
+| Adapter Matrix | 🟡 | Plugin platform bawaan memakai Client-Server API `/sync` dengan long polling dan mengirim `m.room.message`. Hanya pengirim pada `allowed_users` yang diteruskan. E2EE sengaja belum didukung: event atau room terenkripsi tidak dibaca maupun dibalas. Diuji terhadap server Client-Server tiruan lokal (`tests/gateway/test_matrix.py`); belum diuji terhadap homeserver Matrix asli: F4-T3 |
+| Adapter Signal | 🟡 | Plugin platform bawaan berbicara ke REST `signal-cli` yang dijalankan pengguna: polling `GET /v1/receive/<akun>` dan kirim DM melalui `POST /v2/send`. Hanya pengirim pada `allowed_users` yang diteruskan; tidak ada alur pairing. Diuji terhadap server REST tiruan lokal (`tests/gateway/test_signal.py`); belum diuji terhadap layanan Signal atau `signal-cli` asli: F4-T3 |
+| Adapter WhatsApp | 🟡 | Plugin platform bawaan memakai webhook Cloud API resmi untuk pesan masuk yang diverifikasi dengan `X-Hub-Signature-256`, dan Graph API untuk balasan teks. Hanya pengirim pada `allowed_users` yang diteruskan. Diuji terhadap webhook dan Graph API tiruan lokal (`tests/gateway/test_whatsapp.py`); layanan WhatsApp Cloud API asli belum diverifikasi: F4-T3 |
+| Lampiran masuk dan keluar (gambar, suara, dokumen) | 🟡 | `gateway/media.py` menyimpan lampiran ke `<home>/gateway/media/<sesi>`: jenis ditentukan dari isi berkas (bukan nama), batas ukuran ditolak sebelum ditulis, direktori dibersihkan saat sesi tutup. Gambar masuk ke permintaan model sebagai bagian konten; dokumen diberitahukan sebagai path yang bisa dibaca. `send_file` membatasi path ke direktori kerja + media sesi dan tetap lewat `read_denied_reason`. Telegram menerima foto/dokumen/suara/video (`fetch_attachment`) dan mengirim lewat `sendDocument`. Dijaga `tests/gateway/test_gateway.py`. Belum diuji terhadap Telegram sungguhan: F4-T4 |
+| Jawaban streaming (menyunting pesan), progres tool | ✅ | Adapter yang bisa menyunting (`can_edit`/`edit`) mendapat jawaban bertahap: `gateway/stream.py` mengirim satu pesan lalu menyuntingnya dengan batas laju, dan satu pesan status yang diperbarui untuk progres tool (`display.tool_progress`). Suntingan yang ditolak platform tidak kehilangan jawaban (sisa dikirim sebagai pesan baru). Adapter tanpa `edit` tetap seperti semula. Dijaga `tests/gateway/test_gateway.py`: F4-T5 |
+| Layanan sistem (systemd, launchd), restart dengan drain | ✅ | `clite gateway install`, `uninstall`, `start`, `stop`, `restart`, `status`, dan `logs`; unit user systemd/LaunchAgent dibuat per profil, kunci menolak instance kedua dalam home yang sama, dan SIGTERM menghentikan pesan baru lalu menunggu giliran aktif. Dijaga `tests/gateway/test_service.py`: F4-T6. Verifikasi manual systemd Linux belum dilakukan. |
 | Kebijakan reset sesi (menganggur, harian), home channel | ✅ | `gateway.session_reset` (`idle`, `daily`), notifikasi reset sesi satu kali; `/sethome` menetapkan home channel; cron `deliver: <platform>` mengirim ke home channel platform tersebut. Dijaga `tests/gateway/test_gateway.py`: F4-T7 |
 | Tool `send_message` | ✅ | Agent mengirim ke chat lain lintas platform; hanya ditawarkan saat gateway berjalan, tujuan dibatasi (chat asal, home channel, `gateway.send_targets`). Dijaga `tests/gateway/test_gateway.py`: F4-T8 |
-| Endpoint API kompatibel OpenAI, webhook masuk | ⬜ | F4-T10 |
+| Endpoint API kompatibel OpenAI, webhook masuk | ✅ | API opt-in memakai token server dan toolset `api`; webhook opt-in memverifikasi HMAC SHA-256 konstan-waktu, membungkus body sebagai data tak tepercaya, lalu mengirim jawaban ke tujuan yang dikonfigurasi. Dijaga `tests/server/test_server.py`: F4-T10 |
 
 ## Yang sengaja berbeda dari Hermes
 

@@ -525,6 +525,16 @@ def test_sessions_commands(cli, tmp_path):
     cli("sessions", "show", first, expect=1)
 
 
+def test_sessions_list_shows_cost(cli):
+    db = get_session_db()
+    db.create_session("s-unpriced", "cli", model="mock-1")
+    db.create_session("s-priced", "cli", model="mock-1")
+    db.add_usage("s-priced", cost_usd=0.0123)
+    listing = cli("sessions", "list")
+    assert "$0.0123" in listing
+    assert "unknown" in listing
+
+
 def test_profile_commands_and_the_profile_flag(cli, clite_home, tmp_path):
     assert "* default" in cli("profile", "list")
     assert "Created profile work" in cli("profile", "create", "work", "--clone-from", "default")

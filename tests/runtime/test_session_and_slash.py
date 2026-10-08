@@ -696,3 +696,57 @@ def test_a_line_sent_while_busy_is_rejected_when_the_mode_says_so(clite_home, tm
         client.release.set()
         turns.join(timeout=5)
         session.close("test")
+
+
+def test_turn_cost_with_cache_read_and_write_calculated_from_profile_rates(make_session, clite_home):
+    from clite.providers.base import ModelPricing, ProviderProfile
+    from clite.providers.registry import register_provider
+    from clite.providers.transports.types import Usage
+
+    profile = ProviderProfile(
+        name="test-priced-prov",
+        api_mode="mock",
+        auth_type="none",
+        model_pricing={
+            "priced-model": ModelPricing(
+                input_cost_per_million=3.0,
+                output_cost_per_million=15.0,
+                cache_read_cost_per_million=0.30,
+                cache_write_cost_per_million=3.75,
+            )
+        },
+    )
+    register_provider(profile)
+    (clite_home / "config.yaml").write_text("model:\n  provider: test-priced-prov\n  default: priced-model\n")
+
+    # input: 10,000 ($0.03), output: 2,000 ($0.03), cache_read: 50,000 ($0.015), cache_write: 20,000 ($0.075) -> $0.150
+    turn_usage = Usage(
+        input_tokens=10_000,
+        output_tokens=2_000,
+        cache_read_tokens=50_000,
+        cache_write_tokens=20_000,
+    )
+    session, _ = make_session([text_response("answer", usage=turn_usage)])
+    session.submit("calculate something")
+
+    # In session DB:
+    row = get_session_db().get_session(session.session_id)
+    assert row["estimated_cost_usd"] == pytest.approx(0.15)
+
+    # In /usage:
+    usage_text = session.run_slash("/usage").text
+    assert "Estimated cost:     $0.1500" in usage_text
+
+
+def test_model_without_pricing_yields_unknown_in_usage_and_null_in_rpc(make_session):
+    # Default model mock-1 has no pricing declared
+    session, _ = make_session([text_response("answer")])
+    session.submit("hi")
+
+    # In session DB: estimated_cost_usd is None
+    row = get_session_db().get_session(session.session_id)
+    assert row["estimated_cost_usd"] is None
+
+    # In /usage: shows unknown
+    usage_text = session.run_slash("/usage").text
+    assert "Estimated cost:     unknown" in usage_text or "tidak diketahui" in usage_text

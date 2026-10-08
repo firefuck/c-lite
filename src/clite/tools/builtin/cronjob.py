@@ -94,10 +94,17 @@ def cronjob_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
     store = get_job_store()
     action = args.get("action")
     job_id = str(args.get("job_id") or "")
+    if "script" in args:
+        return tool_error("cronjob cannot attach scripts; only the user may configure cron/scripts")
     try:
         if action == "list":
             return tool_result(jobs=[_public(job) for job in store.list()])
         if action == "create":
+            from clite.core.config import config_get
+
+            max_jobs = int(config_get("cron.max_jobs_from_tool", 20) or 0)
+            if max_jobs and len(store.list()) >= max_jobs:
+                return tool_error(f"cron job limit reached ({max_jobs}); remove or pause an existing job first")
             deliver = str(args.get("deliver") or "local")
             job = store.create(
                 str(args.get("prompt") or ""),

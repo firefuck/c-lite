@@ -681,13 +681,18 @@ NEVER_REMEMBERED = frozenset({SELF_ACCESS.key})
 
 _PROTECTED_NAME = re.compile(
     r"(?<![\w.\-])(?:"
-    + "|".join(re.escape(posixpath.basename(name)) for name in PROTECTED_PATHS)
+    + "|".join(
+        re.escape(posixpath.basename(name))
+        for name in PROTECTED_PATHS
+        if "." in posixpath.basename(name) or name.startswith(".")
+    )
     + r")(?![\w.\-])",
     re.IGNORECASE,
 )
 # Subcommands of the agent's own command line that change what it is allowed to do or what
 # it stores. Read-only uses are caught as well; the model has tools and slash commands for those.
 OWN_CLI_SUBCOMMANDS = (
+    "auth",
     "config",
     "hooks",
     "plugins",

@@ -72,9 +72,9 @@ menjalankan `clite cron tick`.
 | Tool `cronjob`, `clite cron`, `/cron` | ✅ | |
 | Pengiriman ke chat asal | ✅ | Diuji dengan adapter `local` |
 | Pengiriman ke `<platform>:<chat id>` | ✅ | Diuji dengan adapter `local` (`test_cron_output_reaches_a_named_chat_through_the_gateway`); nilainya divalidasi saat job dibuat dan diubah (`test_the_delivery_target_is_checked_when_a_job_is_created_or_changed`). Ke Telegram sungguhan belum: F1-T3 |
-| Home channel, pengiriman ke beberapa tujuan | ⬜ | F4-T9 |
-| Skrip pra-jalan (data dikumpulkan skrip, lalu diberikan ke agent) | ⬜ | Hermes: `cron/scheduler_script.py`. F4-T9 |
-| Riwayat eksekusi dan antrean pengiriman ulang | ⬜ | F4-T9 |
+| Home channel, pengiriman ke beberapa tujuan | 🟡 | Home channel ✅ F4-T7; beberapa tujuan belum ada |
+| Skrip pra-jalan (data dikumpulkan skrip, lalu diberikan ke agent) | ✅ | Skrip pengguna relatif di `<home>/cron/scripts/` dijalankan Python sebelum giliran; keluarannya masuk prompt. Tool `cronjob` tidak dapat memasang skrip dan file tool tidak dapat menulis direktori itu. |
+| Riwayat eksekusi dan antrean pengiriman ulang | ✅ | `history.json` menyimpan waktu, durasi, status, pemakaian token, keluaran, dan galat; `clite cron history [job]` serta `cron.history` RPC. Pengiriman gagal dicoba lagi pada tick berikutnya hingga tiga usaha. |
 | Kunci file di Windows | ✅ | Penyimpanan job memakai `core.locking` (`fcntl`/`msvcrt`); tes dua proses lulus pada Linux/Windows. `tzdata` bersyarat memasok zona IANA Windows. CI `37499972911`, F1-T5 |
 
 ## Yang sengaja berbeda dari Hermes

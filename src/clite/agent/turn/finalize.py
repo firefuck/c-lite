@@ -83,4 +83,6 @@ def finalize_turn(agent: AIAgent, state: TurnState) -> TurnResult:
         provider=state.route.provider,
         duration=time.monotonic() - state.started_at,
         messages=list(agent.messages[state.first_message_index :]),
+        cost_usd=state.cost_usd,
+        estimated_cost_usd=state.cost_usd,
     )

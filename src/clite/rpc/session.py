@@ -198,6 +198,9 @@ class RpcSession:
         try:
             result = self.chat.submit(text, image_parts=image_parts or None)
             payload = result.to_dict()
+            cost = payload.get("estimated_cost_usd", payload.get("cost_usd"))
+            usage_payload = dict(payload["usage"])
+            usage_payload["estimated_cost_usd"] = cost
             self._emit(
                 "turn.complete",
                 {
@@ -209,7 +212,9 @@ class RpcSession:
                     "exit_reason": payload["exit_reason"],
                     "api_calls": payload["api_calls"],
                     "duration": payload["duration"],
-                    "usage": payload["usage"],
+                    "usage": usage_payload,
+                    "cost_usd": cost,
+                    "estimated_cost_usd": cost,
                 },
             )
         except Exception as exc:  # noqa: BLE001 - the client must always get a turn.complete

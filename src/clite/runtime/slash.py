@@ -584,6 +584,13 @@ def _handle_usage(session: ChatSession, args: str) -> SlashResult:
     read = usage.cache_read_tokens
     if usage.prompt_tokens:
         lines.append(f"Cache hit rate:     {round(read * 100 / usage.prompt_tokens)}% of prompt tokens")
+    cost = row.get("estimated_cost_usd")
+    if cost is None:
+        cost = session.agent.total_cost_usd
+    if cost is not None:
+        lines.append(f"Estimated cost:     ${cost:.4f}")
+    else:
+        lines.append("Estimated cost:     unknown")
     return SlashResult("\n".join(lines))
 
 

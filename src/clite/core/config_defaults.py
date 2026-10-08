@@ -48,6 +48,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "providers": {},
     # Tried in order when the primary route fails: [{provider, model}]
     "fallback_providers": [],
+    # Pricing overrides per model or prefix; empty by default to use profile or catalog rates
+    "pricing": {
+        "overrides": {},
+    },
     # ── Tools ────────────────────────────────────────────────────────────────────────────
     "toolsets": ["clite-cli"],
     "disabled_toolsets": [],
@@ -234,7 +238,17 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "home_channels": {},  # {platform: chat_id}
         "send_targets": [],  # allowed destinations for send_message tool: ["telegram:12345", ...]
     },
-    "cron": {"enabled": True, "catch_up_missed": True, "inactivity_timeout_seconds": 600},
+    "cron": {
+        "enabled": True,
+        "catch_up_missed": True,
+        "inactivity_timeout_seconds": 600,
+        # Failed gateway sends are retried on later ticks, but never forever.
+        "delivery_max_attempts": 3,
+        # Cron jobs may overlap so one slow task does not delay the rest of a tick.
+        "max_concurrent_jobs": 4,
+        # The model-facing cronjob tool cannot fill the scheduler indefinitely.
+        "max_jobs_from_tool": 20,
+    },
     "server": {
         "host": "127.0.0.1",
         "port": 0,
@@ -250,7 +264,12 @@ DEFAULT_CONFIG: dict[str, Any] = {
         # Record connections, the token each used, and commands approved from the dashboard, in
         # <home>/logs/audit.log. Never holds a token value, only its name.
         "audit_log": True,
+        # These externally callable routes are opt-in because the server token is powerful.
+        "openai_api_enabled": False,
+        "webhooks_enabled": False,
     },
+    # Named inbound webhooks; their HMAC secrets live in .env as CLITE_WEBHOOK_<NAME>_SECRET.
+    "webhooks": {},
     # auto_prune deletes sessions with no activity for retention_days, at most once a day, when
     # a surface starts. Pinned sessions are kept. `clite sessions prune` does it on demand.
     "sessions": {"auto_prune": False, "retention_days": 90},

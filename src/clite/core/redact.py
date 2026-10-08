@@ -9,11 +9,36 @@ from __future__ import annotations
 
 import os
 import re
+import threading
 
 from clite.core.env import get_secret, secret_names
 
 REDACTED = "[REDACTED]"
 _MIN_SECRET_LENGTH = 8
+_CREDENTIAL_VALUES: set[str] = set()
+_CREDENTIAL_LOCK = threading.Lock()
+
+
+def register_credential_value(value: str) -> None:
+    """Register an arbitrary secret value (e.g. an OAuth access token) for redaction."""
+    if value and len(value) >= _MIN_SECRET_LENGTH:
+        with _CREDENTIAL_LOCK:
+            _CREDENTIAL_VALUES.add(value)
+
+
+def unregister_credential_value(value: str) -> None:
+    with _CREDENTIAL_LOCK:
+        _CREDENTIAL_VALUES.discard(value)
+
+
+def credential_values() -> set[str]:
+    with _CREDENTIAL_LOCK:
+        return set(_CREDENTIAL_VALUES)
+
+
+def reset_redact_state() -> None:
+    with _CREDENTIAL_LOCK:
+        _CREDENTIAL_VALUES.clear()
 
 _PATTERNS = [
     re.compile(r"\bsk-[A-Za-z0-9_\-]{16,}"),  # OpenAI / Anthropic / OpenRouter style
@@ -39,6 +64,7 @@ def redact(text: str) -> str:
         for value in (get_secret(name) or "", os.environ.get(name, ""))
         if len(value) >= _MIN_SECRET_LENGTH
     }
+    values.update(credential_values())
     # Mask longer values first so a shared prefix cannot leave a secret's suffix behind.
     for value in sorted(values, key=len, reverse=True):
         text = text.replace(value, REDACTED)

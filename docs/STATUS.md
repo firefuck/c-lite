@@ -39,6 +39,42 @@ Yang tercakup tes Python itu, selain perilaku tiap modul:
 
 Spesifikasi tiap modul (`docs/spesifikasi/`) menandai fitur yang dijaga tes dengan ✅.
 
+### F2-T14 OAuth dan `clite auth` (8 Oktober 2026)
+
+Dukungan OAuth 2.0 PKCE dan Device Code flow untuk provider model:
+- Subcommand `clite auth login <provider>`, `clite auth status`, `clite auth logout <provider>`.
+- Token disimpan di `<home>/auth.json` dengan izin berkas 0600 (owner-only DACL di Windows), penyegaran token otomatis sebelum kedaluwarsa, dan penanganan pencabutan token.
+- Token akses otomatis terdaftar sebagai kredensial rahasia sehingga diredaksi dari transkrip/log dan dibuang dari lingkungan proses anak (`build_child_env`). Berkas `auth.json` dilindungi dari pembacaan/penulisan via tool (`read_file`, `write_file`, `patch`) dan gerbang persetujuan `detect_self_access`.
+- Kumpulan kredensial (`CredentialPool`) dan resolusi rute (`resolve_runtime_provider`) mengintegrasikan token OAuth sebagai sumber kredensial.
+- Alur PKCE (dengan callback HTTP lokal) dan Device Code flow diuji terhadap server otorisasi tiruan lokal di `tests/providers/test_oauth.py`. Uji langsung terhadap provider asli secara daring belum dilakukan (offline mock).
+
+### F4-T3 langkah email, Matrix, dan Signal (8 Oktober 2026)
+
+Plugin platform bawaan `email` memakai polling IMAP dan SMTP dari pustaka standar. Ia hanya
+meneruskan pengirim dalam `allowed_users`, dan memakai `References` sebagai `thread_id` agar
+setiap utas memiliki sesi gateway sendiri. Tes `tests/gateway/test_email.py` menjalankan server
+IMAP dan SMTP tiruan lokal, lalu menjaga penerimaan, pemetaan utas, balasan SMTP, dan penolakan
+pengirim lain. Layanan email asli belum pernah dicoba.
+
+Plugin platform bawaan `matrix` memakai Client-Server API dengan long polling `/sync` dan
+mengirim balasan `m.room.message`. Tes `tests/gateway/test_matrix.py` menjalankan server
+Client-Server tiruan lokal untuk menjaga penerimaan event room yang diizinkan, checkpoint sync,
+dan balasan ke room yang sama. E2EE sengaja belum didukung: event atau room terenkripsi tidak
+dibaca atau dibalas. Homeserver Matrix asli belum pernah dicoba.
+
+Plugin platform bawaan `signal` berbicara ke layanan REST `signal-cli` yang dijalankan pengguna:
+ia mem-poll `GET /v1/receive/<akun>` dan mengirim DM melalui `POST /v2/send`. Tes
+`tests/gateway/test_signal.py` menjalankan server REST tiruan lokal untuk menjaga penerimaan
+pesan dari `allowed_users`, pemetaan pengirim ke sesi gateway, serta payload balasan. Layanan
+Signal dan `signal-cli` asli belum pernah dicoba.
+
+Plugin platform bawaan `whatsapp` menerima webhook WhatsApp Cloud API setelah memverifikasi
+`X-Hub-Signature-256` memakai rahasia aplikasi, lalu mengirim balasan teks melalui Graph API.
+Tes `tests/gateway/test_whatsapp.py` memakai webhook dan Graph API tiruan lokal untuk menjaga
+verifikasi subscription, signature, penerimaan pengirim `allowed_users`, serta payload balasan.
+Layanan WhatsApp Cloud API asli belum pernah diverifikasi.
+
+
 ### F2-T2 gelombang pertama (7 Oktober 2026)
 
 Sepuluh profil tambahan diuji lewat HTTP loopback, streaming dan nonstreaming, tanpa
@@ -858,6 +894,11 @@ python scripts/check_hermes_refs.py --hermes ../hermes-ref   # butuh clone Herme
 | 8 Oktober 2026 | F6-T8: merah pada worktree bersih `71de350` dengan tes baru saja — `tests/runtime/test_batch.py` gagal dikoleksi (`ModuleNotFoundError: No module named 'clite.runtime.batch'`) dan `test_concurrent_first_use_of_the_transports_registry_finds_every_one` gagal di HEAD (`no transport for api_mode 'mock'; known: []`); hijau sesudah implementasi (74 tes dari `tests/runtime/test_batch.py` + `tests/providers/test_transports.py` lulus). Tujuh guard diuji terpisah pada worktree terisolasi dan masing-masing menggagalkan tesnya: (a) baris selesai tidak dilewati saat run diulang, (b) baris gagal dicatat `completed`, (c) `results.jsonl` tidak diredaksi (nilai kredensial lolos), (d) platform `batch` tidak memakai toolset headless, (e) lintasan memuat pesan internal, (f) judul sesi tidak diredaksi, (g) registry transport dimuat tanpa kunci dan menandai "sudah dimuat" sebelum impornya selesai. Balapan (g) ditemukan justru oleh batch dua pekerja; suite lama tidak pernah membangun dua agent bersamaan. Suite Python penuh 1276 lulus/51 terlewati/4 gagal yang sudah ada sebelum tugas ini dan bersifat lingkungan (3 butuh `ANTHROPIC_API_KEY`, 1 butuh identitas git; diverifikasi ulang di worktree HEAD), Ruff bersih, mypy 189 file bersih, `python scripts/gen_docs.py` memperbarui `docs/referensi/katalog.md` dan `peta-modul.md`. Biaya per baris ditunda karena mesin biaya F2-T3 belum ada; batch tidak punya batas waktu per baris. Clone rujukan `../hermes-ref` tidak tersedia | Linux, Python 3.11.16 |
 
 | 8 Oktober 2026 | F6-T1: merah pada worktree bersih `c277f71` dengan tes baru saja (`ImportError: cannot import name 'add_tap' from 'clite.skills.hub'`), hijau sesudah implementasi — 28 tes baru `tests/skills/test_hub.py`, seluruh `tests/skills` 70 lulus/1 terlewati (jaringan). Tujuh guard diuji terpisah pada worktree terisolasi dan masing-masing menggagalkan tesnya: (a) indeks tidak dipakai saat memasang nama, (b) hash indeks tidak diperiksa, (c) berkas biner diterima, (d) laporan pemindaian tidak diminta persetujuannya, (e) suntingan pengguna ditimpa saat update, (f) versi baru yang ditandai pemindai tetap ditulis, (g) berkas yang hilang tidak dilaporkan. Indeks JSON (`scripts/build_skills_index.py`, bawaan `bundled/skills-index.json`) + tap, `clite skills search|info|install <nama>|update|tap`, dan `scanner.py` (semua berkas, bukan hanya `SKILL.md`; biner ditolak; skrip dan host dilaporkan). Indeks bawaan dijaga tes agar sama dengan skill bawaan. Suite Python penuh 1304 lulus/51 terlewati/4 gagal yang sudah ada sebelum tugas ini dan bersifat lingkungan (3 butuh `ANTHROPIC_API_KEY`, 1 butuh identitas git), Ruff bersih, mypy 190 file bersih, `python scripts/gen_docs.py` memperbarui `docs/referensi/katalog.md` dan `peta-modul.md`. Registry pihak ketiga dengan API sendiri belum ada. Clone rujukan `../hermes-ref` tidak tersedia | Linux, Python 3.11.16 |
+| 8 Oktober 2026 | F4-T5: Jawaban streaming dan progres tool di chat; `gateway/stream.py` (`StreamSender`, `ProgressReporter`), `can_edit`/`edit` pada adapter (Telegram `editMessageText`, `local` untuk tes), batas laju 1.5 detik, pemecahan saat melewati batas karakter, dan fallback saat suntingan ditolak; 6 tes baru `tests/gateway/test_gateway.py` lulus; 5 tes lama disesuaikan dengan kontrak streaming (menunggu teks akhir, bukan indeks pesan); bukti merah: tanpa `stream.py` koleksi gagal (`ModuleNotFoundError`) | Linux, Python 3.11.16 |
+| 8 Oktober 2026 | F4-T4: Lampiran masuk dan keluar; `gateway/media.py` (jenis dari magic bytes, batas ukuran ditolak sebelum ditulis, cleanup per sesi), gambar masuk sebagai bagian konten model, dokumen diberitahukan sebagai path, tool `send_file` dengan batas direktori + `read_denied_reason`, Telegram `fetch_attachment` (foto/dokumen/suara/video) dan `sendDocument`; 8 tes baru `tests/gateway/test_gateway.py` lulus (50 total di `tests/gateway`). Belum diuji terhadap Telegram sungguhan | Linux, Python 3.11.16 |
+| 8 Oktober 2026 | F4-T6: layanan gateway menghasilkan unit systemd user dan LaunchAgent per profil, menolak proses kedua untuk home yang sama, dan SIGTERM menghentikan pesan baru sambil menunggu giliran aktif selesai lalu keluar 0; 3 tes `tests/gateway/test_service.py` lulus. Verifikasi manual systemd Linux belum dilakukan karena tidak memasang atau menjalankan layanan pada home pengguna. | Linux, Python 3.11.16 |
+| 8 Oktober 2026 | F4-T9: skrip pra-jalan pengguna dari `cron/scripts` memasukkan keluaran ke prompt dan terlindung dari tool file/`cronjob`; riwayat persisten dan `clite cron history`/RPC `cron.history`; pengiriman gagal diantrekan lalu dicoba ulang dengan batas; tick menjalankan job paralel terbatas. `tests/cron/test_cron.py` 40 lulus, `tests/tools/test_file_tools.py` dan `tests/cli/test_cli.py` lulus; belum diverifikasi terhadap platform gateway sungguhan. | Linux, Python 3.11.16 |
+| 8 Oktober 2026 | F2-T3: Estimasi harga dan biaya model; `providers/pricing.py` (`ModelPricing` dengan empat tarif: input, output, cache read, cache write), resolusi hierarkis (config `pricing.overrides`, profil provider, katalog OpenRouter ter-cache), pengisian `sessions.estimated_cost_usd` oleh `record_usage`, pelaporan biaya di `/usage`, `clite sessions list`, dan `turn.complete` JSON-RPC (null / "unknown" bila tidak diketahui); tarif Anthropic diambil dari halaman resmi 2026-10-08; 6 tes baru di `tests/providers/test_pricing.py`, `tests/runtime/test_session_and_slash.py`, `tests/rpc/test_rpc.py`, `tests/cli/test_cli.py` lulus. | Linux, Python 3.11.16 |
 
 Setiap task yang memverifikasi sesuatu menambah baris di tabel ini dan memindahkan butirnya
 dari "belum diverifikasi".

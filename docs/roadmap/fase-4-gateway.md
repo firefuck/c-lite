@@ -155,11 +155,11 @@ file kembali.
 `gateway/platforms/media_cache.py`.
 
 **Selesai bila.**
-- [ ] Tes: gambar dari adapter `local` sampai ke permintaan model sebagai bagian konten.
-- [ ] Tes: file yang melebihi batas ditolak dengan pesan ke pengguna, tanpa mengunduh
+- [x] Tes: gambar dari adapter `local` sampai ke permintaan model sebagai bagian konten.
+- [x] Tes: file yang melebihi batas ditolak dengan pesan ke pengguna, tanpa mengunduh
       seluruhnya.
-- [ ] Tes: `send_file` menolak `.env` milik agent dan path di luar direktori yang diizinkan.
-- [ ] Baris "Lampiran masuk dan keluar" di spesifikasi gateway menjadi ✅ untuk Telegram.
+- [x] Tes: `send_file` menolak `.env` milik agent dan path di luar direktori yang diizinkan.
+- [x] Baris "Lampiran masuk dan keluar" di spesifikasi gateway menjadi ✅ untuk Telegram.
 
 **Ukuran.** M
 
@@ -190,11 +190,11 @@ agent, alih-alih menunggu dalam diam.
 `gateway/stream_events.py`.
 
 **Selesai bila.**
-- [ ] Tes dengan adapter `local` yang mendukung `edit`: jumlah suntingan dibatasi lajunya dan
+- [x] Tes dengan adapter `local` yang mendukung `edit`: jumlah suntingan dibatasi lajunya dan
       isi akhirnya sama dengan jawaban utuh.
-- [ ] Tes: suntingan yang gagal (batas laju platform) tidak menggagalkan giliran; jawaban
+- [x] Tes: suntingan yang gagal (batas laju platform) tidak menggagalkan giliran; jawaban
       akhir tetap terkirim.
-- [ ] Baris "Jawaban streaming" di spesifikasi gateway menjadi ✅.
+- [x] Baris "Jawaban streaming" di spesifikasi gateway menjadi ✅.
 
 **Ukuran.** M
 
@@ -331,11 +331,11 @@ riwayat eksekusi, dan tidak kehilangan keluaran saat pengiriman gagal.
 `website/docs/developer-guide/cron-internals.md`.
 
 **Selesai bila.**
-- [ ] Tes: keluaran skrip masuk ke prompt run; skrip yang gagal dicatat dan job tetap jalan
+- [x] Tes: keluaran skrip masuk ke prompt run; skrip yang gagal dicatat dan job tetap jalan
       atau dilewati sesuai pengaturannya.
-- [ ] Tes: `write_file` ke direktori skrip ditolak, dan `cronjob` menolak argumen skrip.
-- [ ] Tes: pengiriman yang gagal dicoba ulang pada tick berikutnya dan berhenti setelah batas.
-- [ ] Jaminan "paling banyak sekali" tetap dijaga tes yang ada.
+- [x] Tes: `write_file` ke direktori skrip ditolak, dan `cronjob` menolak argumen skrip.
+- [x] Tes: pengiriman yang gagal dicoba ulang pada tick berikutnya dan berhenti setelah batas.
+- [x] Jaminan "paling banyak sekali" tetap dijaga tes yang ada.
 
 **Ukuran.** M
 
@@ -370,13 +370,13 @@ luar bisa memicu agent lewat webhook.
 `hermes_cli/webhook.py`.
 
 **Selesai bila.**
-- [ ] Tes dengan klien HTTP biasa: jawaban tidak streaming dan streaming SSE berbentuk seperti
+- [x] Tes dengan klien HTTP biasa: jawaban tidak streaming dan streaming SSE berbentuk seperti
       API OpenAI.
-- [ ] Tes: tanpa token, dan dengan header `Host` asing pada server loopback, permintaan
+- [x] Tes: tanpa token, dan dengan header `Host` asing pada server loopback, permintaan
       ditolak.
-- [ ] Tes: webhook dengan tanda tangan salah ditolak dalam waktu konstan; isi webhook tidak
+- [x] Tes: webhook dengan tanda tangan salah ditolak dalam waktu konstan; isi webhook tidak
       pernah masuk ke system prompt.
-- [ ] Baris endpoint OpenAI dan webhook di spesifikasi server dan gateway menjadi ✅.
+- [x] Baris endpoint OpenAI dan webhook di spesifikasi server dan gateway menjadi ✅.
 
 **Ukuran.** M
 

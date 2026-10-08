@@ -838,3 +838,58 @@ def test_rpc_session_lists_read_only_the_submitted_profiles_database(client, tmp
         reply = instance.transport.wait_for(lambda message, request_id=index: message.get("id") == request_id)
         assert "error" not in reply, reply
         assert [row["id"] for row in reply["result"]["sessions"]] == [f"stored-{index}"]
+
+
+def test_rpc_turn_complete_and_session_usage_pricing(client, clite_home):
+    from clite.providers.base import ModelPricing, ProviderProfile
+    from clite.providers.registry import register_provider
+    from clite.providers.testing import text_response
+    from clite.providers.transports.types import Usage
+
+    # 1. Unpriced model: estimated_cost_usd is null / None
+    rpc_unpriced = client([text_response("hello unpriced")])
+    sid_unpriced = rpc_unpriced.call("session.create")["session_id"]
+    rpc_unpriced.run_turn(sid_unpriced, "test unpriced")
+
+    event_unpriced = rpc_unpriced.transport.events("turn.complete")[-1]["payload"]
+    assert event_unpriced["estimated_cost_usd"] is None
+    assert event_unpriced["usage"]["estimated_cost_usd"] is None
+
+    usage_res_unpriced = rpc_unpriced.call("session.usage", {"session_id": sid_unpriced})
+    assert usage_res_unpriced["estimated_cost_usd"] is None
+    assert usage_res_unpriced["usage"]["estimated_cost_usd"] is None
+
+    # 2. Priced model: estimated_cost_usd is calculated correctly
+    profile = ProviderProfile(
+        name="test-rpc-prov",
+        api_mode="mock",
+        auth_type="none",
+        model_pricing={
+            "rpc-model": ModelPricing(
+                input_cost_per_million=3.0,
+                output_cost_per_million=15.0,
+                cache_read_cost_per_million=0.30,
+                cache_write_cost_per_million=3.75,
+            )
+        },
+    )
+    register_provider(profile)
+    (clite_home / "config.yaml").write_text("model:\n  provider: test-rpc-prov\n  default: rpc-model\n")
+
+    priced_usage = Usage(
+        input_tokens=10_000,
+        output_tokens=2_000,
+        cache_read_tokens=50_000,
+        cache_write_tokens=20_000,
+    )
+    rpc_priced = client([text_response("hello priced", usage=priced_usage)])
+    sid_priced = rpc_priced.call("session.create")["session_id"]
+    rpc_priced.run_turn(sid_priced, "test priced")
+
+    event_priced = rpc_priced.transport.events("turn.complete")[-1]["payload"]
+    assert event_priced["estimated_cost_usd"] == pytest.approx(0.15)
+    assert event_priced["usage"]["estimated_cost_usd"] == pytest.approx(0.15)
+
+    usage_res_priced = rpc_priced.call("session.usage", {"session_id": sid_priced})
+    assert usage_res_priced["estimated_cost_usd"] == pytest.approx(0.15)
+    assert usage_res_priced["usage"]["estimated_cost_usd"] == pytest.approx(0.15)

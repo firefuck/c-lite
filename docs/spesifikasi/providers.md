@@ -226,8 +226,8 @@ berasal dari HTTP loopback dan kredensial sintetis, bukan API asli.
 | Panggilan ke provider sungguhan | ⬜ belum diverifikasi | F1-T2 |
 | Transport `responses` (OpenAI Responses API) | 🟡 | Streaming dan nonstreaming, replay dua ronde tool, awalan kawat, pemilihan profil, dan galat diuji terhadap `fake_api`. Tes jaringan ditulis, belum dijalankan: F2-T1 |
 | Profil bawaan | 🟡 | 21 profil; tiga profil cloud F2-T2 dijaga `tests/providers/test_cloud_profiles.py`; sepuluh tambahan gelombang pertama F2-T2 dijaga tes rute/HTTP lokal dan discovery setup. API asli semua profil tersebut belum diuji |
-| Harga dan estimasi biaya | ⬜ | F2-T3 |
-| OAuth, `clite auth`, kredensial di luar `.env` | ⬜ | F2-T14 |
+| Harga dan estimasi biaya | ✅ | `ModelPricing` empat tarif (input, output, cache read, cache write); resolusi berlapis (config `pricing.overrides`, profil provider, katalog live OpenRouter). Dijaga `tests/providers/test_pricing.py`. F2-T3 |
+| OAuth, `clite auth`, kredensial di luar `.env` | ✅ | Alur PKCE dan device code, penyimpanan `<home>/auth.json` (mode 0600), penyegaran otomatis, penanganan pencabutan token, dan redaksi kredensial. Dijaga `tests/providers/test_oauth.py`. F2-T14 |
 | Tampilan teks penalaran (`thinking.display`) | 🟡 | Profil `anthropic` meminta `summarized` bila `display.show_reasoning` aktif; dijaga `test_anthropic_asks_for_summarized_thinking_only_when_reasoning_is_shown`. Belum dicoba ke API asli: F1-T2 |
 | Tes terhadap API asli (`tests/providers/test_live.py`) | 🟡 | Ditulis; dilewati tanpa kunci. Belum pernah dijalankan: F1-T2 |
 | Bedrock, Vertex, Azure | ⬜ | Gelombang kedua F2-T2; task tetap parsial |

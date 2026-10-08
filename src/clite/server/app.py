@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import asyncio
 import hmac
+import inspect
 import logging
 from collections.abc import Callable, Sequence
 from pathlib import Path
@@ -45,7 +46,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from clite import __version__
 from clite.agent.messages import content_text, is_internal
-from clite.core.config import config_get
+from clite.core.config import config_get, get_path, load_config
 from clite.plugins.pages import dashboard_pages, find_page, resolve_asset
 from clite.rpc.server import RpcServer
 from clite.rpc.transport import WebSocketTransport
@@ -123,6 +124,19 @@ def host_allowed(connection: HTTPConnection, bind_host: str, allowed_hosts: Sequ
     return host in accepted
 
 
+def websocket_host_allowed(websocket: WebSocket, bind_host: str) -> bool:
+    """Check every Host value from the WebSocket upgrade request.
+
+    HTTP libraries normally retain duplicate Host headers, unlike ``Headers.get``.  Rejecting
+    the upgrade when any supplied authority is foreign prevents an attacker from smuggling a
+    loopback Host beside its DNS-rebinding host.
+    """
+    if bind_host.strip("[]").lower() not in _LOOPBACK_HOSTS:
+        return True
+    hosts = [value.decode("latin-1") for key, value in websocket.scope.get("headers", []) if key.lower() == b"host"]
+    return bool(hosts) and all(_authority(value)[0] in _LOOPBACK_HOSTS for value in hosts)
+
+
 def origin_allowed(connection: HTTPConnection) -> bool:
     """Reject cross-site WebSocket connections from a browser.
 
@@ -190,6 +204,8 @@ def create_app(
                 if delay:
                     await asyncio.sleep(delay)  # the throttle is a wait, not just a count
                 return JSONResponse({"error": "unauthorized"}, status_code=401)
+            if inspect.iscoroutinefunction(handler):
+                return await handler(request)
             return await asyncio.to_thread(handler, request)
 
         return wrapper
@@ -241,7 +257,7 @@ def create_app(
 
     async def websocket_endpoint(websocket: WebSocket) -> None:
         allowed, name, delay = authorize(websocket)
-        if not allowed or not origin_allowed(websocket):
+        if not allowed or not websocket_host_allowed(websocket, bind_host) or not origin_allowed(websocket):
             if delay:
                 await asyncio.sleep(delay)
             await websocket.close(code=WS_UNAUTHORIZED)
@@ -294,9 +310,24 @@ def create_app(
     async def index(request: Request) -> Response:
         return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-store"})
 
-    return Starlette(
-        routes=[
-            Route("/api/health", health),
+    routes: list[Any] = [
+        Route("/api/health", health),
+    ]
+    config = load_config()
+    if bool(get_path(config, "server.openai_api_enabled", False)):
+        from clite.server.openai_api import routes as openai_routes
+
+        models, completions = openai_routes(config, client_factory)
+        routes.extend([Route("/v1/models", guarded(models)), Route("/v1/chat/completions", guarded(completions), methods=["POST"])])
+    if bool(get_path(config, "server.webhooks_enabled", False)):
+        from clite.server.webhooks import routes as webhook_routes
+
+        webhook_handler = webhook_routes(config, client_factory)
+        # Meta authenticates its webhook with the app-secret signature rather than the local
+        # server token; the handler rejects it unless an active WhatsApp adapter verifies it.
+        routes.append(Route("/api/webhooks/whatsapp", webhook_handler, methods=["GET", "POST"]))
+        routes.append(Route("/api/webhooks/{name}", guarded(webhook_handler), methods=["POST"]))
+    routes.extend([
             Route("/api/status", guarded(status)),
             Route("/api/sessions", guarded(sessions)),
             Route("/api/sessions/{session_id}/messages", guarded(session_messages)),
@@ -304,8 +335,8 @@ def create_app(
             WebSocketRoute("/api/ws", websocket_endpoint),
             Route("/", index),
             Mount("/static", StaticFiles(directory=STATIC_DIR), name="static"),
-        ]
-    )
+        ])
+    return Starlette(routes=routes)
 
 
 def _content_type(path: Path) -> str:

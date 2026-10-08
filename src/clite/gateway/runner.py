@@ -24,10 +24,14 @@ from typing import Any
 from clite.agent import AgentCallbacks
 from clite.core.config import get_path, load_config
 from clite.core.errors import CliteError
+from clite.gateway import media
 from clite.gateway.event import CHAT_DM, MessageEvent, SessionSource
+from clite.gateway.media import MediaError
+from clite.gateway.media import store as media_store
 from clite.gateway.pairing import PairingStore
 from clite.gateway.platforms.base import PLATFORMS, BasePlatformAdapter, split_message
 from clite.gateway.session import HomeChannels, SessionMap, build_session_key
+from clite.gateway.stream import ProgressReporter, StreamSender, tool_line
 from clite.plugins.hooks import has_hook, invoke_hook
 from clite.plugins.manager import ensure_plugins_loaded
 from clite.runtime.commands import BUSY_ALLOW, resolve_command, split_command
@@ -108,6 +112,7 @@ class GatewayRunner:
         self._lock = threading.RLock()
         self._scheduler: Any = None
         self.running = False
+        self.accepting = True
 
     # ── lifecycle ────────────────────────────────────────────────────────────────────────
 
@@ -136,6 +141,7 @@ class GatewayRunner:
             self.adapters[name] = adapter
             started.append(name)
         self.running = True
+        self.accepting = True
         with _ACTIVE_LOCK:
             if self not in _ACTIVE_RUNNERS:
                 _ACTIVE_RUNNERS.append(self)
@@ -148,7 +154,24 @@ class GatewayRunner:
             self._scheduler.start()
         return started
 
+    def begin_drain(self) -> None:
+        """Stop accepting inbound work while existing turns finish."""
+        self.accepting = False
+
+    def has_active_turns(self) -> bool:
+        """Whether a turn is running or queued in any gateway session."""
+        with self._lock:
+            return any(session.busy for session in self.sessions.values())
+
+    def notify_interrupted_turns(self) -> None:
+        """Tell chats whose turns exceeded the service drain deadline."""
+        with self._lock:
+            sessions = [session for session in self.sessions.values() if session.busy]
+        for session in sessions:
+            self.reply(session.source, "The gateway is stopping; this turn was interrupted.")
+
     def stop(self) -> None:
+        self.accepting = False
         self.running = False
         with _ACTIVE_LOCK:
             if self in _ACTIVE_RUNNERS:
@@ -174,6 +197,7 @@ class GatewayRunner:
         if session.turns is not None:
             session.turns.join(timeout=5)
         session.chat.close(reason)
+        media.cleanup_media(session.key)  # the files belong to this conversation only
 
     # ── sending ──────────────────────────────────────────────────────────────────────────
 
@@ -266,6 +290,38 @@ class GatewayRunner:
             )
         self.reply(SessionSource(platform=platform, chat_id=chat_id), text)
         logger.info("send_message delivered to %s (%d chars)", destination, len(text))
+        return destination
+
+    def send_file_to(
+        self, target: str, path: str, *, caption: str = "", origin: dict[str, Any] | None = None
+    ) -> str:
+        """Send a local file to ``target``, under the same destination rules as ``send_to``."""
+        raw = target.strip()
+        if not raw:
+            raise CliteError("a target is required: a platform name or 'platform:chat id'")
+        if ":" in raw:
+            platform, _, chat_id = raw.partition(":")
+            chat_id = chat_id.strip()
+        else:
+            platform, chat_id = raw, self.home_channels.get(raw) or ""
+        if not platform or not chat_id:
+            raise CliteError(
+                f"target {target!r} has no chat id and no home channel is set; use "
+                f"'platform:chat id' or run /sethome in that chat first"
+            )
+        adapter = self.adapters.get(platform)
+        if adapter is None:
+            raise CliteError(f"platform {platform!r} is not connected; connect it in gateway.platforms first")
+        destination = f"{platform}:{chat_id}"
+        if destination not in self._allowed_send_targets(origin):
+            raise CliteError(
+                f"destination {destination!r} is not allowed; add it to gateway.send_targets "
+                f"or run /sethome in that chat"
+            )
+        result = adapter.send_file(chat_id, path, caption=caption)
+        if not result.success:
+            raise CliteError(f"could not send {path}: {result.error or 'the platform refused it'}")
+        logger.info("send_file delivered %s to %s", path, destination)
         return destination
 
     # ── authorization ────────────────────────────────────────────────────────────────────
@@ -429,6 +485,8 @@ class GatewayRunner:
             self.reply(event.source, "Something went wrong handling that message. The error was logged.")
 
     def _dispatch(self, event: MessageEvent) -> None:
+        if not self.accepting:
+            return
         text = event.text.strip()
         if has_hook("pre_gateway_dispatch"):
             for directive in invoke_hook("pre_gateway_dispatch", event=event, gateway=self):
@@ -462,7 +520,48 @@ class GatewayRunner:
                 self.reply(event.source, result.text)
                 return
             text = result.text  # a skill command: run it as a turn
-        self._submit(session, text)
+        images, notes = self._collect_attachments(session, event)
+        if notes:
+            text = f"{text}\n\n{notes}".strip()
+        self._submit(session, text, payload={"images": images} if images else None)
+
+    def _collect_attachments(self, session: GatewaySession, event: MessageEvent) -> tuple[list[str], str]:
+        """Store the message's files and say what the model gets.
+
+        An image becomes a content part; anything else is announced as a path the model can read
+        with its file tools. A file over the size limit is refused with a message to the user --
+        it is never written, so nothing large lands on disk.
+        """
+        if not event.attachments:
+            return [], ""
+        max_bytes = int(get_path(self.config, "attachments.max_bytes", 5_000_000) or 5_000_000)
+        adapter = self.adapters.get(event.source.platform)
+        images: list[str] = []
+        notes: list[str] = []
+        for attachment in event.attachments:
+            try:
+                if attachment.data is None:
+                    fetch = getattr(adapter, "fetch_attachment", None)
+                    if fetch is None:
+                        raise MediaError(
+                            f"{attachment.describe()} cannot be downloaded by the {event.source.platform} adapter"
+                        )
+                    attachment.data = fetch(attachment, max_bytes=max_bytes)
+                stored = media_store(attachment, session.key, max_bytes=max_bytes)
+            except MediaError as exc:
+                self.reply(event.source, f"I could not take that file: {exc}")
+                continue
+            if stored.kind == media.IMAGE:
+                images.append(str(stored.path))
+            else:
+                notes.append(
+                    f"The user attached {attachment.describe()}, saved at {stored.path}. "
+                    "Read it with the file tools if it is relevant."
+                )
+        logger.info(
+            "session %s took %d attachment(s): %d image(s)", session.key, len(event.attachments), len(images)
+        )
+        return images, "\n".join(notes)
 
     def _answer_pending(self, session: GatewaySession, text: str) -> bool:
         pending = session.pending
@@ -491,9 +590,9 @@ class GatewayRunner:
         That only reads right in ``interrupt`` mode; ``queue`` mode keeps them apart."""
         return str(get_path(self.config, "display.busy_input_mode", "interrupt")) == BUSY_INTERRUPT
 
-    def _submit(self, session: GatewaySession, text: str) -> None:
+    def _submit(self, session: GatewaySession, text: str, *, payload: dict[str, Any] | None = None) -> None:
         assert session.turns is not None
-        session.turns.submit(Turn(text=text))
+        session.turns.submit(Turn(text=text, payload=payload))
 
     def _run_turn(self, key: str, turn: Turn) -> None:
         session = self.sessions.get(key)
@@ -502,13 +601,49 @@ class GatewayRunner:
         adapter = self.adapters.get(session.source.platform)
         if adapter is not None:
             adapter.send_typing(session.source.chat_id, thread_id=session.source.thread_id)
+
+        # A chat that can edit a sent message gets the answer as it is written and one status
+        # message for tool activity. A chat that cannot keeps the old behaviour: typing
+        # indicator, then the whole answer.
+        stream: StreamSender | None = None
+        progress: ProgressReporter | None = None
+        if adapter is not None:
+            chat_id, thread_id = session.source.chat_id, session.source.thread_id
+
+            def send(text: str) -> str | None:
+                result = adapter.send(chat_id, text, thread_id=thread_id)
+                return result.message_id if result.success else None
+
+            def edit(message_id: str, text: str) -> bool:
+                return adapter.edit(chat_id, message_id, text)
+
+            if adapter.can_edit():
+                stream = StreamSender(send, edit, max_length=adapter.max_message_length)
+                if session.chat.tool_progress != "off":
+                    progress = ProgressReporter(send, edit)
+
+        callbacks = session.chat.callbacks
+        saved_on_delta, saved_on_tool = callbacks.on_delta, callbacks.on_tool_complete
+        if stream is not None:
+            callbacks.on_delta = stream.push
+        if progress is not None:
+            callbacks.on_tool_complete = lambda _call_id, name, _args, result, seconds: progress.note(
+                tool_line(name, result, seconds)
+            )
         try:
-            result = session.chat.submit(turn.text)
+            result = session.chat.submit(turn.text, images=(turn.payload or {}).get("images"))
         except Exception as exc:  # noqa: BLE001
             logger.exception("gateway turn failed for %s", session.key)
             self.reply(session.source, f"Something went wrong: {type(exc).__name__}: {exc}")
             return
+        finally:
+            callbacks.on_delta, callbacks.on_tool_complete = saved_on_delta, saved_on_tool
         session.last_used = time.monotonic()
+        if stream is not None:
+            # Settle whatever is already on screen. An interrupted turn has no final answer, so
+            # it is left as the partial text the user already saw rather than a placeholder.
+            stream.finish(None if result.interrupted else (result.final_response or "(no response)"))
         if result.interrupted:
             return  # the user moved on; whatever interrupted this turn runs next
-        self.reply(session.source, result.final_response or "(no response)")
+        if stream is None:
+            self.reply(session.source, result.final_response or "(no response)")

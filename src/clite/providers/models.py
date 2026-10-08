@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any
 
 from clite.core.config import get_path, load_config
@@ -16,6 +16,7 @@ from clite.core.constants import ensure_dir, get_cache_dir
 from clite.core.io import atomic_write_json, read_json
 from clite.providers.base import ProviderProfile
 from clite.providers.http import HttpClient, ProviderHTTPError
+from clite.providers.pricing import ModelPricing
 from clite.providers.registry import get_provider
 from clite.providers.runtime import RuntimeRoute
 
@@ -40,6 +41,7 @@ class ModelInfo:
     id: str
     context_length: int | None = None
     name: str = ""
+    pricing: ModelPricing | None = None
 
 
 def _cache_path(provider: str):
@@ -61,7 +63,10 @@ def _parse_catalog(payload: dict[str, Any]) -> list[ModelInfo]:
         length = next(
             (int(entry[key]) for key in _CONTEXT_KEYS if isinstance(entry.get(key), (int, float))), None
         )
-        models.append(ModelInfo(model_id, length, str(entry.get("display_name") or entry.get("name") or "")))
+        pricing = None
+        if isinstance(entry.get("pricing"), dict):
+            pricing = ModelPricing.from_dict(entry["pricing"])
+        models.append(ModelInfo(model_id, length, str(entry.get("display_name") or entry.get("name") or ""), pricing))
     return models
 
 
@@ -102,7 +107,28 @@ def _cached(provider: str, *, max_age: float | None = CACHE_TTL_SECONDS) -> list
         return None
     if max_age is not None and time.time() - float(data.get("fetched_at") or 0) > max_age:
         return None
-    return [ModelInfo(**entry) for entry in data.get("models") or []]
+    models: list[ModelInfo] = []
+    for entry in data.get("models") or []:
+        if not isinstance(entry, dict):
+            continue
+        pricing = ModelPricing.from_dict(entry["pricing"]) if isinstance(entry.get("pricing"), dict) else None
+        models.append(
+            ModelInfo(
+                id=entry.get("id", ""),
+                context_length=entry.get("context_length"),
+                name=entry.get("name", ""),
+                pricing=pricing,
+            )
+        )
+    return models
+
+
+def get_cached_model_pricing(provider: str, model: str) -> ModelPricing | None:
+    """Look up pricing for ``model`` from the cached catalog of ``provider``."""
+    for info in _cached(provider, max_age=None) or []:
+        if info.id == model and info.pricing is not None:
+            return info.pricing
+    return None
 
 
 def list_models(
@@ -128,18 +154,35 @@ def list_models(
     live = fetch_models(profile, api_key=api_key, base_url=base_url, http=http)
     if live:
         ensure_dir(_cache_path(profile.name).parent)
+        serialized_models = []
+        for model in live:
+            m_dict: dict[str, Any] = {
+                "id": model.id,
+                "context_length": model.context_length,
+                "name": model.name,
+            }
+            if model.pricing is not None:
+                m_dict["pricing"] = asdict(model.pricing)
+            serialized_models.append(m_dict)
         atomic_write_json(
             _cache_path(profile.name),
             {
                 "fetched_at": time.time(),
-                "models": [model.__dict__ for model in live],
+                "models": serialized_models,
             },
         )
         return live
     stale = _cached(profile.name, max_age=None)
     if stale:
         return stale
-    return [ModelInfo(model, profile.get_model_context_length(model)) for model in profile.fallback_models]
+    return [
+        ModelInfo(
+            model,
+            profile.get_model_context_length(model),
+            pricing=profile.get_model_pricing(model),
+        )
+        for model in profile.fallback_models
+    ]
 
 
 def get_context_length(route: RuntimeRoute, config: dict[str, Any] | None = None) -> int:

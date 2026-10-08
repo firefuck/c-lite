@@ -1,0 +1,4 @@
+name: whatsapp
+version: 1.0.0
+description: Receive WhatsApp Cloud API webhooks and send replies through the Graph API
+kind: platform

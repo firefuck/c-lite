@@ -97,13 +97,14 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | One module per subcommand group. |  |
+| `auth.py` | ``clite auth``: log in, inspect, and log out of OAuth model providers. | `run_login()`, `run_status()`, `run_logout()`, `register()` |
 | `backup.py` | ``clite backup``: archive and restore the agent's home directory. | `create_backup()`, `restore_backup()`, `run_backup()`, `register()` |
 | `batch.py` | ``clite batch``: run many prompts without watching, and keep the results on disk. | `run_run()`, `run_usage()`, `register()` |
 | `chat.py` | ``clite chat``: the interactive REPL, or one query with ``-q``. | `add_chat_arguments()`, `session_options()`, `wants_tui()`, `run_chat()`, `register()` |
 | `completion.py` | ``clite completion bash\|zsh\|fish``: shell completion built from the real parser. | `run_completion()`, `register()` |
 | `config.py` | ``clite config``: read and write config.yaml. | `run_show()`, `run_get()`, `run_set()`, `run_unset()`, `run_path()`, `run_env()`, `run_edit()`, `run_migrate()`, `register()` |
-| `cron.py` | ``clite cron``: scheduled agent tasks. | `run_list()`, `run_add()`, `run_tick()`, `run_daemon()`, `register()` |
-| `gateway.py` | ``clite gateway``: run the messaging gateway and manage who may talk to it. | `run_gateway()`, `run_status()`, `run_pair_list()`, `run_pair_approve()`, `run_pair_revoke()`, `register()` |
+| `cron.py` | ``clite cron``: scheduled agent tasks. | `run_list()`, `run_history()`, `run_add()`, `run_tick()`, `run_daemon()`, `register()` |
+| `gateway.py` | ``clite gateway``: run the messaging gateway and manage who may talk to it. | `run_gateway()`, `run_install()`, `run_uninstall()`, `run_start()`, `run_stop()`, `run_restart()`, `run_logs()`, `run_status()`, `run_pair_list()`, `run_pair_approve()`, … (+2) |
 | `hooks.py` | ``clite hooks``: review, approve, revoke and try the shell hooks from ``config.yaml``. | `run_list()`, `run_approve()`, `run_revoke()`, `run_test()`, `register()` |
 | `mcp.py` | ``clite mcp``: add, list, remove and test MCP servers without editing YAML. | `run_add()`, `run_list()`, `run_remove()`, `run_test()`, `register()` |
 | `misc.py` | Small commands: version, status, doctor, logs, memory, acp. | `run_version()`, `run_status()`, `run_doctor()`, `run_logs()`, `run_memory()`, `run_acp()`, `run_insights()`, `register()` |
@@ -118,6 +119,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `tui.py` | ``clite tui``: the Node terminal interface, which talks to this package over JSON-RPC. | `find_tui_bundle()`, `tui_arguments()`, `launch_tui()`, `run_tui()`, `register()` |
 | `uninstall.py` | ``clite uninstall``: remove the package and optionally purge the home directory. | `run_uninstall()`, `register()` |
 | `update.py` | ``clite update``: check for updates and upgrade the installation. | `detect_install_method()`, `check_latest_version()`, `run_update()`, `register()` |
+| `webhook.py` | ``clite webhook``: manage names and HMAC secrets for inbound webhooks. | `run_add()`, `run_list()`, `run_remove()`, `register()` |
 
 ## `clite/core/`
 
@@ -134,7 +136,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `locking.py` | Cross-process file locks that lock on POSIX and on Windows. | `exclusive_lock()` |
 | `logging.py` | File logging under ``<home>/logs``: ``agent.log`` (INFO+) and ``errors.log`` (WARNING+). | `setup_logging()`, `reset_logging()` |
 | `profiles.py` | Profiles: fully separate homes under ``<default root>/profiles/<name>``. | `ProfileInfo`, `validate_profile_name()`, `get_sticky_profile()`, `get_active_profile_name()`, `list_profiles()`, `profile_exists()`, `create_profile()`, `delete_profile()`, `set_sticky_profile()`, `apply_profile_override()` |
-| `redact.py` | Redaction: keep credentials out of transcripts and logs. | `redact()` |
+| `redact.py` | Redaction: keep credentials out of transcripts and logs. | `register_credential_value()`, `unregister_credential_value()`, `credential_values()`, `reset_redact_state()`, `redact()` |
 | `threads.py` | Threads that carry the caller's context. | `start_thread()` |
 | `threats.py` | Scan text that will be injected into the system prompt. | `Threat`, `scan_text()`, `describe()` |
 
@@ -143,6 +145,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | Scheduled jobs: agent tasks that run on a schedule in fresh sessions. |  |
+| `history.py` | Persistent cron execution history and retryable delivery queue. | `CronHistory` |
 | `jobs.py` | Scheduled jobs: storage and state transitions. | `JobError`, `JobStore`, `get_job_store()`, `reset_job_stores()` |
 | `schedule.py` | Schedules: parsing what the user wrote and computing the next run time. | `ScheduleError`, `Schedule`, `get_timezone()`, `parse_duration()`, `CronExpression`, `parse_schedule()`, `next_run()` |
 | `scheduler.py` | Running scheduled jobs. | `build_job_prompt()`, `run_job()`, `tick()`, `Scheduler` |
@@ -153,9 +156,12 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | --- | --- | --- |
 | `__init__.py` | The messaging gateway: one long-running process serving every configured chat platform. |  |
 | `event.py` | What a platform adapter hands to the gateway, and what it gets back. | `SessionSource`, `MessageEvent`, `SendResult` |
+| `media.py` | Chat attachments: bring them into the session's directory and check them before use. | `MediaError`, `Attachment`, `media_dir()`, `cleanup_media()`, `classify()`, `StoredFile`, `store()` |
 | `pairing.py` | DM pairing: how an unknown user gets access without the owner editing config. | `PairingStore` |
 | `runner.py` | ``GatewayRunner``: the policy layer between chat platforms and the agent. | `active_runner()`, `reset_active_runners()`, `GatewaySession`, `GatewayRunner` |
+| `service.py` | System-service lifecycle for the gateway. | `service_name()`, `render_systemd_unit()`, `render_launch_agent()`, `service_path()`, `install()`, `uninstall()`, `GatewayLock`, `GatewayService`, `run_service()` |
 | `session.py` | Session keys: which conversation a message belongs to. | `build_session_key()`, `SessionMap` |
+| `stream.py` | Streaming answers into a chat: one message that grows, instead of a long silence. | `StreamSender`, `ProgressReporter`, `tool_line()` |
 
 ## `clite/gateway/platforms/`
 
@@ -194,7 +200,9 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `errors.py` | API error classification: one place decides what a failure means and what to try next. | `FailoverReason`, `ClassifiedError`, `classify_api_error()` |
 | `http.py` | The HTTP seam for model calls: standard library only, cancellable, proxy-aware. | `ProviderHTTPError`, `Cancelled`, `CancelHandle`, `SSEEvent`, `HttpClient`, `parse_sse()` |
 | `model_switch.py` | Model switching: one pipeline for ``/model`` in the CLI, the TUI, the desktop app and the gateway. | `ModelSwitchResult`, `parse_model_input()`, `switch_model()` |
-| `models.py` | Model catalog: which models a provider offers, and how large their context windows are. | `ModelInfo`, `fetch_models()`, `list_models()`, `get_context_length()` |
+| `models.py` | Model catalog: which models a provider offers, and how large their context windows are. | `ModelInfo`, `fetch_models()`, `get_cached_model_pricing()`, `list_models()`, `get_context_length()` |
+| `oauth.py` | OAuth 2.0 PKCE and device code authorization for model providers. | `get_auth_file_path()`, `load_auth_store()`, `save_auth_store()`, `get_provider_tokens()`, `save_provider_tokens()`, `delete_provider_tokens()`, `list_auth_statuses()`, `get_valid_oauth_token()`, `has_valid_token()`, `get_oauth_credential()`, … (+5) |
+| `pricing.py` | Model pricing and cost estimation: rates per million tokens and layered lookup. | `ModelPricing`, `resolve_model_pricing()` |
 | `registry.py` | Provider registry with lazy, layered discovery. | `register_provider()`, `list_providers()`, `get_provider()`, `reset_providers()`, `reset_user_layers()` |
 | `runtime.py` | Runtime provider resolution: from "what the user asked for" to a route that can be called. | `RuntimeRoute`, `resolve_runtime_provider()`, `resolve_fallback_routes()` |
 | `testing.py` | Test doubles for the model client. | `text_response()`, `tool_call_response()`, `mock_route()`, `ScriptedClient` |
@@ -217,7 +225,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | --- | --- | --- |
 | `__init__.py` |  |  |
 | `entry.py` | Stdio entry point: ``python -m clite.rpc.entry``. | `serve_stdio()`, `main()` |
-| `methods.py` | RPC method handlers. | `ping()`, `system_info()`, `session_create()`, `session_info()`, `session_list()`, `session_history()`, `session_close()`, `session_interrupt()`, `session_steer()`, `session_title()`, … (+36) |
+| `methods.py` | RPC method handlers. | `ping()`, `system_info()`, `session_create()`, `session_info()`, `session_list()`, `session_history()`, `session_close()`, `session_interrupt()`, `session_steer()`, `session_title()`, … (+37) |
 | `server.py` | The JSON-RPC server: one instance per client connection. | `RpcError`, `rpc_method()`, `RpcServer`, `reset_server_state()` |
 | `session.py` | ``RpcSession``: a ``ChatSession`` whose callbacks become JSON-RPC events. | `RpcSession` |
 | `transport.py` | Transports: how JSON-RPC messages leave the server. | `Transport`, `StdioTransport`, `MemoryTransport`, `WebSocketTransport` |
@@ -228,7 +236,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | --- | --- | --- |
 | `__init__.py` |  |  |
 | `base.py` | Contract registries: every JSON-RPC method, event and server request is declared once. | `Params`, `Result`, `Payload`, `Empty`, `Ok`, `MethodSpec`, `ServerRequestSpec`, `method()`, `event()`, `server_request()` |
-| `schema.py` | The protocol, declared: methods (client to server), events and server requests. | `ContextStatus`, `SessionInfo`, `StoredSession`, `TranscriptMessage`, `UsageTotals`, `CommandEntry`, `PingResult`, `SystemInfoResult`, `SessionCreateParams`, `SessionRef`, … (+84) |
+| `schema.py` | The protocol, declared: methods (client to server), events and server requests. | `ContextStatus`, `SessionInfo`, `StoredSession`, `TranscriptMessage`, `UsageTotals`, `CommandEntry`, `PingResult`, `SystemInfoResult`, `SessionCreateParams`, `SessionRef`, … (+87) |
 
 ## `clite/runtime/`
 
@@ -251,11 +259,13 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | The headless backend: HTTP + WebSocket JSON-RPC for the desktop app and the dashboard. |  |
-| `app.py` | The ASGI app behind ``clite serve`` and ``clite dashboard``. | `max_message_bytes()`, `allowed_hosts()`, `presented_token()`, `host_allowed()`, `origin_allowed()`, `create_app()`, `create_plugin_pages_app()` |
+| `app.py` | The ASGI app behind ``clite serve`` and ``clite dashboard``. | `max_message_bytes()`, `allowed_hosts()`, `presented_token()`, `host_allowed()`, `websocket_host_allowed()`, `origin_allowed()`, `create_app()`, `create_plugin_pages_app()` |
 | `audit.py` | The audit trail for a reachable server. | `audit_path()`, `audit()` |
 | `limits.py` | Limits that keep a reachable server from being an easy target. | `TokenThrottle`, `too_large()`, `client_address()` |
+| `openai_api.py` | OpenAI-compatible chat completions routes for the optional HTTP API. | `routes()` |
 | `run.py` | Starting the backend: bind, announce readiness, serve. | `bind_refusal()`, `bind_socket()`, `dashboard_url()`, `start_plugin_pages()`, `serve()` |
 | `tokens.py` | Named session tokens for ``clite serve``, stored as hashes. | `TokenError`, `tokens_path()`, `token_digest()`, `TokenRecord`, `TokenStore`, `get_token_store()`, `reset_token_stores()` |
+| `webhooks.py` | Configured, HMAC-authenticated inbound webhooks for the optional HTTP server. | `webhook_secret_name()`, `routes()` |
 
 ## `clite/skills/`
 
@@ -309,6 +319,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `image_gen.py` | ``image_generate``: draw or edit a picture through a configured ``ImageProvider``. | `image_generate_tool()` |
 | `memory.py` | ``memory``: persistent notes across sessions (MEMORY.md and USER.md). | `memory_tool()` |
 | `process.py` | Background processes: start with ``terminal(background=true)``, manage with ``process``. | `ManagedProcess`, `ProcessRegistry`, `reset_process_registry()`, `process_tool()` |
+| `send_file.py` | ``send_file``: hand a local file to the user over a connected chat platform. | `send_file_tool()` |
 | `send_message.py` | ``send_message``: let the agent message a chat on a connected platform. | `send_message_tool()` |
 | `session_search.py` | ``session_search``: recall past conversations from the session database. | `session_search_tool()` |
 | `skills.py` | Skill tools: list, view (progressive disclosure), and manage (procedural memory). | `skills_list_tool()`, `skill_view_tool()`, `skill_manage_tool()` |
@@ -335,4 +346,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 199 modul.
+Jumlah: 210 modul.

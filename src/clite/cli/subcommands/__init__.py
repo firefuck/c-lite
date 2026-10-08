@@ -5,6 +5,7 @@ does not change.
 """
 
 SUBCOMMAND_MODULES = (
+    "auth",
     "chat",
     "setup",
     "model",
@@ -19,6 +20,7 @@ SUBCOMMAND_MODULES = (
     "profile",
     "cron",
     "gateway",
+    "webhook",
     "serve",
     "tui",
     "completion",

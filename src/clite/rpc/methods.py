@@ -96,6 +96,7 @@ def session_list(server: RpcServer, params: schema.SessionListParams) -> schema.
                 last_activity_at=row.get("last_activity_at"),
                 archived=bool(row.get("archived")),
                 pinned=bool(row.get("pinned")),
+                estimated_cost_usd=row.get("estimated_cost_usd"),
             )
             for row in rows
         ]
@@ -239,6 +240,10 @@ def session_compress(server: RpcServer, params: schema.SessionCompressParams) ->
 def session_usage(server: RpcServer, params: schema.SessionRef) -> schema.SessionUsageResult:
     agent = server.get_session(params.session_id).chat.agent
     usage = agent.total_usage
+    row = get_session_db().get_session(agent.session_id) or {}
+    cost = row.get("estimated_cost_usd")
+    if cost is None:
+        cost = agent.total_cost_usd
     return schema.SessionUsageResult(
         usage=schema.UsageTotals(
             input_tokens=usage.input_tokens,
@@ -247,8 +252,10 @@ def session_usage(server: RpcServer, params: schema.SessionRef) -> schema.Sessio
             cache_write_tokens=usage.cache_write_tokens,
             reasoning_tokens=usage.reasoning_tokens,
             prompt_tokens=usage.prompt_tokens,
+            estimated_cost_usd=cost,
         ),
         context=schema.ContextStatus(**agent.context_status()),
+        estimated_cost_usd=cost,
     )
 
 
@@ -668,6 +675,17 @@ def cron_list(server: RpcServer, params: Empty) -> schema.CronListResult:
     from clite.cron.jobs import get_job_store
 
     return schema.CronListResult(jobs=[_job(job) for job in get_job_store().list()])
+
+
+@rpc_method("cron.history")
+def cron_history(server: RpcServer, params: schema.CronHistoryParams) -> schema.CronHistoryResult:
+    from clite.cron.history import CronHistory
+    from clite.cron.jobs import get_job_store
+
+    store = get_job_store()
+    return schema.CronHistoryResult(
+        entries=[schema.CronHistoryEntry.model_validate(entry) for entry in CronHistory(store.directory).list(params.job_id)]
+    )
 
 
 @rpc_method("cron.create")

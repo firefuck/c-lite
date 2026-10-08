@@ -106,7 +106,7 @@ luar event loop dijaga oleh `tests/server/test_context.py`.
 | Dashboard React + Vite | ⬜ | Hanya bila JS polos tidak lagi cukup: F5-T3 |
 | Token bernama, pembatasan laju, batas ukuran pesan, TLS, daftar host, log audit | ✅ | F5-T6 |
 | Autentikasi pengguna (login, banyak akun) | ⬜ | Belum ada task-nya |
-| Endpoint kompatibel OpenAI (`/v1/chat/completions`) | ⬜ | F4-T10 |
+| Endpoint kompatibel OpenAI (`/v1/chat/completions`) | ✅ | Nonstreaming dan SSE, token API, serta penolakan Host asing pada loopback dijaga `tests/server/test_server.py`: F4-T10 |
 | Halaman dari plugin | ✅ | F6-T5: listener dan port sendiri (origin sendiri), bingkai ber-sandbox, hanya aset web di dalam direktori plugin. Tanpa jembatan data: halaman tidak bisa meminta sesuatu ke backend |
 
 ## Yang sengaja berbeda dari Hermes

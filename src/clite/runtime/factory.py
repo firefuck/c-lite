@@ -17,7 +17,7 @@ from clite.runtime.maintenance import run_startup_maintenance
 from clite.tools.registry import discover_builtin_tools
 
 # Platforms where a person sits at this machine. They share the user's main toolset setting.
-LOCAL_PLATFORMS = frozenset({"cli", "tui", "desktop", "api", "acp"})
+LOCAL_PLATFORMS = frozenset({"cli", "tui", "desktop", "acp"})
 
 
 def default_toolsets(platform: str, config: dict[str, Any]) -> list[str]:

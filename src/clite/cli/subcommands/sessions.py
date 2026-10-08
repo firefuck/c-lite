@@ -35,9 +35,11 @@ def run_list(args: argparse.Namespace) -> int:
         print("No sessions yet.")
         return 0
     for row in rows:
+        cost = row.get("estimated_cost_usd")
+        cost_str = f"${cost:.4f}" if cost is not None else "unknown"
         print(
             f"{row['id']}  {_when(row.get('last_activity_at') or row['started_at'])}  {row['source']:<8} "
-            f"{row['message_count']:>4} msgs  {row.get('model') or '':<24.24} {row.get('title') or ''}"
+            f"{row['message_count']:>4} msgs  {cost_str:>10}  {row.get('model') or '':<24.24} {row.get('title') or ''}"
         )
     return 0
 

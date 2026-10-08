@@ -260,30 +260,51 @@ class SessionDB:
         cache_write_tokens: int = 0,
         reasoning_tokens: int = 0,
         api_calls: int = 0,
-        cost_usd: float = 0.0,
+        cost_usd: float | None = None,
     ) -> None:
         with self._lock:
-            self._conn.execute(
-                """UPDATE sessions SET
-                     input_tokens = input_tokens + ?, output_tokens = output_tokens + ?,
-                     cache_read_tokens = cache_read_tokens + ?,
-                     cache_write_tokens = cache_write_tokens + ?,
-                     reasoning_tokens = reasoning_tokens + ?, api_call_count = api_call_count + ?,
-                     estimated_cost_usd = COALESCE(estimated_cost_usd, 0) + ?,
-                     last_activity_at = ?
-                   WHERE id = ?""",
-                (
-                    input_tokens,
-                    output_tokens,
-                    cache_read_tokens,
-                    cache_write_tokens,
-                    reasoning_tokens,
-                    api_calls,
-                    cost_usd,
-                    time.time(),
-                    session_id,
-                ),
-            )
+            if cost_usd is not None:
+                self._conn.execute(
+                    """UPDATE sessions SET
+                         input_tokens = input_tokens + ?, output_tokens = output_tokens + ?,
+                         cache_read_tokens = cache_read_tokens + ?,
+                         cache_write_tokens = cache_write_tokens + ?,
+                         reasoning_tokens = reasoning_tokens + ?, api_call_count = api_call_count + ?,
+                         estimated_cost_usd = COALESCE(estimated_cost_usd, 0) + ?,
+                         last_activity_at = ?
+                       WHERE id = ?""",
+                    (
+                        input_tokens,
+                        output_tokens,
+                        cache_read_tokens,
+                        cache_write_tokens,
+                        reasoning_tokens,
+                        api_calls,
+                        cost_usd,
+                        time.time(),
+                        session_id,
+                    ),
+                )
+            else:
+                self._conn.execute(
+                    """UPDATE sessions SET
+                         input_tokens = input_tokens + ?, output_tokens = output_tokens + ?,
+                         cache_read_tokens = cache_read_tokens + ?,
+                         cache_write_tokens = cache_write_tokens + ?,
+                         reasoning_tokens = reasoning_tokens + ?, api_call_count = api_call_count + ?,
+                         last_activity_at = ?
+                       WHERE id = ?""",
+                    (
+                        input_tokens,
+                        output_tokens,
+                        cache_read_tokens,
+                        cache_write_tokens,
+                        reasoning_tokens,
+                        api_calls,
+                        time.time(),
+                        session_id,
+                    ),
+                )
             self._conn.commit()
 
     def list_sessions(

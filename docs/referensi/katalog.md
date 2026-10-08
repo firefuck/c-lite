@@ -16,6 +16,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `search_files` | `file` | safe | Search the project. |
 | `write_file` | `file` | path | Create a file or replace its whole content. |
 | `memory` | `memory` | never | Save durable facts to persistent memory. |
+| `send_file` | `messaging` | never | Send a local file to the user through a connected chat platform, for example a report or a generated image. |
 | `send_message` | `messaging` | never | Send a message to a chat on a connected platform, for example to tell the user something later on Telegram while working elsewhere. |
 | `session_search` | `session_search` | safe | Search past conversations (all sessions, including parts that were summarised away) by keyword. |
 | `skill_manage` | `skills` | never | Create and maintain skills: your procedural memory. |
@@ -45,9 +46,9 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `clarify` | Ask the user a question | `clarify` |
 | `delegation` | Spawn subagents with isolated context | `delegate_task` |
 | `cronjob` | Schedule recurring or one-off agent tasks | `cronjob` |
-| `messaging` | Send messages to connected chat platforms | `send_message` |
-| `clite-cli` | Everything, for the interactive terminal | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob`, `send_message` |
-| `clite-gateway` | Messaging platforms | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob`, `send_message` |
+| `messaging` | Send messages and files to connected chat platforms | `send_message`, `send_file` |
+| `clite-cli` | Everything, for the interactive terminal | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob`, `send_message`, `send_file` |
+| `clite-gateway` | Messaging platforms | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob`, `send_message`, `send_file` |
 | `clite-cron` | Scheduled runs | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `delegate_task` |
 | `clite-subagent` | Delegated workers | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `todo`, `skills_list`, `skill_view`, `skill_manage`, `session_search` |
 
@@ -106,6 +107,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 
 | Perintah | Fungsi | Sub-perintah |
 | --- | --- | --- |
+| `clite auth` | manage OAuth authentication for model providers | `login`, `status`, `logout` |
 | `clite chat` | talk to the agent (default command) |  |
 | `clite setup` | choose a provider, store its API key and pick a model |  |
 | `clite model` | show, list or set the model | `show`, `list`, `set`, `providers` |
@@ -118,8 +120,9 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `clite sessions` | list, show, search, export or delete sessions | `list`, `show`, `rename`, `delete`, `export`, `search`, `prune` |
 | `clite batch` | run many prompts unattended | `run` |
 | `clite profile` | manage profiles (separate homes) | `list`, `show`, `create`, `use`, `delete` |
-| `clite cron` | schedule agent tasks | `list`, `add`, `pause`, `resume`, `run`, `remove`, `tick`, `daemon` |
-| `clite gateway` | run the messaging gateway | `run`, `status`, `pair` |
+| `clite cron` | schedule agent tasks | `list`, `add`, `history`, `pause`, `resume`, `run`, `remove`, `tick`, `daemon` |
+| `clite gateway` | run the messaging gateway | `run`, `install`, `uninstall`, `start`, `stop`, `restart`, `logs`, `status`, `pair` |
+| `clite webhook` | manage inbound HMAC webhooks | `add`, `list`, `remove` |
 | `clite serve` | run the headless backend (for the desktop app or a remote client) | `token` |
 | `clite dashboard` | run the backend and open the web dashboard |  |
 | `clite tui` | start the terminal UI (needs Node.js) |  |
@@ -158,7 +161,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `session.archive` | `stored_session_id`, `archived` | `ok?` | Archive or restore a stored session. |
 | `session.export` | `stored_session_id`, `format?` | `filename`, `content`, `count?` | A stored session as JSON text, for the client to save. |
 | `session.compress` | `session_id`, `focus?` | `compressed`, `message_count` |  |
-| `session.usage` | `session_id` | `usage`, `context` |  |
+| `session.usage` | `session_id` | `usage`, `context`, `estimated_cost_usd?` |  |
 | `prompt.submit` | `session_id`, `text`, `busy_mode?`, `attachments?` | `accepted`, `turn_id?`, `queued?` | Start a turn. Returns at once; the answer arrives as events ending with turn.complete. |
 | `slash.exec` | `session_id`, `command` | `text?`, `action?`, `turn_id?`, `data?` | Run a slash command. |
 | `commands.catalog` | `session_id?` | `commands` | Every command available now, for help and autocomplete. |
@@ -183,6 +186,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `mcp.status` | (kosong) | `servers`, `configured?` | Known MCP servers, their transport, and what they serve. |
 | `memory.set` | `action`, `target`, `content?`, `old_text?` | `success`, `message?`, `memory?`, `user?`, `memory_limit?`, `user_limit?`, `provider?` | Add, replace or remove one memory entry, through the same store the tool uses. |
 | `cron.list` | (kosong) | `jobs` |  |
+| `cron.history` | `job_id?` | `entries` |  |
 | `cron.create` | `prompt`, `schedule`, `name?`, `deliver?`, `repeat?` | `id`, `name?`, `prompt?`, `schedule_display?`, `enabled?`, `deliver?`, `next_run_at?`, `last_run_at?`, `last_status?`, `last_error?`, `run_count?` |  |
 | `cron.action` | `job_id`, `action` | `jobs` |  |
 | `cron.output` | `job_id`, `max_chars?` | `job_id`, `content?`, `path?`, `truncated?` | The last run's saved output, redacted and capped. |
@@ -203,7 +207,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `tool.complete` | `call_id`, `name`, `duration`, `failed?`, `result_preview?`, `diff?` |
 | `status.update` | `kind`, `text` |
 | `subagent.update` | `event`, `index?`, `goal?`, `tool?`, `status?`, `args?`, `iteration?`, `model?`, `spawn_id?` |
-| `turn.complete` | `turn_id`, `final_response`, `completed`, `interrupted?`, `error?`, `exit_reason?`, `api_calls?`, `duration?`, `usage?` |
+| `turn.complete` | `turn_id`, `final_response`, `completed`, `interrupted?`, `error?`, `exit_reason?`, `api_calls?`, `duration?`, `usage?`, `cost_usd?`, `estimated_cost_usd?` |
 | `error` | `message`, `code?` |
 
 ### Permintaan dari server ke klien
@@ -271,9 +275,13 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | Platform |
 | --- |
 | `discord` |
+| `email` |
 | `local` |
+| `matrix` |
+| `signal` |
 | `slack` |
 | `telegram` |
+| `whatsapp` |
 
 ## Plugin bawaan
 
@@ -281,10 +289,14 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | --- | --- | --- |
 | `audit-log` | standalone | Record every tool call to logs/tool-audit.jsonl and show recent ones with /audit |
 | `context-sliding-window` | backend | Sliding-window context engine: drop the middle, keep a protected head and tail (no summariser call) |
+| `email` | platform | Receive allowed email senders over IMAP and reply over SMTP |
 | `image-gen-openai` | backend | Image generation via the OpenAI Images API (requires OPENAI_API_KEY) |
+| `matrix` | platform | Receive and send Matrix room messages through the Client-Server API |
 | `memory-sqlite` | backend | Long-term memory in SQLite: facts saved with a tool, found again with FTS5 search in later sessions |
+| `signal` | platform | Receive and send Signal messages through a user-run signal-cli REST service |
 | `web-search-ddg` | backend | Web search via the DuckDuckGo HTML endpoint (no API key required) |
 | `web-search-tavily` | backend | Web search via the Tavily API (requires TAVILY_API_KEY) |
+| `whatsapp` | platform | Receive WhatsApp Cloud API webhooks and send replies through the Graph API |
 
 ## Skill bawaan
 
@@ -311,6 +323,7 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `model.vision` | `null` |
 | `providers` | `{}` |
 | `fallback_providers` | `[]` |
+| `pricing.overrides` | `{}` |
 | `toolsets` | `["clite-cli"]` |
 | `disabled_toolsets` | `[]` |
 | `platform_toolsets` | `{}` |
@@ -421,6 +434,9 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `cron.enabled` | `true` |
 | `cron.catch_up_missed` | `true` |
 | `cron.inactivity_timeout_seconds` | `600` |
+| `cron.delivery_max_attempts` | `3` |
+| `cron.max_concurrent_jobs` | `4` |
+| `cron.max_jobs_from_tool` | `20` |
 | `server.host` | `"127.0.0.1"` |
 | `server.port` | `0` |
 | `server.allowed_hosts` | `[]` |
@@ -429,6 +445,9 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `server.rate_limit.window_seconds` | `60` |
 | `server.rate_limit.delay_seconds` | `5` |
 | `server.audit_log` | `true` |
+| `server.openai_api_enabled` | `false` |
+| `server.webhooks_enabled` | `false` |
+| `webhooks` | `{}` |
 | `sessions.auto_prune` | `false` |
 | `sessions.retention_days` | `90` |
 | `checkpoints.max_bytes` | `100000000` |

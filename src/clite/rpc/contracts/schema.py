@@ -55,6 +55,7 @@ class StoredSession(Result):
     last_activity_at: float | None = None
     archived: bool = False
     pinned: bool = False
+    estimated_cost_usd: float | None = None
 
 
 class TranscriptMessage(Result):
@@ -73,6 +74,7 @@ class UsageTotals(Result):
     cache_write_tokens: int = 0
     reasoning_tokens: int = 0
     prompt_tokens: int = 0
+    estimated_cost_usd: float | None = None
 
 
 class CommandEntry(Result):
@@ -216,6 +218,7 @@ class SessionCompressResult(Result):
 class SessionUsageResult(Result):
     usage: UsageTotals
     context: ContextStatus
+    estimated_cost_usd: float | None = None
 
 
 method(
@@ -580,6 +583,25 @@ class CronListResult(Result):
     jobs: list[CronJob]
 
 
+class CronHistoryEntry(Result):
+    job_id: str
+    started_at: float
+    duration_seconds: float
+    status: str
+    usage: dict[str, int] = {}
+    output_path: str | None = None
+    error: str | None = None
+    script_error: str | None = None
+
+
+class CronHistoryParams(Params):
+    job_id: str | None = None
+
+
+class CronHistoryResult(Result):
+    entries: list[CronHistoryEntry]
+
+
 class CronCreateParams(Params):
     prompt: str
     schedule: str
@@ -645,6 +667,7 @@ method(
     "Add, replace or remove one memory entry, through the same store the tool uses.",
 )
 method("cron.list", Empty, CronListResult)
+method("cron.history", CronHistoryParams, CronHistoryResult)
 method("cron.create", CronCreateParams, CronJob)
 method("cron.action", CronActionParams, CronListResult)
 method(
@@ -728,6 +751,8 @@ class TurnCompletePayload(Payload):
     api_calls: int = 0
     duration: float = 0.0
     usage: UsageTotals = UsageTotals()
+    cost_usd: float | None = None
+    estimated_cost_usd: float | None = None
 
 
 class ErrorPayload(Payload):

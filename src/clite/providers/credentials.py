@@ -38,6 +38,14 @@ class CredentialPool:
                 value = get_secret(name)
                 if value and all(value != existing.value for existing in found):
                     found.append(Credential(name, value))
+        try:
+            from clite.providers.oauth import get_oauth_credential
+
+            oauth_cred = get_oauth_credential(self.provider)
+            if oauth_cred is not None and all(oauth_cred.value != existing.value for existing in found):
+                found.append(oauth_cred)
+        except Exception:
+            pass
         return found
 
     def current(self) -> Credential | None:

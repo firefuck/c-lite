@@ -121,6 +121,25 @@ export interface CronCreateParams {
   repeat?: number | null;
 }
 
+export interface CronHistoryEntry {
+  job_id: string;
+  started_at: number;
+  duration_seconds: number;
+  status: string;
+  usage: Record<string, number>;
+  output_path: string | null;
+  error: string | null;
+  script_error: string | null;
+}
+
+export interface CronHistoryParams {
+  job_id?: string | null;
+}
+
+export interface CronHistoryResult {
+  entries: CronHistoryEntry[];
+}
+
 export interface CronJob {
   id: string;
   name: string;
@@ -438,6 +457,7 @@ export interface SessionTitleResult {
 export interface SessionUsageResult {
   usage: UsageTotals;
   context: ContextStatus;
+  estimated_cost_usd: number | null;
 }
 
 export interface SetupApplyParams {
@@ -516,6 +536,7 @@ export interface StoredSession {
   last_activity_at: number | null;
   archived: boolean;
   pinned: boolean;
+  estimated_cost_usd: number | null;
 }
 
 export interface SubagentPayload {
@@ -590,6 +611,8 @@ export interface TurnCompletePayload {
   api_calls: number;
   duration: number;
   usage: UsageTotals;
+  cost_usd: number | null;
+  estimated_cost_usd: number | null;
 }
 
 export interface TurnStartPayload {
@@ -604,6 +627,7 @@ export interface UsageTotals {
   cache_write_tokens: number;
   reasoning_tokens: number;
   prompt_tokens: number;
+  estimated_cost_usd: number | null;
 }
 
 /** Client-to-server methods. */
@@ -678,6 +702,7 @@ export interface Methods {
   /** Add, replace or remove one memory entry, through the same store the tool uses. */
   "memory.set": { params: MemoryEditParams; result: MemoryEditResult };
   "cron.list": { params: Empty; result: CronListResult };
+  "cron.history": { params: CronHistoryParams; result: CronHistoryResult };
   "cron.create": { params: CronCreateParams; result: CronJob };
   "cron.action": { params: CronActionParams; result: CronListResult };
   /** The last run's saved output, redacted and capped. */
@@ -711,7 +736,7 @@ export interface ServerRequests {
   "clarify.request": { params: ClarifyRequestParams; result: ClarifyRequestResult };
 }
 
-export const METHOD_NAMES = ["ping", "system.info", "session.create", "session.info", "session.list", "session.history", "session.close", "session.interrupt", "session.steer", "session.title", "session.delete", "session.rename", "session.search", "session.pin", "session.archive", "session.export", "session.compress", "session.usage", "prompt.submit", "slash.exec", "commands.catalog", "complete.slash", "config.get", "config.list", "config.set", "model.list", "model.set", "providers.list", "setup.apply", "tools.list", "skills.list", "skills.view", "plugins.list", "plugins.set_enabled", "credentials.list", "credentials.set", "credentials.delete", "memory.get", "hooks.status", "mcp.status", "memory.set", "cron.list", "cron.create", "cron.action", "cron.output", "logs.tail"] as const;
+export const METHOD_NAMES = ["ping", "system.info", "session.create", "session.info", "session.list", "session.history", "session.close", "session.interrupt", "session.steer", "session.title", "session.delete", "session.rename", "session.search", "session.pin", "session.archive", "session.export", "session.compress", "session.usage", "prompt.submit", "slash.exec", "commands.catalog", "complete.slash", "config.get", "config.list", "config.set", "model.list", "model.set", "providers.list", "setup.apply", "tools.list", "skills.list", "skills.view", "plugins.list", "plugins.set_enabled", "credentials.list", "credentials.set", "credentials.delete", "memory.get", "hooks.status", "mcp.status", "memory.set", "cron.list", "cron.history", "cron.create", "cron.action", "cron.output", "logs.tail"] as const;
 export const EVENT_TYPES = ["gateway.ready", "session.info", "turn.start", "turn.step", "message.delta", "reasoning.delta", "message.complete", "tool.start", "tool.complete", "status.update", "subagent.update", "turn.complete", "error"] as const;
 export const SERVER_REQUEST_NAMES = ["approval.request", "clarify.request"] as const;
 
