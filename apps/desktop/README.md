@@ -79,7 +79,8 @@ npm run package --workspace apps/desktop -- --mac
 npm run package --workspace apps/desktop -- --win
 ```
 
-Hasilnya di `apps/desktop/release/`. Yang tidak ditandatangani tetap dibangun: tanpa sertifikat
+Hasilnya muncul di subdirektori `release` milik aplikasi desktop (diabaikan git, seperti `dist`).
+Yang tidak ditandatangani tetap dibangun: tanpa sertifikat
 macOS Gatekeeper dan Windows SmartScreen akan memperingatkan pengguna. Runtime Python **tidak**
 disertakan — aplikasi memanggil `clite` yang sudah terpasang; alasannya di
 `docs/spesifikasi/desktop.md`, bagian "Membawa backend".

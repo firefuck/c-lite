@@ -572,7 +572,11 @@ function askToken() {
 }
 
 function askApproval(params) {
-  notify("Approval needed", params.description || params.command || "", activeView());
+  notify(
+    "Approval needed",
+    params.description || params.command || "",
+    viewOf(params.session_id) || activeView(),
+  );
   return new Promise((resolve) => {
     const choose = (choice) => () => {
       $("#dialog").close();
