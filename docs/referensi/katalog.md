@@ -250,6 +250,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 
 | Platform |
 | --- |
+| `discord` |
 | `local` |
 | `telegram` |
 

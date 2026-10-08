@@ -138,7 +138,11 @@ def catalog() -> str:
     from clite.cli.main import build_parser
     from clite.core.config_defaults import DEFAULT_CONFIG
     from clite.gateway.platforms import base as platforms_base
-    from clite.gateway.platforms import local, telegram  # noqa: F401 - importing registers the adapters
+    from clite.gateway.platforms import (  # noqa: F401 - importing registers the adapters
+        discord,
+        local,
+        telegram,
+    )
     from clite.plugins.hooks import FAIL_CLOSED_HOOKS, VALID_HOOKS
     from clite.plugins.manager import get_plugin_manager
     from clite.plugins.shell_hooks import SHELL_HOOK_EVENTS

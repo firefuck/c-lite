@@ -89,6 +89,7 @@ class GatewayRunner:
 
     def start(self, *, with_cron: bool = True) -> list[str]:
         """Connect every enabled platform. Returns the names that started."""
+        import clite.gateway.platforms.discord  # noqa: F401
         import clite.gateway.platforms.local  # noqa: F401 - registers the built-in adapters
         import clite.gateway.platforms.telegram  # noqa: F401
 

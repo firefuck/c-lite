@@ -138,7 +138,7 @@ dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
 
 | Task | Judul | Ukuran | Bergantung pada | Status |
 |---|---|---|---|---|
-| F4-T1 | Discord | M | F1-T3 | ⬜ |
+| F4-T1 | Discord | M | F1-T3 | 🟡 |
 | F4-T2 | Slack | M | F1-T3 | ⬜ |
 | F4-T3 | WhatsApp, Signal, Matrix, email | L | F1-T3 | ⬜ |
 | F4-T4 | Lampiran masuk dan keluar | M | F2-T6 | ⬜ |

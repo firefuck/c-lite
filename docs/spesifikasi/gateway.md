@@ -96,7 +96,8 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
 | Adapter `local` | ✅ | |
 | Adapter Telegram | 🟡 | Diuji terhadap Bot API tiruan; token tidak sampai ke log (`test_a_network_error_never_puts_the_bot_token_in_the_log`). Belum terhadap Telegram sungguhan: F1-T3 |
 | Penjadwal cron di dalam gateway | ✅ | |
-| Discord, Slack | ⬜ | F4-T1, F4-T2 |
+| Adapter Discord | 🟡 | Diuji terhadap WebSocket Gateway v10 dan REST API tiruan; token rahasia terdaftar; thread dan mention kanal ditangani; sambung ulang saat heartbeat terlewat. Belum dicoba terhadap server Discord sungguhan: F4-T1 |
+| Slack | ⬜ | F4-T2 |
 | WhatsApp, Signal, Matrix, email, lainnya | ⬜ | F4-T3 |
 | Lampiran masuk dan keluar (gambar, suara, dokumen) | ⬜ | `MessageEvent.attachments` ada, belum dipakai: F4-T4 |
 | Jawaban streaming (menyunting pesan), progres tool | ⬜ | Hanya `send_typing`: F4-T5 |

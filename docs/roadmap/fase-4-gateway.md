@@ -44,9 +44,9 @@ Aturan yang berlaku untuk semua task ada di [README](README.md#selesai-itu-apa).
 `website/docs/developer-guide/adding-platform-adapters.md`.
 
 **Selesai bila.**
-- [ ] Tes terhadap server WebSocket lokal yang meniru Gateway Discord: pesan masuk, jawaban,
+- [x] Tes terhadap server WebSocket lokal yang meniru Gateway Discord: pesan masuk, jawaban,
       heartbeat yang terlewat memicu sambung ulang.
-- [ ] Tes: token bot terdaftar sebagai kredensial dan tidak muncul di log.
+- [x] Tes: token bot terdaftar sebagai kredensial dan tidak muncul di log.
 - [ ] Daftar periksa manual terhadap Discord asli dijalankan dan dicatat di `docs/STATUS.md`.
 
 **Ukuran.** M
