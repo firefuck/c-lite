@@ -78,6 +78,26 @@ Daftar lengkap method, event, dan permintaan server ada di
 - `session.search` menelusuri teks semua pesan tersimpan (FTS5, jatuh ke `LIKE` bila ekspresi
   FTS tidak sah) dan mengembalikan cuplikan bertanda `>>…<<`.
 
+**Sambung ulang**
+- `seq` di tiap event dihitung **satu kali per proses**, bukan per koneksi, supaya "seq terakhir
+  yang saya lihat" tetap berarti sama di seberang sambungan. `gateway.ready` ikut memakai satu
+  nomor, jadi klien hanya perlu mencatat nomor terbesar yang dilihatnya.
+- Server menyimpan `server.replay_buffer_events` event terakhir **per sesi** (dan
+  `server.replay_sessions` sesi sekaligus). Klien yang menyambung ulang memanggil
+  `session.attach {session_id, last_seq}` dan menerima yang terlewat.
+- Bila klien tertinggal lebih jauh daripada yang masih diingat, balasannya `complete: false` dan
+  tanpa event: klien harus memuat ulang riwayat (`session.history`), bukan melanjutkan aliran
+  yang bolong. `last_seq` di balasan adalah nomor terbaru server, jadi sambung ulang berikutnya
+  murah.
+- Sesi runtime **tidak** ditutup saat sambungan putus. Ia disimpan
+  `server.resume_grace_seconds` detik, dan giliran yang sedang berjalan tetap berjalan; klien
+  yang kembali mengambilnya dengan `session.attach`. Setelah masa itu habis, sesi ditutup seperti
+  biasa (`end_reason: rpc_closed`). `session.attach` untuk sesi yang sudah tidak ada adalah galat
+  `session_not_found`; klien harus membuka ulang sesi tersimpan lewat `session.create {resume}`.
+- Nomor, penyimpanan, dan penulisan ke transport terjadi dalam satu bagian kritis yang sama
+  dengan `session.attach`, sehingga sebuah event tidak pernah sekaligus terkirim langsung dan
+  diputar ulang.
+
 **Konfigurasi**
 - `config.get` membaca **tanpa ekspansi `${VAR}`**: nilai yang ditulis sebagai
   `${OPENAI_API_KEY}` kembali sebagai teks itu, bukan sebagai rahasianya. Runtime tetap memakai
@@ -111,11 +131,11 @@ Daftar lengkap method, event, dan permintaan server ada di
 
 | Fitur | Status | Catatan |
 |---|---|---|
-| 46 method, 13 event, 2 permintaan server | ✅ | Hermes: 251 method, 69 event, 13 permintaan server |
+| 47 method, 13 event, 2 permintaan server | ✅ | Hermes: 251 method, 69 event, 13 permintaan server |
 | Transport stdio dan WebSocket | ✅ | |
 | Generator TypeScript dan pemeriksaan kesegaran | ✅ | |
 | Klien TypeScript bersama (`apps/shared`) | ✅ | 21 tes |
-| Pemutaran ulang event setelah sambung ulang | ⬜ | `seq` sudah ada di tiap event; belum ada penyangga: F5-T5 |
+| Pemutaran ulang event setelah sambung ulang | ✅ | F5-T5: `session.attach` + penyangga berbatas di `rpc/replay.py` |
 | Lampiran gambar pada prompt | ✅ | `prompt.submit.attachments` (bidang opsional baru); path buruk menjadi galat 4004, bukan giliran gagal. Lampiran berkas lain: F2-T6 |
 | Method untuk profil, MCP, hook, log | ✅ | `hooks.status`, `mcp.status`, `logs.tail`; method profil: F5-T5 |
 | Halaman Sesi: cari, ganti judul, sematkan, arsipkan, hapus, ekspor | ✅ | `session.search`/`rename`/`pin`/`archive`/`export`; halaman Sesi di dashboard (`test_dashboard_browser.py`) |

@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 
 import pytest
 
@@ -737,13 +738,128 @@ def test_config_tools_skills_plugins_memory_cron(client):
     )
 
 
-def test_closing_the_server_ends_its_sessions(client):
+def test_closing_the_server_keeps_its_sessions_for_a_while(client):
+    """A dropped connection is not the end of a turn: the session is held, so a client that
+    comes back can pick it up. It ends when the grace runs out (or when nothing holds it)."""
+    from clite.rpc.replay import get_detached_sessions
+
+    rpc = client()
+    stored = rpc.call("session.create")["stored_session_id"]
+    runtime_id = next(iter(rpc.server.sessions))
+    rpc.run_turn(runtime_id, "hi")
+    rpc.server.close()
+    assert rpc.transport.closed is True
+    assert get_session_db().get_session(stored)["end_reason"] is None  # still open
+
+    # It is waiting, and a reconnect would get it back.
+    assert get_detached_sessions().adopt(runtime_id) is not None
+
+    # Past the grace, the reaper closes it.
+    rpc2 = client()
+    stored2 = rpc2.call("session.create")["stored_session_id"]
+    runtime2 = next(iter(rpc2.server.sessions))
+    rpc2.run_turn(runtime2, "hi")
+    rpc2.server.close()
+    assert get_detached_sessions().reap(now=time.monotonic() + 10_000) >= 1
+    assert get_session_db().get_session(stored2)["end_reason"] == "rpc_closed"
+
+
+def test_a_server_without_a_grace_period_ends_its_sessions_at_once(client):
+    from clite.rpc.replay import configure
+
+    configure(grace_seconds=0)
     rpc = client()
     stored = rpc.call("session.create")["stored_session_id"]
     rpc.run_turn(next(iter(rpc.server.sessions)), "hi")
     rpc.server.close()
     assert get_session_db().get_session(stored)["end_reason"] == "rpc_closed"
-    assert rpc.transport.closed is True
+
+
+def test_a_reconnect_replays_what_it_missed_and_the_turn_keeps_running(client):
+    """The test the task asks for: a client drops mid-turn, comes back, and gets the events it
+    missed — in order, without duplicates — while the turn was never interrupted."""
+    from clite.rpc.replay import get_event_log
+
+    release = threading.Event()
+
+    def slow(cancel, **kwargs):
+        while not release.is_set():
+            if cancel.wait(0.01):
+                raise InterruptedError
+        return text_response("finished while you were away")
+
+    first = client([slow])
+    session = first.call("session.create")
+    runtime_id, stored = session["session_id"], session["stored_session_id"]
+    first.call("prompt.submit", {"session_id": runtime_id, "text": "long job"})
+    first.wait_event("turn.step")
+    seen = first.transport.events()
+    last_seq = seen[-1]["seq"]
+
+    first.server.close()  # the socket drops, mid-turn
+    release.set()
+
+    # The turn is the session's own thread, not the connection's: it finishes anyway.
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        events, _complete = get_event_log().missed(runtime_id, last_seq)
+        if any(event["type"] == "turn.complete" for event in events):
+            break
+        time.sleep(0.01)
+    else:
+        pytest.fail("the turn did not finish after the connection dropped")
+
+    second = client()
+    attached = second.call("session.attach", {"session_id": runtime_id, "last_seq": last_seq})
+    assert attached["complete"] is True
+    types = [event["type"] for event in attached["events"]]
+    assert "turn.complete" in types
+    assert "turn.start" not in types  # that one arrived before the drop
+    seqs = [event["seq"] for event in attached["events"]]
+    assert seqs == sorted(seqs) and len(set(seqs)) == len(seqs)  # in order, no duplicates
+    assert last_seq not in seqs
+    finished = next(event for event in attached["events"] if event["type"] == "turn.complete")
+    assert finished["payload"]["completed"] is True
+    assert finished["payload"]["final_response"] == "finished while you were away"
+
+    # The session lives on this connection now.
+    assert attached["session"]["session_id"] == runtime_id
+    assert second.call("session.info", {"session_id": runtime_id})["stored_session_id"] == stored
+    # And it is usable: a new turn runs here.
+    assert second.run_turn(runtime_id, "after the reconnect")["accepted"] is True
+
+
+def test_a_client_that_fell_too_far_behind_is_told_to_reload(client):
+    from clite.rpc.replay import configure, get_event_log
+
+    configure(per_session=2)  # remember only two events per session
+    rpc = client()
+    session = rpc.call("session.create")
+    runtime_id = session["session_id"]
+    rpc.run_turn(runtime_id, "one")
+    rpc.run_turn(runtime_id, "two")
+    assert get_event_log().last_seq > 2
+
+    rpc.server.close()
+    second = client()
+    attached = second.call("session.attach", {"session_id": runtime_id, "last_seq": 0})
+    assert attached["complete"] is False  # a hole: reload history, do not stream it
+    assert attached["events"] == []
+    assert attached["last_seq"] == get_event_log().last_seq  # so the next one is cheap
+
+    # A client that is up to date needs nothing replayed.
+    second.server.close()
+    third = client()
+    up_to_date = third.call(
+        "session.attach", {"session_id": runtime_id, "last_seq": attached["last_seq"]}
+    )
+    assert up_to_date["complete"] is True and up_to_date["events"] == []
+
+
+def test_attaching_to_a_session_that_is_gone_is_an_error(client):
+    rpc = client()
+    error = rpc.error("session.attach", {"session_id": "never-existed"})
+    assert error["code"] == SESSION_NOT_FOUND and "no longer open" in error["message"]
 
 
 # ── the real process over stdio ──────────────────────────────────────────────────────────

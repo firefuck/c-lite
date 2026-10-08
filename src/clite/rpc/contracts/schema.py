@@ -172,6 +172,30 @@ class SessionExportResult(Result):
     count: int = 0
 
 
+class ReplayEvent(Result):
+    type: str
+    seq: int
+    session_id: str = ""
+    payload: dict[str, Any] = {}
+
+
+class SessionAttachParams(Params):
+    session_id: str
+    # The last `seq` the client saw. Events after it are replayed.
+    last_seq: int = 0
+
+
+class SessionAttachResult(Result):
+    session: SessionInfo
+    events: list[ReplayEvent] = []
+    # False when the client fell further behind than the server remembers: it must reload the
+    # transcript (`session.history`) instead of continuing from a stream with a hole in it.
+    complete: bool = True
+    # The newest seq the server had when the client attached. A client that reloaded its
+    # transcript stores this so the next reconnect asks only about what came after.
+    last_seq: int = 0
+
+
 class SessionHistoryResult(Result):
     messages: list[TranscriptMessage]
 
@@ -228,6 +252,12 @@ method("session.info", SessionRef, SessionInfo)
 method("session.list", SessionListParams, SessionListResult, "Stored sessions, most recent first.")
 method("session.history", SessionRef, SessionHistoryResult, "The transcript, in display form.")
 method("session.close", SessionRef, Ok)
+method(
+    "session.attach",
+    SessionAttachParams,
+    SessionAttachResult,
+    "Reconnect to a session kept after a dropped connection, replaying what was missed.",
+)
 method("session.interrupt", SessionRef, Ok, "Stop the running turn.")
 method("session.steer", SessionSteerParams, Ok, "Guide the running turn without stopping it.")
 method(

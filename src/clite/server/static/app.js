@@ -35,6 +35,9 @@ function newView(id, info) {
     busy: false,
     streaming: null,
     tools: new Map(),
+    // The newest event this view has applied. A reconnect sends it back so the server can
+    // replay exactly what was missed.
+    lastSeq: 0,
     // Each view owns its transcript element. Only the active one is in the document, so a
     // background session keeps receiving events into its own element without touching the page.
     container: h("div", { class: "transcript-body" }),
@@ -45,6 +48,7 @@ const state = {
   rpc: null,
   views: new Map(), // runtime session id -> view
   activeId: null,
+  closing: false, // the page is going away: do not try to reconnect
 };
 
 function activeView() {
@@ -80,7 +84,7 @@ async function connect() {
   rpc.onEvent(handleEvent);
   rpc.onServerRequest("approval.request", askApproval);
   rpc.onServerRequest("clarify.request", askClarification);
-  rpc.onClose = () => setConnection(false, "disconnected");
+  rpc.onClose = () => onConnectionLost();
   try {
     await rpc.connect();
   } catch (error) {
@@ -95,6 +99,74 @@ async function connect() {
   if (!system.configured) await runSetup();
   await openSession({});
   await refreshSessions();
+}
+
+// ── coming back after the socket drops ───────────────────────────────────────────────────
+
+let reconnectTimer = null;
+let reconnectDelay = 500;
+
+/** The socket went away. Try to come back; a turn that was running is still running. */
+function onConnectionLost() {
+  if (state.closing) return;
+  setConnection(false, "reconnecting…");
+  scheduleReconnect();
+}
+
+function scheduleReconnect() {
+  if (reconnectTimer) return;
+  reconnectTimer = setTimeout(async () => {
+    reconnectTimer = null;
+    try {
+      await state.rpc.connect();
+    } catch (error) {
+      if (state.rpc.closeCode === 4401) {
+        // The token is no longer accepted; retrying would hammer the server. Ask again.
+        sessionStorage.removeItem("clite-token");
+        setConnection(false, error.message);
+        notice("The session token was refused. Reload the page with the link printed by `clite dashboard`.", "error");
+        return;
+      }
+      reconnectDelay = Math.min(reconnectDelay * 2, 10_000);
+      scheduleReconnect();
+      return;
+    }
+    reconnectDelay = 500;
+    setConnection(true, "connected");
+    await reattach();
+  }, reconnectDelay);
+}
+
+/** Take every open conversation back, and apply what happened while we were away. */
+async function reattach() {
+  for (const view of [...state.views.values()]) {
+    try {
+      const result = await state.rpc.request("session.attach", {
+        session_id: view.id, last_seq: view.lastSeq,
+      });
+      setInfo(result.session);
+      if (result.complete) {
+        for (const event of result.events) handleEvent(event);
+      } else {
+        // Too much happened to replay: show the transcript as it is now.
+        await reloadTranscript(view);
+        notice("This conversation fell too far behind to replay; its transcript was reloaded.", "notice");
+      }
+      view.lastSeq = Math.max(view.lastSeq, result.last_seq);
+    } catch (error) {
+      notice(`Lost “${view.info.title || view.id}”: ${error.message}`, "error");
+    }
+  }
+  await refreshSessions();
+}
+
+/** Rebuild a view's transcript from the stored history. */
+async function reloadTranscript(view) {
+  view.container.replaceChildren();
+  view.streaming = null;
+  view.tools.clear();
+  const history = await state.rpc.request("session.history", { session_id: view.id });
+  for (const message of history.messages) renderStored(message, view);
 }
 
 // ── sessions ─────────────────────────────────────────────────────────────────────────────
@@ -164,13 +236,16 @@ function renderOpenSessions() {
       h("button", {
         type: "button", "data-open": view.id,
         class: `${view.id === state.activeId ? "current" : ""}${view.busy ? " busy" : ""}`,
-        onclick: () => activateSession(view.id),
+        onclick: () => activateSession(view.id).catch(() => {}),
       },
       h("span", { class: "dot" }),
       view.info.title || "(new chat)",
       view.busy ? h("span", { class: "meta" }, "working") : null,
       open.length > 1
-        ? h("span", { class: "close", role: "button", "data-close": view.id, onclick: (event) => { event.stopPropagation(); closeSession(view.id); } }, "×")
+        ? h("span", { class: "close", role: "button", "data-close": view.id, onclick: (event) => {
+          event.stopPropagation();
+          closeSession(view.id).catch((error) => notice(error.message, "error"));
+        } }, "×")
         : null),
     )),
   );
@@ -183,7 +258,7 @@ async function refreshSessions() {
     ...sessions.map((session) =>
       h("li", {}, h("button", {
         type: "button", "data-id": session.id, class: session.id === current ? "current" : "",
-        onclick: () => openSession({ resume: session.id }).then(refreshSessions),
+        onclick: () => openSession({ resume: session.id }).catch((error) => notice(error.message, "error")),
       }, session.title || "(untitled)", h("span", { class: "meta" }, `${session.message_count} messages · ${session.source}`))),
     ),
   );
@@ -222,8 +297,7 @@ function notice(text, kind = "notice") {
   return addMessage(kind, text);
 }
 
-function renderStored(message) {
-  const view = activeView();
+function renderStored(message, view = activeView()) {
   if (!view) return;
   if (message.role === "tool") {
     view.container.append(h("div", { class: "tool" }, `✓ ${message.tool_name}`));
@@ -244,6 +318,7 @@ function setBusy(busy) {
 function handleEvent(event) {
   const view = viewOf(event.session_id);
   if (!view) return; // an event for a session this connection never opened
+  if (typeof event.seq === "number") view.lastSeq = Math.max(view.lastSeq, event.seq);
   const payload = event.payload;
   const markBusy = (busy) => {
     view.busy = busy;
@@ -287,14 +362,18 @@ function handleEvent(event) {
       break;
     case "session.info":
       setInfo(payload);
-      refreshSessions();
+      refreshSessions().catch(() => {}); // a refresh racing a dropped socket is not news
       break;
     case "turn.complete":
       view.streaming = null;
       markBusy(false);
       if (payload.interrupted) addMessage("notice", "(interrupted)", view);
       else if (payload.error) addMessage("error", payload.final_response || payload.error, view);
-      state.rpc.request("session.info", { session_id: view.id }).then(setInfo).then(refreshSessions);
+      state.rpc
+        .request("session.info", { session_id: view.id })
+        .then(setInfo)
+        .then(refreshSessions)
+        .catch(() => {});
       break;
     case "error":
       addMessage("error", payload.message, view);
@@ -835,7 +914,12 @@ $("#stop").addEventListener("click", interrupt);
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && activeView()?.busy && !$("#dialog").open) interrupt();
 });
-$("#new-chat").addEventListener("click", () => openSession({}));
+$("#new-chat").addEventListener("click", () => openSession({}).catch((error) => notice(error.message, "error")));
+// The page is going away on purpose; a reconnect now would only fight the unload.
+window.addEventListener("beforeunload", () => {
+  state.closing = true;
+});
+
 $("#tabs").addEventListener("click", (event) => {
   if (event.target.dataset.tab) selectTab(event.target.dataset.tab);
 });

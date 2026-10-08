@@ -30,6 +30,7 @@ from pydantic import BaseModel, ValidationError
 from clite import __version__
 from clite.core.errors import AuthError, CliteError
 from clite.rpc.contracts.base import EVENTS, METHODS, PROTOCOL_VERSION, SERVER_REQUESTS
+from clite.rpc.replay import get_detached_sessions, get_event_log
 from clite.rpc.transport import Transport
 
 logger = logging.getLogger("clite.rpc")
@@ -98,7 +99,6 @@ class RpcServer:
         self.on_server_answer = on_server_answer
         self.sessions: dict[str, Any] = {}  # runtime session id -> RpcSession
         self._lock = threading.RLock()
-        self._seq = 0
         self._next_request = 0
         self._pending: dict[str, concurrent.futures.Future] = {}
         self._pool = concurrent.futures.ThreadPoolExecutor(max_workers=8, thread_name_prefix="clite-rpc")
@@ -108,24 +108,24 @@ class RpcServer:
 
     def emit(self, event_type: str, session_id: str, payload: dict[str, Any] | BaseModel) -> None:
         """Send an event. Payloads are validated against the contract so a drift between the
-        server and the declared protocol fails here, in a test, not in a client."""
+        server and the declared protocol fails here, in a test, not in a client.
+
+        Numbering and remembering happen in the same critical section that writes, and
+        ``session.attach`` reads it under the same lock: an event is either delivered live or
+        reported as missed, never both.
+        """
         model = EVENTS[event_type]
         body = payload if isinstance(payload, BaseModel) else model.model_validate(payload)
-        with self._lock:
-            self._seq += 1
-            seq = self._seq
-        self.transport.write(
-            {
-                "jsonrpc": "2.0",
-                "method": "event",
-                "params": {
-                    "type": event_type,
-                    "session_id": session_id,
-                    "payload": body.model_dump(mode="json"),
-                    "seq": seq,
-                },
+        log = get_event_log()
+        with log.lock:
+            params = {
+                "type": event_type,
+                "session_id": session_id,
+                "payload": body.model_dump(mode="json"),
+                "seq": log.next_seq(),
             }
-        )
+            log.remember(params)
+            self.transport.write({"jsonrpc": "2.0", "method": "event", "params": params})
 
     def request_client(
         self, name: str, params: dict[str, Any], *, timeout: float = SERVER_REQUEST_TIMEOUT_SECONDS
@@ -253,8 +253,15 @@ class RpcServer:
     def remove_session(self, session_id: str) -> None:
         with self._lock:
             session = self.sessions.pop(session_id, None)
+        get_event_log().forget(session_id)
         if session is not None:
             session.close()
+
+    def adopt_session(self, session: Any) -> None:
+        """Rebind a session kept from an earlier connection to this one."""
+        session.server = self
+        with self._lock:
+            self.sessions[session.id] = session
 
     # ── lifecycle ────────────────────────────────────────────────────────────────────────
 
@@ -271,11 +278,16 @@ class RpcServer:
             pending = list(self._pending.values())
         for future in pending:
             future.cancel()  # unblock anything waiting on the client
+        detached = get_detached_sessions()
         for session in sessions:
-            try:
-                session.close()
-            except Exception:  # noqa: BLE001
-                logger.debug("closing an RPC session failed", exc_info=True)
+            # A turn may be running: hold the session for a moment, so a client that comes back
+            # picks it up where it left off instead of losing the answer. With no grace period,
+            # it closes now.
+            if not detached.detach(session):
+                try:
+                    session.close()
+                except Exception:  # noqa: BLE001
+                    logger.debug("closing an RPC session failed", exc_info=True)
         self._pool.shutdown(wait=False, cancel_futures=True)
         self.transport.close()
 
@@ -292,4 +304,7 @@ class RpcServer:
 
 
 def reset_server_state() -> None:
-    """Nothing process-global lives here; kept as the test suite's reset hook."""
+    """Clear what outlives one connection: the event log and the detached sessions."""
+    from clite.rpc.replay import reset_replay_state
+
+    reset_replay_state()

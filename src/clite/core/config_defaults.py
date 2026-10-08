@@ -247,6 +247,11 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "max_message_bytes": 1_000_000,
         # Wrong-token throttling, counted per client address and kept in memory only.
         "rate_limit": {"max_failures": 10, "window_seconds": 60, "delay_seconds": 5},
+        # Reconnect replay: how many recent events per session are kept, how many sessions are
+        # remembered at once, and how long a session outlives the connection that opened it.
+        "replay_buffer_events": 500,
+        "replay_sessions": 64,
+        "resume_grace_seconds": 120,
         # Record connections, the token each used, and commands approved from the dashboard, in
         # <home>/logs/audit.log. Never holds a token value, only its name.
         "audit_log": True,

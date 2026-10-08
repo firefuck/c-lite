@@ -148,6 +148,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `session.list` | `limit?`, `source?`, `include_archived?` | `sessions` | Stored sessions, most recent first. |
 | `session.history` | `session_id` | `messages` | The transcript, in display form. |
 | `session.close` | `session_id` | `ok?` |  |
+| `session.attach` | `session_id`, `last_seq?` | `session`, `events?`, `complete?`, `last_seq?` | Reconnect to a session kept after a dropped connection, replaying what was missed. |
 | `session.interrupt` | `session_id` | `ok?` | Stop the running turn. |
 | `session.steer` | `session_id`, `text` | `ok?` | Guide the running turn without stopping it. |
 | `session.title` | `session_id`, `title?` | `title?` | Read the title, or set it when `title` is given. |
@@ -428,6 +429,9 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `server.rate_limit.max_failures` | `10` |
 | `server.rate_limit.window_seconds` | `60` |
 | `server.rate_limit.delay_seconds` | `5` |
+| `server.replay_buffer_events` | `500` |
+| `server.replay_sessions` | `64` |
+| `server.resume_grace_seconds` | `120` |
 | `server.audit_log` | `true` |
 | `sessions.auto_prune` | `false` |
 | `sessions.retention_days` | `90` |

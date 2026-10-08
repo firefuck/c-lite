@@ -314,9 +314,28 @@ export interface ReadyPayload {
   protocol_version: number;
 }
 
+export interface ReplayEvent {
+  type: string;
+  seq: number;
+  session_id: string;
+  payload: Record<string, unknown>;
+}
+
 export interface SessionArchiveParams {
   stored_session_id: string;
   archived: boolean;
+}
+
+export interface SessionAttachParams {
+  session_id: string;
+  last_seq?: number;
+}
+
+export interface SessionAttachResult {
+  session: SessionInfo;
+  events: ReplayEvent[];
+  complete: boolean;
+  last_seq: number;
 }
 
 export interface SessionCompressParams {
@@ -620,6 +639,8 @@ export interface Methods {
   /** The transcript, in display form. */
   "session.history": { params: SessionRef; result: SessionHistoryResult };
   "session.close": { params: SessionRef; result: Ok };
+  /** Reconnect to a session kept after a dropped connection, replaying what was missed. */
+  "session.attach": { params: SessionAttachParams; result: SessionAttachResult };
   /** Stop the running turn. */
   "session.interrupt": { params: SessionRef; result: Ok };
   /** Guide the running turn without stopping it. */
@@ -711,7 +732,7 @@ export interface ServerRequests {
   "clarify.request": { params: ClarifyRequestParams; result: ClarifyRequestResult };
 }
 
-export const METHOD_NAMES = ["ping", "system.info", "session.create", "session.info", "session.list", "session.history", "session.close", "session.interrupt", "session.steer", "session.title", "session.delete", "session.rename", "session.search", "session.pin", "session.archive", "session.export", "session.compress", "session.usage", "prompt.submit", "slash.exec", "commands.catalog", "complete.slash", "config.get", "config.list", "config.set", "model.list", "model.set", "providers.list", "setup.apply", "tools.list", "skills.list", "skills.view", "plugins.list", "plugins.set_enabled", "credentials.list", "credentials.set", "credentials.delete", "memory.get", "hooks.status", "mcp.status", "memory.set", "cron.list", "cron.create", "cron.action", "cron.output", "logs.tail"] as const;
+export const METHOD_NAMES = ["ping", "system.info", "session.create", "session.info", "session.list", "session.history", "session.close", "session.attach", "session.interrupt", "session.steer", "session.title", "session.delete", "session.rename", "session.search", "session.pin", "session.archive", "session.export", "session.compress", "session.usage", "prompt.submit", "slash.exec", "commands.catalog", "complete.slash", "config.get", "config.list", "config.set", "model.list", "model.set", "providers.list", "setup.apply", "tools.list", "skills.list", "skills.view", "plugins.list", "plugins.set_enabled", "credentials.list", "credentials.set", "credentials.delete", "memory.get", "hooks.status", "mcp.status", "memory.set", "cron.list", "cron.create", "cron.action", "cron.output", "logs.tail"] as const;
 export const EVENT_TYPES = ["gateway.ready", "session.info", "turn.start", "turn.step", "message.delta", "reasoning.delta", "message.complete", "tool.start", "tool.complete", "status.update", "subagent.update", "turn.complete", "error"] as const;
 export const SERVER_REQUEST_NAMES = ["approval.request", "clarify.request"] as const;
 

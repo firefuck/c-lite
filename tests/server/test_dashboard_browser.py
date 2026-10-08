@@ -396,6 +396,58 @@ def test_closing_an_open_session_keeps_the_other_one(dashboard):
     assert dashboard.inner_text(".message.assistant") == "You said: keep me"
 
 
+def test_the_dashboard_reconnects_and_keeps_the_conversation(clite_home, browser):
+    """The socket drops and comes back: the conversation is still there and still works.
+
+    The drop is forced from the browser side (`route_web_socket`), which is what a flaky network
+    or a sleeping laptop looks like to the page.
+    """
+    box, thread = _start("model:\n  provider: mock\n  default: mock-1\n", clite_home)
+    page = browser.new_page()
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    sockets = []
+
+    def on_socket(socket):
+        sockets.append(socket)
+        socket.connect_to_server()
+
+    page.route_web_socket(lambda url: "/api/ws" in url, on_socket)
+    try:
+        page.goto(f"http://127.0.0.1:{box['port']}/#token={box['token']}")
+        page.wait_for_selector("#status-connection.online")
+        page.wait_for_function("document.querySelector('#status-model').textContent !== ''")
+        page.fill("#prompt", "before the drop")
+        page.press("#prompt", "Enter")
+        page.wait_for_selector(".message.assistant")
+        before = page.inner_text(".message.assistant")
+        assert len(sockets) == 1
+
+        sockets[0].close()
+        page.wait_for_function(
+            "document.querySelector('#status-connection').textContent.includes('reconnecting')"
+        )
+        page.wait_for_function(
+            "document.querySelector('#status-connection').textContent === 'connected'",
+            timeout=30_000,
+        )
+        assert len(sockets) == 2  # the page opened a new one by itself
+
+        # The transcript survived the round trip, and the session is usable again.
+        assert page.inner_text(".message.assistant") == before
+        page.fill("#prompt", "after the drop")
+        page.press("#prompt", "Enter")
+        page.wait_for_function(
+            "(() => { const all = document.querySelectorAll('.message.assistant');"
+            " return all.length > 1 && all[all.length - 1].textContent === 'You said: after the drop'; })()"
+        )
+        assert errors == []
+    finally:
+        page.close()
+        box["server"].should_exit = True
+        thread.join(timeout=10)
+
+
 def test_other_tabs_list_what_is_installed(dashboard):
     dashboard.click("[data-tab=skills]")
     dashboard.wait_for_selector("#panel-skills .row")

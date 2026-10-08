@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import io
 import json
 import re
@@ -424,20 +425,87 @@ def test_a_full_turn_over_websocket_then_rest(backend):
     assert backend.get("/api/sessions?limit=abc", token=backend.token)[0] == 400
 
 
-def test_disconnecting_ends_the_connections_sessions(backend):
+def test_disconnecting_keeps_the_session_for_a_while(clite_home):
+    """A dropped socket no longer ends the conversation: the session is held for the grace
+    period so a client that comes back can pick it up, and closed once that runs out."""
+    from clite.rpc.replay import get_detached_sessions
     from clite.state import get_session_db
 
-    with backend.connect() as socket:
-        rpc = Rpc(socket)
-        session = rpc.call("session.create")
-        rpc.call("prompt.submit", {"session_id": session["session_id"], "text": "hi"})
-        rpc.wait_event("turn.complete")
-    deadline = time.monotonic() + 5
-    while time.monotonic() < deadline:
-        if get_session_db().get_session(session["stored_session_id"])["end_reason"] == "rpc_closed":
-            break
-        time.sleep(0.05)
-    assert get_session_db().get_session(session["stored_session_id"])["end_reason"] == "rpc_closed"
+    with backend_connection(clite_home) as (instance, server, thread):
+        with instance.connect() as socket:
+            rpc = Rpc(socket)
+            session = rpc.call("session.create")
+            rpc.call("prompt.submit", {"session_id": session["session_id"], "text": "hi"})
+            rpc.wait_event("turn.complete")
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline and get_detached_sessions().count() == 0:
+            time.sleep(0.05)
+        assert get_detached_sessions().count() == 1
+        assert get_session_db().get_session(session["stored_session_id"])["end_reason"] is None
+        # Past the grace, it ends like any other closed session.
+        get_detached_sessions().reap(now=time.monotonic() + 10_000)
+        assert get_session_db().get_session(session["stored_session_id"])["end_reason"] == "rpc_closed"
+
+
+def test_a_socket_that_comes_back_gets_what_it_missed(clite_home):
+    """The whole path over real sockets: a client drops mid-turn, reconnects, and is handed the
+    events it missed — the turn was never interrupted."""
+    from clite.providers.testing import ScriptedClient, text_response
+    from clite.rpc.replay import get_event_log
+
+    release = threading.Event()
+
+    def slow(cancel, **kwargs):
+        while not release.is_set():
+            if cancel.wait(0.01):
+                raise InterruptedError
+        return text_response("done while you were away")
+
+    with backend_connection(
+        clite_home, client_factory=lambda: ScriptedClient([slow], default=text_response("ok"))
+    ) as (instance, server, thread):
+        with instance.connect() as socket:
+            rpc = Rpc(socket)
+            session = rpc.call("session.create")
+            rpc.call("prompt.submit", {"session_id": session["session_id"], "text": "long job"})
+            rpc.wait_event("turn.step")
+            last_seq = max(event["seq"] for event in rpc.events)
+
+        # The socket is gone; the turn is not.
+        release.set()
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            events, _complete = get_event_log().missed(session["session_id"], last_seq)
+            if any(event["type"] == "turn.complete" for event in events):
+                break
+            time.sleep(0.02)
+        else:
+            pytest.fail("the turn did not finish after the socket closed")
+
+        with instance.connect() as socket:
+            rpc = Rpc(socket)
+            attached = rpc.call(
+                "session.attach", {"session_id": session["session_id"], "last_seq": last_seq}
+            )
+            assert attached["complete"] is True
+            finished = next(e for e in attached["events"] if e["type"] == "turn.complete")
+            assert finished["payload"]["final_response"] == "done while you were away"
+            # The session answers on the new socket.
+            assert rpc.call("session.info", {"session_id": session["session_id"]})[
+                "stored_session_id"
+            ] == session["stored_session_id"]
+
+
+@contextlib.contextmanager
+def backend_connection(clite_home, **kwargs):
+    """A backend for one test, shut down even when the test fails."""
+    (clite_home / "config.yaml").write_text("model:\n  provider: mock\n  default: mock-1\n")
+    instance, server, thread = start_backend(token="replay-token", **kwargs)
+    try:
+        yield instance, server, thread
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
 
 
 # ── plugin dashboard pages, on an origin of their own ────────────────────────────────────

@@ -123,6 +123,15 @@ def serve(
     if refusal is not None:
         print(refusal, file=sys.stderr, flush=True)
         return 2
+    # How much a reconnect can be told about: read once, at startup.
+    from clite.core.config import config_get
+    from clite.rpc.replay import configure as configure_replay
+
+    configure_replay(
+        per_session=int(config_get("server.replay_buffer_events", 500) or 500),
+        sessions=int(config_get("server.replay_sessions", 64) or 64),
+        grace_seconds=float(config_get("server.resume_grace_seconds", 120) or 0),
+    )
     inherited = os.environ.get(SESSION_TOKEN_ENV, "").strip()
     token = token or inherited or secrets.token_urlsafe(32)
     sock = bind_socket(host, port)

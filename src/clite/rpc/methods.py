@@ -114,6 +114,32 @@ def session_close(server: RpcServer, params: schema.SessionRef) -> Ok:
     return Ok()
 
 
+@rpc_method("session.attach")
+def session_attach(server: RpcServer, params: schema.SessionAttachParams) -> schema.SessionAttachResult:
+    from clite.rpc.replay import get_detached_sessions, get_event_log
+    from clite.rpc.server import SESSION_NOT_FOUND
+
+    log = get_event_log()
+    # The same critical section `emit` uses: taking the session back and reading what it missed
+    # happen together, so nothing is delivered live *and* replayed, and nothing falls between.
+    with log.lock:
+        session = get_detached_sessions().adopt(params.session_id)
+        if session is None:
+            raise RpcError(
+                SESSION_NOT_FOUND,
+                f"session {params.session_id!r} is no longer open; resume the stored session instead",
+            )
+        events, complete = log.missed(params.session_id, max(0, params.last_seq))
+        newest = log.last_seq
+        server.adopt_session(session)
+    return schema.SessionAttachResult(
+        session=session.info(),
+        events=[schema.ReplayEvent(**event) for event in events],
+        complete=complete,
+        last_seq=newest,
+    )
+
+
 @rpc_method("session.interrupt")
 def session_interrupt(server: RpcServer, params: schema.SessionRef) -> Ok:
     server.get_session(params.session_id).chat.interrupt()
