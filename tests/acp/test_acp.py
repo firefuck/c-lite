@@ -628,6 +628,7 @@ def test_approval_outside_a_tool_call_still_has_a_call_to_point_at(client, clite
         ({"outcome": {"outcome": "selected", "optionId": "allow_always"}}, "always"),
         ({"outcome": {"outcome": "selected", "optionId": "reject_once"}}, "deny"),
         ({"outcome": {"outcome": "selected", "optionId": "surprise_me"}}, "deny"),
+        ({"outcome": {"outcome": "selected", "optionId": 7}}, "deny"),  # not even an option id
         ("yes please", "deny"),  # not even an object
     ],
 )

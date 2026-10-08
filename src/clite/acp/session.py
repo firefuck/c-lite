@@ -81,7 +81,10 @@ def permission_choice(reply: dict[str, Any] | None) -> str:
     outcome = reply.get("outcome") if isinstance(reply, dict) else None
     if not isinstance(outcome, dict) or outcome.get("outcome") != "selected":
         return "deny"
-    return PERMISSION_CHOICES.get(outcome.get("optionId"), "deny")
+    option_id = outcome.get("optionId")
+    if not isinstance(option_id, str):
+        return "deny"
+    return PERMISSION_CHOICES.get(option_id, "deny")
 
 
 def stop_reason(result: TurnResult) -> str:
