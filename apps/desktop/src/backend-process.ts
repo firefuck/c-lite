@@ -28,6 +28,8 @@ export interface StartOptions {
   backend?: BackendCommand;
   env?: NodeJS.ProcessEnv;
   cwd?: string;
+  /** The profile to serve. One backend serves exactly one. */
+  profile?: string | null;
   startTimeoutMs?: number;
 }
 
@@ -60,19 +62,80 @@ export function dashboardUrl(port: number, token: string): string {
 }
 
 /**
- * How to launch the backend:
+ * How to invoke the CLI itself (no subcommand):
  *   CLITE_DESKTOP_BACKEND  a full command line, for development ("python -m clite")
  *   otherwise              the `clite` executable on PATH
  */
-export function resolveBackendCommand(env: NodeJS.ProcessEnv = process.env): BackendCommand {
+export function resolveCliCommand(env: NodeJS.ProcessEnv = process.env): BackendCommand {
   const override = env["CLITE_DESKTOP_BACKEND"]?.trim();
   const [command, ...rest] = override ? override.split(/\s+/) : ["clite"];
-  return { command: command ?? "clite", args: [...rest, "serve", "--host", "127.0.0.1", "--port", "0"] };
+  return { command: command ?? "clite", args: rest };
+}
+
+/**
+ * How to launch the backend.
+ *
+ * `profile` picks a profile: one backend serves exactly one profile, so this is how the shell
+ * chooses. `--profile` is stripped from the arguments by the CLI before argparse sees them, so
+ * it does not matter where it sits.
+ */
+export function resolveBackendCommand(
+  env: NodeJS.ProcessEnv = process.env,
+  profile?: string | null,
+): BackendCommand {
+  const { command, args } = resolveCliCommand(env);
+  const chosen = profile ? ["--profile", profile] : [];
+  return {
+    command,
+    args: [...args, ...chosen, "serve", "--host", "127.0.0.1", "--port", "0"],
+  };
+}
+
+/**
+ * The profiles on this machine, for the picker at start.
+ *
+ * This runs the CLI rather than asking a backend, because the choice has to be made before
+ * there is a backend to ask. A failure is not fatal: the caller starts on the default profile.
+ */
+export function listProfiles(
+  env: NodeJS.ProcessEnv = process.env,
+  timeoutMs = 10_000,
+): Promise<string[]> {
+  const { command, args } = resolveCliCommand(env);
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, [...args, "profile", "list", "--json"], {
+      env,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    let out = "";
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error("`clite profile list` timed out"));
+    }, timeoutMs);
+    child.stdout.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => {
+      out += chunk;
+    });
+    child.once("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.once("close", () => {
+      clearTimeout(timer);
+      try {
+        const parsed = JSON.parse(out) as { profiles?: { name?: string }[] };
+        resolve((parsed.profiles ?? []).map((entry) => entry.name ?? "").filter(Boolean));
+      } catch (error) {
+        reject(error instanceof Error ? error : new Error(String(error)));
+      }
+    });
+  });
 }
 
 export function startBackend(options: StartOptions = {}): Promise<RunningBackend> {
   const token = createToken();
-  const { command, args } = options.backend ?? resolveBackendCommand(options.env ?? process.env);
+  const { command, args } =
+    options.backend ?? resolveBackendCommand(options.env ?? process.env, options.profile);
   const child = spawn(command, args, {
     cwd: options.cwd,
     env: { ...process.env, ...options.env, [TOKEN_ENV]: token, PYTHONUNBUFFERED: "1" },

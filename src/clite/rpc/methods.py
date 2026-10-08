@@ -69,6 +69,17 @@ def system_info(server: RpcServer, params: Empty) -> schema.SystemInfoResult:
 # ── sessions ─────────────────────────────────────────────────────────────────────────────
 
 
+@rpc_method("profiles.list")
+def profiles_list(server: RpcServer, params: Empty) -> schema.ProfilesListResult:
+    from clite.core.profiles import get_sticky_profile, list_profiles
+
+    return schema.ProfilesListResult(
+        current=get_active_profile_name(),
+        sticky=get_sticky_profile(),
+        profiles=[schema.ProfileEntry(name=p.name, active=p.active) for p in list_profiles()],
+    )
+
+
 @rpc_method("session.create")
 def session_create(server: RpcServer, params: schema.SessionCreateParams) -> schema.SessionInfo:
     session = RpcSession(server, params)

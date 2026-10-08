@@ -143,6 +143,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | --- | --- | --- | --- |
 | `ping` | (kosong) | `pong?`, `version?` | Liveness check. |
 | `system.info` | (kosong) | `version`, `protocol_version`, `home`, `profile`, `configured`, `model?`, `provider?`, `notifications?` | Version, active profile and whether a model is configured. |
+| `profiles.list` | (kosong) | `current`, `sticky?`, `profiles?` | Every profile on this machine, and which one this server is running. |
 | `session.create` | `cwd?`, `model?`, `provider?`, `toolsets?`, `yolo?`, `resume?`, `platform?` | `session_id`, `stored_session_id`, `title?`, `platform?`, `model?`, `provider?`, `cwd?`, `busy?`, `yolo?`, `message_count?`, `tools?`, `toolsets?`, `reasoning_effort?`, `context?` | Open a runtime session (new, or resuming a stored one). |
 | `session.info` | `session_id` | `session_id`, `stored_session_id`, `title?`, `platform?`, `model?`, `provider?`, `cwd?`, `busy?`, `yolo?`, `message_count?`, `tools?`, `toolsets?`, `reasoning_effort?`, `context?` |  |
 | `session.list` | `limit?`, `source?`, `include_archived?` | `sessions` | Stored sessions, most recent first. |

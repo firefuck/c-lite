@@ -550,6 +550,22 @@ def test_a_dropped_file_is_attached_and_reaches_the_agent(dashboard, clite_home)
     assert stored.parent == clite_home / "cache" / "attachments"
 
 
+def test_the_profiles_page_lists_them_and_says_which_one_is_running(dashboard, clite_home):
+    from clite.core.profiles import create_profile
+
+    create_profile("work")
+    dashboard.click("[data-tab=profiles]")
+    dashboard.wait_for_selector("#panel-profiles .row[data-profile='work']")
+    rows = dashboard.eval_on_selector_all(
+        "#panel-profiles .row", "nodes => nodes.map(n => [n.dataset.profile, n.innerText])"
+    )
+    assert [row[0] for row in rows] == ["default", "work"]
+    # This backend serves the default profile; the other one is a different home.
+    assert "running" in rows[0][1]
+    assert "clite dashboard -p work" in rows[1][1]
+    assert dashboard.inner_text("#status-profile") == "profile: default"
+
+
 def test_other_tabs_list_what_is_installed(dashboard):
     dashboard.click("[data-tab=skills]")
     dashboard.wait_for_selector("#panel-skills .row")

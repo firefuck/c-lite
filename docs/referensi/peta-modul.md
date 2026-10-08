@@ -217,7 +217,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | --- | --- | --- |
 | `__init__.py` |  |  |
 | `entry.py` | Stdio entry point: ``python -m clite.rpc.entry``. | `serve_stdio()`, `main()` |
-| `methods.py` | RPC method handlers. | `ping()`, `system_info()`, `session_create()`, `session_info()`, `session_list()`, `session_history()`, `session_close()`, `session_attach()`, `session_interrupt()`, `session_steer()`, … (+39) |
+| `methods.py` | RPC method handlers. | `ping()`, `system_info()`, `profiles_list()`, `session_create()`, `session_info()`, `session_list()`, `session_history()`, `session_close()`, `session_attach()`, `session_interrupt()`, … (+40) |
 | `replay.py` | What makes a reconnect cheap: the events a client missed, and the sessions that outlive it. | `EventLog`, `DetachedSessions`, `get_event_log()`, `get_detached_sessions()`, `configure()`, `reset_replay_state()` |
 | `server.py` | The JSON-RPC server: one instance per client connection. | `RpcError`, `rpc_method()`, `RpcServer`, `reset_server_state()` |
 | `session.py` | ``RpcSession``: a ``ChatSession`` whose callbacks become JSON-RPC events. | `RpcSession` |
@@ -229,7 +229,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | --- | --- | --- |
 | `__init__.py` |  |  |
 | `base.py` | Contract registries: every JSON-RPC method, event and server request is declared once. | `Params`, `Result`, `Payload`, `Empty`, `Ok`, `MethodSpec`, `ServerRequestSpec`, `method()`, `event()`, `server_request()` |
-| `schema.py` | The protocol, declared: methods (client to server), events and server requests. | `ContextStatus`, `SessionInfo`, `StoredSession`, `TranscriptMessage`, `UsageTotals`, `CommandEntry`, `PingResult`, `SystemInfoResult`, `SessionCreateParams`, `SessionRef`, … (+89) |
+| `schema.py` | The protocol, declared: methods (client to server), events and server requests. | `ContextStatus`, `SessionInfo`, `StoredSession`, `TranscriptMessage`, `UsageTotals`, `CommandEntry`, `PingResult`, `SystemInfoResult`, `ProfileEntry`, `ProfilesListResult`, … (+91) |
 
 ## `clite/runtime/`
 

@@ -13,12 +13,13 @@ import { join } from "node:path";
 
 import { BrowserWindow, app, dialog, shell } from "electron";
 
-import { startBackend } from "./backend-process.ts";
+import { startBackend, listProfiles } from "./backend-process.ts";
 import type { RunningBackend } from "./backend-process.ts";
 import { decideNavigation } from "./window-policy.ts";
 
 let backend: RunningBackend | null = null;
 let window: BrowserWindow | null = null;
+let profile = "";
 
 function createWindow(running: RunningBackend): BrowserWindow {
   const created = new BrowserWindow({
@@ -26,7 +27,7 @@ function createWindow(running: RunningBackend): BrowserWindow {
     height: 800,
     minWidth: 720,
     minHeight: 480,
-    title: "C-lite",
+    title: profile ? `C-lite — ${profile}` : "C-lite",
     webPreferences: {
       preload: join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -58,9 +59,58 @@ function createWindow(running: RunningBackend): BrowserWindow {
   return created;
 }
 
-async function launch(): Promise<void> {
+/** `--profile NAME` on the command line, if it was given. */
+function requestedProfile(): string | null {
+  const joined = process.argv.find((arg) => arg.startsWith("--profile="));
+  if (joined) return joined.slice("--profile=".length);
+  const index = process.argv.indexOf("--profile");
+  const next = index === -1 ? undefined : process.argv[index + 1];
+  return next ? next : null;
+}
+
+/** Either a profile to run on (or null for the default), or the user backed out. */
+type ProfileChoice = { cancelled: boolean; profile: string | null };
+
+/**
+ * Which profile to run on.
+ *
+ * One backend serves one profile, so this is a decision made once, before the backend exists.
+ * `--profile` settles it; with more than one profile on the machine the user is asked, because
+ * silently opening somebody else's conversations would be worse than a dialog. Nothing to
+ * choose (or no CLI to ask) means the default profile.
+ */
+async function chooseProfile(): Promise<ProfileChoice> {
+  const asked = requestedProfile();
+  if (asked) return { cancelled: false, profile: asked };
+  let names: string[];
   try {
-    backend = await startBackend();
+    names = await listProfiles();
+  } catch {
+    return { cancelled: false, profile: null }; // no CLI yet: startBackend will say so properly
+  }
+  if (names.length < 2) return { cancelled: false, profile: null };
+  const { response } = await dialog.showMessageBox({
+    type: "question",
+    title: "C-lite",
+    message: "Which profile should this window open?",
+    detail: "Each profile has its own config, keys, memory and sessions.",
+    buttons: [...names, "Cancel"],
+    defaultId: 0,
+    cancelId: names.length,
+  });
+  if (response === names.length) return { cancelled: true, profile: null };
+  return { cancelled: false, profile: names[response] ?? null };
+}
+
+async function launch(): Promise<void> {
+  const choice = await chooseProfile();
+  if (choice.cancelled) {
+    app.quit();
+    return;
+  }
+  profile = choice.profile ?? "";
+  try {
+    backend = await startBackend({ profile: choice.profile });
   } catch (error) {
     dialog.showErrorBox(
       "C-lite could not start",

@@ -106,8 +106,26 @@ class SystemInfoResult(Result):
     notifications: bool = True
 
 
+class ProfileEntry(Result):
+    name: str
+    active: bool = False  # the profile this server is running on
+
+
+class ProfilesListResult(Result):
+    current: str
+    # The profile a new shell would start in; not necessarily the one this server runs.
+    sticky: str = "default"
+    profiles: list[ProfileEntry] = []
+
+
 method("ping", Empty, PingResult, "Liveness check.")
 method("system.info", Empty, SystemInfoResult, "Version, active profile and whether a model is configured.")
+method(
+    "profiles.list",
+    Empty,
+    ProfilesListResult,
+    "Every profile on this machine, and which one this server is running.",
+)
 
 # ── sessions ─────────────────────────────────────────────────────────────────────────────
 

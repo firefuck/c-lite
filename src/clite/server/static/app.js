@@ -98,8 +98,9 @@ async function connect() {
   state.rpc = rpc;
   setConnection(true, "connected");
   const system = await rpc.request("system.info");
+  $("#status-profile").textContent = system.profile ? `profile: ${system.profile}` : "";
   if (!system.configured) await runSetup();
-  await loadDashboardPrefs();
+  state.notifications = system.notifications !== false;
   await openSession({});
   await refreshSessions();
 }
@@ -969,6 +970,25 @@ const panels = {
       );
     };
     await show();
+  },
+  async profiles(panel) {
+    const { current, sticky, profiles } = await state.rpc.request("profiles.list");
+    const describe = (profile) => {
+      if (profile.name === current) return "this dashboard is running here";
+      if (window.cliteDesktop) return `restart C-lite with --profile ${profile.name}`;
+      return `run: clite dashboard -p ${profile.name}`;
+    };
+    panel.replaceChildren(
+      h("h2", {}, "Profiles"),
+      h("p", { class: "empty" },
+        "A profile is a separate home: its own config, keys, memory and sessions. One backend "
+        + "serves one profile, so switching means starting another one."),
+      ...profiles.map((profile) => h("div", { class: `row${profile.name === current ? " current" : ""}`, "data-profile": profile.name },
+        h("div", { class: "name" }, profile.name,
+          profile.name === current ? h("span", { class: "badge" }, "running") : null,
+          profile.name === sticky && profile.name !== current ? h("span", { class: "badge" }, "default for new shells") : null),
+        h("div", { class: "desc" }, describe(profile)))),
+    );
   },
   async logs(panel) {
     const source = h("select", { id: "logs-source" },

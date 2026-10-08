@@ -294,6 +294,17 @@ export interface PluginsListResult {
   plugins: PluginEntry[];
 }
 
+export interface ProfileEntry {
+  name: string;
+  active: boolean;
+}
+
+export interface ProfilesListResult {
+  current: string;
+  sticky: string;
+  profiles: ProfileEntry[];
+}
+
 export interface PromptSubmitParams {
   session_id: string;
   text: string;
@@ -645,6 +656,8 @@ export interface Methods {
   "ping": { params: Empty; result: PingResult };
   /** Version, active profile and whether a model is configured. */
   "system.info": { params: Empty; result: SystemInfoResult };
+  /** Every profile on this machine, and which one this server is running. */
+  "profiles.list": { params: Empty; result: ProfilesListResult };
   /** Open a runtime session (new, or resuming a stored one). */
   "session.create": { params: SessionCreateParams; result: SessionInfo };
   "session.info": { params: SessionRef; result: SessionInfo };
@@ -748,7 +761,7 @@ export interface ServerRequests {
   "clarify.request": { params: ClarifyRequestParams; result: ClarifyRequestResult };
 }
 
-export const METHOD_NAMES = ["ping", "system.info", "session.create", "session.info", "session.list", "session.history", "session.close", "session.attach", "session.interrupt", "session.steer", "session.title", "session.delete", "session.rename", "session.search", "session.pin", "session.archive", "session.export", "session.compress", "session.usage", "prompt.submit", "slash.exec", "commands.catalog", "complete.slash", "config.get", "config.list", "config.set", "model.list", "model.set", "providers.list", "setup.apply", "tools.list", "skills.list", "skills.view", "plugins.list", "plugins.set_enabled", "credentials.list", "credentials.set", "credentials.delete", "memory.get", "hooks.status", "mcp.status", "attachment.save", "memory.set", "cron.list", "cron.create", "cron.action", "cron.output", "logs.tail"] as const;
+export const METHOD_NAMES = ["ping", "system.info", "profiles.list", "session.create", "session.info", "session.list", "session.history", "session.close", "session.attach", "session.interrupt", "session.steer", "session.title", "session.delete", "session.rename", "session.search", "session.pin", "session.archive", "session.export", "session.compress", "session.usage", "prompt.submit", "slash.exec", "commands.catalog", "complete.slash", "config.get", "config.list", "config.set", "model.list", "model.set", "providers.list", "setup.apply", "tools.list", "skills.list", "skills.view", "plugins.list", "plugins.set_enabled", "credentials.list", "credentials.set", "credentials.delete", "memory.get", "hooks.status", "mcp.status", "attachment.save", "memory.set", "cron.list", "cron.create", "cron.action", "cron.output", "logs.tail"] as const;
 export const EVENT_TYPES = ["gateway.ready", "session.info", "turn.start", "turn.step", "message.delta", "reasoning.delta", "message.complete", "tool.start", "tool.complete", "status.update", "subagent.update", "turn.complete", "error"] as const;
 export const SERVER_REQUEST_NAMES = ["approval.request", "clarify.request"] as const;
 

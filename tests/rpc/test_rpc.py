@@ -116,6 +116,25 @@ def test_ready_event_and_ping(client):
     assert rpc.call("ping")["pong"] is True
     info = rpc.call("system.info")
     assert info["configured"] is True and info["model"] == "mock-1" and info["profile"] == "default"
+    assert info["notifications"] is True
+
+
+def test_profiles_list_reports_every_profile_and_which_one_this_is(client, clite_home):
+    from clite.core.profiles import create_profile, set_sticky_profile
+
+    rpc = client()
+    only = rpc.call("profiles.list")
+    assert only["current"] == "default" and only["sticky"] == "default"
+    assert [entry["name"] for entry in only["profiles"]] == ["default"]
+    assert only["profiles"][0]["active"] is True
+
+    create_profile("work")
+    set_sticky_profile("work")
+    both = rpc.call("profiles.list")
+    # The sticky profile is what a new shell would open; this server still runs the old one.
+    assert both["current"] == "default" and both["sticky"] == "work"
+    assert [entry["name"] for entry in both["profiles"]] == ["default", "work"]
+    assert [entry["active"] for entry in both["profiles"]] == [True, False]
 
 
 def test_protocol_errors_are_replies_not_crashes(client):

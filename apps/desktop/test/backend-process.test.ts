@@ -5,7 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { createToken, dashboardUrl, parseReadyLine, resolveBackendCommand, startBackend } from "../src/backend-process.ts";
+import { createToken, dashboardUrl, listProfiles, parseReadyLine, resolveBackendCommand, startBackend } from "../src/backend-process.ts";
 import { decideNavigation } from "../src/window-policy.ts";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -38,6 +38,30 @@ test("the backend command can be overridden for development", () => {
   assert.deepEqual(resolveBackendCommand({ CLITE_DESKTOP_BACKEND: "python3 -m clite" }), {
     command: "python3", args: ["-m", "clite", "serve", "--host", "127.0.0.1", "--port", "0"],
   });
+});
+
+test("a profile is passed through to the backend", () => {
+  assert.deepEqual(resolveBackendCommand({}, "work"), {
+    command: "clite", args: ["--profile", "work", "serve", "--host", "127.0.0.1", "--port", "0"],
+  });
+  assert.deepEqual(resolveBackendCommand({ CLITE_DESKTOP_BACKEND: "python3 -m clite" }, "work"), {
+    command: "python3",
+    args: ["-m", "clite", "--profile", "work", "serve", "--host", "127.0.0.1", "--port", "0"],
+  });
+  // No profile asked for is not the same as the default profile being named.
+  assert.deepEqual(resolveBackendCommand({}, null), resolveBackendCommand({}));
+});
+
+test("the profiles on the machine come back from the CLI", async () => {
+  const pythonPath = [join(repoRoot, "src"), process.env["PYTHONPATH"]].filter(Boolean).join(":");
+  const names = await listProfiles({
+    CLITE_DESKTOP_BACKEND: `${process.env["CLITE_PYTHON"] ?? "python3"} -m clite`,
+    PYTHONPATH: pythonPath,
+    CLITE_HOME: sandbox,
+  });
+  assert.deepEqual(names, ["default"]);
+  // Nothing to run: this is a failure the caller is expected to survive, not a hang.
+  await assert.rejects(listProfiles({ CLITE_DESKTOP_BACKEND: "/nonexistent/clite" }, 2000));
 });
 
 test("navigation stays on the backend; web links leave the app; the rest is refused", () => {

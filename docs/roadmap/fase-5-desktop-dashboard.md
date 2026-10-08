@@ -219,12 +219,12 @@ saat koneksi putus sebentar.
 `apps/shared/src/json-rpc-gateway.ts`.
 
 **Selesai bila.**
-- [ ] Tes: klien yang putus di tengah giliran lalu menyambung ulang menerima event yang
+- [x] Tes: klien yang putus di tengah giliran lalu menyambung ulang menerima event yang
       terlewat, berurutan dan tanpa ganda, dan giliran itu tidak terhenti.
-- [ ] Tes: penyangga event berbatas; klien yang tertinggal terlalu jauh diberi tahu untuk
+- [x] Tes: penyangga event berbatas; klien yang tertinggal terlalu jauh diberi tahu untuk
       memuat ulang riwayat, bukan menerima aliran yang bolong.
-- [ ] Tes browser: dua sesi berjalan bersamaan tanpa event yang tertukar.
-- [ ] Baris "Pemutaran ulang event" di spesifikasi rpc dan baris fitur di spesifikasi desktop
+- [x] Tes browser: dua sesi berjalan bersamaan tanpa event yang tertukar.
+- [x] Baris "Pemutaran ulang event" di spesifikasi rpc dan baris fitur di spesifikasi desktop
       menjadi ✅.
 
 **Ukuran.** L

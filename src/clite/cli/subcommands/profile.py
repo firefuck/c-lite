@@ -17,6 +17,18 @@ from clite.core.profiles import (
 
 def run_list(args: argparse.Namespace) -> int:
     sticky = get_sticky_profile()
+    if getattr(args, "json", False):
+        import json
+
+        payload = {
+            "current": get_active_profile_name(),
+            "sticky": sticky,
+            "profiles": [
+                {"name": p.name, "home": str(p.home), "active": p.active} for p in list_profiles()
+            ],
+        }
+        print(json.dumps(payload, indent=2))
+        return 0
     for profile in list_profiles():
         marks = ("*" if profile.active else " ") + (
             "  (default for new shells)" if profile.name == sticky else ""
@@ -60,7 +72,9 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     parser = subparsers.add_parser("profile", help="manage profiles (separate homes)")
     parser.set_defaults(handler=run_list)
     actions = parser.add_subparsers(dest="profile_action")
-    actions.add_parser("list", help="list profiles").set_defaults(handler=run_list)
+    listing = actions.add_parser("list", help="list profiles")
+    listing.add_argument("--json", action="store_true", help="output raw JSON data")
+    listing.set_defaults(handler=run_list)
     actions.add_parser("show", help="print the active profile").set_defaults(handler=run_show)
     create = actions.add_parser("create", help="create a profile")
     create.add_argument("name")

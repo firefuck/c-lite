@@ -98,6 +98,14 @@ Daftar lengkap method, event, dan permintaan server ada di
   dengan `session.attach`, sehingga sebuah event tidak pernah sekaligus terkirim langsung dan
   diputar ulang.
 
+**Profil**
+- `profiles.list` mengembalikan setiap profil di mesin ini (`name`, `active`), profil mana yang
+  dijalankan server ini (`current`), dan mana yang akan dipakai shell baru (`sticky`). Ketiganya
+  bisa berbeda: server ini tetap melayani profil yang dibukanya sampai ia dimatikan.
+- Tidak ada method untuk berpindah profil. Satu backend melayani satu profil, jadi berpindah
+  berarti menjalankan backend lain: di browser dengan `clite dashboard -p NAME`, di aplikasi
+  desktop dengan memilih profil saat mulai.
+
 **Lampiran**
 - `attachment.save {name, data, mime}` menyimpan satu berkas (isi base64, tanpa awalan `data:`)
   ke `cache/attachments/` dan mengembalikan path-nya. Ukurannya dibatasi `attachments.max_bytes`.
@@ -139,7 +147,7 @@ Daftar lengkap method, event, dan permintaan server ada di
 
 | Fitur | Status | Catatan |
 |---|---|---|
-| 48 method, 13 event, 2 permintaan server | ✅ | Hermes: 251 method, 69 event, 13 permintaan server |
+| 49 method, 13 event, 2 permintaan server | ✅ | Hermes: 251 method, 69 event, 13 permintaan server |
 | Transport stdio dan WebSocket | ✅ | |
 | Generator TypeScript dan pemeriksaan kesegaran | ✅ | |
 | Klien TypeScript bersama (`apps/shared`) | ✅ | 21 tes |
