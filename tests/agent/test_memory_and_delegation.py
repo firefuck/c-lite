@@ -14,6 +14,7 @@ from clite.agent.memory import MemoryManager, MemoryProvider, MemoryStore, regis
 from clite.agent.memory.manager import MEMORY_NUDGE, strip_memory_context
 from clite.core.config import load_config, reset_config_cache
 from clite.plugins.hooks import get_hook_bus
+from clite.plugins.manager import ensure_plugins_loaded
 from clite.providers.testing import ScriptedClient, text_response, tool_call_response
 from clite.state import get_session_db
 
@@ -187,6 +188,69 @@ def test_unknown_provider_name_is_ignored(make_agent, clite_home):
 def test_recalled_context_can_be_stripped():
     text = "<memory-context>\n[Recalled]\n\nfact\n</memory-context>\n\nthe real message"
     assert strip_memory_context(text) == "the real message"
+
+
+# ── the bundled sqlite provider (F6-T3) ──────────────────────────────────────────────────
+
+
+@pytest.fixture
+def sqlite_provider(clite_home):
+    """The bundled ``memory-sqlite`` plugin, selected the way a user selects it."""
+    ensure_plugins_loaded()
+    (clite_home / "config.yaml").write_text("memory:\n  provider: sqlite-memory\n")
+    return clite_home
+
+
+def _save_a_fact(make_agent, fact: str, request: str = "remember this") -> None:
+    """One session that saves ``fact`` with the provider's own tool, then closes."""
+    saver, _ = make_agent(
+        [tool_call_response(("memory_save", {"content": fact})), text_response("Noted.")]
+    )
+    assert "memory_save" in saver.tool_names
+    assert saver.run_conversation(request).completed
+    saver.close()
+
+
+def test_a_fact_saved_in_one_session_is_recalled_in_another(make_agent, sqlite_provider):
+    _save_a_fact(make_agent, "Deploys run from the ops laptop")
+
+    later, client = make_agent([text_response("From the ops laptop.")])
+    later.run_conversation("where do deploys run from?")
+    request = client.calls[0]["messages"]
+    assert "<memory-context>" in request[1]["content"]
+    assert "Deploys run from the ops laptop" in request[1]["content"]
+    # Recalled memory is background on the user message, never part of the system prompt, and
+    # the user's own words are stored without it.
+    assert "Deploys run from the ops laptop" not in request[0]["content"]
+    assert later.messages[0]["content"] == "where do deploys run from?"
+
+
+def test_a_recalled_block_is_resent_unchanged_on_later_turns(make_agent, sqlite_provider):
+    _save_a_fact(make_agent, "The staging cluster is called rhea")
+
+    agent, client = make_agent([text_response("Rhea."), text_response("Still rhea.")])
+    agent.run_conversation("what is the staging cluster called?")
+    agent.run_conversation("say it again")
+    first = client.calls[0]["messages"]
+    assert "rhea" in first[1]["content"]
+    # The block belongs to the message that first carried it: the next request repeats that
+    # message exactly, so the conversation's prefix — and its prompt cache — survives.
+    assert client.calls[1]["messages"][: len(first)] == first
+
+
+def test_a_query_full_of_punctuation_is_not_an_error(make_agent, sqlite_provider):
+    _save_a_fact(make_agent, "Deploys run from the ops laptop")
+
+    agent, client = make_agent(
+        [
+            tool_call_response(("memory_search", {"query": '"ops" OR /etc/* NEAR('})),
+            text_response("Found it."),
+        ]
+    )
+    agent.run_conversation("search your memory")
+    result = json.loads(agent.messages[2]["content"])
+    assert result["results"] == ["Deploys run from the ops laptop"]
+    assert "error" not in result
 
 
 def test_skip_memory_removes_the_block_and_the_store(make_agent):

@@ -169,6 +169,10 @@ Setiap butir dijaga oleh tes di `tests/agent/`.
   disk tetapi tidak mengubah prompt sesi itu.
 - Entri yang lolos pemindaian ancaman saja yang disimpan. Duplikat ditolak.
 - Provider memori eksternal yang gagal tidak pernah menggagalkan giliran.
+- Provider memilih sendiri apa yang disimpannya lewat `prefetch`, `sync_turn` dan hook lain;
+  contoh lengkapnya plugin bawaan `memory-sqlite` (SQLite + FTS5): fakta disimpan lewat tool
+  milik provider, diingat kembali lewat `prefetch`, dan masuk ke `turn_context` seperti ingatan
+  lain. `README.md` di direktori itu menjelaskan tiap method antarmuka dan kapan ia dipanggil.
 - Setiap `memory.nudge_interval` giliran tanpa tulisan memori, satu pengingat ditempel ke
   pesan pengguna (hanya bila tool `memory` tersedia). Penghitung giliran tanpa tulisan disimpan
   per sesi di `<home>/memories/nudge.json`, jadi sesi yang dilanjutkan tidak memulai ulang
@@ -220,7 +224,7 @@ Setiap butir dijaga oleh tes di `tests/agent/`.
 | Loop berfase, pemulihan galat, fallback provider | ✅ | |
 | Prompt tiga tingkat, cache, file konteks | ✅ | |
 | Kompresor bawaan dan registry `ContextEngine` | ✅ | Ringkasan berstruktur, peringkasan bertahap, gambar dibuang lebih dulu (F2-T11). Engine kedua, jendela geser sebagai plugin bawaan (tanpa model bantu), dan `context.engine` yang tidak dikenal jatuh ke kompresor dengan peringatan. Tes kontrak `check_context_engine` menguji setiap engine terdaftar. F6-T6 |
-| Memori bawaan, provider eksternal, pengingat | ✅ | Provider contoh: F6-T3 |
+| Memori bawaan, provider eksternal, pengingat | ✅ | Provider contoh: plugin bawaan `memory-sqlite` (SQLite + FTS5, tool `memory_save`/`memory_search`, diingat lintas sesi lewat `turn_context`), dijelaskan method demi method di `README.md` plugin itu. F6-T3 |
 | Delegasi sinkron | ✅ | Model per tugas (`model`, dibatasi ke provider terkonfigurasi), progres rinci (nama tool, pratinjau argumen, iterasi, model). F2-T13 |
 | Delegasi latar | ✅ | `delegate_task(background=true)` kembali dengan id; laporan tiba sebagai catatan pada hasil tool berikutnya (pola `/steer`), interupsi induk menjalar. Dijaga `tests/agent/test_memory_and_delegation.py`. F2-T13 |
 | Peran pengatur | ✅ | Dengan `delegation.max_spawn_depth > 1`, anak tingkat tengah mendelegasikan lagi dan cucu tidak. F2-T13 |

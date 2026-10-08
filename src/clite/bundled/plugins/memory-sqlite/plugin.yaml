@@ -1,0 +1,5 @@
+name: memory-sqlite
+version: 1.0.0
+description: "Long-term memory in SQLite: facts saved with a tool, found again with FTS5 search in later sessions"
+author: C-lite
+kind: backend

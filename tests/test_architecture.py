@@ -146,8 +146,8 @@ def test_bundled_plugins_use_only_the_plugin_api():
     """A bundled plugin is the example third-party authors copy. It may import what any plugin
     may: ``core``, the provider profile API, the hook bus, and the base class of the extension
     point it plugs into (a context engine subclasses ``ContextEngine`` and uses the pairing
-    helper beside it). Everything else reaches a plugin through the ``ctx`` it is handed, never
-    through an import of the agent's internals."""
+    helper beside it; a memory provider subclasses ``MemoryProvider``). Everything else reaches
+    a plugin through the ``ctx`` it is handed, never through an import of agent internals."""
     allowed = (
         "clite.core.",
         "clite.providers.base",
@@ -157,6 +157,7 @@ def test_bundled_plugins_use_only_the_plugin_api():
         "clite.tools.web_search",
         "clite.tools.image_gen",
         "clite.agent.context.engine",
+        "clite.agent.memory.provider",
     )
     for path in sorted((PACKAGE / "bundled").rglob("*.py")):
         for name, _, line in _internal_imports(path):

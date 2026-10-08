@@ -265,6 +265,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `audit-log` | standalone | Record every tool call to logs/tool-audit.jsonl and show recent ones with /audit |
 | `context-sliding-window` | backend | Sliding-window context engine: drop the middle, keep a protected head and tail (no summariser call) |
 | `image-gen-openai` | backend | Image generation via the OpenAI Images API (requires OPENAI_API_KEY) |
+| `memory-sqlite` | backend | Long-term memory in SQLite: facts saved with a tool, found again with FTS5 search in later sessions |
 | `web-search-ddg` | backend | Web search via the DuckDuckGo HTML endpoint (no API key required) |
 | `web-search-tavily` | backend | Web search via the Tavily API (requires TAVILY_API_KEY) |
 

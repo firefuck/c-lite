@@ -88,7 +88,7 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
 | Ledger pembatalan | ✅ | |
 | Shell hook dengan persetujuan | ✅ | |
 | Plugin bawaan contoh (`audit-log`) | ✅ | |
-| Plugin bawaan backend (`web-search-ddg`, `web-search-tavily`) | ✅ | DDG tanpa kunci; Tavily berkunci, ``TAVILY_API_KEY`` terdaftar sebagai kredensial |
+| Plugin bawaan backend (`web-search-ddg`, `web-search-tavily`, `image-gen-openai`, `context-sliding-window`, `memory-sqlite`) | ✅ | DDG tanpa kunci; Tavily berkunci, `TAVILY_API_KEY` terdaftar sebagai kredensial. `context-sliding-window` dan `memory-sqlite` adalah contoh titik perluasan: context engine (F6-T6) dan provider memori (F6-T3) |
 | `pip_dependencies`, `provides_tools`, `provides_hooks` di manifest | 🟡 | Diparse, belum dipakai (tidak ada pemasangan dependensi otomatis) |
 | Jenis `exclusive` (satu aktif per kategori) | 🟡 | Jenisnya dikenali; aturan "hanya satu" belum ditegakkan |
 | Pembaruan plugin, katalog plugin | ⬜ | F6-T5 |

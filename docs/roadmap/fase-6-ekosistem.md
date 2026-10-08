@@ -106,7 +106,9 @@ menjadi contoh lengkap untuk penulis plugin.
   dibungkus sebagai informasi latar.
 - Dokumen singkat di direktori plugin yang menjelaskan tiap method antarmuka dan kapan
   dipanggil.
-- Opsional, sebagai plugin kedua: satu provider yang dihosting.
+- Opsional, sebagai plugin kedua: satu provider yang dihosting. *(Ditunda: contoh lokal sudah
+  menunjukkan seluruh antarmuka; provider terhosting menambah kredensial jaringan dan tidak
+  bisa diuji tanpa layanan sungguhan.)*
 
 **File.** `src/clite/bundled/plugins/ (direktori plugin baru)`,
 `src/clite/agent/memory/provider.py`, `tests/agent/test_memory_and_delegation.py`,
@@ -116,11 +118,11 @@ menjadi contoh lengkap untuk penulis plugin.
 implementasi), `website/docs/developer-guide/memory-provider-plugin.md`.
 
 **Selesai bila.**
-- [ ] Tes: fakta yang disimpan di satu sesi teringat di sesi lain lewat `turn_context`.
-- [ ] Tes: awalan kawat tetap stabil dengan provider aktif (ingatan giliran lama dikirim ulang
+- [x] Tes: fakta yang disimpan di satu sesi teringat di sesi lain lewat `turn_context`.
+- [x] Tes: awalan kawat tetap stabil dengan provider aktif (ingatan giliran lama dikirim ulang
       persis sama).
-- [ ] Tes: plugin hanya mengimpor API plugin.
-- [ ] Baris "Provider contoh" di spesifikasi agent menjadi ✅.
+- [x] Tes: plugin hanya mengimpor API plugin.
+- [x] Baris "Provider contoh" di spesifikasi agent menjadi ✅.
 
 **Ukuran.** M
 
