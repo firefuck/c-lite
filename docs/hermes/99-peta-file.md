@@ -74,7 +74,7 @@ Sebelum membawa sesuatu, baca
 | `hermes_cli/models.py`, `agent/models_dev.py` | `src/clite/providers/models.py` | Katalog model |
 | `hermes_cli/model_switch.py` | `src/clite/providers/model_switch.py` | |
 | `agent/reasoning_effort.py` | `src/clite/bundled/plugins/model-providers/anthropic/__init__.py` | Di sini aturan penalaran milik profil |
-| `agent/usage_pricing.py`, `hermes_cli/models_pricing.py` | belum ada | F2-T3 |
+| `agent/usage_pricing.py`, `hermes_cli/models_pricing.py` | `src/clite/providers/pricing.py` | F2-T3 |
 | `hermes_cli/auth.py`, `hermes_cli/auth_commands.py` | belum ada | OAuth dan `clite auth`: F2-T14 |
 
 ## Tool

@@ -681,7 +681,11 @@ NEVER_REMEMBERED = frozenset({SELF_ACCESS.key})
 
 _PROTECTED_NAME = re.compile(
     r"(?<![\w.\-])(?:"
-    + "|".join(re.escape(posixpath.basename(name)) for name in PROTECTED_PATHS)
+    + "|".join(
+        re.escape(posixpath.basename(name))
+        for name in PROTECTED_PATHS
+        if "." in posixpath.basename(name) or name.startswith(".")
+    )
     + r")(?![\w.\-])",
     re.IGNORECASE,
 )

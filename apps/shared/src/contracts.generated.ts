@@ -314,6 +314,7 @@ export interface SessionTitleResult {
 export interface SessionUsageResult {
   usage: UsageTotals;
   context: ContextStatus;
+  estimated_cost_usd: number | null;
 }
 
 export interface SetupApplyParams {
@@ -381,6 +382,7 @@ export interface StoredSession {
   message_count: number;
   started_at: number;
   last_activity_at: number | null;
+  estimated_cost_usd: number | null;
 }
 
 export interface SubagentPayload {
@@ -455,6 +457,8 @@ export interface TurnCompletePayload {
   api_calls: number;
   duration: number;
   usage: UsageTotals;
+  cost_usd: number | null;
+  estimated_cost_usd: number | null;
 }
 
 export interface TurnStartPayload {
@@ -469,6 +473,7 @@ export interface UsageTotals {
   cache_write_tokens: number;
   reasoning_tokens: number;
   prompt_tokens: number;
+  estimated_cost_usd: number | null;
 }
 
 /** Client-to-server methods. */

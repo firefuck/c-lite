@@ -191,7 +191,8 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `errors.py` | API error classification: one place decides what a failure means and what to try next. | `FailoverReason`, `ClassifiedError`, `classify_api_error()` |
 | `http.py` | The HTTP seam for model calls: standard library only, cancellable, proxy-aware. | `ProviderHTTPError`, `Cancelled`, `CancelHandle`, `SSEEvent`, `HttpClient`, `parse_sse()` |
 | `model_switch.py` | Model switching: one pipeline for ``/model`` in the CLI, the TUI, the desktop app and the gateway. | `ModelSwitchResult`, `parse_model_input()`, `switch_model()` |
-| `models.py` | Model catalog: which models a provider offers, and how large their context windows are. | `ModelInfo`, `fetch_models()`, `list_models()`, `get_context_length()` |
+| `models.py` | Model catalog: which models a provider offers, and how large their context windows are. | `ModelInfo`, `fetch_models()`, `get_cached_model_pricing()`, `list_models()`, `get_context_length()` |
+| `pricing.py` | Model pricing and cost estimation: rates per million tokens and layered lookup. | `ModelPricing`, `resolve_model_pricing()` |
 | `registry.py` | Provider registry with lazy, layered discovery. | `register_provider()`, `list_providers()`, `get_provider()`, `reset_providers()`, `reset_user_layers()` |
 | `runtime.py` | Runtime provider resolution: from "what the user asked for" to a route that can be called. | `RuntimeRoute`, `resolve_runtime_provider()`, `resolve_fallback_routes()` |
 | `testing.py` | Test doubles for the model client. | `text_response()`, `tool_call_response()`, `mock_route()`, `ScriptedClient` |
@@ -329,4 +330,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 193 modul.
+Jumlah: 194 modul.

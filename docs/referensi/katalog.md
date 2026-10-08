@@ -154,7 +154,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `session.title` | `session_id`, `title?` | `title?` | Read the title, or set it when `title` is given. |
 | `session.delete` | `stored_session_id` | `ok?` |  |
 | `session.compress` | `session_id`, `focus?` | `compressed`, `message_count` |  |
-| `session.usage` | `session_id` | `usage`, `context` |  |
+| `session.usage` | `session_id` | `usage`, `context`, `estimated_cost_usd?` |  |
 | `prompt.submit` | `session_id`, `text`, `busy_mode?`, `attachments?` | `accepted`, `turn_id?`, `queued?` | Start a turn. Returns at once; the answer arrives as events ending with turn.complete. |
 | `slash.exec` | `session_id`, `command` | `text?`, `action?`, `turn_id?`, `data?` | Run a slash command. |
 | `commands.catalog` | `session_id?` | `commands` | Every command available now, for help and autocomplete. |
@@ -191,7 +191,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `tool.complete` | `call_id`, `name`, `duration`, `failed?`, `result_preview?`, `diff?` |
 | `status.update` | `kind`, `text` |
 | `subagent.update` | `event`, `index?`, `goal?`, `tool?`, `status?`, `args?`, `iteration?`, `model?`, `spawn_id?` |
-| `turn.complete` | `turn_id`, `final_response`, `completed`, `interrupted?`, `error?`, `exit_reason?`, `api_calls?`, `duration?`, `usage?` |
+| `turn.complete` | `turn_id`, `final_response`, `completed`, `interrupted?`, `error?`, `exit_reason?`, `api_calls?`, `duration?`, `usage?`, `cost_usd?`, `estimated_cost_usd?` |
 | `error` | `message`, `code?` |
 
 ### Permintaan dari server ke klien
@@ -303,6 +303,7 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `model.vision` | `null` |
 | `providers` | `{}` |
 | `fallback_providers` | `[]` |
+| `pricing.overrides` | `{}` |
 | `toolsets` | `["clite-cli"]` |
 | `disabled_toolsets` | `[]` |
 | `platform_toolsets` | `{}` |

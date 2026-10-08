@@ -126,6 +126,7 @@ class AIAgent:
         self.messages: list[dict[str, Any]] = []
         self.system_prompt: str | None = None
         self.total_usage = Usage()
+        self.total_cost_usd: float | None = None
         self.interrupt_event: threading.Event = threading.Event()
         self._steer: list[str] = []
         self._notes: list[str] = []
@@ -155,6 +156,8 @@ class AIAgent:
         self._title_requested = bool(row.get("title"))
         if row.get("ended_at") is not None:
             self.db.update_session(self.session_id, ended_at=None, end_reason=None)  # it is live again
+        if row.get("estimated_cost_usd") is not None:
+            self.total_cost_usd = float(row["estimated_cost_usd"])
         self.context_engine.on_session_start(self.session_id)
 
     def _auxiliary_context_length(self) -> int:
@@ -351,6 +354,27 @@ class AIAgent:
             target.cache_read_tokens += usage.cache_read_tokens
             target.cache_write_tokens += usage.cache_write_tokens
             target.reasoning_tokens += usage.reasoning_tokens
+
+        from clite.providers.pricing import get_model_pricing
+
+        pricing = get_model_pricing(
+            state.route.model,
+            provider=state.route.provider,
+            profile=state.route.profile,
+            config=self.config,
+        )
+        cost_usd: float | None = None
+        if pricing is not None:
+            cost_usd = pricing.calculate_cost(
+                input_tokens=usage.input_tokens,
+                output_tokens=usage.output_tokens,
+                cache_read_tokens=usage.cache_read_tokens,
+                cache_write_tokens=usage.cache_write_tokens,
+            )
+            state.cost_usd = (state.cost_usd or 0.0) + cost_usd
+            with self._lock:
+                self.total_cost_usd = (self.total_cost_usd or 0.0) + cost_usd
+
         if self.db is not None:
             self.db.add_usage(
                 self.session_id,
@@ -360,6 +384,7 @@ class AIAgent:
                 cache_write_tokens=usage.cache_write_tokens,
                 reasoning_tokens=usage.reasoning_tokens,
                 api_calls=1,
+                cost_usd=cost_usd,
             )
 
     # ── model and context ────────────────────────────────────────────────────────────────

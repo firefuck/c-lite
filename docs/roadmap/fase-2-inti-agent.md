@@ -131,11 +131,11 @@ biaya dalam dolar, dihitung dari token yang benar-benar dilaporkan provider.
 `agent/models_dev.py`.
 
 **Selesai bila.**
-- [ ] Tes: biaya satu giliran dengan cache baca dan tulis dihitung benar dari tarif profil.
-- [ ] Tes: model tanpa harga menghasilkan "tidak diketahui" di `/usage` dan `null` di RPC.
-- [ ] Harga profil `anthropic` diisi dari halaman harga resmi, dengan tanggal pengambilan di
+- [x] Tes: biaya satu giliran dengan cache baca dan tulis dihitung benar dari tarif profil.
+- [x] Tes: model tanpa harga menghasilkan "tidak diketahui" di `/usage` dan `null` di RPC.
+- [x] Harga profil `anthropic` diisi dari halaman harga resmi, dengan tanggal pengambilan di
       komentar.
-- [ ] Baris "Estimasi biaya" di spesifikasi agent, state, dan providers menjadi ✅.
+- [x] Baris "Estimasi biaya" di spesifikasi agent, state, dan providers menjadi ✅.
 
 **Ukuran.** S
 

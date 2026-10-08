@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
+from clite.providers.pricing import ModelPricing
+
 if TYPE_CHECKING:
     from clite.providers.runtime import RuntimeRoute
     from clite.providers.transports.types import HttpRequest
@@ -57,6 +59,7 @@ class ProviderProfile:
     default_model: str = ""
     default_aux_model: str = ""  # cheap model for side tasks; empty = use the main model
     context_lengths: dict[str, int] = field(default_factory=dict)  # exact id or prefix -> tokens
+    model_pricing: dict[str, ModelPricing] = field(default_factory=dict)  # exact id or prefix -> ModelPricing
     # Model ids or id prefixes that accept image content. Empty = the whole profile accepts
     # images (the common case); a profile whose non-vision models share an id prefix lists it
     # in ``no_vision_prefixes`` instead.
@@ -161,6 +164,12 @@ class ProviderProfile:
             return self.context_lengths[model]
         matches = [prefix for prefix in self.context_lengths if model.startswith(prefix)]
         return self.context_lengths[max(matches, key=len)] if matches else None
+
+    def get_model_pricing(self, model: str) -> ModelPricing | None:
+        if model in self.model_pricing:
+            return self.model_pricing[model]
+        matches = [prefix for prefix in self.model_pricing if model.startswith(prefix)]
+        return self.model_pricing[max(matches, key=len)] if matches else None
 
     def resolve_aux_model(self) -> str:
         return self.default_aux_model

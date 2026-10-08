@@ -53,6 +53,7 @@ class StoredSession(Result):
     message_count: int = 0
     started_at: float = 0.0
     last_activity_at: float | None = None
+    estimated_cost_usd: float | None = None
 
 
 class TranscriptMessage(Result):
@@ -71,6 +72,7 @@ class UsageTotals(Result):
     cache_write_tokens: int = 0
     reasoning_tokens: int = 0
     prompt_tokens: int = 0
+    estimated_cost_usd: float | None = None
 
 
 class CommandEntry(Result):
@@ -165,6 +167,7 @@ class SessionCompressResult(Result):
 class SessionUsageResult(Result):
     usage: UsageTotals
     context: ContextStatus
+    estimated_cost_usd: float | None = None
 
 
 method(
@@ -543,6 +546,8 @@ class TurnCompletePayload(Payload):
     api_calls: int = 0
     duration: float = 0.0
     usage: UsageTotals = UsageTotals()
+    cost_usd: float | None = None
+    estimated_cost_usd: float | None = None
 
 
 class ErrorPayload(Payload):

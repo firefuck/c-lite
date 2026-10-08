@@ -56,6 +56,7 @@ class TurnState:
     rotated_credentials: int = 0
     replay_dropped: bool = False  # replayed provider data was dropped once already this turn
     first_message_index: int = 0  # index in agent.messages where this turn begins
+    cost_usd: float | None = None
 
 
 @dataclass
@@ -72,8 +73,17 @@ class TurnResult:
     provider: str = ""
     duration: float = 0.0
     messages: list[dict[str, Any]] = field(default_factory=list)
+    cost_usd: float | None = None
+    estimated_cost_usd: float | None = None
+
+    def __post_init__(self) -> None:
+        if self.estimated_cost_usd is None and self.cost_usd is not None:
+            self.estimated_cost_usd = self.cost_usd
+        elif self.cost_usd is None and self.estimated_cost_usd is not None:
+            self.cost_usd = self.estimated_cost_usd
 
     def to_dict(self) -> dict[str, Any]:
+        cost = self.estimated_cost_usd if self.estimated_cost_usd is not None else self.cost_usd
         return {
             "final_response": self.final_response,
             "completed": self.completed,
@@ -92,5 +102,8 @@ class TurnResult:
                 "cache_write_tokens": self.usage.cache_write_tokens,
                 "reasoning_tokens": self.usage.reasoning_tokens,
                 "prompt_tokens": self.usage.prompt_tokens,
+                "estimated_cost_usd": cost,
             },
+            "cost_usd": cost,
+            "estimated_cost_usd": cost,
         }

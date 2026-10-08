@@ -63,7 +63,7 @@ saat menulis.
 | Sesi, pesan, kompaksi di tempat, rewind | ✅ | |
 | Pencarian FTS5 dengan cadangan `LIKE` | ✅ | |
 | Penghitung token per sesi | ✅ | |
-| Estimasi biaya | ⬜ | Kolom ada, tidak ada yang mengisi: F2-T3 |
+| Estimasi biaya | ✅ | Kolom `estimated_cost_usd` diisi oleh `record_usage`, diagregasi oleh `get_insights` dengan penanganan model tanpa harga. F2-T3 |
 | Pangkas sesi (`prune_sessions`) dan auto-prune | ✅ | Auto-prune ada di `runtime/maintenance.py` |
 | Banyak proses menulis bersamaan | 🟡 | WAL dan `busy_timeout` 30 detik. Tidak ada kumpulan koneksi baca |
 | Pemulihan database rusak | ⬜ | Hermes punya perangkat pemulihan lengkap (`hermes_state_repair.py`) |

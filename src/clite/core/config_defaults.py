@@ -32,6 +32,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "providers": {},
     # Tried in order when the primary route fails: [{provider, model}]
     "fallback_providers": [],
+    # Pricing overrides per model or prefix; empty by default to use profile or catalog rates
+    "pricing": {
+        "overrides": {},
+    },
     # ── Tools ────────────────────────────────────────────────────────────────────────────
     "toolsets": ["clite-cli"],
     "disabled_toolsets": [],

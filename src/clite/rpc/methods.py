@@ -86,6 +86,7 @@ def session_list(server: RpcServer, params: schema.SessionListParams) -> schema.
                 message_count=row.get("message_count") or 0,
                 started_at=row["started_at"],
                 last_activity_at=row.get("last_activity_at"),
+                estimated_cost_usd=row.get("estimated_cost_usd"),
             )
             for row in rows
         ]
@@ -151,6 +152,10 @@ def session_compress(server: RpcServer, params: schema.SessionCompressParams) ->
 def session_usage(server: RpcServer, params: schema.SessionRef) -> schema.SessionUsageResult:
     agent = server.get_session(params.session_id).chat.agent
     usage = agent.total_usage
+    row = get_session_db().get_session(agent.session_id) or {}
+    cost = row.get("estimated_cost_usd")
+    if cost is None:
+        cost = agent.total_cost_usd
     return schema.SessionUsageResult(
         usage=schema.UsageTotals(
             input_tokens=usage.input_tokens,
@@ -159,8 +164,10 @@ def session_usage(server: RpcServer, params: schema.SessionRef) -> schema.Sessio
             cache_write_tokens=usage.cache_write_tokens,
             reasoning_tokens=usage.reasoning_tokens,
             prompt_tokens=usage.prompt_tokens,
+            estimated_cost_usd=cost,
         ),
         context=schema.ContextStatus(**agent.context_status()),
+        estimated_cost_usd=cost,
     )
 
 

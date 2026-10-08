@@ -26,7 +26,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from clite.providers.base import API_MODE_ANTHROPIC, ProviderProfile
+from clite.providers.base import API_MODE_ANTHROPIC, ModelPricing, ProviderProfile
 from clite.providers.registry import register_provider
 
 # Models that still use a manual thinking budget. Everything newer is adaptive.
@@ -100,6 +100,18 @@ register_provider(
             "claude-opus-5": 1_000_000,
             "claude-sonnet-5-5": 1_000_000,
             "claude-": 200_000,
+        },
+        # Pricing retrieved from https://www.anthropic.com/pricing on 2026-10-08.
+        # Rates are in USD per million tokens: (input, output, cache_read, cache_write).
+        model_pricing={
+            "claude-3-7-sonnet": ModelPricing(3.0, 15.0, 0.30, 3.75),
+            "claude-3-5-sonnet": ModelPricing(3.0, 15.0, 0.30, 3.75),
+            "claude-3-5-haiku": ModelPricing(0.80, 4.0, 0.08, 1.00),
+            "claude-3-opus": ModelPricing(15.0, 75.0, 1.50, 18.75),
+            "claude-3-haiku": ModelPricing(0.25, 1.25, 0.03, 0.30),
+            "claude-sonnet-": ModelPricing(3.0, 15.0, 0.30, 3.75),
+            "claude-opus-": ModelPricing(15.0, 75.0, 1.50, 18.75),
+            "claude-haiku-": ModelPricing(0.80, 4.0, 0.08, 1.00),
         },
     )
 )
