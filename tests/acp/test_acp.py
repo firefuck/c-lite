@@ -11,15 +11,22 @@ import json
 import os
 import subprocess
 import sys
+import time
 
 import pytest
 
 from clite.acp.entry import serve_stdio
-from clite.acp.server import ACP_METHODS, PROTOCOL_VERSION, AcpServer
+from clite.acp.server import ACP_METHODS, PROTOCOL_VERSION, AcpError, AcpServer
+from clite.acp.session import stop_reason
+from clite.agent import TurnResult
 from clite.providers.testing import ScriptedClient, text_response
 from clite.rpc.transport import MemoryTransport
 
 MOCK = "model:\n  provider: mock\n  default: mock-1\n"
+
+
+def _prompt(session_id: str, text: str) -> dict:
+    return {"sessionId": session_id, "prompt": [{"type": "text", "text": text}]}
 
 
 class Client:
@@ -78,6 +85,22 @@ class Client:
         if not self.server.initialized:
             self.initialize()
         return self.call("session/new", {"cwd": cwd, "mcpServers": []})["sessionId"]
+
+    def prompt(self, session_id: str, text: str = "hello") -> dict:
+        request_id = self.send("session/prompt", _prompt(session_id, text))
+        return self.reply_to(request_id)
+
+    def cancel(self, session_id: str) -> None:
+        self.send("session/cancel", {"sessionId": session_id}, notify=True)
+
+    def wait_busy(self, session_id: str, timeout: float = 5.0) -> None:
+        """Block until the turn has reached the model, so a cancel cannot race its start."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if self.scripted.calls:
+                return
+            time.sleep(0.01)
+        raise AssertionError("the turn never reached the model")
 
 
 @pytest.fixture(autouse=True)
@@ -230,7 +253,128 @@ def test_session_new_accepts_the_clients_mcp_servers_without_taking_them(client)
 
 
 def test_the_method_table_is_the_protocol_we_implement():
-    assert set(ACP_METHODS) == {"initialize", "session/new"}
+    assert set(ACP_METHODS) == {"initialize", "session/new", "session/prompt", "session/cancel"}
+    # Cancel is read on the thread that reads the socket, not on the pool: it has to be acted
+    # on while the prompt it cancels is still occupying a worker.
+    assert ACP_METHODS["session/cancel"].inline is True
+
+
+# ── a turn ───────────────────────────────────────────────────────────────────────────────
+
+
+def test_a_prompt_answers_with_the_end_of_a_turn_and_streams_the_text_first(client):
+    acp = client([text_response("the answer", reasoning="thinking it over")])
+    session_id = acp.new_session()
+    assert acp.prompt(session_id, "a question")["result"] == {"stopReason": "end_turn"}
+    chunks = [update["update"] for update in acp.updates("agent_message_chunk")]
+    assert chunks == [{"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": "the answer"}}]
+    thoughts = [update["update"] for update in acp.updates("agent_thought_chunk")]
+    assert [thought["content"]["text"] for thought in thoughts] == ["thinking it over"]
+    # Every update belongs to the session the prompt named.
+    assert {update["sessionId"] for update in acp.updates()} == {session_id}
+
+
+def test_a_prompt_needs_a_session_that_exists(client):
+    acp = client()
+    acp.initialize()
+    error = acp.error("session/prompt", _prompt("sess_missing", "hello"))
+    assert error["code"] == 4001
+
+
+def test_a_second_prompt_while_one_runs_is_session_busy(client):
+    def blocked(cancel, **kwargs):
+        cancel.wait(5)
+        raise InterruptedError
+
+    acp = client([blocked, text_response("done")])
+    session_id = acp.new_session()
+    first = acp.send("session/prompt", _prompt(session_id, "long task"))
+    acp.wait_busy(session_id)
+    error = acp.error("session/prompt", _prompt(session_id, "another"))
+    assert error["code"] == 4002
+    acp.cancel(session_id)
+    assert acp.reply_to(first)["result"] == {"stopReason": "cancelled"}
+
+
+def test_cancel_stops_the_running_turn_and_is_never_answered(client):
+    def blocked(cancel, **kwargs):
+        cancel.wait(5)
+        raise InterruptedError
+
+    acp = client([blocked])
+    session_id = acp.new_session()
+    request_id = acp.send("session/prompt", _prompt(session_id, "long task"))
+    acp.wait_busy(session_id)
+    before = len(acp.transport.messages)
+    acp.cancel(session_id)
+    reply = acp.reply_to(request_id)
+    assert reply["result"] == {"stopReason": "cancelled"}
+    # Cancelling is a notification: nothing comes back on its own account. The only message
+    # after it is the prompt's own reply.
+    assert [message for message in acp.transport.messages[before:] if message is not reply] == []
+
+
+def test_cancelling_a_session_that_is_gone_is_not_an_error(client):
+    """A client may cancel after its turn already ended, or name a session that was closed.
+
+    There is nothing the editor could do with an error here, so there is none — whether the
+    cancel arrives as the notification it should be or, as some clients send it, as a request.
+    """
+    acp = client()
+    acp.initialize()
+    assert acp.call("session/cancel", {"sessionId": "sess_never_existed"}) == {}
+    acp.cancel("sess_never_existed")
+    assert acp.initialize()["protocolVersion"] == PROTOCOL_VERSION  # still usable
+
+
+@pytest.mark.parametrize(
+    "blocks",
+    [
+        [],
+        "hello",
+        [{"type": "image", "data": "..."}],
+        [{"type": "resource_link", "uri": "file:///etc/hosts"}],
+        [{"type": "audio", "data": "..."}],
+        # A block that carries text *and* is not text: the type decides, not the presence of
+        # a string the agent could fall back on.
+        [{"type": "resource_link", "uri": "file:///etc/hosts", "text": "looks like a prompt"}],
+        [{"type": "text"}],
+        ["not a block"],
+    ],
+)
+def test_a_prompt_that_is_not_text_is_refused(client, blocks):
+    """The handshake announced text-only prompts, so anything else is the client's bug."""
+    acp = client()
+    session_id = acp.new_session()
+    error = acp.error("session/prompt", {"sessionId": session_id, "prompt": blocks})
+    assert error["code"] == -32602 and "prompt" in error["message"]
+
+
+def test_a_prompt_needs_a_session_id(client):
+    acp = client()
+    acp.initialize()
+    error = acp.error("session/prompt", {"prompt": [{"type": "text", "text": "hello"}]})
+    assert error["code"] == -32602
+
+
+@pytest.mark.parametrize(
+    ("result", "expected"),
+    [
+        (TurnResult(final_response="hi", completed=True, exit_reason="completed"), "end_turn"),
+        (TurnResult(final_response="", completed=False, interrupted=True, exit_reason="interrupted"), "cancelled"),
+        (TurnResult(final_response="no", completed=False, exit_reason="refusal"), "refusal"),
+        (TurnResult(final_response="", completed=False, exit_reason="budget_exhausted"), "max_turn_requests"),
+    ],
+)
+def test_the_stop_reason_comes_from_the_turn_the_agent_reported(result, expected):
+    assert stop_reason(result) == expected
+
+
+def test_a_turn_that_ended_without_an_answer_is_an_error_not_a_stop_reason():
+    """An empty reply shown as ``end_turn`` would look like the agent had nothing to say."""
+    with pytest.raises(AcpError) as raised:
+        stop_reason(TurnResult(final_response="", completed=False, error="boom", exit_reason="api_error:server"))
+    assert raised.value.code == 4003 and "boom" in raised.value.message
 
 
 # ── the real process over pipes ──────────────────────────────────────────────────────────

@@ -186,8 +186,10 @@ nama agent). Catat sebagai task lanjutan.
    Kawatnya NDJSON `clite.rpc.transport` yang sama dengan TUI. 22 tes di
    `tests/acp/test_acp.py`, termasuk satu yang menjalankan proses sungguhan lewat pipa dan
    satu yang memastikan `print` nyasar tidak mendarat di kawat.
-2. Giliran prompt — belum: `session/prompt`, potongan pesan dan pikiran, `stopReason`,
-   `session/cancel`.
+2. Giliran prompt — **selesai 9 Oktober 2026**. `session/prompt` menjawab dengan `stopReason`
+   sementara teksnya mengalir sebagai `agent_message_chunk`/`agent_thought_chunk`;
+   `session/cancel` dibaca di thread pembaca sehingga sampai saat giliran masih berjalan, dan
+   prompt itu menjawab `cancelled`. Satu sesi satu giliran: prompt kedua dibalas `session busy`.
 3. Tool call dan izin — belum: `tool_call`/`tool_call_update`, pemetaan izin ke `approve`
    (diam berarti tolak).
 4. Rencana dan perintah — belum: `plan` dari `agent.todos`, `available_commands_update` dari

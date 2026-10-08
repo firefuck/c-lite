@@ -64,6 +64,25 @@ dibangun `runtime.build_agent` dengan platform `acp`.
 - Id sesi berawalan `sess_`. Menutup server menutup semua sesi dan membatalkan permintaan yang
   menunggu klien.
 
+**Giliran**
+- `session/prompt` adalah satu permintaan yang hasilnya adalah akhir giliran: `{"stopReason"}`.
+  Teksnya menyusul lebih dulu sebagai notifikasi `session/update`.
+- `prompt` adalah daftar blok. Hanya blok `text` yang diterima — handshake sudah menyatakan
+  gambar, audio, dan sumber daya tertanam tidak didukung, jadi blok lain dibalas -32602 dengan
+  menyebut indeksnya, bukan diam-diam dibuang. Beberapa blok teks digabung dengan baris baru.
+- Satu sesi menjalankan satu giliran. `session/prompt` kedua saat giliran berjalan dibalas 4002,
+  bukan diantre: protokolnya tidak punya tempat untuk giliran yang belum diminta klien.
+- `stopReason` datang dari hasil giliran: `end_turn` (selesai), `cancelled` (diinterupsi),
+  `refusal` (model menolak), `max_turn_requests` (anggaran giliran habis). Giliran yang berakhir
+  tanpa jawaban — provider gagal, model diam — bukan `stopReason`: permintaannya dibalas galat
+  4003, karena jawaban kosong yang tampak seperti `end_turn` menyesatkan editor.
+- Teks yang mengalir menjadi `agent_message_chunk`, penalaran menjadi `agent_thought_chunk`;
+  judul sesi yang berubah menjadi `session_info_update`. Status lain (kompresi, percobaan
+  ulang) hanya masuk log, bukan ke protokol.
+- `session/cancel` adalah notifikasi dan dijawab oleh permintaan prompt itu sendiri dengan
+  `cancelled`. Ia dibaca di thread pembaca, bukan di pool: ia harus sampai saat giliran yang
+  dibatalkannya masih memegang pekerja. Membatalkan sesi yang tidak ada bukan galat.
+
 **Stdio**
 - Stdout adalah kawat. `entry.py` mengalihkan `sys.stdout` ke stderr selama proses hidup,
   sehingga `print` nyasar dari sebuah tool tidak merusak aliran protokol.
@@ -76,11 +95,11 @@ dibangun `runtime.build_agent` dengan platform `acp`.
 | `initialize` dan negosiasi kemampuan | ✅ | Versi tidak dikenal dijawab dengan versi kita |
 | `session/new` atas `ChatSession` | ✅ | `cwd` wajib absolut; `mcpServers` klien diabaikan |
 | `clite acp` dan `python -m clite.acp.entry` | ✅ | Entry point sungguhan diuji lewat pipa di `tests/acp/test_acp.py` |
-| `session/prompt`: potongan pesan dan alasan berhenti | ⬜ | F6-T4 |
-| `session/cancel` | ⬜ | F6-T4 |
-| Pembaruan tool call, izin, dan `plan` dari `todo` | ⬜ | F6-T4 |
+| `session/prompt`: potongan pesan dan alasan berhenti | ✅ | Hanya blok teks; satu giliran per sesi; galat provider menjadi galat permintaan |
+| `session/cancel` | ✅ | Notifikasi, dibaca di thread pembaca; prompt menjawab `cancelled` |
+| Pembaruan tool call dan izin | ⬜ | F6-T4 |
+| `plan` dari `agent.todos` dan `available_commands_update` | ⬜ | F6-T4 |
 | `session/load`: memutar ulang riwayat tersimpan | ⬜ | F6-T4 |
-| `available_commands_update` dari `command_catalog` | ⬜ | F6-T4 |
 | Kemampuan sisi klien (editor menjalankan terminal, membaca berkas) | ⬜ | Di luar lingkup F6-T4 |
 
 ## Yang sengaja berbeda dari Hermes

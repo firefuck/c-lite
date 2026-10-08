@@ -89,6 +89,32 @@ def required_text(params: dict[str, Any], key: str, what: str = "") -> str:
     return value
 
 
+def prompt_text(blocks: Any) -> str:
+    """The text of an ACP prompt: a list of content blocks.
+
+    Only text blocks arrive: the handshake announced that images, audio and embedded context
+    are not supported, so a client that sends one anyway is told what it did wrong instead of
+    having it silently dropped.
+    """
+    if not isinstance(blocks, list) or not blocks:
+        raise AcpError(INVALID_PARAMS, "a prompt is a non-empty array of content blocks")
+    texts: list[str] = []
+    for index, block in enumerate(blocks):
+        if not isinstance(block, dict):
+            raise AcpError(INVALID_PARAMS, f"prompt[{index}] must be an object")
+        kind = block.get("type")
+        if kind != "text":
+            raise AcpError(
+                INVALID_PARAMS,
+                f"prompt[{index}] is a {kind!r} block; this agent takes text prompts only",
+            )
+        text = block.get("text")
+        if not isinstance(text, str):
+            raise AcpError(INVALID_PARAMS, f"prompt[{index}] needs a text string")
+        texts.append(text)
+    return "\n".join(texts)
+
+
 class AcpServer:
     """One instance per client connection (the editor spawns one process, so usually one).
 
@@ -227,11 +253,15 @@ class AcpServer:
         return session
 
     def get_session(self, session_id: str) -> Any:
-        with self._lock:
-            session = self.sessions.get(session_id)
+        session = self.find_session(session_id)
         if session is None:
             raise AcpError(SESSION_NOT_FOUND, f"no session {session_id!r}; call session/new first")
         return session
+
+    def find_session(self, session_id: str) -> Any | None:
+        """The session with that id, or ``None``. Callers that can do without one use this."""
+        with self._lock:
+            return self.sessions.get(session_id)
 
     def close_session(self, session_id: str) -> None:
         with self._lock:
@@ -330,3 +360,30 @@ def handle_session_new(server: AcpServer, params: dict[str, Any]) -> dict[str, A
         )
     session = server.new_session(cwd=cwd)
     return {"sessionId": session.id}
+
+
+@acp_method("session/prompt")
+def handle_session_prompt(server: AcpServer, params: dict[str, Any]) -> dict[str, Any]:
+    """Run one turn and answer with its ``stopReason``.
+
+    The text streams ahead as ``session/update`` notifications; this reply is the end of the
+    turn. It runs on a worker, so ``session/cancel`` is read while the turn is still going.
+    """
+    session = server.get_session(required_text(params, "sessionId", "session/prompt needs a sessionId"))
+    return {"stopReason": session.prompt(prompt_text(params.get("prompt")))}
+
+
+@acp_method("session/cancel", inline=True)
+def handle_session_cancel(server: AcpServer, params: dict[str, Any]) -> dict[str, Any]:
+    """Stop the running turn. A notification, so the answer is the prompt's ``cancelled``.
+
+    Cancelling a session that is gone — or that was never running anything — is not an error:
+    the client may have raced ahead of its own prompt.
+    """
+    session_id = params.get("sessionId")
+    session = server.find_session(session_id) if isinstance(session_id, str) else None
+    if session is None:
+        logger.debug("session/cancel for unknown session %r", session_id)
+    else:
+        session.cancel()
+    return {}
