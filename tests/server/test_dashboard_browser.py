@@ -449,6 +449,82 @@ def test_the_dashboard_reconnects_and_keeps_the_conversation(clite_home, browser
         thread.join(timeout=10)
 
 
+NOTIFICATION_RECORDER = """(() => {
+  window.__notifications = [];
+  class FakeNotification {
+    static permission = "granted";
+    static requestPermission() { return Promise.resolve("granted"); }
+    constructor(title, options) {
+      window.__notifications.push({title, body: (options || {}).body || ""});
+    }
+  }
+  Object.defineProperty(window, "Notification", {value: FakeNotification, configurable: true});
+  // A headless window reports focus; the point of a notification is the window nobody watches.
+  Object.defineProperty(document, "hasFocus", {value: () => false, configurable: true});
+})()"""
+
+
+def test_a_finished_turn_notifies_only_when_the_window_is_not_watched(clite_home, browser):
+    box, thread = _start("model:\n  provider: mock\n  default: mock-1\n", clite_home)
+    page = browser.new_page()
+    page.add_init_script(script=NOTIFICATION_RECORDER)
+    try:
+        page.goto(f"http://127.0.0.1:{box['port']}/#token={box['token']}")
+        page.wait_for_selector("#status-connection.online")
+        # The socket is up before the first session is: sending now would find no view.
+        page.wait_for_function("document.querySelector('#status-model').textContent !== ''")
+        page.fill("#prompt", "hello")
+        page.press("#prompt", "Enter")
+        page.wait_for_function("window.__notifications.length > 0")
+        sent = page.evaluate("window.__notifications")
+        # A fresh session has no title yet, so the fallback name stands in for it.
+        assert sent[0]["title"]
+        assert "You said: hello" in sent[0]["body"]
+
+        # A window that has focus already shows the answer: no notification.
+        page.evaluate("Object.defineProperty(document, 'hasFocus', {value: () => true})")
+        page.evaluate("window.__notifications.length = 0")
+        page.fill("#prompt", "again")
+        page.press("#prompt", "Enter")
+        page.wait_for_function("document.querySelectorAll('.message.assistant').length > 1")
+        assert page.evaluate("window.__notifications") == []
+    finally:
+        page.close()
+        box["server"].should_exit = True
+        thread.join(timeout=10)
+
+
+def test_the_notification_setting_can_turn_notifications_off(clite_home, browser):
+    box, thread = _start("model:\n  provider: mock\n  default: mock-1\n", clite_home)
+    page = browser.new_page()
+    page.add_init_script(script=NOTIFICATION_RECORDER)
+    try:
+        page.goto(f"http://127.0.0.1:{box['port']}/#token={box['token']}")
+        page.wait_for_selector("#status-connection.online")
+        page.wait_for_function("document.querySelector('#status-model').textContent !== ''")
+
+        # Turned off from the config page, like any other setting.
+        page.click("[data-tab=config]")
+        page.wait_for_selector("#panel-config .row")
+        page.fill("#config-dashboard\\.notifications", "false")
+        page.click("#panel-config .row[data-key='dashboard.notifications'] [data-action=save]")
+        page.wait_for_function(
+            "document.querySelector('#config-dashboard\\\\.notifications')"
+            ".getAttribute('value') === 'false'"
+        )
+        page.click("[data-tab=chat]")
+
+        page.fill("#prompt", "quiet")
+        page.press("#prompt", "Enter")
+        page.wait_for_selector(".message.assistant")
+        page.wait_for_timeout(200)
+        assert page.evaluate("window.__notifications") == []
+    finally:
+        page.close()
+        box["server"].should_exit = True
+        thread.join(timeout=10)
+
+
 def test_a_dropped_file_is_attached_and_reaches_the_agent(dashboard, clite_home):
     """Dropping a file puts a chip in the composer, and sending hands the agent a real path."""
     dashboard.evaluate(

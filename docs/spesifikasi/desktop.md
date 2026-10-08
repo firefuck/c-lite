@@ -46,7 +46,7 @@ milik backend di sebuah jendela. Tidak ada UI kedua.
 | Ikon, menu, pemaketan installer, auto-update, tanda tangan kode | ⬜ | F5-T4 |
 | Beberapa sesi sekaligus di satu jendela | ✅ | F5-T5: tiap sesi punya transkripnya sendiri; event dirutekan lewat `session_id` |
 | Lampiran berkas (seret dan tempel) | ✅ | F5-T5: chip di kotak tulis; gambar dikirim sebagai bagian gambar, berkas lain lewat `attachment.save` dan path-nya disebut di pesan. Di desktop path aslinya dipakai (`webUtils.getPathForFile`), jadi tidak ada salinan |
-| Notifikasi sistem | ⬜ | F5-T5 |
+| Notifikasi sistem | ✅ | F5-T5: giliran selesai atau persetujuan dibutuhkan saat jendela tidak terfokus. Memakai Notification API, jadi di desktop ia jadi notifikasi sistem dan di browser notifikasi browser; bisa dimatikan lewat `dashboard.notifications` |
 | Tray | ⬜ | Belum ada task-nya |
 | Pemilihan profil | ⬜ | F5-T5 |
 

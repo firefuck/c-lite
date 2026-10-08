@@ -570,6 +570,7 @@ export interface SystemInfoResult {
   configured: boolean;
   model: string;
   provider: string;
+  notifications: boolean;
 }
 
 export interface TextPayload {

@@ -101,6 +101,9 @@ class SystemInfoResult(Result):
     configured: bool
     model: str = ""
     provider: str = ""
+    # A dashboard setting the page needs before it can do anything: it rides along here so the
+    # page does not have to ask for the whole config to learn one boolean.
+    notifications: bool = True
 
 
 method("ping", Empty, PingResult, "Liveness check.")

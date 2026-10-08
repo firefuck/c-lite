@@ -256,6 +256,11 @@ DEFAULT_CONFIG: dict[str, Any] = {
         # <home>/logs/audit.log. Never holds a token value, only its name.
         "audit_log": True,
     },
+    # ── Dashboard (browser and the desktop shell) ────────────────────────────────────────
+    # A system notification when a turn finishes or an approval is needed while the window is
+    # not focused. The page still needs the browser's own permission, which only a user
+    # gesture can ask for.
+    "dashboard": {"notifications": True},
     # auto_prune deletes sessions with no activity for retention_days, at most once a day, when
     # a surface starts. Pinned sessions are kept. `clite sessions prune` does it on demand.
     "sessions": {"auto_prune": False, "retention_days": 90},

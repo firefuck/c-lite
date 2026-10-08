@@ -62,6 +62,7 @@ def system_info(server: RpcServer, params: Empty) -> schema.SystemInfoResult:
         configured=configured,
         model=model,
         provider=provider,
+        notifications=bool(get_path(load_config(), "dashboard.notifications", True)),
     )
 
 

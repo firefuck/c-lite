@@ -142,7 +142,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | Method | Parameter | Hasil | Keterangan |
 | --- | --- | --- | --- |
 | `ping` | (kosong) | `pong?`, `version?` | Liveness check. |
-| `system.info` | (kosong) | `version`, `protocol_version`, `home`, `profile`, `configured`, `model?`, `provider?` | Version, active profile and whether a model is configured. |
+| `system.info` | (kosong) | `version`, `protocol_version`, `home`, `profile`, `configured`, `model?`, `provider?`, `notifications?` | Version, active profile and whether a model is configured. |
 | `session.create` | `cwd?`, `model?`, `provider?`, `toolsets?`, `yolo?`, `resume?`, `platform?` | `session_id`, `stored_session_id`, `title?`, `platform?`, `model?`, `provider?`, `cwd?`, `busy?`, `yolo?`, `message_count?`, `tools?`, `toolsets?`, `reasoning_effort?`, `context?` | Open a runtime session (new, or resuming a stored one). |
 | `session.info` | `session_id` | `session_id`, `stored_session_id`, `title?`, `platform?`, `model?`, `provider?`, `cwd?`, `busy?`, `yolo?`, `message_count?`, `tools?`, `toolsets?`, `reasoning_effort?`, `context?` |  |
 | `session.list` | `limit?`, `source?`, `include_archived?` | `sessions` | Stored sessions, most recent first. |
@@ -434,6 +434,7 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `server.replay_sessions` | `64` |
 | `server.resume_grace_seconds` | `120` |
 | `server.audit_log` | `true` |
+| `dashboard.notifications` | `true` |
 | `sessions.auto_prune` | `false` |
 | `sessions.retention_days` | `90` |
 | `checkpoints.max_bytes` | `100000000` |

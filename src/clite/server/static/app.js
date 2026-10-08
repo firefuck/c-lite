@@ -50,6 +50,7 @@ const state = {
   views: new Map(), // runtime session id -> view
   activeId: null,
   closing: false, // the page is going away: do not try to reconnect
+  notifications: true, // dashboard.notifications, read from the config
 };
 
 function activeView() {
@@ -98,8 +99,48 @@ async function connect() {
   setConnection(true, "connected");
   const system = await rpc.request("system.info");
   if (!system.configured) await runSetup();
+  await loadDashboardPrefs();
   await openSession({});
   await refreshSessions();
+}
+
+/** The dashboard's own settings, which the server reports with everything else. */
+async function loadDashboardPrefs() {
+  try {
+    const info = await state.rpc.request("system.info");
+    state.notifications = info.notifications !== false;
+  } catch {
+    // A config we cannot read is not worth stopping the dashboard for: keep the default.
+  }
+}
+
+// ── notifications ────────────────────────────────────────────────────────────────────────
+
+/** Ask for the browser's permission, once, while a user gesture is on the stack. */
+function askNotificationPermission() {
+  if (typeof Notification === "undefined") return;
+  if (Notification.permission === "default") Notification.requestPermission().catch(() => {});
+}
+
+/**
+ * Tell the user something happened, if they are not looking.
+ *
+ * The point of a notification is the window you are *not* watching: when the dashboard has
+ * focus the message is already on screen, so nothing is sent.
+ */
+function notify(title, body, view) {
+  if (!state.notifications || typeof Notification === "undefined") return;
+  if (Notification.permission !== "granted") return;
+  if (document.hasFocus()) return;
+  try {
+    const note = new Notification(title, { body, tag: "clite" });
+    note.onclick = () => {
+      window.focus();
+      if (view) activateSession(view.id).catch(() => {});
+    };
+  } catch {
+    // Some browsers refuse outside a service worker; a missing notification is not an error.
+  }
 }
 
 // ── coming back after the socket drops ───────────────────────────────────────────────────
@@ -445,6 +486,15 @@ function handleEvent(event) {
       markBusy(false);
       if (payload.interrupted) addMessage("notice", "(interrupted)", view);
       else if (payload.error) addMessage("error", payload.final_response || payload.error, view);
+      notify(
+        view.info.title || "clite",
+        payload.interrupted
+          ? "The turn was interrupted."
+          : payload.error
+            ? `The turn failed: ${payload.error}`
+            : (payload.final_response || "The turn finished."),
+        view,
+      );
       state.rpc
         .request("session.info", { session_id: view.id })
         .then(setInfo)
@@ -463,6 +513,7 @@ async function send(text) {
   const view = activeView();
   if (!state.rpc || !view) return;
   if (!text.trim() && !view.attachments.length) return;
+  askNotificationPermission(); // this is a user gesture: the only moment a browser will ask
   if (text.trim().startsWith("/")) {
     try {
       const result = await state.rpc.request("slash.exec", { session_id: view.id, command: text.trim() });
@@ -520,6 +571,7 @@ function askToken() {
 }
 
 function askApproval(params) {
+  notify("Approval needed", params.description || params.command || "", activeView());
   return new Promise((resolve) => {
     const choose = (choice) => () => {
       $("#dialog").close();
@@ -697,6 +749,7 @@ const panels = {
           if (!ok) return;
         }
         await state.rpc.request("config.set", { key: entry.key, value, confirm: entry.sensitive });
+        if (entry.key.startsWith("dashboard.")) await loadDashboardPrefs();
         await show();
       };
       panel.replaceChildren(
