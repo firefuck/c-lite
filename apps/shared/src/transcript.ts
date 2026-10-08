@@ -94,18 +94,16 @@ export function reduce(state: TranscriptState, event: EventEnvelope): Transcript
     case "status.update":
       return { ...state, items: [...items, { kind: "notice", level: "info", text: `[${event.payload.kind}] ${event.payload.text}` }] };
 
-    case "subagent.update":
+    case "subagent.update": {
+      const { event: kind, index, tool, status, args, iteration, model } = event.payload;
+      const detail = kind === "tool" && args ? `${tool}(${args})` : tool || status;
+      const where = iteration ? ` [iter ${iteration}]` : "";
+      const on = model ? ` on ${model}` : "";
       return {
         ...state,
-        items: [
-          ...items,
-          {
-            kind: "notice",
-            level: "info",
-            text: `subagent ${event.payload.index + 1}: ${event.payload.event} ${event.payload.tool || event.payload.status}`.trim(),
-          },
-        ],
+        items: [...items, { kind: "notice", level: "info", text: `subagent ${index + 1}${on}: ${kind} ${detail}${where}`.trim() }],
       };
+    }
 
     case "error":
       return { ...state, items: [...items, { kind: "notice", level: "error", text: event.payload.message }] };
