@@ -4,16 +4,24 @@
   "private": true,
   "type": "module",
   "description": "Desktop shell for C-lite: starts the backend and shows its dashboard in a window.",
+  "author": "C-lite contributors",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dragovics/clite.git"
+  },
+  "license": "MIT",
   "main": "dist/main.cjs",
   "scripts": {
     "typecheck": "tsc --noEmit -p .",
     "test": "node --test test/*.test.ts",
     "build": "node build.mjs",
-    "start": "node build.mjs && electron ."
+    "start": "node build.mjs && electron .",
+    "package": "node build.mjs && electron-builder --config electron-builder.config.cjs"
   },
   "devDependencies": {
     "@types/node": ">=22",
     "electron": "44.5.1",
+    "electron-builder": "^26.15.3",
     "esbuild": ">=0.25 <1",
     "typescript": ">=5.8 <7"
   }

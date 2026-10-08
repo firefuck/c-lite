@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Kode | `apps/desktop/` |
-| Tes | `apps/desktop/test/` (8 tes untuk bagian tanpa Electron) |
+| Tes | `apps/desktop/test/` (11 tes untuk bagian tanpa Electron, 5 di antaranya tentang pemaketan) |
 | Bergantung pada | `clite serve` ([server](server.md)) dan dashboard statisnya |
 | Bedah Hermes | [10-gui-desktop-dashboard](../hermes/10-gui-desktop-dashboard.md) |
 
@@ -21,6 +21,10 @@ milik backend di sebuah jendela. Tidak ada UI kedua.
 | `src/main.ts` | Proses utama Electron: jendela, satu instance, siklus hidup | ✅ teruji (`test/smoke.test.ts`) |
 | `src/preload.ts` | Jembatan ke halaman (`window.cliteDesktop`) | ✅ teruji (lewat jendela di tes asap) |
 | `build.mjs` | Bundel esbuild ke `dist/main.cjs` dan `dist/preload.cjs` | ✅ teruji (dijalankan tes asap) |
+| `src/brand.ts` | Nama produk, satu kali | ✅ teruji |
+| `src/menu.ts` | Template menu aplikasi (File, Edit, View, Window, Help) | ✅ teruji |
+| `electron-builder.config.cjs` | Konfigurasi installer (dmg, nsis, AppImage) | ✅ teruji; dibangun lokal untuk Linux |
+| `assets/icon.png` | Ikon 512×512, satu untuk ketiga sistem | ✅ teruji |
 
 ## Kontrak
 
@@ -50,6 +54,31 @@ milik backend di sebuah jendela. Tidak ada UI kedua.
 | Tray | ⬜ | Belum ada task-nya |
 | Pemilihan profil | ✅ | F5-T5: header menyebut profil yang dilayani backend ini; tab Profiles mendaftar semuanya. Aplikasi desktop memilih profil saat mulai (`--profile`, atau dialog bila ada lebih dari satu) dan menjalankan satu backend per profil |
 
+## Membawa backend
+
+Aplikasi desktop **tidak** menyertakan runtime Python: ia memanggil `clite` yang sudah terpasang.
+Alasannya tiga. Pertama, ukuran: satu runtime CPython plus dependensinya melipatgandakan
+artefak, dan harus dibangun ulang untuk tiap sistem dan arsitektur. Kedua, backend adalah
+program yang berguna sendiri — pengguna `clite` di terminal sudah punya. Ketiga, kegagalannya
+sudah terbaca: tanpa `clite` di `PATH`, aplikasi menampilkan pesan galat yang menyuruh menjalankan
+`clite doctor`, bukan jendela kosong.
+
+Konsekuensinya disebut apa adanya: installer tidak cukup untuk pengguna yang belum punya Python.
+Kalau kelak itu dibutuhkan, yang berubah hanya `resolveBackendCommand`: ia sudah satu-satunya
+tempat yang tahu cara memanggil backend.
+
+## Pemaketan
+
+- `electron-builder.config.cjs` menghasilkan **dmg** (macOS, x64 + arm64), **nsis** (Windows,
+  x64), dan **AppImage** (Linux, x64). Nama produk ada di `src/brand.ts` dan di konfigurasi;
+  tes memastikan keduanya sama dengan `clite.core.brand.DISPLAY_NAME`, dan versinya sama dengan
+  `clite.__version__`.
+- Tanpa sertifikat, build tetap menghasilkan artefak: `mac.identity: null` membuat macOS tidak
+  mencari sertifikat dan gagal. Tanda tangan dan notarisasi hanya berjalan bila rahasia CI ada.
+- Pembaruan otomatis belum dipasang. Installer yang diunduh pengguna tidak memeriksa rilis
+  baru; itu langkah berikutnya, bukan yang ini.
+- Yang dibangun untuk Linux dicoba dengan tangan di mesin uji; lihat `docs/STATUS.md`.
+
 ## Yang sengaja berbeda dari Hermes
 
 Aplikasi desktop Hermes adalah aplikasi React besar (788 ribu baris TypeScript di
@@ -66,3 +95,9 @@ disiapkan untuk itu.
   (lihat `apps/desktop/README.md`).
 - Tidak ada penanganan untuk backend yang sudah berjalan dari instance lain selain kunci
   satu-instance milik Electron.
+- Installer yang keluar dari `electron-builder` tidak ditandatangani. Itu disengaja tanpa
+  sertifikat, tetapi artinya pengguna melihat peringatan Gatekeeper atau SmartScreen, dan
+  catatan rilis mengatakannya. Pembaruan otomatis juga belum dipasang: installer yang diunduh
+  tidak memeriksa rilis baru.
+- Hanya installer Linux yang pernah dibangun di mesin ini. dmg dan nsis baru sebatas konfigurasi
+  yang diuji, bukan artefak yang dijalankan.

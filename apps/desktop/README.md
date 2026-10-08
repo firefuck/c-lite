@@ -15,7 +15,9 @@ aplikasi desktop.
 | `src/main.ts` (proses utama Electron) | Teruji | `test/smoke.test.ts` membuka aplikasi sungguhan, mengirim satu pesan ke provider `mock`, membaca jawabannya, lalu menutup jendela dan memastikan backend ikut berhenti |
 | `src/preload.ts` | Teruji | idem: jendela yang dimuat di tes memakai jembatan ini |
 | `npm install`, `npm start` | Teruji | `test/smoke.test.ts` menjalankan bundel `dist/main.cjs` yang sama dengan `npm start` |
-| Pemaketan installer | **Belum pernah dijalankan** | F5-T4 |
+| Pemaketan installer | Teruji sebagian | `electron-builder` menghasilkan `release/C-lite-0.1.0.AppImage` (Linux), dijalankan di mesin ini: jendela memuat dashboard dari backend yang dijalankannya sendiri. macOS dan Windows belum pernah dibangun. `test/packaging.test.ts` menjaga nama, versi, ikon, dan daftar berkas |
+| `src/brand.ts`, `src/menu.ts` | Teruji | `test/packaging.test.ts` |
+| Pemilihan profil saat mulai | Teruji | `test/backend-process.test.ts` (`--profile` masuk ke argv backend) dan `tests/server/test_dashboard_browser.py` (halaman Profiles) |
 
 Versi Electron di `package.json` (`44.5.1`) adalah versi yang benar-benar dipakai menjalankan
 tes asap, bukan versi terbaru saat scaffolding dibuat. Verifikasinya task `F5-T1` di
@@ -57,6 +59,31 @@ Saat mengembangkan tanpa memasang paket Python, arahkan ke source:
 CLITE_DESKTOP_BACKEND="python3 -m clite" PYTHONPATH=../../src npm start
 ```
 
+## Memilih profil
+
+Satu backend melayani satu profil, jadi profil dipilih sebelum backend dijalankan:
+
+```bash
+npm start --workspace apps/desktop -- --profile work
+```
+
+Tanpa `--profile`, aplikasi bertanya lebih dulu bila mesin punya lebih dari satu profil. Yang
+sudah terpasang (`npm run package`) memakai flag yang sama. Daftar profilnya dibaca dengan
+`clite profile list --json`.
+
+## Membuat installer
+
+```bash
+npm run package --workspace apps/desktop -- --linux
+npm run package --workspace apps/desktop -- --mac
+npm run package --workspace apps/desktop -- --win
+```
+
+Hasilnya di `apps/desktop/release/`. Yang tidak ditandatangani tetap dibangun: tanpa sertifikat
+macOS Gatekeeper dan Windows SmartScreen akan memperingatkan pengguna. Runtime Python **tidak**
+disertakan — aplikasi memanggil `clite` yang sudah terpasang; alasannya di
+`docs/spesifikasi/desktop.md`, bagian "Membawa backend".
+
 ## Percobaan pertama (8 Oktober 2026)
 
 Dijalankan di Linux dengan display X, Electron 44.5.1, provider `mock`.
@@ -75,5 +102,6 @@ diganti lewat `CLITE_SMOKE_FLAGS`. Di CI Linux, tes berjalan di bawah `xvfb-run`
 
 ## Belum ada
 
-Ikon aplikasi, menu, pembaruan otomatis, pemaketan (`electron-builder` atau sejenisnya),
-tanda tangan kode, dan pemilihan profil. Semuanya ada di roadmap fase 5.
+Pembaruan otomatis (installer tidak memeriksa rilis baru), tanda tangan kode dan notarisasi
+(butuh sertifikat), dan build macOS/Windows yang belum pernah dijalankan. Semuanya ada di
+roadmap fase 5.

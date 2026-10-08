@@ -177,10 +177,13 @@ dua pemicunya benar-benar terjadi.
 `apps/desktop/electron/app-updater.ts`.
 
 **Selesai bila.**
-- [ ] CI menghasilkan installer untuk ketiga sistem pada tag rilis.
-- [ ] Installer dicoba dengan tangan di tiap sistem yang tersedia, dan hasilnya dicatat di
-      `docs/STATUS.md` per sistem.
-- [ ] Tes: nama produk dan versi di installer sama dengan yang di `pyproject.toml`.
+- [ ] CI menghasilkan installer untuk ketiga sistem pada tag rilis. (Pekerjaan `desktop` sudah
+      ada di `release.yml`, satu runner per sistem; belum pernah berjalan karena belum di-push.)
+- [x] Installer dicoba dengan tangan di tiap sistem yang tersedia, dan hasilnya dicatat di
+      `docs/STATUS.md` per sistem. (Linux: AppImage 120 MB dibangun dan dijalankan; jendela
+      memuat dashboard dari backend yang dijalankannya sendiri. macOS dan Windows tidak
+      tersedia di mesin ini.)
+- [x] Tes: nama produk dan versi di installer sama dengan yang di `pyproject.toml`.
 
 **Ukuran.** M
 
