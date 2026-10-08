@@ -247,6 +247,32 @@ def test_credentials_page_stores_and_deletes_a_secret(dashboard, clite_home):
     assert "sk-page-1234567890" not in (clite_home / ".env").read_text()
 
 
+def test_cron_page_creates_a_job_and_shows_its_last_output(dashboard, clite_home):
+    from clite.cron.jobs import get_job_store
+
+    dashboard.click("[data-tab=cron]")
+    dashboard.wait_for_selector("#cron-new")
+    dashboard.click("#cron-new")
+    dashboard.wait_for_selector("#cron-prompt")
+    dashboard.fill("#cron-prompt", "summarise the open pull requests")
+    dashboard.fill("#cron-schedule", "every 1h")
+    dashboard.fill("#cron-name", "hourly digest")
+    dashboard.click("dialog [data-action=create]")
+    dashboard.wait_for_function(
+        "document.querySelector('#panel-cron').innerText.includes('hourly digest')"
+    )
+
+    # A finished run's saved output opens in a dialog, as text.
+    store = get_job_store()
+    job = next(entry for entry in store.list() if entry.get("name") == "hourly digest")
+    path = store.save_output(job["id"], "the report body\n<script>window.__pwned = true</script>")
+    store.mark_finished(job["id"], status="ok", output_path=str(path))
+    dashboard.click("#panel-cron .row [data-action=output]")
+    dashboard.wait_for_selector("#cron-output")
+    assert "the report body" in dashboard.inner_text("#cron-output")
+    assert dashboard.evaluate("window.__pwned") is None  # output is text, never markup
+
+
 def test_other_tabs_list_what_is_installed(dashboard):
     dashboard.click("[data-tab=skills]")
     dashboard.wait_for_selector("#panel-skills .row")

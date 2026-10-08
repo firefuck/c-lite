@@ -542,19 +542,63 @@ const panels = {
       ...toolsets.map((set) => row(`${set.name}  (${set.enabled_tools.length}/${set.tools.length})`, `${set.description} · ${set.tools.join(", ")}`)));
   },
   async cron(panel) {
-    const { jobs } = await state.rpc.request("cron.list");
-    const act = (job, action) => async () => {
-      await state.rpc.request("cron.action", { job_id: job.id, action });
-      panels.cron(panel);
+    const show = async () => {
+      const { jobs } = await state.rpc.request("cron.list");
+      const act = (job, action) => async () => {
+        await state.rpc.request("cron.action", { job_id: job.id, action });
+        await show();
+      };
+      const create = async () => {
+        const prompt = h("input", { type: "text", id: "cron-prompt", placeholder: "what to ask, e.g. summarise my open pull requests" });
+        const schedule = h("input", { type: "text", id: "cron-schedule", placeholder: "when, e.g. every morning at 9" });
+        const name = h("input", { type: "text", id: "cron-name", placeholder: "name (optional)" });
+        const problem = h("p", { class: "message error" });
+        const dialog = showDialog(
+          h("h2", {}, "Schedule a job"),
+          h("label", { for: "cron-prompt" }, "Prompt"), prompt,
+          h("label", { for: "cron-schedule" }, "Schedule"), schedule,
+          h("label", { for: "cron-name" }, "Name"), name,
+          problem,
+          h("div", { class: "buttons" },
+            h("button", { type: "button", onclick: () => { dialog.close(); } }, "Cancel"),
+            h("button", {
+              class: "primary", type: "button", "data-action": "create",
+              onclick: async () => {
+                try {
+                  await state.rpc.request("cron.create", { prompt: prompt.value, schedule: schedule.value, name: name.value });
+                  dialog.close();
+                  await show();
+                } catch (error) {
+                  problem.textContent = error.message;
+                }
+              },
+            }, "Create")),
+        );
+        prompt.focus();
+      };
+      const output = async (job) => {
+        const { content, truncated, path } = await state.rpc.request("cron.output", { job_id: job.id });
+        showDialog(
+          h("h2", {}, `Last output · ${job.name || job.id}`),
+          content ? h("pre", { id: "cron-output" }, content + (truncated ? "\n… (truncated)" : ""))
+                  : h("p", { class: "empty" }, "No output saved yet."),
+          path ? h("div", { class: "desc" }, path) : null,
+          h("div", { class: "buttons" }, h("button", { type: "button", onclick: () => $("#dialog").close() }, "Close")),
+        );
+      };
+      panel.replaceChildren(
+        h("h2", {}, "Scheduled jobs"),
+        h("div", { class: "filters" }, h("button", { type: "button", id: "cron-new", onclick: create }, "+ New job")),
+        ...(jobs.length ? jobs.map((job) => row(job.name || job.prompt.slice(0, 60),
+          `${job.schedule_display} · ${job.enabled ? "active" : "paused"} · last: ${job.last_status || "never run"}`,
+          h("div", { class: "actions" },
+            h("button", { type: "button", "data-action": "toggle", onclick: act(job, job.enabled ? "pause" : "resume") }, job.enabled ? "Pause" : "Resume"),
+            h("button", { type: "button", "data-action": "run", onclick: act(job, "run") }, "Run now"),
+            h("button", { type: "button", "data-action": "output", onclick: () => output(job).catch((error) => notice(error.message, "error")) }, "Last output"),
+            h("button", { type: "button", "data-action": "remove", class: "danger", onclick: act(job, "remove") }, "Remove"))))
+          : [h("p", { class: "empty" }, "No jobs. Ask the agent to schedule one, e.g. “every morning at 9, summarise my open pull requests”.")]));
     };
-    panel.replaceChildren(h("h2", {}, "Scheduled jobs"),
-      ...(jobs.length ? jobs.map((job) => row(job.name || job.prompt.slice(0, 60),
-        `${job.schedule_display} · ${job.enabled ? "active" : "paused"} · last: ${job.last_status || "never run"}`,
-        h("div", { class: "actions" },
-          h("button", { type: "button", onclick: act(job, job.enabled ? "pause" : "resume") }, job.enabled ? "Pause" : "Resume"),
-          h("button", { type: "button", onclick: act(job, "run") }, "Run now"),
-          h("button", { type: "button", class: "danger", onclick: act(job, "remove") }, "Remove"))))
-        : [h("p", { class: "empty" }, "No jobs. Ask the agent to schedule one, e.g. “every morning at 9, summarise my open pull requests”.")]));
+    await show();
   },
   async plugins(panel) {
     const show = ({ plugins }) => panel.replaceChildren(h("h2", {}, "Plugins"),

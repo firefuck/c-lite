@@ -581,6 +581,30 @@ def test_credentials_are_listed_but_never_read_back(client, clite_home):
     )["message"]
 
 
+def test_cron_output_is_redacted_and_capped(client):
+    from clite.core.env import SecretSpec, register_secret
+    from clite.cron.jobs import get_job_store
+
+    register_secret(SecretSpec(name="CLITE_CRON_SECRET", description="a credential for this test"))
+    rpc = client()
+    rpc.call("credentials.set", {"name": "CLITE_CRON_SECRET", "value": "sk-cron-secret-1234567890"})
+
+    job = rpc.call("cron.create", {"prompt": "summarise", "schedule": "every 1h", "name": "hourly"})
+    store = get_job_store()
+    path = store.save_output(job["id"], "report starts\nsk-cron-secret-1234567890\n" + "x" * 5000)
+    store.mark_finished(job["id"], status="ok", output_path=str(path))
+
+    result = rpc.call("cron.output", {"job_id": job["id"], "max_chars": 1000})
+    assert result["path"] == str(path) and result["truncated"] is True
+    assert "report starts" in result["content"]
+    assert "sk-cron-secret-1234567890" not in result["content"]  # redacted before it leaves
+    assert len(result["content"]) <= 1000
+
+    fresh = rpc.call("cron.create", {"prompt": "nothing yet", "schedule": "every 1h"})
+    assert rpc.call("cron.output", {"job_id": fresh["id"]})["content"] == ""
+    assert "no job with id" in rpc.error("cron.output", {"job_id": "nope"})["message"]
+
+
 def test_config_tools_skills_plugins_memory_cron(client):
     rpc = client()
     rpc.call("config.set", {"key": "display.skin", "value": "mono"})

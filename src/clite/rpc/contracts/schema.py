@@ -546,6 +546,18 @@ class CronActionParams(Params):
     action: Literal["pause", "resume", "run", "remove"]
 
 
+class CronOutputParams(Params):
+    job_id: str
+    max_chars: int = 20000
+
+
+class CronOutputResult(Result):
+    job_id: str
+    content: str = ""
+    path: str = ""
+    truncated: bool = False
+
+
 method("tools.list", CatalogParams, ToolsListResult)
 method("skills.list", Empty, SkillsListResult)
 method("skills.view", SkillViewParams, SkillViewResult)
@@ -563,6 +575,12 @@ method("memory.get", Empty, MemoryGetResult)
 method("cron.list", Empty, CronListResult)
 method("cron.create", CronCreateParams, CronJob)
 method("cron.action", CronActionParams, CronListResult)
+method(
+    "cron.output",
+    CronOutputParams,
+    CronOutputResult,
+    "The last run's saved output, redacted and capped.",
+)
 
 # ── events (server to client notifications) ──────────────────────────────────────────────
 

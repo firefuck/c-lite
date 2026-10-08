@@ -182,6 +182,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `cron.list` | (kosong) | `jobs` |  |
 | `cron.create` | `prompt`, `schedule`, `name?`, `deliver?`, `repeat?` | `id`, `name?`, `prompt?`, `schedule_display?`, `enabled?`, `deliver?`, `next_run_at?`, `last_run_at?`, `last_status?`, `last_error?`, `run_count?` |  |
 | `cron.action` | `job_id`, `action` | `jobs` |  |
+| `cron.output` | `job_id`, `max_chars?` | `job_id`, `content?`, `path?`, `truncated?` | The last run's saved output, redacted and capped. |
 
 ### Event
 

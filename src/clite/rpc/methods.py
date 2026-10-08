@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterator, Mapping
+from pathlib import Path
 from typing import Any
 
 from clite import __version__
@@ -530,6 +531,29 @@ def memory_get(server: RpcServer, params: Empty) -> schema.MemoryGetResult:
         memory_limit=store.limits["memory"],
         user_limit=store.limits["user"],
         provider=str(get_path(config, "memory.provider", "") or ""),
+    )
+
+
+@rpc_method("cron.output")
+def cron_output(server: RpcServer, params: schema.CronOutputParams) -> schema.CronOutputResult:
+    from clite.core.redact import redact
+    from clite.cron.jobs import get_job_store
+
+    job = get_job_store().get(params.job_id)
+    if job is None:
+        raise RpcError(REQUEST_FAILED, f"no job with id {params.job_id!r}")
+    stored = job.get("last_output")
+    path = Path(str(stored)) if stored else None
+    if path is None or not path.is_file():
+        return schema.CronOutputResult(job_id=params.job_id)
+    limit = max(200, min(params.max_chars, 200_000))
+    # A run may have written a very large report; read a bounded prefix and redact it.
+    text = path.read_text(encoding="utf-8", errors="replace")
+    return schema.CronOutputResult(
+        job_id=params.job_id,
+        content=redact(text[:limit]),
+        path=str(path),
+        truncated=len(text) > limit,
     )
 
 
