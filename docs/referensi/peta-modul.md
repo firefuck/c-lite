@@ -160,6 +160,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `base.py` | ``BasePlatformAdapter``: the three things a chat platform must do. | `BasePlatformAdapter`, `register_platform()`, `split_message()` |
 | `discord.py` | Discord platform adapter: WebSocket Gateway v10 + REST API. | `DiscordAdapter` |
 | `local.py` | An in-process platform: messages go in through ``inject`` and replies land in ``outbox``. | `LocalAdapter` |
+| `slack.py` | Slack platform adapter: Socket Mode + Web API. | `SlackAdapter` |
 | `telegram.py` | Telegram, over the Bot API with long polling. | `TelegramAdapter` |
 
 ## `clite/plugins/`
@@ -318,4 +319,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 182 modul.
+Jumlah: 183 modul.

@@ -141,6 +141,7 @@ def catalog() -> str:
     from clite.gateway.platforms import (  # noqa: F401 - importing registers the adapters
         discord,
         local,
+        slack,
         telegram,
     )
     from clite.plugins.hooks import FAIL_CLOSED_HOOKS, VALID_HOOKS

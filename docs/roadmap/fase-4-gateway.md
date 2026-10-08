@@ -78,7 +78,7 @@ Aturan yang berlaku untuk semua task ada di [README](README.md#selesai-itu-apa).
 `plugins/platforms/slack/block_kit.py`.
 
 **Selesai bila.**
-- [ ] Tes terhadap server Socket Mode tiruan: event diakui, event ganda tidak memicu dua
+- [x] Tes terhadap server Socket Mode tiruan: event diakui, event ganda tidak memicu dua
       giliran, jawaban masuk ke thread yang benar.
 - [ ] Daftar periksa manual terhadap Slack asli dijalankan dan dicatat.
 

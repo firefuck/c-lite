@@ -252,6 +252,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | --- |
 | `discord` |
 | `local` |
+| `slack` |
 | `telegram` |
 
 ## Plugin bawaan
