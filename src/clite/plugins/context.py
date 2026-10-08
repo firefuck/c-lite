@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 from clite.core.config import get_path, load_config
 from clite.core.constants import get_home
 from clite.plugins.hooks import get_hook_bus
+from clite.plugins.llm import PluginLLM
 from clite.plugins.manifest import PluginManifest
 
 if TYPE_CHECKING:
@@ -73,6 +74,12 @@ class PluginContext:
 
     def _entry(self, key: str, default: Any = None) -> Any:
         return get_path(load_config(), f"plugins.entries.{self.plugin_id}.{key}", default)
+
+    @property
+    def llm(self) -> PluginLLM:
+        """The auxiliary model this plugin may call: its own prompt, its own budget, and no
+        access to the conversation. See ``clite.plugins.llm``."""
+        return PluginLLM(self.plugin_id)
 
     def _record(self, kind: str, name: str, undo: Callable[[], Any]) -> None:
         self.ledger.append(Registration(kind, name, undo))

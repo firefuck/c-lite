@@ -21,6 +21,7 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
 | `context.py` | `PluginContext`: API yang diterima `register(ctx)` |
 | `manager.py` | Penemuan, gerbang opt-in, muat, bongkar, pasang |
 | `hub.py` | Asal-usul pemasangan, katalog plugin, pencarian, pembaruan |
+| `llm.py` | `ctx.llm`: panggilan model bantu milik plugin, beranggaran |
 | `shell_hooks.py` | Perintah shell pada event siklus hidup, dengan persetujuan per perintah |
 
 ## Kontrak
@@ -96,12 +97,28 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
   `clite plugins info` menampilkannya sebagai perintah `pip install ...` yang harus dijalankan
   pengguna sendiri.
 
+**`ctx.llm` (model bantu milik plugin)**
+- `ctx.llm.ask(prompt, system="", max_tokens=None, temperature=None)` mengirim satu prompt
+  milik plugin dan mengembalikan teks jawabannya. Pesan yang dikirim hanya system line plugin
+  (bila ada) dan prompt itu; tidak ada pesan sesi yang pernah disertakan, dan tidak ada
+  parameter yang bisa memasukkannya.
+- **Anggaran per plugin**: `plugins.entries.<id>.llm.calls` (bawaan 0 — tanpa akses sama
+  sekali). Panggilan setelah anggaran habis melempar `LlmError` dengan pesan yang menyebut
+  kunci config-nya. Hitungannya berlaku selama proses berjalan (per run), bukan kuota di
+  disk; `.remaining` dan `.used` bisa dibaca plugin.
+- **Plafon per panggilan**: `plugins.llm.max_tokens` (bawaan 1024) memotong nilai yang diminta
+  plugin, berapa pun yang ia minta.
+- Rutenya dipilih pengguna: `auxiliary.plugin.provider`/`model`, bawaannya rute percakapan
+  (dengan model murah provider bila ada). Kegagalan panggilan (termasuk rute yang tidak bisa
+  dipakai) menjadi `LlmError`; panggilan yang gagal tetap terhitung, karena anggarannya
+  membatasi percobaan.
+
 **`PluginContext`** menyediakan: `register_tool`, `register_toolset`, `register_environment`,
 `register_hook`, `register_prompt_section`, `register_command`, `register_cli_command`,
 `register_provider`, `register_transport`, `register_memory_provider`,
 `register_context_engine`, `register_web_search_provider`, `register_platform`,
 `register_skills_dir`, `register_skill_source`, serta `settings`, `home`, `plugin_dir`,
-`logger`.
+`logger`, `llm`.
 
 **Shell hook**
 - Konfigurasi: `hooks: {event: [perintah | {command, matcher, timeout, fail_closed}]}`.
@@ -134,7 +151,7 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
 | Katalog plugin dan `clite plugins search` | ✅ | F6-T5: indeks JSON (`plugins.hub.index`, bawaan dari plugin bawaan), `clite plugins search`/`info`/`install <nama>` dengan hash yang diverifikasi |
 | Jenis `exclusive` (satu aktif per kategori) | ✅ | F6-T5: manifest tanpa `category` ditolak; hanya satu plugin per kategori yang dimuat, yang lain berstatus `error` beserta alasannya. Dijaga `tests/plugins/test_manager.py` |
 | Halaman dashboard dari plugin | ⬜ | F6-T5 |
-| Akses LLM untuk plugin (`ctx.llm`) | ⬜ | Hermes: `agent/plugin_llm.py`. F6-T5 |
+| Akses LLM untuk plugin (`ctx.llm`) | ✅ | F6-T5: `plugins/llm.py`; anggaran per plugin (`plugins.entries.<id>.llm.calls`, bawaan 0), plafon `plugins.llm.max_tokens`, hanya menerima prompt milik plugin. Dijaga `tests/plugins/test_manager.py` |
 | Hook tambahan (`pre_verify`, middleware permintaan) | ⬜ | F6-T5 |
 
 ## Yang sengaja berbeda dari Hermes
@@ -160,3 +177,5 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
   ke versi sebelumnya selain memasang ulang.
 - `register_provider` dari plugin menulis ke lapisan dasar registry, bukan ke lapisan milik
   profil.
+- Anggaran `ctx.llm` dihitung per proses, bukan kuota tersimpan: agent yang dijalankan ulang
+  memberi plugin anggaran penuh lagi. Kuota lintas-run menunggu mesin biaya (F2-T3).

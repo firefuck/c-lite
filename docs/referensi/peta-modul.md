@@ -173,6 +173,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `context.py` | ``PluginContext``: the API a plugin's ``register(ctx)`` receives. | `PluginCommand`, `PluginCliCommand`, `Registration`, `PluginContext` |
 | `hooks.py` | Lifecycle hooks: the bus core fires and plugins subscribe to. | `HookRegistration`, `HookBus`, `get_hook_bus()`, `reset_hook_buses()`, `invoke_hook()`, `has_hook()`, `first_result()` |
 | `hub.py` | The plugin hub: where a plugin came from, how it is updated, and where it is found. | `PluginError`, `hub_dir()`, `provenance_path()`, `installed_plugins()`, `plugin_files()`, `plugin_digest()`, `git_commit()`, `record_install()`, `dependency_commands()`, `Staged`, … (+13) |
+| `llm.py` | The auxiliary model a plugin may call: ``ctx.llm``. | `LlmError`, `calls_used()`, `reset_llm_budgets()`, `PluginLLM` |
 | `manager.py` | Plugin discovery and loading (and, with them, the shell hooks from ``config.yaml``). | `PluginInfo`, `PluginManager`, `get_plugin_manager()`, `ensure_plugins_loaded()`, `reset_plugin_managers()`, `set_plugin_enabled()`, `install_plugin()`, `remove_plugin()` |
 | `manifest.py` | ``plugin.yaml``: what a plugin says about itself before any of its code runs. | `ManifestError`, `PluginManifest`, `validate_plugin_name()`, `parse_manifest()`, `load_manifest()` |
 | `shell_hooks.py` | Shell hooks: run your own commands on lifecycle events, configured in ``config.yaml``. | `ShellHook`, `HookRun`, `configured_hooks()`, `allowlist_path()`, `is_approved()`, `approve_hooks()`, `revoke_hooks()`, `build_payload()`, `run_hook()`, `evaluate()`, … (+1) |
@@ -327,4 +328,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 191 modul.
+Jumlah: 192 modul.

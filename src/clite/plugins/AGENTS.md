@@ -18,6 +18,9 @@ Tes: `pytest tests/plugins -q`
    ada di `plugins.enabled`.
 6. **Hook kebijakan gagal tertutup.** Bila menambah hook yang bisa memveto sesuatu, masukkan
    ke `FAIL_CLOSED_HOOKS`.
+7. **`ctx.llm` tidak pernah melihat percakapan.** Ia hanya menerima prompt yang ditulis plugin
+   sendiri dan membatasi jumlah panggilan per plugin (`llm.py`). Jangan menambahkan
+   parameter, kwarg, atau jalur yang memasukkan pesan sesi ke dalamnya.
 
 ## Resep
 

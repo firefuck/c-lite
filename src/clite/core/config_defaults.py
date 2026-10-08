@@ -107,6 +107,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "compression": {"provider": "main", "model": ""},
         "title_generation": {"provider": "main", "model": ""},
         "approval": {"provider": "main", "model": ""},
+        # What `ctx.llm` answers with. "main" reuses the conversation route; point it at a cheap
+        # model so plugin side tasks do not pay for the big one.
+        "plugin": {"provider": "main", "model": ""},
         # The model that reads images for `vision_analyze` when the conversation's own model
         # cannot see. "main" reuses the conversation route; point it at a vision model when the
         # main model has no eyes.
@@ -184,6 +187,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "disabled": [],  # always wins over enabled
         "entries": {},  # {plugin_id: {allow_tool_override, settings: {...}, llm: {calls}}}
         "hook_callback_timeout": 30,
+        # What a plugin may ask of an auxiliary model (ctx.llm). A budget is granted per plugin
+        # in plugins.entries.<id>.llm.calls (default 0: no access); this is the ceiling on one
+        # call, whatever the plugin asks for.
+        "llm": {"max_tokens": 1024},
         # Where `clite plugins search` looks. Empty means the catalog that ships with the
         # package (built from the bundled plugins by scripts/build_plugins_index.py).
         "hub": {"index": ""},

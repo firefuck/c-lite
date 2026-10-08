@@ -43,6 +43,7 @@ from clite.plugins.hub import (
     record_install,
     stage,
 )
+from clite.plugins.llm import reset_llm_budgets
 from clite.plugins.manifest import (
     KIND_BACKEND,
     KIND_EXCLUSIVE,
@@ -313,6 +314,7 @@ def reset_plugin_managers() -> None:
     for manager in managers:
         for name in [info.name for info in manager.list() if info.status == "loaded"]:
             manager.unload(name)
+    reset_llm_budgets()
     for module_name in [
         name
         for name in sys.modules

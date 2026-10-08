@@ -181,6 +181,8 @@ READ_INDIRECTLY: dict[str, tuple[str, str]] = {
     "auxiliary.approval.model": ("tools/approval.py", '"approval", [{"role": "user"'),
     "auxiliary.vision.provider": ("tools/builtin/vision.py", 'resolve_auxiliary_route("vision"'),
     "auxiliary.vision.model": ("tools/builtin/vision.py", 'resolve_auxiliary_route("vision"'),
+    "auxiliary.plugin.provider": ("plugins/llm.py", 'AUXILIARY_TASK = "plugin"'),
+    "auxiliary.plugin.model": ("plugins/llm.py", 'AUXILIARY_TASK = "plugin"'),
     "skills.external_dirs": ("skills/catalog.py", '.get("external_dirs")'),
     "skills.disabled": ("skills/catalog.py", '.get("disabled")'),
     "plugins.entries": ("plugins/context.py", 'f"plugins.entries.{self.plugin_id}.settings"'),

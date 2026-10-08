@@ -344,6 +344,8 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `auxiliary.title_generation.model` | `""` |
 | `auxiliary.approval.provider` | `"main"` |
 | `auxiliary.approval.model` | `""` |
+| `auxiliary.plugin.provider` | `"main"` |
+| `auxiliary.plugin.model` | `""` |
 | `auxiliary.vision.provider` | `"main"` |
 | `auxiliary.vision.model` | `""` |
 | `display.streaming` | `true` |
@@ -385,6 +387,7 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `plugins.disabled` | `[]` |
 | `plugins.entries` | `{}` |
 | `plugins.hook_callback_timeout` | `30` |
+| `plugins.llm.max_tokens` | `1024` |
 | `plugins.hub.index` | `""` |
 | `hooks` | `{}` |
 | `mcp_servers` | `{}` |

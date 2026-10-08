@@ -226,7 +226,10 @@ aturan opt-in.
 3. `pip_dependencies` ditampilkan sebagai perintah — **selesai**.
 4. Jenis `exclusive` — **selesai**. Manifestnya wajib menyebut `category`; hanya satu plugin per
    kategori yang dimuat, yang lain berstatus `error` beserta alasannya.
-5. `ctx.llm` — belum.
+5. `ctx.llm` — **selesai**. Modul baru `src/clite/plugins/llm.py` (bukan salah satu berkas yang
+   didaftar di atas, seperti `hub.py`); anggaran per plugin lewat
+   `plugins.entries.<id>.llm.calls` (bawaan 0), plafon `plugins.llm.max_tokens`, dan hanya
+   prompt milik plugin yang pernah dikirim.
 6. Hook tambahan — belum.
 7. Halaman dashboard dari plugin — belum.
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 
 import pytest
@@ -287,3 +288,114 @@ def test_the_runner_up_takes_over_when_the_active_one_is_disabled(plugins_dir, c
     assert manager.plugins["memory-a"].status == "loaded"
     assert manager.plugins["memory-b"].status == "error"  # stood down, and its tools went with it
     assert registry.get("memory-b_hello") is None
+
+
+# ── ctx.llm ─────────────────────────────────────────────────────────────────────────────
+
+ASKER = """
+def register(ctx):
+    ctx.register_command("ask", lambda args, session=None: ctx.llm.ask(args))
+    ctx.register_command("remaining", lambda args, session=None: str(ctx.llm.remaining))
+    ctx.register_command(
+        "brood", lambda args, session=None: ctx.llm.ask("think hard", system="Be brief.", max_tokens=5000)
+    )
+"""
+
+
+def _load_asker(clite_home, plugins_dir, *, calls=None, max_tokens=None, with_model=True):
+    """Install the test plugin and return its `ask` command handler."""
+    _write_plugin(plugins_dir, "asker", body=ASKER)
+    config = "plugins:\n  enabled: [asker]\n"
+    if calls is not None:
+        config += f"  entries:\n    asker:\n      llm: {{calls: {calls}}}\n"
+    if max_tokens is not None:
+        config += f"  llm: {{max_tokens: {max_tokens}}}\n"
+    if with_model:
+        config += "model:\n  provider: mock\n  default: mock-1\n"
+    (clite_home / "config.yaml").write_text(config)
+    manager = ensure_plugins_loaded()
+    assert manager.plugins["asker"].status == "loaded"
+    return manager.commands["ask"].handler
+
+
+def test_a_plugin_has_no_model_access_until_its_budget_is_granted(plugins_dir, clite_home):
+    from clite.plugins.llm import LlmError
+
+    handler = _load_asker(clite_home, plugins_dir)  # no plugins.entries.asker.llm.calls
+    with pytest.raises(LlmError, match=r"plugins\.entries\.asker\.llm\.calls"):
+        handler("classify this")
+
+
+def test_ctx_llm_answers_and_stops_at_its_budget(plugins_dir, clite_home):
+    from clite.plugins.llm import LlmError
+
+    handler = _load_asker(clite_home, plugins_dir, calls=2)
+    remaining = get_plugin_manager().commands["remaining"].handler
+
+    assert handler("first question") == "You said: first question"  # the offline provider's reply
+    assert remaining("") == "1"
+    assert handler("second question") == "You said: second question"
+    assert remaining("") == "0"
+    with pytest.raises(LlmError, match="2 of its model calls"):
+        handler("third question")
+    assert remaining("") == "0"  # a refused call is not a call
+
+
+def test_ctx_llm_sends_only_the_plugins_prompt_and_never_the_session(clite_home, plugins_dir, monkeypatch):
+    from clite.plugins.llm import PluginLLM
+    from clite.providers import auxiliary
+    from clite.providers.testing import ScriptedClient, text_response
+    from clite.runtime import ChatSession
+
+    # The API has no parameter that could take a conversation: there is nothing to pass.
+    assert set(inspect.signature(PluginLLM.ask).parameters) == {
+        "self",
+        "prompt",
+        "system",
+        "max_tokens",
+        "temperature",
+    }
+    recording = ScriptedClient([], default=text_response("a classification"))
+    monkeypatch.setattr(auxiliary, "LLMClient", lambda *args, **kwargs: recording)
+    handler = _load_asker(clite_home, plugins_dir, calls=3)
+
+    session = ChatSession(client=ScriptedClient([], default=text_response("ok")))
+    try:
+        session.handle_input("remember the blue door, it is a secret")
+        assert handler("classify this", session) == "a classification"
+
+        assert recording.last_messages == [{"role": "user", "content": "classify this"}]
+        assert "blue door" not in json.dumps(recording.last_messages)  # the session is not there
+        assert len(session.agent.messages) == 2  # the plugin's call added nothing to the session
+
+        # The plugin's own system line and token request ride with it; the ceiling caps the ask.
+        get_plugin_manager().commands["brood"].handler("", session)
+        assert recording.last_messages[0] == {"role": "system", "content": "Be brief."}
+        assert recording.last_messages[1] == {"role": "user", "content": "think hard"}
+        assert recording.calls[-1]["params"].max_tokens == 1024  # the plugin asked for 5000
+    finally:
+        session.close()
+
+
+def test_the_max_tokens_ceiling_caps_what_a_plugin_can_ask_for(clite_home, plugins_dir, monkeypatch):
+    from clite.providers import auxiliary
+    from clite.providers.testing import ScriptedClient, text_response
+
+    recording = ScriptedClient([], default=text_response("ok"))
+    monkeypatch.setattr(auxiliary, "LLMClient", lambda *args, **kwargs: recording)
+    _load_asker(clite_home, plugins_dir, calls=1, max_tokens=40)
+
+    assert get_plugin_manager().commands["brood"].handler("") == "ok"
+    assert recording.calls[-1]["params"].max_tokens == 40
+
+
+def test_a_grant_to_one_plugin_is_not_a_grant_to_another(plugins_dir, clite_home):
+    from clite.plugins.llm import PluginLLM, calls_used
+
+    handler = _load_asker(clite_home, plugins_dir, calls=1)
+    assert (PluginLLM("asker").budget, PluginLLM("other-plugin").budget) == (1, 0)
+    assert (PluginLLM("asker").remaining, PluginLLM("other-plugin").remaining) == (1, 0)
+
+    assert handler("hello") == "You said: hello"
+    assert calls_used("asker") == 1 and PluginLLM("asker").remaining == 0
+    assert calls_used("other-plugin") == 0  # the counter is per plugin
