@@ -154,7 +154,7 @@ dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
 | Task | Judul | Ukuran | Bergantung pada | Status |
 |---|---|---|---|---|
 | F5-T1 | Jalankan dan verifikasi cangkang Electron | S | F1-T1 | 🟡 |
-| F5-T2 | Halaman dashboard: config, cron, log, memori, sesi | L | - | ⬜ |
+| F5-T2 | Halaman dashboard: config, cron, log, memori, sesi | L | - | ✅ |
 | F5-T3 | Dashboard React dan Vite | XL | F5-T2 | ⬜ |
 | F5-T4 | Pemaketan desktop | M | F5-T1 | ⬜ |
 | F5-T5 | Fitur desktop: multi-sesi, lampiran, notifikasi, putar ulang event | L | F5-T1, F5-T2 | ⬜ |

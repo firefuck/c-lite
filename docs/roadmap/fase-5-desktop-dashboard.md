@@ -89,12 +89,23 @@ tes browser.
 `hermes_cli/web_server_memory.py`.
 
 **Selesai bila.**
-- [ ] Setiap method baru punya kontrak, handler, dan tes; tipe TypeScript dibuat ulang.
-- [ ] Tes: tidak ada method yang mengembalikan nilai kredensial, dan `config.get` atas seluruh
+- [x] Setiap method baru punya kontrak, handler, dan tes; tipe TypeScript dibuat ulang.
+- [x] Tes: tidak ada method yang mengembalikan nilai kredensial, dan `config.get` atas seluruh
       config tidak memuat rahasia yang diekspansi dari `${VAR}`.
-- [ ] Tes browser: setiap halaman dimuat, satu aksi utamanya berjalan, dan teks berisi
+- [x] Tes browser: setiap halaman dimuat, satu aksi utamanya berjalan, dan teks berisi
       `<script>` tampil sebagai teks.
-- [ ] Baris halaman dashboard di spesifikasi server dan rpc menjadi ✅.
+- [x] Baris halaman dashboard di spesifikasi server dan rpc menjadi ✅.
+
+**Dikerjakan 8 Oktober 2026, tujuh sub-langkah, satu commit masing-masing:**
+1. Sesi — `session.search`/`rename`/`pin`/`archive`/`export`, `session.list.include_archived`.
+2. Config — `config.list`, `config.set.confirm`; `config.get` tidak lagi mengekspansi `${VAR}`.
+3. Kredensial — `credentials.list`/`set`/`delete`; nilai tidak pernah kembali ke klien.
+4. Cron — `cron.output` (keluaran run terakhir, diredaksi dan dibatasi) dan form pembuatan.
+5. Memori — `memory.set` lewat `MemoryStore` yang sama dengan tool `memory`.
+6. Log — `logs.tail`, jendela di ujung berkas, penyaring tingkat, diredaksi.
+7. Hook & MCP — `hooks.status`/`mcp.status`; menyetujui hook tetap lokal.
+
+Halaman analitik belum ada; ia belum punya task di roadmap.
 
 **Ukuran.** L
 
