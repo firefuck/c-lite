@@ -182,8 +182,11 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "plugins": {
         "enabled": [],  # opt-in: nothing loads until it is listed here
         "disabled": [],  # always wins over enabled
-        "entries": {},  # {plugin_id: {allow_tool_override, settings: {...}}}
+        "entries": {},  # {plugin_id: {allow_tool_override, settings: {...}, llm: {calls}}}
         "hook_callback_timeout": 30,
+        # Where `clite plugins search` looks. Empty means the catalog that ships with the
+        # package (built from the bundled plugins by scripts/build_plugins_index.py).
+        "hub": {"index": ""},
     },
     # Shell hooks: {event: [command | {command, matcher, timeout, fail_closed}]}. A hook runs
     # only after `clite hooks approve` (see clite.plugins.shell_hooks).

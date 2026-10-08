@@ -197,6 +197,14 @@ event dan perintah yang persis sama. File ini tidak bisa ditulis lewat tool file
 | `skills/.hub/lock.json` | `{"<nama>": {"source", "identifier", "installed_at", "version"}}` |
 | `skills/.archive/<nama>/` | Skill yang diarsipkan kurator, utuh |
 
+### File plugin
+
+| File | Bentuk |
+|---|---|
+| `plugins/.hub/provenance.json` | `{"<nama>": {"source": "local" atau "git", "identifier", "ref", "commit", "version", "installed_at", "hash"}}`. `hash` adalah digest isi direktori; `update` memakainya untuk tahu plugin sudah disunting atau belum |
+| `plugins/.hub/staging/<nama>/` | Salinan sementara selama memasang atau memperbarui; bukan plugin yang aktif |
+| `plugins-index.json` (di dalam paket) | Katalog bawaan plugin: `{"version": 1, "plugins": [{"name", "description", "version", "kind", "source", "identifier", "hash"}]}`, dibangun `scripts/build_plugins_index.py` |
+
 ### Memori bawaan
 
 `memories/MEMORY.md` dan `memories/USER.md`: teks polos, entri dipisah baris berisi `§`.

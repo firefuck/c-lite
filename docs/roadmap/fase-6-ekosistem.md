@@ -217,6 +217,18 @@ aturan opt-in.
 - [ ] Tes: `ctx.llm` berhenti pada anggarannya dan tidak pernah menerima pesan sesi.
 - [ ] Baris terkait di spesifikasi plugins menjadi ✅, satu per sub-langkah.
 
+**Catatan.** Kemajuan per sub-langkah:
+1. Asal-usul dan pembaruan — **selesai**. Modul baru `src/clite/plugins/hub.py`
+   (bukan salah satu berkas yang didaftar di atas; `manager.py` sudah terlalu penuh),
+   `scripts/build_plugins_index.py (baru)`, dan `tests/plugins/test_plugin_hub.py (baru)`
+   menyertainya. `remove_plugin` juga diperbaiki: nama divalidasi dan symlink ditolak.
+2. Katalog dan `clite plugins search` — **selesai**.
+3. `pip_dependencies` ditampilkan sebagai perintah — **selesai**.
+4. Jenis `exclusive` — belum.
+5. `ctx.llm` — belum.
+6. Hook tambahan — belum.
+7. Halaman dashboard dari plugin — belum.
+
 **Ukuran.** L
 
 **Bergantung pada.** -

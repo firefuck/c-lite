@@ -112,7 +112,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `clite config` | show or change settings | `show`, `get`, `set`, `unset`, `path`, `env`, `edit`, `migrate` |
 | `clite tools` | list, enable or disable toolsets | `list`, `enable`, `disable` |
 | `clite skills` | list, search, install and curate skills | `list`, `search`, `info`, `view`, `install`, `update`, `tap`, `remove`, `curate` |
-| `clite plugins` | list, enable, disable, install or remove plugins | `list`, `enable`, `disable`, `install`, `remove` |
+| `clite plugins` | list, enable, disable, install or remove plugins | `list`, `enable`, `disable`, `install`, `remove`, `search`, `info`, `update` |
 | `clite hooks` | review, approve or test shell hooks from config.yaml | `list`, `approve`, `revoke`, `test` |
 | `clite mcp` | add, list, remove and test MCP servers | `list`, `add`, `remove`, `test` |
 | `clite sessions` | list, show, search, export or delete sessions | `list`, `show`, `rename`, `delete`, `export`, `search`, `prune` |
@@ -385,6 +385,7 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `plugins.disabled` | `[]` |
 | `plugins.entries` | `{}` |
 | `plugins.hook_callback_timeout` | `30` |
+| `plugins.hub.index` | `""` |
 | `hooks` | `{}` |
 | `mcp_servers` | `{}` |
 | `quick_commands` | `{}` |

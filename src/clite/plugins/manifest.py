@@ -16,6 +16,9 @@ KIND_PLATFORM = "platform"  # a gateway adapter
 KIND_MODEL_PROVIDER = "model-provider"  # an inference provider profile
 KINDS = (KIND_STANDALONE, KIND_BACKEND, KIND_EXCLUSIVE, KIND_PLATFORM, KIND_MODEL_PROVIDER)
 SUPPORTED_MANIFEST_VERSION = 1
+# Directories under a plugins root that are not plugins: provider profiles (the provider
+# registry loads them itself) and the owner id shell hooks register under.
+RESERVED_DIRS = frozenset({"model-providers", "shell-hooks"})
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 
 
@@ -46,14 +49,20 @@ def _strings(value: Any) -> tuple[str, ...]:
     return ()
 
 
-def parse_manifest(data: Any, *, fallback_name: str = "") -> PluginManifest:
-    if not isinstance(data, dict):
-        raise ManifestError("plugin.yaml must be a mapping")
-    name = str(data.get("name") or fallback_name).strip()
+def validate_plugin_name(name: str) -> str:
+    """A plugin name is one directory name: lowercase, digits, hyphens, underscores."""
+    name = (name or "").strip()
     if not _NAME_RE.match(name):
         raise ManifestError(
             f"invalid plugin name {name!r}: use lowercase letters, digits, hyphens and underscores"
         )
+    return name
+
+
+def parse_manifest(data: Any, *, fallback_name: str = "") -> PluginManifest:
+    if not isinstance(data, dict):
+        raise ManifestError("plugin.yaml must be a mapping")
+    name = validate_plugin_name(str(data.get("name") or fallback_name))
     kind = str(data.get("kind") or KIND_STANDALONE)
     if kind not in KINDS:
         raise ManifestError(f"unknown plugin kind {kind!r}; valid kinds: {', '.join(KINDS)}")

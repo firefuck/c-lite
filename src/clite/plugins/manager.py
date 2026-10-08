@@ -23,7 +23,6 @@ import importlib.util
 import logging
 import os
 import shutil
-import subprocess
 import sys
 import threading
 import types
@@ -35,23 +34,30 @@ from clite.core.brand import ENTRY_POINT_GROUP, ENV_PREFIX, PLUGIN_NAMESPACE, PR
 from clite.core.config import atomic_config_update, get_path, load_config
 from clite.core.constants import bundled_dir, ensure_dir, get_plugins_dir, home_key
 from clite.core.env import get_secret
+from clite.core.io import atomic_write_json
 from clite.plugins.context import PluginCliCommand, PluginCommand, PluginContext
 from clite.plugins.hooks import get_hook_bus
+from clite.plugins.hub import (
+    installed_plugins,
+    provenance_path,
+    record_install,
+    stage,
+)
 from clite.plugins.manifest import (
     KIND_BACKEND,
     KIND_MODEL_PROVIDER,
     KIND_PLATFORM,
+    RESERVED_DIRS,
     ManifestError,
     PluginManifest,
     load_manifest,
+    validate_plugin_name,
 )
-from clite.plugins.shell_hooks import SHELL_HOOKS_OWNER, ShellHook, register_shell_hooks
+from clite.plugins.shell_hooks import ShellHook, register_shell_hooks
 
 logger = logging.getLogger("clite.plugins")
 
 SOURCE_BUNDLED, SOURCE_USER, SOURCE_PROJECT, SOURCE_PIP = "bundled", "user", "project", "pip"
-# Not plugins: provider profiles, and the owner id shell hooks register under.
-_RESERVED_DIRS = frozenset({"model-providers", SHELL_HOOKS_OWNER})
 _AUTO_LOAD_KINDS = frozenset({KIND_PLATFORM, KIND_BACKEND, KIND_MODEL_PROVIDER})
 PROJECT_PLUGINS_ENV = f"{ENV_PREFIX}_ENABLE_PROJECT_PLUGINS"
 
@@ -101,7 +107,7 @@ class PluginManager:
             if (
                 not plugin_dir.is_dir()
                 or plugin_dir.name.startswith((".", "_"))
-                or plugin_dir.name in _RESERVED_DIRS
+                or plugin_dir.name in RESERVED_DIRS
             ):
                 continue
             if not (plugin_dir / "plugin.yaml").is_file():
@@ -312,56 +318,51 @@ def set_plugin_enabled(name: str, enabled: bool) -> None:
 
 
 def install_plugin(source: str, *, force: bool = False) -> PluginInfo:
-    """Copy a plugin directory, or clone a git URL, into ``<home>/plugins``.
+    """Install a plugin from a directory, a git URL, or a name in the catalog.
 
     Installing does not enable: the user reads what was installed and then runs
-    ``clite plugins enable <name>``.
+    ``clite plugins enable <name>``. Where it came from is recorded, so ``clite plugins
+    update`` can ask the same source again.
     """
     plugins_dir = ensure_dir(get_plugins_dir())
-    local = Path(source).expanduser()
-    if local.is_dir():
-        manifest = load_manifest(local)
-        target = plugins_dir / manifest.name
-        if target.exists():
-            if not force:
-                raise FileExistsError(
-                    f"plugin {manifest.name!r} is already installed; use --force to replace it"
-                )
-            shutil.rmtree(target)
-        shutil.copytree(local, target, ignore=shutil.ignore_patterns(".git", "__pycache__"))
-    elif source.startswith(("https://", "git@", "ssh://")) or source.endswith(".git"):
-        staging = plugins_dir / ".staging"
-        shutil.rmtree(staging, ignore_errors=True)
-        result = subprocess.run(
-            ["git", "clone", "--depth", "1", source, str(staging)],  # noqa: S603, S607
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode != 0:
-            raise RuntimeError(f"git clone failed: {result.stderr.strip()[:300]}")
-        try:
-            manifest = load_manifest(staging)
-            target = plugins_dir / manifest.name
-            if target.exists():
-                if not force:
-                    raise FileExistsError(
-                        f"plugin {manifest.name!r} is already installed; use --force to replace it"
-                    )
-                shutil.rmtree(target)
-            shutil.rmtree(staging / ".git", ignore_errors=True)
-            staging.rename(target)
-        finally:
-            shutil.rmtree(staging, ignore_errors=True)
-    else:
-        raise ValueError("a plugin source is a directory path or a git URL")
+    staged = stage(source)
+    manifest = staged.manifest
+    target = plugins_dir / manifest.name
+    if target.exists():
+        if not force:
+            shutil.rmtree(staged.directory, ignore_errors=True)
+            raise FileExistsError(f"plugin {manifest.name!r} is already installed; use --force to replace it")
+        shutil.rmtree(target)
+    staged.directory.rename(target)
+    record_install(
+        manifest.name,
+        source=staged.source,
+        identifier=staged.identifier,
+        version=manifest.version,
+        commit=staged.commit,
+        ref=staged.ref,
+    )
     return PluginInfo(manifest, SOURCE_USER, target)
 
 
 def remove_plugin(name: str) -> bool:
-    target = get_plugins_dir() / name
-    if not (target / "plugin.yaml").is_file():
+    """Remove a plugin installed under ``<home>/plugins``, and only there.
+
+    The name is validated as one directory name, so ``remove_plugin("../../x")`` cannot reach
+    outside the plugins directory, and a symlinked plugin directory is refused rather than
+    followed.
+    """
+    try:
+        name = validate_plugin_name(name)
+    except ManifestError:
+        return False
+    plugins_dir = get_plugins_dir()
+    target = plugins_dir / name
+    if target.resolve().parent != plugins_dir.resolve() or not (target / "plugin.yaml").is_file():
         return False
     get_plugin_manager().unload(name)
     shutil.rmtree(target)
+    lock = installed_plugins()
+    if lock.pop(name, None) is not None:
+        atomic_write_json(provenance_path(), lock)
     return True

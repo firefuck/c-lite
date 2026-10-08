@@ -20,6 +20,7 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
 | `manifest.py` | `plugin.yaml` dan validasinya |
 | `context.py` | `PluginContext`: API yang diterima `register(ctx)` |
 | `manager.py` | Penemuan, gerbang opt-in, muat, bongkar, pasang |
+| `hub.py` | Asal-usul pemasangan, katalog plugin, pencarian, pembaruan |
 | `shell_hooks.py` | Perintah shell pada event siklus hidup, dengan persetujuan per perintah |
 
 ## Kontrak
@@ -54,8 +55,41 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
 - Membongkar plugin membatalkan semua pendaftarannya. Tool bawaan yang ia timpa kembali.
 - Plugin tidak bisa mengganti tool bawaan tanpa `plugins.entries.<id>.allow_tool_override: true`.
 - Memasang (`clite plugins install`) hanya menyalin. Pengguna membaca isinya dulu, lalu
-  mengaktifkan sendiri.
+  mengaktifkan sendiri. Sumbernya sebuah direktori, URL git, atau nama dari katalog.
+- `remove_plugin` hanya menyentuh satu direktori langsung di bawah `<home>/plugins/`: nama
+  divalidasi sebagai satu nama direktori, dan direktori bersymlink ditolak, bukan diikuti.
 - Tiap profil punya kumpulan plugin sendiri.
+
+**Asal-usul dan pembaruan**
+- Pemasangan mencatat sumber (`local`/`git`), identifier, commit (bila sumbernya checkout
+  git), versi, waktu pasang, dan hash isi di `<home>/plugins/.hub/provenance.json`.
+- `clite plugins update [nama]` mengambil versi terbaru dari sumber yang sama, menampilkan
+  ringkasan dan satu baris per berkas (`added`/`removed`/`changed`), lalu menggantinya setelah
+  pengguna mengonfirmasi (`-y` melewati pertanyaan). Tanpa nama, semua yang punya asal-usul
+  diperiksa.
+- Plugin yang disunting pengguna (hash direktori berbeda dari yang dicatat) **tidak** ditimpa
+  tanpa `--force`. Suntingan tidak pernah digabung.
+- Setelah diperbarui, plugin kembali **nonaktif** (`plugins.disabled`): kode baru belum dibaca,
+  jadi ia tidak berjalan sampai pengguna mengaktifkannya lagi.
+- Bila penggantian gagal, salinan lama dipasang kembali.
+
+**Katalog**
+- Satu berkas JSON: `{"version": 1, "plugins": [{"name", "description", "version", "kind",
+  "source", "identifier", "hash"}]}`. `scripts/build_plugins_index.py` membuatnya dari pohon
+  direktori plugin (direktori yang dicadangkan, seperti `model-providers/`, dilewati); versi
+  bawaan ada di dalam paket (`bundled/plugins-index.json`), dibangun dari plugin bawaan dengan
+  awalan `dragovics/clite/src/clite/bundled/plugins`, dan dijaga tes agar tetap sama.
+- Lokasi: `plugins.hub.index` (kosong berarti katalog bawaan). Katalog yang tidak terbaca
+  dilaporkan sebagai peringatan, bukan menghentikan pencarian.
+- `clite plugins install <nama>` memakai entri katalog, mengunduh identifier-nya, dan menolak
+  hasil unduhan yang hashnya tidak sama dengan yang dijanjikan katalog. Nama yang tidak ada
+  disebutkan beserta nama yang ada.
+- `clite plugins search [kata]` dan `clite plugins info <nama>` membaca katalog yang sama.
+
+**Dependensi**
+- `pip_dependencies` di manifest tidak pernah dipasang otomatis. `clite plugins install` dan
+  `clite plugins info` menampilkannya sebagai perintah `pip install ...` yang harus dijalankan
+  pengguna sendiri.
 
 **`PluginContext`** menyediakan: `register_tool`, `register_toolset`, `register_environment`,
 `register_hook`, `register_prompt_section`, `register_command`, `register_cli_command`,
@@ -89,9 +123,11 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
 | Shell hook dengan persetujuan | ✅ | |
 | Plugin bawaan contoh (`audit-log`) | ✅ | |
 | Plugin bawaan backend (`web-search-ddg`, `web-search-tavily`, `image-gen-openai`, `context-sliding-window`, `memory-sqlite`) | ✅ | DDG tanpa kunci; Tavily berkunci, `TAVILY_API_KEY` terdaftar sebagai kredensial. `context-sliding-window` dan `memory-sqlite` adalah contoh titik perluasan: context engine (F6-T6) dan provider memori (F6-T3) |
-| `pip_dependencies`, `provides_tools`, `provides_hooks` di manifest | 🟡 | Diparse, belum dipakai (tidak ada pemasangan dependensi otomatis) |
+| `pip_dependencies` di manifest | ✅ | Ditampilkan sebagai perintah `pip install ...` oleh `install` dan `info`; tidak ada pemasangan otomatis. F6-T5 |
+| `provides_tools`, `provides_hooks` di manifest | 🟡 | Diparse, belum dipakai (informasi saja) |
+| Asal-usul pemasangan dan `clite plugins update` | ✅ | F6-T5: sumber, commit, versi, dan hash dicatat; `update` menampilkan diff per berkas, menolak menimpa plugin yang disunting tanpa `--force`, dan meninggalkan plugin **nonaktif** sesudah diperbarui. Dijaga `tests/plugins/test_plugin_hub.py` |
+| Katalog plugin dan `clite plugins search` | ✅ | F6-T5: indeks JSON (`plugins.hub.index`, bawaan dari plugin bawaan), `clite plugins search`/`info`/`install <nama>` dengan hash yang diverifikasi |
 | Jenis `exclusive` (satu aktif per kategori) | 🟡 | Jenisnya dikenali; aturan "hanya satu" belum ditegakkan |
-| Pembaruan plugin, katalog plugin | ⬜ | F6-T5 |
 | Halaman dashboard dari plugin | ⬜ | F6-T5 |
 | Akses LLM untuk plugin (`ctx.llm`) | ⬜ | Hermes: `agent/plugin_llm.py`. F6-T5 |
 | Hook tambahan (`pre_verify`, middleware permintaan) | ⬜ | F6-T5 |
@@ -112,5 +148,10 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
 
 - Plugin berjalan dalam proses yang sama dengan hak penuh. Opt-in dan "pasang tidak berarti
   aktif" adalah satu-satunya penghalang.
+- Katalog plugin tidak punya konsep "tap" seperti hub skill: satu lokasi, `plugins.hub.index`.
+- Entri katalog berjenis `git` belum ada; yang didukung baru `local` dan `github` (untuk
+  `github`, identifier menunjuk satu direktori di dalam repositori).
+- `clite plugins update` membandingkan berkas, bukan menyimpan riwayat: tidak ada cara kembali
+  ke versi sebelumnya selain memasang ulang.
 - `register_provider` dari plugin menulis ke lapisan dasar registry, bukan ke lapisan milik
   profil.

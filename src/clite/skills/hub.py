@@ -158,7 +158,12 @@ class GitHubSource(SkillSource):
         except ValueError as exc:
             raise SkillError(f"GitHub sent a response that is not JSON: {exc}") from None
 
-    def fetch(self, identifier: str) -> SkillBundle:
+    def fetch_tree(self, identifier: str) -> tuple[str, dict[str, bytes]]:
+        """Download the directory ``identifier`` names. ``(name, files)``, no format check.
+
+        The skill installer needs a ``SKILL.md``; the plugin hub needs the same walk for a
+        plugin directory, so it calls this and looks for ``plugin.yaml`` itself.
+        """
         spec, _, ref = identifier.strip().partition("@")
         parts = spec.strip("/").split("/")
         if len(parts) < 3:
@@ -193,9 +198,13 @@ class GitHubSource(SkillSource):
                     files[prefix + entry["name"]] = content
 
         walk(path, "")
+        return parts[-1], files
+
+    def fetch(self, identifier: str) -> SkillBundle:
+        name, files = self.fetch_tree(identifier)
         if "SKILL.md" not in files:
             raise SkillError(f"{identifier} has no SKILL.md")
-        return SkillBundle(parts[-1], files, self.source_id, identifier)
+        return SkillBundle(name, files, self.source_id, identifier)
 
 
 SOURCES: dict[str, SkillSource] = {"local": LocalDirSource(), "github": GitHubSource()}
