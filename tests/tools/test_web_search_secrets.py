@@ -14,7 +14,8 @@ def _load_tavily_plugin():
     """Load the bundled Tavily plugin module from its file path (how the plugin manager does
     it), so its module-level ``register_secret`` call runs."""
     spec = importlib.util.spec_from_file_location(
-        "clite_test_tavily_plugin", _PLUGIN_PATH,
+        "clite_test_tavily_plugin",
+        _PLUGIN_PATH,
         submodule_search_locations=[str(_PLUGIN_PATH.parent)],
     )
     assert spec is not None and spec.loader is not None

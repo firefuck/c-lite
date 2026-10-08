@@ -108,7 +108,10 @@ def _text(content: Any) -> str:
     if isinstance(content, str):
         return content
     if isinstance(content, list):
-        return " ".join(part.get("text", "[non-text content]") if isinstance(part, dict) else str(part) for part in content)
+        return " ".join(
+            part.get("text", "[non-text content]") if isinstance(part, dict) else str(part)
+            for part in content
+        )
     return "" if content is None else str(content)
 
 
@@ -131,7 +134,8 @@ def serialize_for_summary(messages: list[dict[str, Any]]) -> str:
             continue
         if role == "assistant" and message.get("tool_calls"):
             calls = ", ".join(
-                f"{call['function']['name']}({call['function'].get('arguments', '')[:300]})" for call in message["tool_calls"]
+                f"{call['function']['name']}({call['function'].get('arguments', '')[:300]})"
+                for call in message["tool_calls"]
             )
             text = f"{text}\n[called tools: {calls}]".strip()
         lines.append(f"[{role.upper()}]: {text}")
@@ -163,9 +167,14 @@ def prune_images(messages: list[dict[str, Any]], keep_last: int) -> tuple[list[d
     dropped = 0
     for index, message in enumerate(messages):
         content = message.get("content")
-        if index < cutoff and isinstance(content, list) and any(
-                isinstance(part, dict) and part.get("type") == "image_url" for part in content):
-            dropped += sum(1 for part in content if isinstance(part, dict) and part.get("type") == "image_url")
+        if (
+            index < cutoff
+            and isinstance(content, list)
+            and any(isinstance(part, dict) and part.get("type") == "image_url" for part in content)
+        ):
+            dropped += sum(
+                1 for part in content if isinstance(part, dict) and part.get("type") == "image_url"
+            )
             pruned.append({**message, "content": _drop_images(content)})
         else:
             pruned.append(message)
@@ -180,7 +189,12 @@ def prune_tool_outputs(messages: list[dict[str, Any]], keep_last: int) -> tuple[
     saved = 0
     for index, message in enumerate(messages):
         content = message.get("content")
-        if index < cutoff and message.get("role") == "tool" and isinstance(content, str) and len(content) > _PRUNE_MIN_CHARS:
+        if (
+            index < cutoff
+            and message.get("role") == "tool"
+            and isinstance(content, str)
+            and len(content) > _PRUNE_MIN_CHARS
+        ):
             saved += len(content) - len(PRUNED_MARKER)
             pruned.append({**message, "content": PRUNED_MARKER})
         else:
@@ -203,13 +217,22 @@ def repair_tool_pairs(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
         result.append(message)
         for call in message.get("tool_calls") or []:
             if call.get("id") not in answered:
-                result.append({"role": "tool", "tool_call_id": call.get("id"),
-                               "name": (call.get("function") or {}).get("name"),
-                               "content": json.dumps({"error": "result unavailable (removed during context compression)"})})
+                result.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": call.get("id"),
+                        "name": (call.get("function") or {}).get("name"),
+                        "content": json.dumps(
+                            {"error": "result unavailable (removed during context compression)"}
+                        ),
+                    }
+                )
     return result
 
 
-def _splice_summary(head: list[dict[str, Any]], text: str, tail: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _splice_summary(
+    head: list[dict[str, Any]], text: str, tail: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     """Place the summary between ``head`` and ``tail`` without two same-role messages in a row
     (strict providers reject that). When no standalone role fits, the summary is folded into
     the neighbouring user message."""
@@ -248,7 +271,7 @@ def _split_excerpt(excerpt: str, budget: int) -> list[str]:
                 chunks.append(current)
                 current = ""
             for start in range(0, len(block), budget):
-                chunks.append(block[start:start + budget])
+                chunks.append(block[start : start + budget])
         else:
             current = f"{current}\n\n{block}" if current else block
     if current:
@@ -278,12 +301,19 @@ class ContextCompressor(ContextEngine):
         if gaps:
             note += (
                 "\n\nThe earlier summary is missing these sections; fill them in from what you know or with None: "
-                + ", ".join(f"## {section}" for section in gaps) + "."
+                + ", ".join(f"## {section}" for section in gaps)
+                + "."
             )
         return f"{note}\n\n<earlier_summary>\n{earlier}\n</earlier_summary>"
 
-    def _summarise(self, to_summarise: list[dict[str, Any]], *, summarize: Summarizer,
-                   focus: str | None, previous: dict[str, Any] | None) -> tuple[str, int]:
+    def _summarise(
+        self,
+        to_summarise: list[dict[str, Any]],
+        *,
+        summarize: Summarizer,
+        focus: str | None,
+        previous: dict[str, Any] | None,
+    ) -> tuple[str, int]:
         """One summary call when the excerpt fits, staged calls when it does not. Returns the
         summary text and the number of summariser calls made."""
         focus_line = f"\n\nPay particular attention to: {focus}" if focus else ""
@@ -292,7 +322,10 @@ class ContextCompressor(ContextEngine):
 
         if len(excerpt) <= budget:
             prompt = SUMMARY_TEMPLATE.format(
-                focus=focus_line, previous=self._previous_block(previous), gaps="", excerpt=excerpt,
+                focus=focus_line,
+                previous=self._previous_block(previous),
+                gaps="",
+                excerpt=excerpt,
             )
             return summarize(prompt).strip(), 1
 
@@ -300,11 +333,16 @@ class ContextCompressor(ContextEngine):
         chunks = _split_excerpt(excerpt, budget)
         partials: list[str] = []
         for index, chunk in enumerate(chunks, start=1):
-            stage = STAGE_TEMPLATE.format(index=index, total=len(chunks), focus=focus_line, excerpt=chunk).rstrip()
+            stage = STAGE_TEMPLATE.format(
+                index=index, total=len(chunks), focus=focus_line, excerpt=chunk
+            ).rstrip()
             partials.append(summarize(stage).strip())
         merge_prompt = MERGE_TEMPLATE.format(
-            focus=focus_line, gaps=self._gaps_block(previous),
-            partials="\n\n".join(f"<part {index}>\n{text}\n</part {index}>" for index, text in enumerate(partials, start=1)),
+            focus=focus_line,
+            gaps=self._gaps_block(previous),
+            partials="\n\n".join(
+                f"<part {index}>\n{text}\n</part {index}>" for index, text in enumerate(partials, start=1)
+            ),
         )
         return summarize(merge_prompt).strip(), len(chunks) + 1
 
@@ -316,7 +354,11 @@ class ContextCompressor(ContextEngine):
         note = "\n\nAn earlier summary of even older turns must be merged in too; keep every fact from it."
         note += f"\n\n<earlier_summary>\n{earlier}\n</earlier_summary>"
         if gaps:
-            note += "\n\nThe earlier summary is missing these sections; fill them in: " + ", ".join(f"## {g}" for g in gaps) + "."
+            note += (
+                "\n\nThe earlier summary is missing these sections; fill them in: "
+                + ", ".join(f"## {g}" for g in gaps)
+                + "."
+            )
         return note
 
     def _boundaries(self, messages: list[dict[str, Any]]) -> tuple[int, int]:
@@ -331,7 +373,9 @@ class ContextCompressor(ContextEngine):
             head_end -= 1
         return head_end, tail_start
 
-    def compress(self, messages: list[dict[str, Any]], *, summarize: Summarizer, focus: str | None = None) -> list[dict[str, Any]]:
+    def compress(
+        self, messages: list[dict[str, Any]], *, summarize: Summarizer, focus: str | None = None
+    ) -> list[dict[str, Any]]:
         # Images are the most expensive part of a transcript, so they are dropped first, then
         # old tool text is pruned, then the middle is summarised.
         without_images, _images_dropped = prune_images(messages, self.protect_last_n)
@@ -346,7 +390,9 @@ class ContextCompressor(ContextEngine):
         to_summarise = [message for message in middle if not message.get("is_summary")]
         calls = 0
         try:
-            summary, calls = self._summarise(to_summarise, summarize=summarize, focus=focus, previous=previous)
+            summary, calls = self._summarise(
+                to_summarise, summarize=summarize, focus=focus, previous=previous
+            )
             if not summary:
                 raise ValueError("the summariser returned nothing")
         except Exception as exc:  # noqa: BLE001 - compression must still make room

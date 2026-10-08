@@ -33,9 +33,12 @@ def redact(text: str) -> str:
         return text
     # Scoped credentials may never have entered the process environment. Keep
     # masking known process values too, if another profile left them in text.
-    values = {value for name in secret_names()
-              for value in (get_secret(name) or "", os.environ.get(name, ""))
-              if len(value) >= _MIN_SECRET_LENGTH}
+    values = {
+        value
+        for name in secret_names()
+        for value in (get_secret(name) or "", os.environ.get(name, ""))
+        if len(value) >= _MIN_SECRET_LENGTH
+    }
     # Mask longer values first so a shared prefix cannot leave a secret's suffix behind.
     for value in sorted(values, key=len, reverse=True):
         text = text.replace(value, REDACTED)

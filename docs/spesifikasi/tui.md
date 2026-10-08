@@ -78,9 +78,12 @@ mengetik selagi agent bekerja.
 | TUI berbasis baris | ✅ | Diuji ujung ke ujung terhadap backend sungguhan dengan provider `mock` |
 | Bundle di dalam wheel | ✅ | |
 | `npm ci` dan skrip `npm` di root | ✅ | Job Node di CI menjalankan `npm ci`, tes, dan `npm run build` |
-| TUI layar penuh (Ink/React): panel, status bar, diff | ⬜ | Memakai ulang `backend.ts`, `render.ts`, dan reducer: F3-T3 |
-| Pelengkapan slash command, riwayat input | ⬜ | `complete.slash` dan `commands.catalog` sudah ada di protokol: F3-T3 |
-| Render Markdown | ⬜ | F3-T2 |
+| TUI layar penuh (Ink/React): panel, status bar, diff | ✅ | Seluruh pecahan F3-T9…F3-T15 selesai: kerangka Ink (F3-T9), bilah status (F3-T10), dialog (F3-T11), pelengkapan (F3-T12), pemilih (F3-T13), tema & resize (F3-T14), bundle mandiri (F3-T15). Dijaga `ui-tui/test/app.test.ts` dan `test_tui_bundle.py`: F3-T3 |
+| Pelengkapan slash command di TUI | ✅ | Kotak tulis Ink melengkapi perintah slash dari `commands.catalog`; Tab melengkapi satu kandidat atau membuka daftar; Esc menutup. Dijaga `ui-tui/test/app.test.ts`: F3-T12 |
+| Pemilih sesi dan model di TUI | ✅ | Overlay Ink memilih sesi dari `session.list` (memicu `session.create` resume) dan model dari `model.list` (memicu `model.set`). Dijaga `ui-tui/test/app.test.ts`: F3-T13 |
+| Tema TUI dari skin | ✅ | Skin dipetakan ke kode ANSI via `markdownRoleCodes` (padanan `markdown_role_codes` Python); transkrip membungkus saat terminal mengecil dan status bar tetap satu baris. Dijaga `ui-tui/test/app.test.ts`: F3-T14 |
+| Bundle TUI satu file | ✅ | Bundle `clite-tui.mjs` memuat Ink dan React secara mandiri tanpa dependensi runtime eksternal di `node_modules`, ukuran < 3MB, dan waktu mulai cepat. Dijaga `tests/cli/test_tui_bundle.py`: F3-T15 |
+| Render Markdown | ✅ | F3-T2: `ui-tui/src/render.ts` memakai aturan yang sama dengan `cli/markdown.py` — perender bertahap pada `message.delta`, blok kode tidak dibaca sebagai Markdown, tabel dipotong sesuai lebar; `tool.complete` membawa `diff` (string; kosong bila tool tidak mengubah berkas) yang dirender berwarna dengan batas panjang. Warna dari `MarkdownStyle` (tanpa kode warna sendiri); tanpa warna keluaran polos. Dijaga `ui-tui/test/render.test.ts` |
 | Flag `--toolsets`, `--max-turns` | ⬜ | Karena itu `display.interface: tui` jatuh ke REPL klasik bila flag itu dipakai |
 
 ## Yang sengaja berbeda dari Hermes

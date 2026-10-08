@@ -8,16 +8,26 @@ import pytest
 from clite.tools import approval
 
 
-@pytest.mark.parametrize("command", [
-    "rm -rf ~/*", "rm -rf ~/..", "cd ~; rm -rf .", "rm -rf *",
-    r"rm -rf C:\Users\tester", r'rm -rf "C:\Users\tester"',
-    r"rm -rf C:\Users/", r"rm -rf C:\Users\tester\*",
-    r"cd C:\Users\tester; rm -rf .",
-])
+@pytest.mark.parametrize(
+    "command",
+    [
+        "rm -rf ~/*",
+        "rm -rf ~/..",
+        "cd ~; rm -rf .",
+        "rm -rf *",
+        r"rm -rf C:\Users\tester",
+        r'rm -rf "C:\Users\tester"',
+        r"rm -rf C:\Users/",
+        r"rm -rf C:\Users\tester\*",
+        r"cd C:\Users\tester; rm -rf .",
+    ],
+)
 def test_windows_home_is_a_hardline_delete_target(monkeypatch, command):
     monkeypatch.setattr(approval, "Path", SimpleNamespace(home=lambda: PureWindowsPath("C:/Users/tester")))
     assert approval.detect_hardline(command, cwd="C:\\Users\\tester")
-    decision = approval.check_command(command, approval.ToolContext(approval_mode="off"), cwd="C:\\Users\\tester")
+    decision = approval.check_command(
+        command, approval.ToolContext(approval_mode="off"), cwd="C:\\Users\\tester"
+    )
     assert not decision.approved and decision.choice == "hardline"
 
 

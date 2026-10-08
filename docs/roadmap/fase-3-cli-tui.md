@@ -73,12 +73,12 @@ beberapa baris, dan menempel teks panjang tanpa terkirim sepotong-sepotong.
 `hermes_cli/skin_engine.py`, `tools/working_diff.py`.
 
 **Selesai bila.**
-- [ ] Tes: potongan streaming dalam ukuran acak menghasilkan keluaran yang sama dengan teks
+- [x] Tes: potongan streaming dalam ukuran acak menghasilkan keluaran yang sama dengan teks
       utuh.
-- [ ] Tes: blok kode tidak pernah dirender sebagai Markdown, dan tabel lebar dipotong sesuai
+- [x] Tes: blok kode tidak pernah dirender sebagai Markdown, dan tabel lebar dipotong sesuai
       lebar terminal.
-- [ ] Tes: tanpa warna, keluarannya teks polos yang tetap terbaca.
-- [ ] Baris "Render Markdown dan diff" di spesifikasi cli dan tui menjadi ✅.
+- [x] Tes: tanpa warna, keluarannya teks polos yang tetap terbaca.
+- [x] Baris "Render Markdown dan diff" di spesifikasi cli dan tui menjadi ✅.
 
 **Ukuran.** M
 
@@ -91,38 +91,252 @@ beberapa baris, dan menempel teks panjang tanpa terkirim sepotong-sepotong.
 **Tujuan.** `clite tui` membuka antarmuka layar penuh: transkrip yang bisa digulir, kotak
 tulis yang tetap di bawah, bilah status, dan dialog untuk persetujuan dan pemilihan.
 
-**Lingkup.** Task ini berukuran XL dan **harus dipecah** sebelum dikerjakan. Sesi pertama
-hanya menghasilkan task-task baru di file ini. Pecahan yang disarankan:
-1. Kerangka aplikasi Ink (React untuk terminal): tata letak, transkrip dari reducer bersama,
-   kotak tulis. Antarmuka baris (`plain.ts`) tetap ada sebagai `--plain` dan untuk masukan
-   pipa.
-2. Bilah status: model, pemakaian konteks, direktori kerja, keadaan sibuk.
-3. Dialog persetujuan dan klarifikasi, menggantikan pertanyaan berbasis baris.
-4. Pelengkapan slash command dan argumennya (`complete.slash`, `commands.catalog`).
-5. Pemilih sesi dan pemilih model.
-6. Tema dari skin, dan penanganan ubah ukuran terminal.
-7. Bundle: ukuran, waktu mulai, dan dependensi `ink` serta `react` di dalam satu file `.mjs`.
+**Lingkup.** Ini task payung (XL). Ia sudah **dipecah** menjadi F3-T9 sampai F3-T15; tidak ada
+yang dikerjakan langsung di sini. Setelah semua anaknya selesai, `clite tui` membuka TUI layar
+penuh dan antarmuka baris (`plain.ts`) tetap ada sebagai `--plain` dan untuk masukan pipa.
 
-Yang dipakai ulang tanpa diubah: `ui-tui/src/backend.ts`, `apps/shared/src/gateway-client.ts`,
-dan `apps/shared/src/transcript.ts`.
+**Keputusan desain (mengikat semua anak).**
+- **Pustaka: Ink + React** (sama seperti Hermes), disetujui pemilik proyek pada 8 Oktober 2026.
+  Ini melonggarkan aturan "tanpa dependensi runtime baru" di `ui-tui/AGENTS.md`: `ink` dan
+  `react` masuk `ui-tui/package.json` sebagai `devDependencies`, dan esbuild menanamkan
+  seluruhnya ke dalam satu file `.mjs` — pengguna tetap menjalankan `clite tui` tanpa
+  `npm install`. `ui-tui/AGENTS.md` diperbarui untuk menyebut pengecualian ini di F3-T9.
+- **Yang dipakai ulang tanpa diubah:** `ui-tui/src/backend.ts`,
+  `apps/shared/src/gateway-client.ts`, `apps/shared/src/transcript.ts` (reducer transkrip yang
+  sama untuk mode penuh dan `--plain`). TUI tetap tidak punya logika percakapan: ia mengirim
+  permintaan dan merender event.
+- **Antarmuka baris tetap diuji.** `plain.ts` tidak dibuang; `entry.ts` memilih TUI Ink bila
+  `stdout`/`stdin` adalah TTY dan bukan `--plain`, dan jatuh ke `PlainTui` untuk masukan pipa
+  atau bila Ink gagal dimuat. Tes ujung ke ujung yang ada harus lulus di kedua mode.
+
+**Anak-anak task.**
+
+| Task | Judul | Ukuran | Bergantung pada |
+|---|---|---|---|
+| F3-T9 | Kerangka aplikasi Ink | M | F1-T1 |
+| F3-T10 | Bilah status | S | F3-T9 |
+| F3-T11 | Dialog persetujuan dan klarifikasi | M | F3-T9 |
+| F3-T12 | Pelengkapan slash command | M | F3-T9, F3-T4 |
+| F3-T13 | Pemilih sesi dan model | M | F3-T9 |
+| F3-T14 | Tema dari skin dan tahan ubah ukuran | S | F3-T9 |
+| F3-T15 | Bundle Ink dalam satu `.mjs` | M | F3-T9 |
 
 **File.** `ui-tui/src/app/ (baru)`, `ui-tui/src/entry.ts`, `ui-tui/build.mjs`,
-`ui-tui/package.json`, `src/clite/cli/subcommands/tui.py`, `ui-tui/test/`.
+`ui-tui/package.json`, `ui-tui/AGENTS.md`, `src/clite/cli/subcommands/tui.py`, `ui-tui/test/`.
 
 **Rujukan Hermes.** `ui-tui/src/app.tsx`, `ui-tui/src/components/`, `ui-tui/src/entry.tsx`,
-`ui-tui/src/gatewayClient.ts`, `ui-tui/README.md`, `tui_gateway/AGENTS.md`.
+`ui-tui/src/gatewayClient.ts`, `ui-tui/README.md`.
 
 **Selesai bila.**
-- [ ] Task ini sudah dipecah menjadi task bernomor di file ini, masing-masing berukuran M atau
+- [x] Task ini sudah dipecah menjadi task bernomor di file ini, masing-masing berukuran M atau
       lebih kecil, dan terdaftar di indeks.
-- [ ] Setelah semua pecahan selesai: tes ujung ke ujung yang ada (`ui-tui/test/`) lulus
+- [x] Setelah semua pecahan selesai: tes ujung ke ujung yang ada (`ui-tui/test/`) lulus
       terhadap TUI baru dan terhadap mode `--plain`.
-- [ ] `pip install` tetap menghasilkan `clite tui` yang jalan tanpa `npm install` di mesin
+- [x] `pip install` tetap menghasilkan `clite tui` yang jalan tanpa `npm install` di mesin
       pengguna.
 
 **Ukuran.** XL
 
 **Bergantung pada.** F1-T1
+
+---
+
+### F3-T9 Kerangka aplikasi Ink
+
+**Tujuan.** `clite tui` membuka UI layar penuh: transkrip yang bisa digulir di atas, kotak
+tulis yang tetap di bawah; `--plain` dan masukan pipa tetap memakai `PlainTui` yang sekarang.
+
+**Lingkup.**
+- Tambahkan `ink` dan `react` ke `devDependencies` `ui-tui/package.json`; perbarui
+  `ui-tui/AGENTS.md` untuk mencatat pengecualian dependensi ini (lihat F3-T3).
+- `ui-tui/src/app/ (baru)`: komponen akar Ink (`App`) yang merender transkrip dari reducer
+  `apps/shared/src/transcript.ts` (dipakai ulang tanpa diubah) dan sebuah kotak tulis.
+- `ui-tui/src/entry.ts`: pilih TUI Ink bila `stdin` dan `stdout` adalah TTY dan `--plain` tidak
+  diberikan; selain itu (pipa, non-TTY) jalankan `PlainTui`. Bila `ink` gagal dimuat, jatuh ke
+  `PlainTui` dengan catatan di stderr.
+- Kirim pesan dan tampilkan jawaban streaming lewat `gateway-client.ts` yang sudah ada.
+
+**File.** `ui-tui/src/app/ (baru)`, `ui-tui/src/entry.ts`, `ui-tui/package.json`,
+`ui-tui/AGENTS.md`, `ui-tui/test/`.
+
+**Rujukan Hermes.** `ui-tui/src/app.tsx`, `ui-tui/src/components/appLayout.tsx`,
+`ui-tui/src/components/messageLine.tsx`, `ui-tui/src/app/useMainApp.ts`.
+
+**Selesai bila.**
+- [x] Tes: `entry.ts` memilih `PlainTui` saat masukan bukan TTY atau `--plain` diberikan, dan
+      TUI Ink sebaliknya (fungsi pemilih diuji tanpa terminal sungguhan).
+- [x] Tes: transkrip Ink memakai reducer `transcript.ts` yang sama (event masuk → item yang
+      sama dengan mode `--plain`).
+- [x] Tes ujung ke ujung yang ada tetap lulus di mode `--plain`.
+- [x] Baris "TUI layar penuh (Ink/React)" di spesifikasi tui menjadi 🟡.
+
+**Ukuran.** M
+
+**Bergantung pada.** F1-T1
+
+---
+
+### F3-T10 Bilah status
+
+**Tujuan.** Di bawah layar penuh ada bilah status: model, pemakaian jendela konteks, direktori
+kerja, dan keadaan sibuk.
+
+**Lingkup.**
+- Komponen bilah status Ink di `ui-tui/src/app/ (baru)`, data dari `session.info` dan
+  `session.usage` (RPC) serta event `session.info`/`status.update`.
+- Ikut berubah saat model atau direktori berganti dan saat giliran mulai/selesai.
+
+**File.** `ui-tui/src/app/ (baru)`, `ui-tui/test/`.
+
+**Rujukan Hermes.** `ui-tui/src/components/appChrome.tsx`, `ui-tui/src/components/themed.tsx`.
+
+**Selesai bila.**
+- [x] Tes: bilah status merender model, direktori, dan keadaan sibuk dari state yang diberikan.
+- [x] Tes: event `session.info` memperbarui teksnya.
+- [x] Baris baru "Bilah status TUI" di spesifikasi tui menjadi ✅.
+
+**Ukuran.** S
+
+**Bergantung pada.** F3-T9
+
+---
+
+### F3-T11 Dialog persetujuan dan klarifikasi
+
+**Tujuan.** Persetujuan perintah dan pertanyaan agent muncul sebagai dialog di layar penuh,
+menggantikan pertanyaan berbasis baris.
+
+**Lingkup.**
+- Dialog Ink di `ui-tui/src/app/ (baru)` untuk `approval.request` dan pertanyaan `clarify`,
+  memakai RPC yang sudah ada (`approval.respond`, `clarify.respond`).
+- Pilihan dapat diklik/dipilih dengan tombol panah dan Enter; pertanyaan bebas teks tetap
+  didukung.
+
+**File.** `ui-tui/src/app/ (baru)`, `ui-tui/test/`.
+
+**Rujukan Hermes.** `ui-tui/src/components/prompts.tsx`,
+`ui-tui/src/components/overlayPrimitives.tsx`.
+
+**Selesai bila.**
+- [x] Tes: dialog persetujuan merender perintah dan menerima jawaban ya/tidak/selalu.
+- [x] Tes: dialog klarifikasi bernomor memilih opsi yang benar dan meneruskan teks bebas.
+- [x] Tes ujung ke ujung: persetujuan lewat TUI menyelesaikan giliran seperti mode `--plain`.
+- [x] Baris "Dialog persetujuan dan klarifikasi" di spesifikasi tui menjadi ✅.
+
+**Ukuran.** M
+
+**Bergantung pada.** F3-T9
+
+---
+
+### F3-T12 Pelengkapan slash command
+
+**Tujuan.** Mengetik `/` di kotak tulis memunculkan daftar perintah yang cocok, dan Tab
+melengkapinya; argumen tertentu (nama model, sesi) ikut dilengkapi.
+
+**Lingkup.**
+- Pelengkapan di kotak tulis Ink lewat `complete.slash` dan `commands.catalog` (RPC yang sudah
+  ada); tidak ada daftar perintah yang dieja di TypeScript.
+- Pilih dengan panah/Enter; Esc menutup.
+
+**File.** `ui-tui/src/app/ (baru)`, `ui-tui/test/`.
+
+**Rujukan Hermes.** `ui-tui/src/hooks/useCompletion.ts`,
+`ui-tui/src/app/createSlashHandler.ts`.
+
+**Selesai bila.**
+- [x] Tes: awalan `/` menghasilkan kandidat dari `commands.catalog`, terurut, tanpa duplikat.
+- [x] Tes: Tab pada satu kandidat menyelesaikan teks; beberapa kandidat membuka daftar.
+- [x] Baris "Pelengkapan slash command di TUI" di spesifikasi tui menjadi ✅.
+
+**Ukuran.** M
+
+**Bergantung pada.** F3-T9, F3-T4
+
+---
+
+### F3-T13 Pemilih sesi dan model
+
+**Tujuan.** Overlay untuk memilih sesi sebelumnya dan memilih model, tanpa mengetik id.
+
+**Lingkup.**
+- Overlay Ink di `ui-tui/src/app/ (baru)` memakai `session.list` dan `model.list`; memilih
+  memanggil `session.create` (resume) atau `model.set`.
+- Menampilkan judul, model, dan waktu aktivitas tiap sesi.
+
+**File.** `ui-tui/src/app/ (baru)`, `ui-tui/test/`.
+
+**Rujukan Hermes.** `ui-tui/src/components/modelPicker.tsx`,
+`ui-tui/src/components/activeSessionSwitcher.tsx`.
+
+**Selesai bila.**
+- [x] Tes: pemilih sesi merender daftar dari `session.list` dan memilih satu memicu resume.
+- [x] Tes: pemilih model merender daftar dari `model.list` dan memilih satu memicu `model.set`.
+- [x] Baris "Pemilih sesi dan model" di spesifikasi tui menjadi ✅.
+
+**Ukuran.** M
+
+**Bergantung pada.** F3-T9
+
+---
+
+### F3-T14 Tema dari skin dan tahan ubah ukuran
+
+**Tujuan.** TUI layar penuh memakai warna dari skin yang sama dengan CLI, dan tata letaknya
+benar saat terminal diubah ukurannya.
+
+**Lingkup.**
+- Tema Ink dari skin (`cli/display.py` sudah memetakan peran → warna lewat
+  `runtime/presentation.markdown_role_codes`; sediakan padanannya di RPC atau baca lewat
+  `config`), sehingga CLI dan TUI seragam.
+- Tangani `dimension`/resize dari Ink: transkrip dan bilah status menyesuaikan lebar.
+
+**File.** `ui-tui/src/app/ (baru)`, `ui-tui/src/render.ts`, `ui-tui/test/`.
+
+**Rujukan Hermes.** `ui-tui/src/theme.ts`, `ui-tui/src/components/themed.tsx`.
+
+**Selesai bila.**
+- [x] Tes: skin yang diberikan menghasilkan warna yang sama di TUI seperti di CLI
+      (`markdown_role_codes` padanan TypeScript).
+- [x] Tes: saat lebar berubah, transkrip membungkus ulang dan bilah status tetap satu baris.
+- [x] Baris "Tema TUI dari skin" di spesifikasi tui menjadi ✅.
+
+**Ukuran.** S
+
+**Bergantung pada.** F3-T9
+
+---
+
+### F3-T15 Bundle Ink dalam satu `.mjs`
+
+**Tujuan.** `pip install clite` tetap menghasilkan `clite tui` yang jalan tanpa `npm install`:
+`ink` dan `react` tertanam di dalam satu `clite-tui.mjs`.
+
+**Lingkup.**
+- `ui-tui/build.mjs`: bangun entri TUI Ink (JSX) menjadi satu `.mjs`, dengan `ink` dan `react`
+  dibundel (bukan `external`), `platform: node`, `format: esm`.
+- `ui-tui/package.json`: `ink`/`react` di `devDependencies`; skrip build tetap `node build.mjs`.
+- Tambahkan gerbang ukuran/waktu-mulai yang diuji: bundle tidak melewati batas ukuran yang
+  wajar dan `--version`/bantuan TUI tetap cepat (batas ditulis di tes).
+- `ui-tui/src/entry.ts` tetap memuat bundel tanpa impor luar pada waktu jalan.
+
+**File.** `ui-tui/build.mjs`, `ui-tui/package.json`, `ui-tui/src/entry.ts`,
+`src/clite/cli/subcommands/tui.py`, `src/clite/tui_dist/ (dibangun ulang)`, `ui-tui/test/`,
+`tests/cli/test_tui_bundle.py`.
+
+**Rujukan Hermes.** `ui-tui/scripts/build.mjs`, `ui-tui/README.md`.
+
+**Selesai bila.**
+- [x] Tes: bundle hasil build hanya berisi satu file `.mjs` dan mengimpornya tidak menarik
+      paket dari `node_modules` (dependensi tertanam).
+- [x] Tes: ukuran bundle di bawah batas yang ditulis di tes, dan `clite tui --help` selesai
+      dalam batas waktu yang ditulis di tes.
+- [x] `tests/cli/test_tui_bundle.py` (hash sumber) tetap lulus setelah `node build.mjs`.
+- [x] Baris "Bundle TUI satu file" di spesifikasi tui menjadi ✅.
+
+**Ukuran.** M
+
+**Bergantung pada.** F3-T9
 
 ---
 
@@ -159,12 +373,12 @@ Perintah yang dimiliki task lain tidak dikerjakan di sini: `/rollback` (F2-T8), 
 `gateway/slash_commands.py`, `agent/context_breakdown.py`.
 
 **Selesai bila.**
-- [ ] Setiap perintah punya tes lewat `ChatSession.run_slash`.
-- [ ] `/branch` menyalin pesan aktif tanpa `provider_data` (awalan percakapan berubah bagi
+- [x] Setiap perintah punya tes lewat `ChatSession.run_slash`.
+- [x] `/branch` menyalin pesan aktif tanpa `provider_data` (awalan percakapan berubah bagi
       sesi baru) dan mencatat `parent_session_id`.
-- [ ] `test_every_command_has_a_handler_and_every_handler_a_command` tetap lulus, dan
+- [x] `test_every_command_has_a_handler_and_every_handler_a_command` tetap lulus, dan
       halaman katalog dibuat ulang.
-- [ ] Baris slash command di spesifikasi runtime diperbarui dengan jumlah yang baru.
+- [x] Baris slash command di spesifikasi runtime diperbarui dengan jumlah yang baru.
 
 **Ukuran.** M
 
@@ -195,10 +409,10 @@ Perintah yang dimiliki task lain tidak dikerjakan di sini: `/rollback` (F2-T8), 
 `hermes_cli/main_provider_setup.py`.
 
 **Selesai bila.**
-- [ ] Tes: alur lengkap dengan jawaban yang disuntikkan dan provider tiruan, termasuk kunci
+- [x] Tes: alur lengkap dengan jawaban yang disuntikkan dan provider tiruan, termasuk kunci
       salah yang ditolak dengan pesan yang jelas.
-- [ ] Tes: setup tanpa interaksi lewat flag menghasilkan config yang sama.
-- [ ] Baris `clite setup` di spesifikasi cli menjadi ✅.
+- [x] Tes: setup tanpa interaksi lewat flag menghasilkan config yang sama.
+- [x] Baris `clite setup` di spesifikasi cli menjadi ✅.
 
 **Ukuran.** M
 
@@ -229,10 +443,10 @@ perintah agent itu sendiri.
 `hermes_cli/backup_restore.py`, `hermes_cli/uninstall.py`.
 
 **Selesai bila.**
-- [ ] Tes: cadangkan lalu pulihkan ke home baru menghasilkan sesi, memori, dan skill yang sama.
-- [ ] Tes: arsip tanpa `--include-secrets` tidak memuat `.env` maupun `auth.json`.
-- [ ] Tes: `clite update --check` terhadap indeks paket tiruan melaporkan versi yang benar.
-- [ ] Tes: perintah `clite backup` dan `clite update` dikenali `detect_self_access`.
+- [x] Tes: cadangkan lalu pulihkan ke home baru menghasilkan sesi, memori, dan skill yang sama.
+- [x] Tes: arsip tanpa `--include-secrets` tidak memuat `.env` maupun `auth.json`.
+- [x] Tes: `clite update --check` terhadap indeks paket tiruan melaporkan versi yang benar.
+- [x] Tes: perintah `clite backup` dan `clite update` dikenali `detect_self_access`.
 
 **Ukuran.** M
 
@@ -256,9 +470,9 @@ perintah agent itu sendiri.
 **Rujukan Hermes.** `hermes_cli/completion.py`, `hermes_cli/commands_completion.py`.
 
 **Selesai bila.**
-- [ ] Tes: skrip yang dihasilkan memuat setiap sub-perintah di `SUBCOMMAND_MODULES`.
-- [ ] Tes: skrip bash lulus `bash -n`.
-- [ ] Baris "pelengkapan shell" di spesifikasi cli menjadi ✅.
+- [x] Tes: skrip yang dihasilkan memuat setiap sub-perintah di `SUBCOMMAND_MODULES`.
+- [x] Tes: skrip bash lulus `bash -n`.
+- [x] Baris "pelengkapan shell" di spesifikasi cli menjadi ✅.
 
 **Ukuran.** S
 
@@ -284,10 +498,10 @@ tool yang paling sering dipanggil, jumlah sesi per platform.
 **Rujukan Hermes.** `agent/insights.py`, `hermes_cli/subcommands/insights.py`.
 
 **Selesai bila.**
-- [ ] Tes: agregat atas database buatan dengan beberapa sesi, model, dan hari cocok dengan
+- [x] Tes: agregat atas database buatan dengan beberapa sesi, model, dan hari cocok dengan
       hitungan tangan.
-- [ ] Tes: subagent dihitung ke induknya, tidak dua kali.
-- [ ] Baris `/insights` di spesifikasi runtime menjadi ✅.
+- [x] Tes: subagent dihitung ke induknya, tidak dua kali.
+- [x] Baris `/insights` di spesifikasi runtime menjadi ✅.
 
 **Ukuran.** S
 

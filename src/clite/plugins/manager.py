@@ -72,8 +72,13 @@ class PluginInfo:
 
     def summary(self) -> dict[str, Any]:
         return {
-            "name": self.name, "version": self.manifest.version, "description": self.manifest.description,
-            "kind": self.manifest.kind, "source": self.source, "status": self.status, "error": self.error,
+            "name": self.name,
+            "version": self.manifest.version,
+            "description": self.manifest.description,
+            "kind": self.manifest.kind,
+            "source": self.source,
+            "status": self.status,
+            "error": self.error,
             "path": str(self.path) if self.path else "",
         }
 
@@ -93,7 +98,11 @@ class PluginManager:
         if not root.is_dir():
             return
         for plugin_dir in sorted(root.iterdir()):
-            if not plugin_dir.is_dir() or plugin_dir.name.startswith((".", "_")) or plugin_dir.name in _RESERVED_DIRS:
+            if (
+                not plugin_dir.is_dir()
+                or plugin_dir.name.startswith((".", "_"))
+                or plugin_dir.name in _RESERVED_DIRS
+            ):
                 continue
             if not (plugin_dir / "plugin.yaml").is_file():
                 continue
@@ -111,8 +120,10 @@ class PluginManager:
             logger.debug("could not read entry points", exc_info=True)
             return
         for entry_point in entry_points:
-            manifest = PluginManifest(name=entry_point.name.lower().replace(".", "-"),
-                                      description=f"Installed package ({entry_point.value})")
+            manifest = PluginManifest(
+                name=entry_point.name.lower().replace(".", "-"),
+                description=f"Installed package ({entry_point.value})",
+            )
             self.plugins[manifest.name] = PluginInfo(manifest, SOURCE_PIP, entry_point=entry_point)
 
     def discover(self) -> dict[str, PluginInfo]:
@@ -149,7 +160,8 @@ class PluginManager:
         _ensure_namespace()
         module_name = f"{PLUGIN_NAMESPACE}.{info.name.replace('-', '_')}"
         spec = importlib.util.spec_from_file_location(
-            module_name, info.path / "__init__.py", submodule_search_locations=[str(info.path)])
+            module_name, info.path / "__init__.py", submodule_search_locations=[str(info.path)]
+        )
         if spec is None or spec.loader is None:
             raise ImportError(f"{info.path} has no __init__.py")
         module = importlib.util.module_from_spec(spec)
@@ -204,7 +216,9 @@ class PluginManager:
             self._undo(info.context)
             info.context = None
             info.status = "not_enabled"
-            for module_name in [m for m in sys.modules if m.startswith(f"{PLUGIN_NAMESPACE}.{name.replace('-', '_')}")]:
+            for module_name in [
+                m for m in sys.modules if m.startswith(f"{PLUGIN_NAMESPACE}.{name.replace('-', '_')}")
+            ]:
                 sys.modules.pop(module_name, None)
             return True
 
@@ -272,8 +286,12 @@ def reset_plugin_managers() -> None:
     for manager in managers:
         for name in [info.name for info in manager.list() if info.status == "loaded"]:
             manager.unload(name)
-    for module_name in [name for name in sys.modules if name == PLUGIN_NAMESPACE or
-                        (name.startswith(f"{PLUGIN_NAMESPACE}.") and ".model_providers" not in name)]:
+    for module_name in [
+        name
+        for name in sys.modules
+        if name == PLUGIN_NAMESPACE
+        or (name.startswith(f"{PLUGIN_NAMESPACE}.") and ".model_providers" not in name)
+    ]:
         sys.modules.pop(module_name, None)
 
 
@@ -306,14 +324,20 @@ def install_plugin(source: str, *, force: bool = False) -> PluginInfo:
         target = plugins_dir / manifest.name
         if target.exists():
             if not force:
-                raise FileExistsError(f"plugin {manifest.name!r} is already installed; use --force to replace it")
+                raise FileExistsError(
+                    f"plugin {manifest.name!r} is already installed; use --force to replace it"
+                )
             shutil.rmtree(target)
         shutil.copytree(local, target, ignore=shutil.ignore_patterns(".git", "__pycache__"))
     elif source.startswith(("https://", "git@", "ssh://")) or source.endswith(".git"):
         staging = plugins_dir / ".staging"
         shutil.rmtree(staging, ignore_errors=True)
-        result = subprocess.run(["git", "clone", "--depth", "1", source, str(staging)],  # noqa: S603, S607
-                                capture_output=True, text=True, check=False)
+        result = subprocess.run(
+            ["git", "clone", "--depth", "1", source, str(staging)],  # noqa: S603, S607
+            capture_output=True,
+            text=True,
+            check=False,
+        )
         if result.returncode != 0:
             raise RuntimeError(f"git clone failed: {result.stderr.strip()[:300]}")
         try:
@@ -321,7 +345,9 @@ def install_plugin(source: str, *, force: bool = False) -> PluginInfo:
             target = plugins_dir / manifest.name
             if target.exists():
                 if not force:
-                    raise FileExistsError(f"plugin {manifest.name!r} is already installed; use --force to replace it")
+                    raise FileExistsError(
+                        f"plugin {manifest.name!r} is already installed; use --force to replace it"
+                    )
                 shutil.rmtree(target)
             shutil.rmtree(staging / ".git", ignore_errors=True)
             staging.rename(target)

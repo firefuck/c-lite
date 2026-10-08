@@ -14,13 +14,25 @@ from clite.tools.registry import registry
 _CORE = ["terminal", "file", "web", "vision", "todo", "memory", "skills", "session_search"]
 
 TOOLSETS: dict[str, dict[str, Any]] = {
-    "terminal": {"description": "Run shell commands, Python snippets and background processes", "tools": ["terminal", "process", "execute_code"]},
-    "file": {"description": "Read, write, patch and search files", "tools": ["read_file", "write_file", "patch", "search_files"]},
+    "terminal": {
+        "description": "Run shell commands, Python snippets and background processes",
+        "tools": ["terminal", "process", "execute_code"],
+    },
+    "file": {
+        "description": "Read, write, patch and search files",
+        "tools": ["read_file", "write_file", "patch", "search_files"],
+    },
     "web": {"description": "Search and fetch web pages as text", "tools": ["web_fetch", "web_search"]},
-    "vision": {"description": "Look at images through a helper model", "tools": ["vision_analyze", "image_generate"]},
+    "vision": {
+        "description": "Look at images through a helper model",
+        "tools": ["vision_analyze", "image_generate"],
+    },
     "todo": {"description": "Task list for multi-step work", "tools": ["todo"]},
     "memory": {"description": "Persistent notes across sessions", "tools": ["memory"]},
-    "skills": {"description": "List, read and maintain skills", "tools": ["skills_list", "skill_view", "skill_manage"]},
+    "skills": {
+        "description": "List, read and maintain skills",
+        "tools": ["skills_list", "skill_view", "skill_manage"],
+    },
     "session_search": {"description": "Search past conversations", "tools": ["session_search"]},
     "clarify": {"description": "Ask the user a question", "tools": ["clarify"]},
     "delegation": {"description": "Spawn subagents with isolated context", "tools": ["delegate_task"]},
@@ -39,7 +51,11 @@ TOOLSETS: dict[str, dict[str, Any]] = {
     # A cron run has no user to ask and must not schedule more cron jobs.
     "clite-cron": {"description": "Scheduled runs", "tools": [], "includes": [*_CORE, "delegation"]},
     # A subagent cannot delegate further, ask the user, write shared memory or schedule work.
-    "clite-subagent": {"description": "Delegated workers", "tools": [], "includes": ["terminal", "file", "web", "todo", "skills", "session_search"]},
+    "clite-subagent": {
+        "description": "Delegated workers",
+        "tools": [],
+        "includes": ["terminal", "file", "web", "todo", "skills", "session_search"],
+    },
 }
 
 ALL_ALIASES = frozenset({"all", "*"})
@@ -47,9 +63,15 @@ PLATFORM_PREFIX = "clite-"
 MCP_PREFIX = "mcp-"
 
 
-def register_toolset(name: str, description: str, tools: list[str] | None = None, includes: list[str] | None = None) -> None:
+def register_toolset(
+    name: str, description: str, tools: list[str] | None = None, includes: list[str] | None = None
+) -> None:
     """Add or replace a toolset (used by plugins)."""
-    TOOLSETS[name] = {"description": description, "tools": list(tools or []), "includes": list(includes or [])}
+    TOOLSETS[name] = {
+        "description": description,
+        "tools": list(tools or []),
+        "includes": list(includes or []),
+    }
 
 
 def toolset_exists(name: str) -> bool:

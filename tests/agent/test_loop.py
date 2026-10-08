@@ -47,7 +47,9 @@ def test_text_turn(make_agent):
 
 def test_tool_round_then_answer(make_agent, tmp_path):
     (tmp_path / "workspace" / "notes.txt").write_text("remember the milk\n")
-    agent, client = make_agent([tool_call_response(("read_file", {"path": "notes.txt"})), text_response("It says: milk")])
+    agent, client = make_agent(
+        [tool_call_response(("read_file", {"path": "notes.txt"})), text_response("It says: milk")]
+    )
     result = agent.run_conversation("what is in notes.txt?")
     assert result.final_response == "It says: milk" and result.api_calls == 2
     assert _roles(agent) == ["user", "assistant", "tool", "assistant"]
@@ -58,10 +60,13 @@ def test_tool_round_then_answer(make_agent, tmp_path):
 
 
 def test_session_with_no_tools_refuses_an_unoffered_write_call(make_agent, tmp_path):
-    agent, client = make_agent([
-        tool_call_response(("write_file", {"path": "forbidden.txt", "content": "written"})),
-        text_response("done"),
-    ], enabled_toolsets=[])
+    agent, client = make_agent(
+        [
+            tool_call_response(("write_file", {"path": "forbidden.txt", "content": "written"})),
+            text_response("done"),
+        ],
+        enabled_toolsets=[],
+    )
     result = agent.run_conversation("hello")
     assert result.completed
     assert not client.calls[0]["tools"]
@@ -79,7 +84,14 @@ def test_transcript_is_durable_and_resumable(make_agent):
     resumed, client = make_agent([text_response("welcome back")], session_id=agent.session_id)
     assert _roles(resumed) == ["user", "assistant", "tool", "assistant"]
     resumed.run_conversation("again")
-    assert [m["role"] for m in client.last_messages] == ["system", "user", "assistant", "tool", "assistant", "user"]
+    assert [m["role"] for m in client.last_messages] == [
+        "system",
+        "user",
+        "assistant",
+        "tool",
+        "assistant",
+        "user",
+    ]
 
 
 def test_assistant_tool_call_is_persisted_before_the_tool_runs(make_agent):
@@ -96,12 +108,18 @@ def test_assistant_tool_call_is_persisted_before_the_tool_runs(make_agent):
 
 
 def test_usage_accumulates_on_the_result_and_in_the_database(make_agent):
-    agent, _ = make_agent([
-        tool_call_response(("read_file", {"path": "x"}), usage=Usage(100, 10, cache_read_tokens=50)),
-        text_response("ok", usage=Usage(200, 20)),
-    ])
+    agent, _ = make_agent(
+        [
+            tool_call_response(("read_file", {"path": "x"}), usage=Usage(100, 10, cache_read_tokens=50)),
+            text_response("ok", usage=Usage(200, 20)),
+        ]
+    )
     result = agent.run_conversation("go")
-    assert (result.usage.input_tokens, result.usage.output_tokens, result.usage.cache_read_tokens) == (300, 30, 50)
+    assert (result.usage.input_tokens, result.usage.output_tokens, result.usage.cache_read_tokens) == (
+        300,
+        30,
+        50,
+    )
     row = get_session_db().get_session(agent.session_id)
     assert (row["input_tokens"], row["output_tokens"], row["api_call_count"]) == (300, 30, 2)
     assert agent.context_engine.last_prompt_tokens == 200
@@ -116,17 +134,28 @@ def test_callbacks_observe_the_turn(make_agent):
         on_tool_complete=lambda call_id, name, args, result, seconds: events.append(("tool_done", name)),
         on_message=lambda message: events.append(("message", message["role"])),
     )
-    agent, _ = make_agent([tool_call_response(("read_file", {"path": "x"})), text_response("fin")], callbacks=callbacks)
+    agent, _ = make_agent(
+        [tool_call_response(("read_file", {"path": "x"})), text_response("fin")], callbacks=callbacks
+    )
     agent.run_conversation("go")
-    assert events == [("step", 1), ("message", "assistant"), ("tool_start", "read_file"), ("tool_done", "read_file"),
-                      ("step", 2), ("delta", "fin"), ("message", "assistant")]
+    assert events == [
+        ("step", 1),
+        ("message", "assistant"),
+        ("tool_start", "read_file"),
+        ("tool_done", "read_file"),
+        ("step", 2),
+        ("delta", "fin"),
+        ("message", "assistant"),
+    ]
 
 
 def test_a_failing_callback_does_not_break_the_turn(make_agent):
     def explode(*args):
         raise RuntimeError("ui bug")
 
-    agent, _ = make_agent([text_response("fine")], callbacks=AgentCallbacks(on_step=explode, on_message=explode))
+    agent, _ = make_agent(
+        [text_response("fine")], callbacks=AgentCallbacks(on_step=explode, on_message=explode)
+    )
     assert agent.run_conversation("go").final_response == "fine"
 
 
@@ -152,7 +181,9 @@ def test_only_one_turn_runs_at_a_time(make_agent):
 
 
 def test_system_prompt_and_tools_are_byte_stable_across_turns_and_resume(make_agent):
-    agent, client = make_agent([text_response("a"), tool_call_response(("read_file", {"path": "x"})), text_response("b")])
+    agent, client = make_agent(
+        [text_response("a"), tool_call_response(("read_file", {"path": "x"})), text_response("b")]
+    )
     agent.run_conversation("one")
     agent.run_conversation("two")
     assert len(set(client.system_prompts())) == 1
@@ -165,8 +196,13 @@ def test_system_prompt_and_tools_are_byte_stable_across_turns_and_resume(make_ag
 
 def test_memory_written_mid_session_does_not_change_that_sessions_prompt(make_agent):
     agent, client = make_agent(
-        [tool_call_response(("memory", {"action": "add", "target": "user", "content": "Prefers tabs over spaces"})),
-         text_response("saved"), text_response("again")],
+        [
+            tool_call_response(
+                ("memory", {"action": "add", "target": "user", "content": "Prefers tabs over spaces"})
+            ),
+            text_response("saved"),
+            text_response("again"),
+        ],
         enabled_toolsets=["memory"],
     )
     agent.run_conversation("remember that I prefer tabs")
@@ -180,8 +216,12 @@ def test_memory_written_mid_session_does_not_change_that_sessions_prompt(make_ag
 
 
 def test_turn_context_rides_the_user_message_and_is_stored_beside_it(make_agent):
-    get_hook_bus().register("pre_llm_call", lambda user_message: {"context": f"[recalled for: {user_message}]"})
-    agent, client = make_agent([tool_call_response(("read_file", {"path": "x"})), text_response("ok"), text_response("later")])
+    get_hook_bus().register(
+        "pre_llm_call", lambda user_message: {"context": f"[recalled for: {user_message}]"}
+    )
+    agent, client = make_agent(
+        [tool_call_response(("read_file", {"path": "x"})), text_response("ok"), text_response("later")]
+    )
     agent.run_conversation("deploy status?")
     agent.run_conversation("and now?")
     for call in client.calls:  # the same bytes on every request, in this turn and the next
@@ -202,9 +242,14 @@ def test_every_request_repeats_the_previous_one_and_adds_to_its_end(make_agent, 
     counter = iter(range(100))
     get_hook_bus().register("pre_llm_call", lambda user_message: {"context": f"[context #{next(counter)}]"})
     agent, client = make_agent(
-        [tool_call_response(("read_file", {"path": "a"}), ("read_file", {"path": "b"})), text_response("one"),
-         tool_call_response(("memory", {"action": "add", "target": "memory", "content": "Uses fish"})), text_response("two"),
-         text_response("three"), text_response("four")],
+        [
+            tool_call_response(("read_file", {"path": "a"}), ("read_file", {"path": "b"})),
+            text_response("one"),
+            tool_call_response(("memory", {"action": "add", "target": "memory", "content": "Uses fish"})),
+            text_response("two"),
+            text_response("three"),
+            text_response("four"),
+        ],
         enabled_toolsets=["file", "memory"],
     )
     for text in ("first", "second", "third", "fourth"):
@@ -212,14 +257,15 @@ def test_every_request_repeats_the_previous_one_and_adds_to_its_end(make_agent, 
     requests = [call["messages"] for call in client.calls]
     assert len(requests) == 6
     for earlier, later in zip(requests, requests[1:], strict=False):
-        assert later[:len(earlier)] == earlier
+        assert later[: len(earlier)] == earlier
         assert len(later) > len(earlier)
 
     # A resumed session sends the same bytes again.
-    resumed, resumed_client = make_agent([text_response("five")], session_id=agent.session_id,
-                                         enabled_toolsets=["file", "memory"])
+    resumed, resumed_client = make_agent(
+        [text_response("five")], session_id=agent.session_id, enabled_toolsets=["file", "memory"]
+    )
     resumed.run_conversation("fifth")
-    assert resumed_client.calls[0]["messages"][:len(requests[-1])] == requests[-1]
+    assert resumed_client.calls[0]["messages"][: len(requests[-1])] == requests[-1]
 
 
 def test_cache_markers_are_applied_on_the_wire_only(make_agent):
@@ -228,21 +274,33 @@ def test_cache_markers_are_applied_on_the_wire_only(make_agent):
             return True
 
     route = mock_route(profile=Caching(name="mock", api_mode="mock", auth_type="none"))
-    agent, client = make_agent([tool_call_response(("read_file", {"path": "x"})), text_response("ok")], route=route)
+    agent, client = make_agent(
+        [tool_call_response(("read_file", {"path": "x"})), text_response("ok")], route=route
+    )
     agent.run_conversation("go")
     wire = client.calls[1]["messages"]
     assert wire[0]["content"][0]["cache_control"] == {"type": "ephemeral"}
-    marked = sum(1 for m in wire if "cache_control" in m or (isinstance(m["content"], list) and "cache_control" in m["content"][-1]))
+    marked = sum(
+        1
+        for m in wire
+        if "cache_control" in m or (isinstance(m["content"], list) and "cache_control" in m["content"][-1])
+    )
     assert marked == 4
-    assert all("cache_control" not in m and isinstance(m.get("content"), (str, type(None))) for m in agent.messages)
+    assert all(
+        "cache_control" not in m and isinstance(m.get("content"), (str, type(None))) for m in agent.messages
+    )
 
 
 def test_hooks_see_the_finished_turn_and_can_rewrite_the_answer(make_agent):
     seen = {}
     bus = get_hook_bus()
     bus.register("transform_llm_output", lambda text: text.replace("darn", "****"))
-    bus.register("post_llm_call", lambda user_message, assistant_response, completed: seen.update(
-        user=user_message, answer=assistant_response, completed=completed))
+    bus.register(
+        "post_llm_call",
+        lambda user_message, assistant_response, completed: seen.update(
+            user=user_message, answer=assistant_response, completed=completed
+        ),
+    )
     agent, _ = make_agent([text_response("well darn")])
     assert agent.run_conversation("hm").final_response == "well ****"
     assert seen == {"user": "hm", "answer": "well ****", "completed": True}
@@ -266,8 +324,10 @@ def test_results_return_in_the_models_order_even_when_run_in_parallel(make_agent
 
     registry.register("slow_read", "probe", {"description": "s"}, slow, origin="test", parallel="safe")
     registry.register("fast_read", "probe", {"description": "f"}, fast, origin="test", parallel="safe")
-    agent, _ = make_agent([tool_call_response(("slow_read", {}), ("fast_read", {})), text_response("ok")],
-                          enabled_toolsets=["probe"])
+    agent, _ = make_agent(
+        [tool_call_response(("slow_read", {}), ("fast_read", {})), text_response("ok")],
+        enabled_toolsets=["probe"],
+    )
     begun = time.monotonic()
     agent.run_conversation("go")
     assert [m["name"] for m in agent.messages if m["role"] == "tool"] == ["slow_read", "fast_read"]
@@ -276,8 +336,12 @@ def test_results_return_in_the_models_order_even_when_run_in_parallel(make_agent
 
 def test_a_sequential_tool_makes_the_whole_batch_sequential(make_agent, probe_tools):
     agent, _ = make_agent(
-        [tool_call_response(("probe_read", {"path": "a"}), ("probe_act", {"path": "b"}), ("probe_read", {"path": "c"})),
-         text_response("ok")],
+        [
+            tool_call_response(
+                ("probe_read", {"path": "a"}), ("probe_act", {"path": "b"}), ("probe_read", {"path": "c"})
+            ),
+            text_response("ok"),
+        ],
         enabled_toolsets=["probe"],
     )
     agent.run_conversation("go")
@@ -289,11 +353,21 @@ def test_parallel_policy():
         return [(ToolCall(f"c{i}", name, "{}"), args) for i, (name, args) in enumerate(specs)]
 
     registry.register("p_read", "probe", {"description": "r"}, lambda a: "{}", origin="test", parallel="safe")
-    registry.register("p_write", "probe", {"description": "w"}, lambda a: "{}", origin="test", parallel="path", path_args=("path",))
+    registry.register(
+        "p_write",
+        "probe",
+        {"description": "w"},
+        lambda a: "{}",
+        origin="test",
+        parallel="path",
+        path_args=("path",),
+    )
     registry.register("p_act", "probe", {"description": "a"}, lambda a: "{}", origin="test")
     assert can_run_in_parallel(calls(("p_read", {}), ("p_read", {}))) is True
     assert can_run_in_parallel(calls(("p_write", {"path": "a"}), ("p_write", {"path": "b"}))) is True
-    assert can_run_in_parallel(calls(("p_write", {"path": "a"}), ("p_write", {"path": "a"}))) is False  # same file
+    assert (
+        can_run_in_parallel(calls(("p_write", {"path": "a"}), ("p_write", {"path": "a"}))) is False
+    )  # same file
     assert can_run_in_parallel(calls(("p_read", {}), ("p_act", {}))) is False  # side effects
     assert can_run_in_parallel(calls(("p_read", {}), ("unknown", {}))) is False
     assert can_run_in_parallel(calls(("p_read", {}), ("p_read", None))) is False  # unparseable arguments
@@ -302,7 +376,10 @@ def test_parallel_policy():
 
 def test_malformed_arguments_are_repaired_or_reported(make_agent, probe_tools):
     agent, _ = make_agent(
-        [tool_call_response(("probe_act", '```json\n{"path": "a",}\n```'), ("probe_act", "{not json")), text_response("ok")],
+        [
+            tool_call_response(("probe_act", '```json\n{"path": "a",}\n```'), ("probe_act", "{not json")),
+            text_response("ok"),
+        ],
         enabled_toolsets=["probe"],
     )
     agent.run_conversation("go")
@@ -320,7 +397,9 @@ def test_parse_tool_arguments():
 
 
 def test_unknown_or_disabled_tool_gets_an_error_result_and_the_turn_continues(make_agent):
-    agent, _ = make_agent([tool_call_response(("launch_rockets", {}), ("terminal", {"command": "ls"})), text_response("sorry")])
+    agent, _ = make_agent(
+        [tool_call_response(("launch_rockets", {}), ("terminal", {"command": "ls"})), text_response("sorry")]
+    )
     result = agent.run_conversation("go")
     errors = [json.loads(m["content"])["error"] for m in agent.messages if m["role"] == "tool"]
     assert "Unknown tool" in errors[0] and "not enabled" in errors[1]
@@ -331,13 +410,27 @@ def test_tools_get_the_agent_context(make_agent):
     seen = {}
 
     def inspect(args, ctx=None):
-        seen.update(session=ctx.session_id, platform=ctx.platform, has_agent=ctx.agent is not None, call=ctx.tool_call_id)
+        seen.update(
+            session=ctx.session_id,
+            platform=ctx.platform,
+            has_agent=ctx.agent is not None,
+            call=ctx.tool_call_id,
+        )
         return "{}"
 
     registry.register("inspect", "probe", {"description": "i"}, inspect, origin="test")
-    agent, _ = make_agent([tool_call_response(("inspect", {})), text_response("ok")], enabled_toolsets=["probe"], platform="desktop")
+    agent, _ = make_agent(
+        [tool_call_response(("inspect", {})), text_response("ok")],
+        enabled_toolsets=["probe"],
+        platform="desktop",
+    )
     agent.run_conversation("go")
-    assert seen == {"session": agent.session_id, "platform": "desktop", "has_agent": True, "call": "call_0_inspect"}
+    assert seen == {
+        "session": agent.session_id,
+        "platform": "desktop",
+        "has_agent": True,
+        "call": "call_0_inspect",
+    }
 
 
 # ── response handling ────────────────────────────────────────────────────────────────────
@@ -345,8 +438,10 @@ def test_tools_get_the_agent_context(make_agent):
 
 def test_empty_response_is_retried(make_agent):
     statuses = []
-    agent, client = make_agent([text_response(""), text_response("   "), text_response("finally")],
-                               callbacks=AgentCallbacks(on_status=lambda kind, text: statuses.append(kind)))
+    agent, client = make_agent(
+        [text_response(""), text_response("   "), text_response("finally")],
+        callbacks=AgentCallbacks(on_status=lambda kind, text: statuses.append(kind)),
+    )
     result = agent.run_conversation("go")
     assert result.final_response == "finally" and len(client.calls) == 3
     assert statuses == ["retry", "retry"]
@@ -369,7 +464,9 @@ def test_persistently_empty_response_ends_the_turn_with_an_explanation(make_agen
 
 
 def test_truncated_output_is_continued_and_joined(make_agent):
-    agent, client = make_agent([text_response("The answer is ", finish_reason="length"), text_response("forty-two.")])
+    agent, client = make_agent(
+        [text_response("The answer is ", finish_reason="length"), text_response("forty-two.")]
+    )
     result = agent.run_conversation("go")
     assert result.final_response == "The answer is forty-two."
     assert "cut off" in client.calls[1]["messages"][-1]["content"]
@@ -382,7 +479,9 @@ def test_truncated_output_is_continued_and_joined(make_agent):
 
 def test_iteration_budget_ends_with_a_tool_less_wrap_up(make_agent):
     loop_forever = tool_call_response(("read_file", {"path": "x"}))
-    agent, client = make_agent([loop_forever, loop_forever, text_response("I read the file twice; more remains.")], max_turns=2)
+    agent, client = make_agent(
+        [loop_forever, loop_forever, text_response("I read the file twice; more remains.")], max_turns=2
+    )
     result = agent.run_conversation("go")
     assert result.completed is False and result.exit_reason == "budget_exhausted"
     assert result.final_response == "I read the file twice; more remains."
@@ -391,11 +490,14 @@ def test_iteration_budget_ends_with_a_tool_less_wrap_up(make_agent):
     # The wrap-up request is part of the stored conversation (so the next request repeats
     # it), marked as written by the agent rather than said by the user.
     assert _roles(agent)[-2:] == ["user", "assistant"]
-    assert agent.messages[-2]["display_kind"] == "internal" and "limit for this turn" in agent.messages[-2]["content"]
+    assert (
+        agent.messages[-2]["display_kind"] == "internal"
+        and "limit for this turn" in agent.messages[-2]["content"]
+    )
     agent.budget.limit = None
     client.queue(text_response("continuing"))
     agent.run_conversation("carry on")
-    assert client.calls[-1]["messages"][:len(client.calls[-2]["messages"])] == client.calls[-2]["messages"]
+    assert client.calls[-1]["messages"][: len(client.calls[-2]["messages"])] == client.calls[-2]["messages"]
 
 
 def test_the_model_is_warned_before_the_budget_runs_out(make_agent):
@@ -455,7 +557,14 @@ def test_interrupt_during_tools_skips_the_rest_and_keeps_the_transcript_valid(ma
     assert tool_results[0] == {"done": True} and "cancelled" in tool_results[1]["error"]
     # The next turn sends a transcript in which every call has its result.
     agent.run_conversation("continue")
-    assert [m["role"] for m in client.last_messages] == ["system", "user", "assistant", "tool", "tool", "user"]
+    assert [m["role"] for m in client.last_messages] == [
+        "system",
+        "user",
+        "assistant",
+        "tool",
+        "tool",
+        "user",
+    ]
 
 
 def test_steer_attaches_to_the_latest_tool_result(make_agent):
@@ -464,7 +573,9 @@ def test_steer_attaches_to_the_latest_tool_result(make_agent):
         return tool_result(ok=True)
 
     registry.register("work", "probe", {"description": "w"}, steering, origin="test")
-    agent, client = make_agent([tool_call_response(("work", {})), text_response("switched")], enabled_toolsets=["probe"])
+    agent, client = make_agent(
+        [tool_call_response(("work", {})), text_response("switched")], enabled_toolsets=["probe"]
+    )
     agent.run_conversation("migrate")
     tool_message = client.calls[1]["messages"][-1]
     assert tool_message["role"] == "tool" and "use the staging database" in tool_message["content"]
@@ -483,7 +594,12 @@ def test_sanitize_adds_stubs_and_drops_orphans():
     ]
     cleaned = sanitize_for_api(history)
     assert [(m["role"], m.get("tool_call_id")) for m in cleaned] == [
-        ("user", None), ("assistant", None), ("tool", "c1"), ("tool", "c2"), ("user", None)]
+        ("user", None),
+        ("assistant", None),
+        ("tool", "c1"),
+        ("tool", "c2"),
+        ("user", None),
+    ]
     assert "interrupted" in cleaned[3]["content"]
     assert len(history) == 6  # the input is untouched
 
@@ -493,8 +609,10 @@ def test_sanitize_adds_stubs_and_drops_orphans():
 
 def test_transient_errors_are_retried(make_agent):
     statuses = []
-    agent, client = make_agent([_http_error(503), _http_error(429), text_response("ok")],
-                               callbacks=AgentCallbacks(on_status=lambda kind, text: statuses.append((kind, text))))
+    agent, client = make_agent(
+        [_http_error(503), _http_error(429), text_response("ok")],
+        callbacks=AgentCallbacks(on_status=lambda kind, text: statuses.append((kind, text))),
+    )
     result = agent.run_conversation("go")
     assert result.final_response == "ok" and len(client.calls) == 3
     assert [kind for kind, _ in statuses] == ["retry", "retry"]
@@ -521,18 +639,23 @@ def test_bad_key_rotates_to_the_next_credential(make_agent, monkeypatch):
 
     monkeypatch.setenv("OPENROUTER_API_KEY", "key-one")
     monkeypatch.setenv("OPENROUTER_API_KEY_2", "key-two")
-    agent, client = make_agent([_http_error(401, "invalid key"), text_response("ok")],
-                               route=resolve_runtime_provider("openrouter", "vendor/m"))
+    agent, client = make_agent(
+        [_http_error(401, "invalid key"), text_response("ok")],
+        route=resolve_runtime_provider("openrouter", "vendor/m"),
+    )
     assert agent.run_conversation("go").final_response == "ok"
     assert [call["route"].api_key for call in client.calls] == ["key-one", "key-two"]
 
 
 def test_fallback_provider_takes_over_for_the_turn(make_agent, clite_home):
     (clite_home / "config.yaml").write_text(
-        "agent:\n  api_max_retries: 0\nfallback_providers:\n  - {provider: mock, model: backup-model}\n")
+        "agent:\n  api_max_retries: 0\nfallback_providers:\n  - {provider: mock, model: backup-model}\n"
+    )
     statuses = []
-    agent, client = make_agent([_http_error(503), text_response("from the backup")],
-                               callbacks=AgentCallbacks(on_status=lambda kind, text: statuses.append(kind)))
+    agent, client = make_agent(
+        [_http_error(503), text_response("from the backup")],
+        callbacks=AgentCallbacks(on_status=lambda kind, text: statuses.append(kind)),
+    )
     result = agent.run_conversation("go")
     assert result.final_response == "from the backup" and result.model == "backup-model"
     assert [call["route"].model for call in client.calls] == ["test-model", "backup-model"]
@@ -542,8 +665,14 @@ def test_fallback_provider_takes_over_for_the_turn(make_agent, clite_home):
 
 def test_context_overflow_compresses_and_tries_again(make_agent):
     history = [text_response(f"answer {n}") for n in range(12)]
-    agent, client = make_agent([*history, _http_error(400, "prompt is too long: 250000 tokens > 200000 maximum"),
-                                text_response("SUMMARY OF EARLIER TURNS"), text_response("after compression")])
+    agent, client = make_agent(
+        [
+            *history,
+            _http_error(400, "prompt is too long: 250000 tokens > 200000 maximum"),
+            text_response("SUMMARY OF EARLIER TURNS"),
+            text_response("after compression"),
+        ]
+    )
     for n in range(12):
         agent.run_conversation(f"question {n}")
     session_id = agent.session_id
@@ -558,9 +687,16 @@ def test_context_overflow_compresses_and_tries_again(make_agent):
 
 # ── replayed reasoning blocks ────────────────────────────────────────────────────────────
 
-SIGNED = {"anthropic_blocks": [{"type": "thinking", "thinking": "", "signature": "sig-1"}, {"type": "text", "text": "one"}]}
-SIGNATURE_ERROR = ("messages.1.content.0: Invalid `signature` in `thinking` block. The block is bound to a "
-                   "different conversation.")
+SIGNED = {
+    "anthropic_blocks": [
+        {"type": "thinking", "thinking": "", "signature": "sig-1"},
+        {"type": "text", "text": "one"},
+    ]
+}
+SIGNATURE_ERROR = (
+    "messages.1.content.0: Invalid `signature` in `thinking` block. The block is bound to a "
+    "different conversation."
+)
 
 
 def _signed(text):
@@ -586,7 +722,10 @@ def test_rejected_replay_data_is_dropped_and_the_request_retried_once(make_agent
     agent.run_conversation("first")
     result = agent.run_conversation("second")
     assert result.final_response == "two" and result.api_calls == 1
-    assert "provider_data" in client.calls[1]["messages"][2] and "provider_data" not in client.calls[2]["messages"][2]
+    assert (
+        "provider_data" in client.calls[1]["messages"][2]
+        and "provider_data" not in client.calls[2]["messages"][2]
+    )
     assert "resending without it" in statuses[0]
     # Dropped for good, in memory and in the database; what the user sees is unchanged.
     stored = get_session_db().get_messages(agent.session_id)
@@ -595,7 +734,9 @@ def test_rejected_replay_data_is_dropped_and_the_request_retried_once(make_agent
 
 
 def test_a_second_signature_rejection_in_the_same_turn_fails_the_turn(make_agent):
-    agent, client = make_agent([_signed("one"), _http_error(400, SIGNATURE_ERROR), _http_error(400, SIGNATURE_ERROR)])
+    agent, client = make_agent(
+        [_signed("one"), _http_error(400, SIGNATURE_ERROR), _http_error(400, SIGNATURE_ERROR)]
+    )
     agent.run_conversation("first")
     result = agent.run_conversation("second")
     assert result.completed is False and result.exit_reason == "api_error:thinking_signature"
@@ -616,7 +757,9 @@ def test_compression_drops_replay_data_only_when_it_is_bound_to_the_prefix(make_
             return True
 
     def run(route):
-        agent, _ = make_agent([_signed(f"answer {n}") for n in range(14)] + [text_response("SUMMARY")], route=route)
+        agent, _ = make_agent(
+            [_signed(f"answer {n}") for n in range(14)] + [text_response("SUMMARY")], route=route
+        )
         for n in range(14):
             agent.run_conversation(f"question {n}")
         assert agent.compress_context() is True
@@ -640,11 +783,22 @@ def test_an_internal_error_is_reported_not_raised(make_agent, monkeypatch):
 
 
 def test_todo_tool_keeps_a_plan_on_the_agent(make_agent):
-    plan = [{"id": "1", "content": "write tests", "status": "in_progress"}, {"id": "2", "content": "ship", "status": "pending"}]
+    plan = [
+        {"id": "1", "content": "write tests", "status": "in_progress"},
+        {"id": "2", "content": "ship", "status": "pending"},
+    ]
     agent, _ = make_agent(
-        [tool_call_response(("todo", {"todos": plan})),
-         tool_call_response(("todo", {"todos": [{"id": "1", "content": "write tests", "status": "completed"}], "merge": True})),
-         tool_call_response(("todo", {})), text_response("ok")],
+        [
+            tool_call_response(("todo", {"todos": plan})),
+            tool_call_response(
+                (
+                    "todo",
+                    {"todos": [{"id": "1", "content": "write tests", "status": "completed"}], "merge": True},
+                )
+            ),
+            tool_call_response(("todo", {})),
+            text_response("ok"),
+        ],
         enabled_toolsets=["todo"],
     )
     agent.run_conversation("plan it")
@@ -661,16 +815,24 @@ def test_clarify_asks_through_the_surface(make_agent):
         asked.append((question, choices))
         return "staging"
 
-    agent, _ = make_agent([tool_call_response(("clarify", {"question": "Which env?", "choices": ["staging", "prod"]})),
-                           text_response("ok")], enabled_toolsets=["clarify"], callbacks=AgentCallbacks(clarify=clarify))
+    agent, _ = make_agent(
+        [
+            tool_call_response(("clarify", {"question": "Which env?", "choices": ["staging", "prod"]})),
+            text_response("ok"),
+        ],
+        enabled_toolsets=["clarify"],
+        callbacks=AgentCallbacks(clarify=clarify),
+    )
     agent.run_conversation("deploy")
     assert asked == [("Which env?", ["staging", "prod"])]
     assert json.loads(agent.messages[2]["content"])["answer"] == "staging"
 
 
 def test_clarify_without_a_user_tells_the_model_to_decide(make_agent):
-    agent, _ = make_agent([tool_call_response(("clarify", {"question": "Which env?"})), text_response("ok")],
-                          enabled_toolsets=["clarify"])
+    agent, _ = make_agent(
+        [tool_call_response(("clarify", {"question": "Which env?"})), text_response("ok")],
+        enabled_toolsets=["clarify"],
+    )
     agent.run_conversation("deploy")
     assert "no user to ask" in json.loads(agent.messages[2]["content"])["error"]
 
@@ -678,8 +840,10 @@ def test_clarify_without_a_user_tells_the_model_to_decide(make_agent):
 def test_session_search_finds_other_sessions_only(make_agent):
     earlier, _ = make_agent([text_response("The staging database is db-stage-7.")])
     earlier.run_conversation("where is the staging database?")
-    agent, _ = make_agent([tool_call_response(("session_search", {"query": "staging database"})), text_response("ok")],
-                          enabled_toolsets=["session_search"])
+    agent, _ = make_agent(
+        [tool_call_response(("session_search", {"query": "staging database"})), text_response("ok")],
+        enabled_toolsets=["session_search"],
+    )
     agent.run_conversation("what was the staging database again?")
     found = json.loads(agent.messages[2]["content"])
     assert found["count"] >= 1
@@ -716,16 +880,30 @@ def test_custom_endpoint_retries_only_with_its_own_credentials(make_agent, monke
     monkeypatch.setenv("OPENROUTER_API_KEY", "synthetic-vendor-key")
     monkeypatch.setenv("PROXY_API_KEY", "synthetic-proxy-key")
     monkeypatch.setenv("PROXY_API_KEY_2", "synthetic-proxy-key-two")
-    route = resolve_runtime_provider("openrouter", "m", config={"model": {
-        "provider": "openrouter", "base_url": "https://proxy.invalid/v1", "api_key_env": "PROXY_API_KEY",
-    }})
+    route = resolve_runtime_provider(
+        "openrouter",
+        "m",
+        config={
+            "model": {
+                "provider": "openrouter",
+                "base_url": "https://proxy.invalid/v1",
+                "api_key_env": "PROXY_API_KEY",
+            }
+        },
+    )
     agent, client = make_agent([_http_error(status), text_response("ok")], route=route)
     assert agent.run_conversation("go").final_response == "ok"
-    requests = [get_transport(call["route"].api_mode).build_request(
-        call["route"], [], None, RequestParams(), stream=False) for call in client.calls]
+    requests = [
+        get_transport(call["route"].api_mode).build_request(
+            call["route"], [], None, RequestParams(), stream=False
+        )
+        for call in client.calls
+    ]
     assert [request.url for request in requests] == ["https://proxy.invalid/v1/chat/completions"] * 2
     assert [request.headers["Authorization"] for request in requests] == [
-        "Bearer synthetic-proxy-key", "Bearer synthetic-proxy-key-two"]
+        "Bearer synthetic-proxy-key",
+        "Bearer synthetic-proxy-key-two",
+    ]
 
 
 @pytest.mark.parametrize("status", [401, 403, 429, 402])
@@ -734,9 +912,18 @@ def test_custom_endpoint_without_spare_key_never_uses_vendor_credentials(make_ag
 
     monkeypatch.setenv("OPENROUTER_API_KEY", "synthetic-vendor-key")
     monkeypatch.setenv("PROXY_API_KEY", "synthetic-proxy-key")
-    route = resolve_runtime_provider("openrouter", "m", config={"model": {
-        "provider": "openrouter", "base_url": "https://proxy.invalid/v1", "api_key_env": "PROXY_API_KEY",
-    }, "agent": {"api_max_retries": 0}})
+    route = resolve_runtime_provider(
+        "openrouter",
+        "m",
+        config={
+            "model": {
+                "provider": "openrouter",
+                "base_url": "https://proxy.invalid/v1",
+                "api_key_env": "PROXY_API_KEY",
+            },
+            "agent": {"api_max_retries": 0},
+        },
+    )
     agent, client = make_agent([_http_error(status)] * 5, route=route)
     agent.run_conversation("go")
     assert {call["route"].api_key for call in client.calls} == {"synthetic-proxy-key"}
@@ -761,7 +948,10 @@ def test_the_show_reasoning_setting_reaches_every_model_call(make_agent):
 def _image_part(data: bytes = b"AAAA") -> dict:
     import base64
 
-    return {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64.b64encode(data).decode()}"}}
+    return {
+        "type": "image_url",
+        "image_url": {"url": f"data:image/png;base64,{base64.b64encode(data).decode()}"},
+    }
 
 
 def test_a_turn_with_an_image_sends_the_image_part_and_repeats_it_unchanged(make_agent):
@@ -779,26 +969,30 @@ def test_a_turn_with_an_image_sends_the_image_part_and_repeats_it_unchanged(make
     assert agent.messages[0]["content"] == content
 
     second_wire = client.calls[1]["messages"]
-    assert second_wire[:len(first_wire)] == first_wire
+    assert second_wire[: len(first_wire)] == first_wire
     assert second_wire[1]["content"] == content
 
 
 def test_a_model_without_vision_never_receives_the_image_part(make_agent):
-    profile = ProviderProfile(name="mock", api_mode="mock", auth_type="none",
-                              no_vision_prefixes=("text-only",))
+    profile = ProviderProfile(
+        name="mock", api_mode="mock", auth_type="none", no_vision_prefixes=("text-only",)
+    )
     route = mock_route("text-only-model", profile=profile)
     agent, client = make_agent([text_response("ok"), text_response("ok")], route=route)
     agent.run_conversation([{"type": "text", "text": "what is this?"}, _image_part()])
     agent.run_conversation("and now?")
 
     wire = client.calls[0]["messages"]
-    assert not any(part.get("type") == "image_url"
-                   for message in wire for part in (message.get("content") if isinstance(message.get("content"), list) else []))
+    assert not any(
+        part.get("type") == "image_url"
+        for message in wire
+        for part in (message.get("content") if isinstance(message.get("content"), list) else [])
+    )
     assert "what is this?" in wire[1]["content"]
     assert "cannot see images" in wire[1]["content"]
     # The withheld message repeats identically on the next request (rule A2).
     second = client.calls[1]["messages"]
-    assert second[:len(wire)] == wire
+    assert second[: len(wire)] == wire
     # The picture stays in the stored history: a later vision model still gets it.
     stored = agent.messages[0]["content"]
     assert isinstance(stored, list) and any(part.get("type") == "image_url" for part in stored)
@@ -811,9 +1005,11 @@ def test_a_config_override_can_turn_image_support_off_regardless_of_the_profile(
     config["model"]["vision"] = False
     agent, client = make_agent([text_response("ok")], config=config)
     agent.run_conversation([{"type": "text", "text": "hi"}, _image_part()])
-    assert all(not isinstance(part, dict) or part.get("type") != "image_url"
-               for message in client.calls[0]["messages"]
-               for part in (message.get("content") if isinstance(message.get("content"), list) else []))
+    assert all(
+        not isinstance(part, dict) or part.get("type") != "image_url"
+        for message in client.calls[0]["messages"]
+        for part in (message.get("content") if isinstance(message.get("content"), list) else [])
+    )
 
 
 def test_a_vision_capable_model_keeps_the_image_part(make_agent):
@@ -832,11 +1028,12 @@ def test_a_blind_model_reads_an_image_through_vision_analyze_and_never_sees_it(m
 
     from clite.tools.builtin import vision as _vision  # noqa: F401 - registers the tool
 
-    profile = ProviderProfile(name="mock", api_mode="mock", auth_type="none",
-                              no_vision_prefixes=("blind",))
+    profile = ProviderProfile(name="mock", api_mode="mock", auth_type="none", no_vision_prefixes=("blind",))
     route = mock_route("blind-model", profile=profile)
-    config = {"model": {"provider": "mock"},
-              "auxiliary": {"vision": {"provider": "main", "model": "helper-vision"}}}
+    config = {
+        "model": {"provider": "mock"},
+        "auxiliary": {"vision": {"provider": "main", "model": "helper-vision"}},
+    }
     image_bytes = b"\x89PNG\r\n\x1a\n" + b"picture"
     image_path = tmp_path / "picture.png"
     image_path.write_bytes(image_bytes)
@@ -847,10 +1044,17 @@ def test_a_blind_model_reads_an_image_through_vision_analyze_and_never_sees_it(m
             text_response("It is a red square."),  # the auxiliary model's answer
             text_response("It is a red square."),  # the main model's answer, from the tool result
         ],
-        route=route, config=config, enabled_toolsets=["vision"],
+        route=route,
+        config=config,
+        enabled_toolsets=["vision"],
     )
-    content = [{"type": "text", "text": "what is this?"},
-               {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64.b64encode(image_bytes).decode()}"}}]
+    content = [
+        {"type": "text", "text": "what is this?"},
+        {
+            "type": "image_url",
+            "image_url": {"url": f"data:image/png;base64,{base64.b64encode(image_bytes).decode()}"},
+        },
+    ]
     agent.run_conversation(content)
 
     # Nothing the main (blind) model was sent carries an image part. The auxiliary call, which
@@ -873,4 +1077,3 @@ def test_a_blind_model_reads_an_image_through_vision_analyze_and_never_sees_it(m
     last = client.calls[-1]["messages"]
     tool_results = [m for m in last if m.get("role") == "tool"]
     assert tool_results and any("red square" in str(m.get("content")) for m in tool_results)
-

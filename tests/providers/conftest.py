@@ -73,12 +73,23 @@ def fake_api():
         def _handle(self, method: str) -> None:
             length = int(self.headers.get("Content-Length") or 0)
             raw = self.rfile.read(length) if length else b""
-            api.requests.append({
-                "method": method, "path": self.path, "headers": dict(self.headers),
-                "body": (raw.decode() if self.headers.get("Content-Type", "").startswith("application/x-www-form-urlencoded")
-                         else json.loads(raw) if raw else None),
-                "raw_body": raw,
-            })
+            api.requests.append(
+                {
+                    "method": method,
+                    "path": self.path,
+                    "headers": dict(self.headers),
+                    "body": (
+                        raw.decode()
+                        if self.headers.get("Content-Type", "").startswith(
+                            "application/x-www-form-urlencoded"
+                        )
+                        else json.loads(raw)
+                        if raw
+                        else None
+                    ),
+                    "raw_body": raw,
+                }
+            )
             response = api._next(method, self.path)
             status, body = response[0], response[1]
             headers = response[2] if len(response) > 2 else {}

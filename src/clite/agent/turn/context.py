@@ -37,10 +37,20 @@ def build_turn_context(agent: AIAgent, state: TurnState) -> None:
                 parts.append(nudge)
     if has_hook("pre_llm_call"):
         for result in invoke_hook(
-            "pre_llm_call", session_id=agent.session_id, user_message=user_text, platform=agent.platform,
-            model=agent.route.model, is_first_turn=first_turn,
+            "pre_llm_call",
+            session_id=agent.session_id,
+            user_message=user_text,
+            platform=agent.platform,
+            model=agent.route.model,
+            is_first_turn=first_turn,
         ):
-            text = result.get("context") if isinstance(result, dict) else result if isinstance(result, str) else None
+            text = (
+                result.get("context")
+                if isinstance(result, dict)
+                else result
+                if isinstance(result, str)
+                else None
+            )
             if text:
                 parts.append(str(text))
     message: dict[str, Any] = {"role": "user", "content": state.user_message}

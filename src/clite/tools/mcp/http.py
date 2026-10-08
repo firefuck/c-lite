@@ -37,7 +37,6 @@ class McpError(Exception):
     """Anything that stops an MCP server from answering: bad spec, dead process, HTTP error."""
 
 
-
 def resolve_header_value(value: str, *, header: str, server: str, register: bool = True) -> str:
     """Expand ``${NAME}`` references in a header value from ``.env``.
 
@@ -69,7 +68,9 @@ def build_headers(spec: dict[str, Any], name: str, *, register: bool = True) -> 
     """Request headers from ``spec['headers']``, with ``.env`` references resolved."""
     headers = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream"}
     for header, value in (spec.get("headers") or {}).items():
-        headers[str(header)] = resolve_header_value(str(value), header=str(header), server=name, register=register)
+        headers[str(header)] = resolve_header_value(
+            str(value), header=str(header), server=name, register=register
+        )
     return headers
 
 
@@ -153,7 +154,7 @@ class HttpTransport:
             line = line.strip()
             if not line.startswith("data:"):
                 continue
-            payload = line[len("data:"):].strip()
+            payload = line[len("data:") :].strip()
             if not payload:
                 continue
             try:

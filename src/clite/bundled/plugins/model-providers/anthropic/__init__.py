@@ -32,13 +32,21 @@ from clite.providers.registry import register_provider
 # Models that still use a manual thinking budget. Everything newer is adaptive.
 _MANUAL_BUDGET_MODELS = re.compile(r"claude-(3|(opus|sonnet|haiku)-4-(0|1|5)(-|$)|(opus|sonnet)-4-20)")
 _BUDGETS = {"minimal": 1024, "low": 2048, "medium": 8192, "high": 16384, "xhigh": 24000, "max": 30000}
-_EFFORTS = {"minimal": "low", "none": "low", "low": "low", "medium": "medium", "high": "high",
-            "xhigh": "xhigh", "max": "max"}
+_EFFORTS = {
+    "minimal": "low",
+    "none": "low",
+    "low": "low",
+    "medium": "medium",
+    "high": "high",
+    "xhigh": "xhigh",
+    "max": "max",
+}
 
 
 class AnthropicProfile(ProviderProfile):
-    def build_extra_body(self, *, model: str, reasoning_effort: str = "", session_id: str = "",
-                         show_reasoning: bool = False) -> dict[str, Any]:
+    def build_extra_body(
+        self, *, model: str, reasoning_effort: str = "", session_id: str = "", show_reasoning: bool = False
+    ) -> dict[str, Any]:
         if _MANUAL_BUDGET_MODELS.search(model):
             budget = _BUDGETS.get(reasoning_effort) if reasoning_effort else None
             return {"thinking": {"type": "enabled", "budget_tokens": budget}} if budget else {}
@@ -78,12 +86,20 @@ register_provider(
         auth_scheme="",
         default_max_tokens=32_000,
         # Used only when the live catalog cannot be fetched. Update when models are retired.
-        fallback_models=("claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-4-5-20251001"),
+        fallback_models=(
+            "claude-fable-5-1",
+            "claude-opus-5-5",
+            "claude-sonnet-5-5",
+            "claude-haiku-4-5-20251001",
+        ),
         default_aux_model="claude-haiku-4-5-20251001",
         # Longest matching prefix wins. The live catalog and model.context_length override this.
         context_lengths={
-            "claude-fable-5": 1_000_000, "claude-mythos-5": 1_000_000, "claude-opus-5": 1_000_000,
-            "claude-sonnet-5-5": 1_000_000, "claude-": 200_000,
+            "claude-fable-5": 1_000_000,
+            "claude-mythos-5": 1_000_000,
+            "claude-opus-5": 1_000_000,
+            "claude-sonnet-5-5": 1_000_000,
+            "claude-": 200_000,
         },
     )
 )

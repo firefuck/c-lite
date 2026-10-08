@@ -396,6 +396,7 @@ export interface ToolCompletePayload {
   duration: number;
   failed: boolean;
   result_preview: string;
+  diff: string;
 }
 
 export interface ToolStartPayload {

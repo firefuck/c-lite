@@ -10,9 +10,11 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -35,7 +37,8 @@ def source_hash() -> str:
     files = sorted(
         (path.relative_to(REPO_ROOT).as_posix(), path)
         for directory in BUNDLE_SOURCE_DIRS
-        for path in (REPO_ROOT / directory).rglob("*.ts")
+        for path in (REPO_ROOT / directory).rglob("*")
+        if path.suffix in (".ts", ".tsx")
     )
     digest = hashlib.sha256()
     for name, path in files:
@@ -59,20 +62,58 @@ def test_the_committed_bundle_was_built_from_the_current_sources():
     )
 
 
+def test_the_bundle_is_self_contained_with_no_external_npm_imports():
+    """Importing the bundle must not pull external packages from node_modules at runtime."""
+    bundle_code = (PACKAGED / tui.BUNDLE_NAME).read_text(encoding="utf-8")
+    # Scan all top-level static import specifiers (e.g. from 'xyz' or from "xyz")
+    imports = re.findall(r"""(?:^|\n)\s*import\s+.*?from\s*["']([^"']+)["']""", bundle_code)
+    for specifier in imports:
+        # Allowed runtime imports: Node built-ins (node:*) or relative imports
+        assert specifier.startswith("node:") or specifier.startswith("./") or specifier.startswith("../"), (
+            f"Bundle has unbundled external npm dependency: {specifier}"
+        )
+
+
+@needs_node
+def test_the_bundle_size_and_help_startup_time_stay_within_budget():
+    bundle_path = PACKAGED / tui.BUNDLE_NAME
+    # Size budget: must remain under 3MB (React+Ink bundle is currently ~1.4MB)
+    size = bundle_path.stat().st_size
+    assert size < 3_000_000, f"Bundle size {size} exceeds 3MB budget"
+
+    t0 = time.monotonic()
+    result = subprocess.run(["node", str(bundle_path), "--help"], capture_output=True, text=True, timeout=10)
+    elapsed = time.monotonic() - t0
+    assert result.returncode == 0
+    assert elapsed < 5.0, f"--help took {elapsed:.2f}s, exceeding 5.0s budget"
+
+
 @needs_node
 def test_the_bundle_prints_its_help():
-    result = subprocess.run(["node", str(PACKAGED / tui.BUNDLE_NAME), "--help"], capture_output=True, text=True, timeout=60)
+    result = subprocess.run(
+        ["node", str(PACKAGED / tui.BUNDLE_NAME), "--help"], capture_output=True, text=True, timeout=60
+    )
     assert result.returncode == 0 and "Usage: clite tui" in result.stdout
 
 
 @needs_node
 def test_clite_tui_runs_a_turn_with_the_packaged_bundle(clite_home, tmp_path):
     (clite_home / "config.yaml").write_text(MOCK)
-    env = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO_ROOT / "src"), os.environ.get("PYTHONPATH", "")])),
-           "NO_COLOR": "1"}
+    env = {
+        **os.environ,
+        "PYTHONPATH": os.pathsep.join(
+            filter(None, [str(REPO_ROOT / "src"), os.environ.get("PYTHONPATH", "")])
+        ),
+        "NO_COLOR": "1",
+    }
     result = subprocess.run(
-        [sys.executable, "-m", "clite", "tui", "--cwd", str(tmp_path)], input="hello bundle\n/quit\n",
-        capture_output=True, text=True, encoding="utf-8", timeout=120, env=env,
+        [sys.executable, "-m", "clite", "tui", "--cwd", str(tmp_path)],
+        input="hello bundle\n/quit\n",
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=120,
+        env=env,
     )
     assert result.returncode == 0, result.stderr
     assert "You said: hello bundle" in result.stdout
@@ -86,7 +127,9 @@ def interface(clite_home, monkeypatch):
     """Record which interface `clite` starts, without starting either."""
     (clite_home / "config.yaml").write_text(MOCK)
     started: list[tuple[str, object]] = []
-    monkeypatch.setattr(tui, "launch_tui", lambda arguments, fallback_options=None: started.append(("tui", arguments)) or 0)
+    monkeypatch.setattr(
+        tui, "launch_tui", lambda arguments, fallback_options=None: started.append(("tui", arguments)) or 0
+    )
     monkeypatch.setattr(Repl, "run", lambda self: started.append(("cli", self)) or 0)
     return started
 
@@ -136,7 +179,9 @@ def test_without_node_the_tui_falls_back_to_the_classic_cli(clite_home, monkeypa
 
 def test_arguments_after_tui_reach_the_tui_untouched(clite_home, monkeypatch, capsys):
     seen = []
-    monkeypatch.setattr(tui, "launch_tui", lambda arguments, fallback_options=None: seen.append(arguments) or 0)
+    monkeypatch.setattr(
+        tui, "launch_tui", lambda arguments, fallback_options=None: seen.append(arguments) or 0
+    )
     assert main(["tui", "--resume", "abc", "-m", "mock-2", "--help"]) == 0
     assert seen == [["--resume", "abc", "-m", "mock-2", "--help"]]
     with pytest.raises(SystemExit):  # every other command still rejects unknown options

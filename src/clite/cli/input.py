@@ -48,7 +48,7 @@ def continuation_text(text: str) -> str:
     stripped = text.rstrip()
     trailing = len(stripped) - len(stripped.rstrip(CONTINUATION))
     if trailing % 2 == 1:
-        return stripped[:-1].rstrip() + text[len(stripped):]
+        return stripped[:-1].rstrip() + text[len(stripped) :]
     return text
 
 
@@ -62,8 +62,9 @@ def join_lines(lines: list[str]) -> str:
     return "\n".join(lines)
 
 
-def read_message(read_line: Callable[[str], str | None], prompt: str, *,
-                 continuation_prompt: str = "… ") -> str | None:
+def read_message(
+    read_line: Callable[[str], str | None], prompt: str, *, continuation_prompt: str = "… "
+) -> str | None:
     """Read one message, following ``\\`` continuations and bracket pastes.
 
     ``read_line`` returns one line or ``None`` at end of input. This is the shared loop the
@@ -123,8 +124,9 @@ class PromptToolkitReader:
     instead of over it.
     """
 
-    def __init__(self, *, completer: Completer | None = None, history_path: Any = None,
-                 style: Any = None) -> None:
+    def __init__(
+        self, *, completer: Completer | None = None, history_path: Any = None, style: Any = None
+    ) -> None:
         from prompt_toolkit import PromptSession
         from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
         from prompt_toolkit.history import FileHistory
@@ -137,9 +139,13 @@ class PromptToolkitReader:
             event.current_buffer.insert_text("\n")
 
         history = FileHistory(str(history_path)) if history_path else None
-        self.session = PromptSession(
-            multiline=True, key_bindings=keys, history=history, auto_suggest=AutoSuggestFromHistory(),
-            completer=_pt_completer(completer) if completer else None, complete_while_typing=False,
+        self.session: Any = PromptSession(
+            multiline=True,
+            key_bindings=keys,
+            history=history,
+            auto_suggest=AutoSuggestFromHistory(),
+            completer=_pt_completer(completer) if completer else None,
+            complete_while_typing=False,
             style=style,
         )
 
@@ -189,8 +195,13 @@ def prompt_toolkit_available() -> bool:
     return True
 
 
-def make_reader(*, input_fn: Callable[[str], str] | None = None, completer: Completer | None = None,
-                history_path: Any = None, style: Any = None) -> StdlibReader | PromptToolkitReader:
+def make_reader(
+    *,
+    input_fn: Callable[[str], str] | None = None,
+    completer: Completer | None = None,
+    history_path: Any = None,
+    style: Any = None,
+) -> StdlibReader | PromptToolkitReader:
     """The reader for this run: the injected ``input_fn``, prompt_toolkit, or the fallback.
 
     Tests and embedded callers pass ``input_fn``; it always wins so behaviour is scriptable.
@@ -205,8 +216,9 @@ def make_reader(*, input_fn: Callable[[str], str] | None = None, completer: Comp
         except Exception:  # noqa: BLE001 - a broken terminal must still leave a usable REPL
             import logging
 
-            logging.getLogger("clite.cli.input").warning("prompt_toolkit unavailable; using the classic reader",
-                                                          exc_info=True)
+            logging.getLogger("clite.cli.input").warning(
+                "prompt_toolkit unavailable; using the classic reader", exc_info=True
+            )
     return StdlibReader(input)
 
 
@@ -276,8 +288,11 @@ def build_completer(*, surface: str = "cli", cwd: str | None = None) -> Complete
         Suggestion("/" + entry["name"], "skill" if entry.get("kind") == "skill" else "command")
         for entry in command_catalog(surface, cwd=cwd)
     ]
-    skills = [Suggestion(entry["name"], "skill") for entry in command_catalog(surface, cwd=cwd)
-              if entry.get("kind") == "skill"]
+    skills = [
+        Suggestion(entry["name"], "skill")
+        for entry in command_catalog(surface, cwd=cwd)
+        if entry.get("kind") == "skill"
+    ]
 
     models: dict[str, Suggestion] = {}
     default_model = str(get_path(config, "model.default", "") or "")
@@ -302,5 +317,9 @@ def build_completer(*, surface: str = "cli", cwd: str | None = None) -> Complete
     except Exception:  # noqa: BLE001
         pass
 
-    return Completer(commands=commands, models=sorted(models.values(), key=lambda s: s.text),
-                     skills=skills, sessions=sessions)
+    return Completer(
+        commands=commands,
+        models=sorted(models.values(), key=lambda s: s.text),
+        skills=skills,
+        sessions=sessions,
+    )

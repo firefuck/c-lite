@@ -10,13 +10,13 @@ from clite.providers.base import ProviderProfile
 from clite.providers.registry import get_provider, list_providers, register_provider
 from clite.providers.runtime import resolve_fallback_routes, resolve_runtime_provider
 
-PLUGIN = '''
+PLUGIN = """
 from clite.providers.base import ProviderProfile
 from clite.providers.registry import register_provider
 
 register_provider(ProviderProfile(name="{name}", display_name="{display}", env_vars=("ACME_API_KEY",),
                                   base_url="https://api.acme.test/v1", default_model="acme-large"))
-'''
+"""
 
 
 def _install_provider(home, name="acme", display="Acme"):
@@ -33,11 +33,19 @@ def test_openai_profile_selects_responses_and_model_switch_reselects_without_los
     assert other.api_mode == "chat_completions" and route.api_mode == "responses"
     assert other.with_model("gpt-5-codex").api_mode == "responses"
     for mode in ("responses", "chat_completions"):
-        explicit = resolve_runtime_provider("openai", "gpt-5-codex", api_key="test-key", config={
-            "model": {"provider": "openai", "api_mode": mode}})
+        explicit = resolve_runtime_provider(
+            "openai",
+            "gpt-5-codex",
+            api_key="test-key",
+            config={"model": {"provider": "openai", "api_mode": mode}},
+        )
         assert explicit.api_mode == mode and explicit.with_model("gpt-4.1").api_mode == mode
-    assert resolve_runtime_provider("custom", "gpt-5-codex", base_url="https://test.invalid/v1",
-                                    api_key="test-key", config={}).api_mode == "chat_completions"
+    assert (
+        resolve_runtime_provider(
+            "custom", "gpt-5-codex", base_url="https://test.invalid/v1", api_key="test-key", config={}
+        ).api_mode
+        == "chat_completions"
+    )
 
 
 # ── registry ─────────────────────────────────────────────────────────────────────────────
@@ -46,8 +54,25 @@ def test_openai_profile_selects_responses_and_model_switch_reselects_without_los
 def test_bundled_providers_are_discovered():
     names = {profile.name for profile in list_providers()}
     assert {
-        "openrouter", "openai", "anthropic", "ollama", "custom", "mock", "azure", "bedrock", "vertex",
-        "xai", "groq", "mistral", "together", "fireworks", "nvidia", "zai", "moonshot", "lmstudio", "vllm",
+        "openrouter",
+        "openai",
+        "anthropic",
+        "ollama",
+        "custom",
+        "mock",
+        "azure",
+        "bedrock",
+        "vertex",
+        "xai",
+        "groq",
+        "mistral",
+        "together",
+        "fireworks",
+        "nvidia",
+        "zai",
+        "moonshot",
+        "lmstudio",
+        "vllm",
     } <= names
 
 
@@ -136,7 +161,11 @@ def test_config_names_the_provider_and_model(clite_home, monkeypatch):
     monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-ds-test")
     (clite_home / "config.yaml").write_text("model:\n  provider: deepseek\n  default: deepseek-chat\n")
     route = resolve_runtime_provider()
-    assert (route.provider, route.model, route.base_url) == ("deepseek", "deepseek-chat", "https://api.deepseek.com/v1")
+    assert (route.provider, route.model, route.base_url) == (
+        "deepseek",
+        "deepseek-chat",
+        "https://api.deepseek.com/v1",
+    )
 
 
 def test_short_model_form_in_config(clite_home, monkeypatch):
@@ -191,13 +220,16 @@ def test_anthropic_profile_knows_what_each_model_generation_accepts(monkeypatch)
         # Adaptive thinking with an effort level; no sampling parameters; signed blocks are
         # bound to the conversation before them.
         assert profile.build_extra_body(model=model, reasoning_effort="high") == {
-            "thinking": {"type": "adaptive"}, "output_config": {"effort": "high"}}
+            "thinking": {"type": "adaptive"},
+            "output_config": {"effort": "high"},
+        }
         assert profile.resolve_temperature(model, 0.3) is None
         assert profile.replay_is_prefix_bound(model) is True
         assert get_context_length(resolve_runtime_provider("anthropic", model)) == 1_000_000
     for model in legacy:
         assert profile.build_extra_body(model=model, reasoning_effort="high") == {
-            "thinking": {"type": "enabled", "budget_tokens": 16384}}
+            "thinking": {"type": "enabled", "budget_tokens": 16384}
+        }
         assert profile.resolve_temperature(model, 0.3) == 0.3
         assert profile.replay_is_prefix_bound(model) is False
         assert get_context_length(resolve_runtime_provider("anthropic", model)) == 200_000
@@ -210,10 +242,15 @@ def test_anthropic_asks_for_summarized_thinking_only_when_reasoning_is_shown(cli
     profile = get_provider("anthropic")
     # Current models hide thinking text by default ("omitted"); showing it needs an opt-in.
     assert profile.build_extra_body(model="claude-fable-5-1", show_reasoning=True) == {
-        "thinking": {"type": "adaptive", "display": "summarized"}}
+        "thinking": {"type": "adaptive", "display": "summarized"}
+    }
     assert profile.build_extra_body(model="claude-opus-5-5", reasoning_effort="low", show_reasoning=True) == {
-        "thinking": {"type": "adaptive", "display": "summarized"}, "output_config": {"effort": "low"}}
-    assert "display" not in profile.build_extra_body(model="claude-opus-5-5", reasoning_effort="low")["thinking"]
+        "thinking": {"type": "adaptive", "display": "summarized"},
+        "output_config": {"effort": "low"},
+    }
+    assert (
+        "display" not in profile.build_extra_body(model="claude-opus-5-5", reasoning_effort="low")["thinking"]
+    )
     # Manual-budget models already return summarized text; nothing extra is sent.
     assert profile.build_extra_body(model="claude-haiku-4-5-20251001", show_reasoning=True) == {}
 
@@ -249,7 +286,9 @@ def test_custom_provider_needs_a_base_url():
 
 
 def test_anthropic_compatible_proxy_is_detected_by_url(monkeypatch):
-    route = resolve_runtime_provider("custom", "m", base_url="https://gateway.example.com/anthropic", api_key="k")
+    route = resolve_runtime_provider(
+        "custom", "m", base_url="https://gateway.example.com/anthropic", api_key="k"
+    )
     assert route.api_mode == "anthropic_messages"
 
 
@@ -274,7 +313,10 @@ def test_fallback_routes_skip_unusable_entries(clite_home, monkeypatch):
         "  - {provider: deepseek, model: deepseek-chat}\n"
         "  - {provider: mock}\n"
     )
-    assert [(r.provider, r.model) for r in resolve_fallback_routes()] == [("deepseek", "deepseek-chat"), ("mock", "mock-1")]
+    assert [(r.provider, r.model) for r in resolve_fallback_routes()] == [
+        ("deepseek", "deepseek-chat"),
+        ("mock", "mock-1"),
+    ]
 
 
 @pytest.mark.parametrize("url", ["http://openrouter.ai/api/v1", "https://openrouter.ai:444/api/v1"])

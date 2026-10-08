@@ -35,17 +35,27 @@ def _account(raw: str) -> dict[str, Any]:
             raise ValueError
         return value
     except (ValueError, TypeError):
-        raise AuthError("Set GOOGLE_SERVICE_ACCOUNT_JSON to a service-account JSON with the standard OAuth token_uri.") from None
+        raise AuthError(
+            "Set GOOGLE_SERVICE_ACCOUNT_JSON to a service-account JSON with the standard OAuth token_uri."
+        ) from None
 
 
 def _validate_endpoint(url: str) -> None:
     parts = urlsplit(url)
-    if (parts.scheme != "https" or parts.port not in (None, 443) or parts.username or parts.password
-            or parts.query or parts.fragment
-            or not re.fullmatch(r"(?:[a-z0-9-]+-)?aiplatform\.googleapis\.com", parts.hostname or "")
-            or not re.fullmatch(r"/v1(?:beta1)?/projects/[^/]+/locations/[^/]+/endpoints/[^/]+", parts.path)):
-        raise AuthError("Use a Vertex regional OpenAI-compatible endpoint; "
-                        "a different endpoint requires explicit service-account JSON.")
+    if (
+        parts.scheme != "https"
+        or parts.port not in (None, 443)
+        or parts.username
+        or parts.password
+        or parts.query
+        or parts.fragment
+        or not re.fullmatch(r"(?:[a-z0-9-]+-)?aiplatform\.googleapis\.com", parts.hostname or "")
+        or not re.fullmatch(r"/v1(?:beta1)?/projects/[^/]+/locations/[^/]+/endpoints/[^/]+", parts.path)
+    ):
+        raise AuthError(
+            "Use a Vertex regional OpenAI-compatible endpoint; "
+            "a different endpoint requires explicit service-account JSON."
+        )
 
 
 class VertexProfile(ProviderProfile):
@@ -56,8 +66,9 @@ class VertexProfile(ProviderProfile):
         _account(raw)
         return raw
 
-    def authenticate_request(self, route: Any, request: HttpRequest,
-                             http: Any, *, timeout: float, cancel: Any) -> HttpRequest:
+    def authenticate_request(
+        self, route: Any, request: HttpRequest, http: Any, *, timeout: float, cancel: Any
+    ) -> HttpRequest:
         if route.api_mode != self.api_mode:
             raise ProviderError("This profile supports the OpenAI-compatible chat_completions endpoint only.")
         try:
@@ -65,8 +76,13 @@ class VertexProfile(ProviderProfile):
         except ImportError:
             raise ProviderError("Install c-lite[vertex] to use service-account authentication.") from None
 
-        def exchange(url: str, method: str = "GET", body: bytes | None = None,
-                     headers: dict[str, str] | None = None, **kwargs: Any) -> Any:
+        def exchange(
+            url: str,
+            method: str = "GET",
+            body: bytes | None = None,
+            headers: dict[str, str] | None = None,
+            **kwargs: Any,
+        ) -> Any:
             if url != TOKEN_URL or method != "POST":
                 raise AuthError("Refusing an unexpected service-account token endpoint.")
             # The SDK signs and parses only. All network I/O stays in the shared HTTP seam,
@@ -75,7 +91,9 @@ class VertexProfile(ProviderProfile):
             return SimpleNamespace(status=200, data=json.dumps(payload).encode(), headers={})
 
         try:
-            credentials = service_account.Credentials.from_service_account_info(_account(route.api_key), scopes=[SCOPE])
+            credentials = service_account.Credentials.from_service_account_info(
+                _account(route.api_key), scopes=[SCOPE]
+            )
             credentials.refresh(exchange)
             token = credentials.token
             if not isinstance(token, str) or not token or "\r" in token or "\n" in token:
@@ -84,13 +102,27 @@ class VertexProfile(ProviderProfile):
             if getattr(cancel, "cancelled", False):
                 raise InterruptedError("model call cancelled") from None
             # SDK and HTTP errors may echo the assertion or key; never propagate their text.
-            raise AuthError("Service-account token exchange failed. Check the credential and network, then retry.") from None
-        return HttpRequest(url=request.url, headers={**request.headers, "Authorization": "Bearer " + token},
-                           body=request.body)
+            raise AuthError(
+                "Service-account token exchange failed. Check the credential and network, then retry."
+            ) from None
+        return HttpRequest(
+            url=request.url,
+            headers={**request.headers, "Authorization": "Bearer " + token},
+            body=request.body,
+        )
 
 
-register_provider(VertexProfile(
-    name="vertex", display_name="Google Vertex", description="Google Vertex service-account JSON (c-lite[vertex])",
-    env_vars=("GOOGLE_SERVICE_ACCOUNT_JSON",), base_url="", auth_type="service_account",
-    auto_select=False, supports_model_listing=False, fallback_models=(), context_lengths={},
-))
+register_provider(
+    VertexProfile(
+        name="vertex",
+        display_name="Google Vertex",
+        description="Google Vertex service-account JSON (c-lite[vertex])",
+        env_vars=("GOOGLE_SERVICE_ACCOUNT_JSON",),
+        base_url="",
+        auth_type="service_account",
+        auto_select=False,
+        supports_model_listing=False,
+        fallback_models=(),
+        context_lengths={},
+    )
+)

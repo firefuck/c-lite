@@ -41,8 +41,12 @@ _MAGIC = (
     (b"BM", "image/bmp"),
 )
 _EXTENSION_MEDIA = {
-    ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-    ".gif": "image/gif", ".webp": "image/webp", ".bmp": "image/bmp",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".bmp": "image/bmp",
 }
 
 
@@ -72,8 +76,9 @@ def image_part(media_type: str, data: bytes) -> dict[str, Any]:
     return {"type": "image_url", "image_url": {"url": f"data:{media_type};base64,{encoded}"}}
 
 
-def load_image(path: str | Path, *, max_bytes: int = MAX_IMAGE_BYTES,
-               max_edge: int = MAX_IMAGE_EDGE) -> dict[str, Any]:
+def load_image(
+    path: str | Path, *, max_bytes: int = MAX_IMAGE_BYTES, max_edge: int = MAX_IMAGE_EDGE
+) -> dict[str, Any]:
     """Read one image file into a content part, downscaling it when it is over the ceiling."""
     target = Path(path).expanduser()
     if not target.exists():
@@ -89,13 +94,14 @@ def load_image(path: str | Path, *, max_bytes: int = MAX_IMAGE_BYTES,
     media_type = detect_media_type(raw, target)
     if media_type is None:
         raise AttachmentError(
-            f"{target} does not look like an image (PNG, JPEG, GIF, WebP or BMP); "
-            "attach an image file")
+            f"{target} does not look like an image (PNG, JPEG, GIF, WebP or BMP); attach an image file"
+        )
     data, resized = _fit(raw, media_type, max_bytes=max_bytes, max_edge=max_edge)
     if len(data) > max_bytes:
         raise AttachmentError(
             f"{target} is still {len(data):,} bytes after shrinking, over the {max_bytes:,}-byte "
-            "limit; resize it yourself (e.g. `magick input.png -resize 1568x1568 output.png`)")
+            "limit; resize it yourself (e.g. `magick input.png -resize 1568x1568 output.png`)"
+        )
     if resized:
         logger.info("attachment %s downscaled to %d bytes", target, len(data))
     return image_part(media_type, data)
@@ -143,12 +149,16 @@ def _within_edge(raw: bytes, max_edge: int) -> bool:
         return True
 
 
-def load_images(paths: list[str], *, max_count: int = MAX_IMAGES_PER_MESSAGE,
-                max_bytes: int = MAX_IMAGE_BYTES, max_edge: int = MAX_IMAGE_EDGE) -> list[dict[str, Any]]:
+def load_images(
+    paths: list[str],
+    *,
+    max_count: int = MAX_IMAGES_PER_MESSAGE,
+    max_bytes: int = MAX_IMAGE_BYTES,
+    max_edge: int = MAX_IMAGE_EDGE,
+) -> list[dict[str, Any]]:
     """Load every path, refusing the whole set when it is over ``max_count``."""
     if len(paths) > max_count:
-        raise AttachmentError(
-            f"at most {max_count} images per message; {len(paths)} were given")
+        raise AttachmentError(f"at most {max_count} images per message; {len(paths)} were given")
     return [load_image(path, max_bytes=max_bytes, max_edge=max_edge) for path in paths]
 
 
@@ -177,5 +187,6 @@ def has_images(content: Any) -> bool:
 def attachment_note(count: int) -> str:
     """A line telling a model without vision that images were attached and are not visible."""
     noun = "image was" if count == 1 else f"{count} images were"
-    return (f"[{noun} attached to this message, but the current model cannot see images; "
-            "only the text is shown.]")
+    return (
+        f"[{noun} attached to this message, but the current model cannot see images; only the text is shown.]"
+    )

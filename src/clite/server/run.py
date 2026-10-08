@@ -40,9 +40,16 @@ def dashboard_url(host: str, port: int, token: str) -> str:
     return f"http://{shown}:{port}/#token={token}"
 
 
-def serve(host: str = "127.0.0.1", port: int = 0, *, token: str | None = None, open_browser: bool = False,
-          out: TextIO | None = None, client_factory: Callable[[], Any] | None = None,
-          on_ready: Callable[[int, str, Any], None] | None = None) -> int:
+def serve(
+    host: str = "127.0.0.1",
+    port: int = 0,
+    *,
+    token: str | None = None,
+    open_browser: bool = False,
+    out: TextIO | None = None,
+    client_factory: Callable[[], Any] | None = None,
+    on_ready: Callable[[int, str, Any], None] | None = None,
+) -> int:
     import uvicorn
 
     from clite.server.app import create_app
@@ -61,8 +68,11 @@ def serve(host: str = "127.0.0.1", port: int = 0, *, token: str | None = None, o
         # Nobody handed us a token, so a person started this: show them how to get in.
         print(f"Dashboard: {url}", file=sys.stderr, flush=True)
     if host not in LOOPBACK:
-        print(f"WARNING: listening on {host}. Anyone who can reach this port and has the token controls the agent.",
-              file=sys.stderr, flush=True)
+        print(
+            f"WARNING: listening on {host}. Anyone who can reach this port and has the token controls the agent.",
+            file=sys.stderr,
+            flush=True,
+        )
     if open_browser:
         threading.Timer(0.5, webbrowser.open, args=(url,)).start()
     if on_ready is not None:

@@ -42,8 +42,9 @@ class ContextEngine(ABC):
         self.compression_count = 0
         self.last_compression_calls = 0
 
-    def configure(self, *, context_length: int, config: dict[str, Any],
-                  auxiliary_context_length: int | None = None) -> None:
+    def configure(
+        self, *, context_length: int, config: dict[str, Any], auxiliary_context_length: int | None = None
+    ) -> None:
         """Called at session start and whenever the model (hence the window) changes."""
         percent = float(get_path(config, "compression.threshold", 0.5) or 0.5)
         if context_length < SMALL_WINDOW_LIMIT:
@@ -62,14 +63,22 @@ class ContextEngine(ABC):
             if message_count is not None:
                 self.anchor_message_count = message_count
 
-    def anchored_prompt_tokens(self, messages: list[dict[str, Any]], *, system_prompt: str = "",
-                               tools: list[dict[str, Any]] | None = None) -> int:
+    def anchored_prompt_tokens(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        system_prompt: str = "",
+        tools: list[dict[str, Any]] | None = None,
+    ) -> int:
         """Prompt size using the provider's last number as an anchor, estimates only after."""
         from clite.agent.context.tokens import estimate_prompt_tokens
 
         return estimate_prompt_tokens(
-            messages, system_prompt=system_prompt, tools=tools,
-            anchor_tokens=self.last_prompt_tokens, anchor_message_count=self.anchor_message_count,
+            messages,
+            system_prompt=system_prompt,
+            tools=tools,
+            anchor_tokens=self.last_prompt_tokens,
+            anchor_message_count=self.anchor_message_count,
         )
 
     def should_compress(self, prompt_tokens: int | None = None) -> bool:
@@ -77,7 +86,9 @@ class ContextEngine(ABC):
         return bool(self.threshold_tokens) and tokens >= self.threshold_tokens
 
     @abstractmethod
-    def compress(self, messages: list[dict[str, Any]], *, summarize: Summarizer, focus: str | None = None) -> list[dict[str, Any]]:
+    def compress(
+        self, messages: list[dict[str, Any]], *, summarize: Summarizer, focus: str | None = None
+    ) -> list[dict[str, Any]]:
         """Return a shorter message list. Must keep every tool call paired with its result and
         must not mutate ``messages``. Returning the input unchanged means "nothing to do"."""
 
@@ -95,9 +106,14 @@ class ContextEngine(ABC):
 
     def status(self) -> dict[str, Any]:
         return {
-            "engine": self.name, "context_length": self.context_length, "threshold_tokens": self.threshold_tokens,
-            "last_prompt_tokens": self.last_prompt_tokens, "compression_count": self.compression_count,
-            "usage_percent": round(self.last_prompt_tokens * 100 / self.context_length, 1) if self.context_length else 0.0,
+            "engine": self.name,
+            "context_length": self.context_length,
+            "threshold_tokens": self.threshold_tokens,
+            "last_prompt_tokens": self.last_prompt_tokens,
+            "compression_count": self.compression_count,
+            "usage_percent": round(self.last_prompt_tokens * 100 / self.context_length, 1)
+            if self.context_length
+            else 0.0,
         }
 
 

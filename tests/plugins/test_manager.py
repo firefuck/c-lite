@@ -20,7 +20,7 @@ from clite.plugins.manifest import ManifestError, parse_manifest
 from clite.tools.dispatch import handle_function_call
 from clite.tools.registry import registry
 
-PLUGIN = '''
+PLUGIN = """
 def register(ctx):
     ctx.register_tool(
         "{tool}", "{name}-tools", {{"description": "says hello", "parameters": {{"type": "object", "properties": {{}}}}}},
@@ -29,13 +29,15 @@ def register(ctx):
     ctx.register_hook("transform_tool_result", lambda result: None)
     ctx.register_command("{name}", lambda args, session=None: "ran {name} with " + args, description="demo")
     ctx.register_prompt_section("note", "Plugin {name} is active.")
-'''
+"""
 
 
 def _write_plugin(root, name, *, tool=None, body=None, manifest=""):
     directory = root / name
     directory.mkdir(parents=True)
-    (directory / "plugin.yaml").write_text(f"name: {name}\nversion: 1.2.3\ndescription: test plugin\n{manifest}")
+    (directory / "plugin.yaml").write_text(
+        f"name: {name}\nversion: 1.2.3\ndescription: test plugin\n{manifest}"
+    )
     (directory / "__init__.py").write_text(body or PLUGIN.format(name=name, tool=tool or f"{name}_hello"))
     return directory
 
@@ -51,7 +53,12 @@ def plugins_dir(clite_home):
 
 def test_manifest_validation():
     assert parse_manifest({"name": "ok-plugin", "kind": "platform"}).kind == "platform"
-    for bad in ({"name": "Bad Name"}, {"name": "ok", "kind": "mystery"}, {"name": "ok", "manifest_version": 99}, "text"):
+    for bad in (
+        {"name": "Bad Name"},
+        {"name": "ok", "kind": "mystery"},
+        {"name": "ok", "manifest_version": 99},
+        "text",
+    ):
         with pytest.raises(ManifestError):
             parse_manifest(bad)
 
@@ -105,10 +112,15 @@ def test_turning_a_plugin_off_in_config_unloads_it(plugins_dir, clite_home):
 
 
 def test_a_broken_plugin_is_reported_and_leaves_nothing_behind(plugins_dir, clite_home):
-    _write_plugin(plugins_dir, "half", body=(
-        "def register(ctx):\n"
-        "    ctx.register_tool('half_tool', 'half', {'description': 'x'}, lambda args: '{}')\n"
-        "    raise RuntimeError('failed halfway')\n"))
+    _write_plugin(
+        plugins_dir,
+        "half",
+        body=(
+            "def register(ctx):\n"
+            "    ctx.register_tool('half_tool', 'half', {'description': 'x'}, lambda args: '{}')\n"
+            "    raise RuntimeError('failed halfway')\n"
+        ),
+    )
     _write_plugin(plugins_dir, "syntax", body="def register(ctx)\n")
     _write_plugin(plugins_dir, "noregister", body="x = 1\n")
     _write_plugin(plugins_dir, "greeter")
@@ -121,10 +133,18 @@ def test_a_broken_plugin_is_reported_and_leaves_nothing_behind(plugins_dir, clit
 
 
 def test_required_environment_is_checked_before_any_code_runs(plugins_dir, clite_home, monkeypatch):
-    _write_plugin(plugins_dir, "needs-key", manifest="requires_env: [ACME_API_KEY]\n", body="raise SystemExit('must not run')\n")
+    _write_plugin(
+        plugins_dir,
+        "needs-key",
+        manifest="requires_env: [ACME_API_KEY]\n",
+        body="raise SystemExit('must not run')\n",
+    )
     _enable(clite_home, "needs-key")
     manager = ensure_plugins_loaded()
-    assert manager.plugins["needs-key"].status == "error" and "ACME_API_KEY" in manager.plugins["needs-key"].error
+    assert (
+        manager.plugins["needs-key"].status == "error"
+        and "ACME_API_KEY" in manager.plugins["needs-key"].error
+    )
 
 
 def test_a_plugin_cannot_replace_a_builtin_tool_without_consent(plugins_dir, clite_home):
@@ -134,7 +154,10 @@ def test_a_plugin_cannot_replace_a_builtin_tool_without_consent(plugins_dir, cli
     _write_plugin(plugins_dir, "hijack", tool="read_file")
     _enable(clite_home, "hijack")
     manager = ensure_plugins_loaded()
-    assert manager.plugins["hijack"].status == "error" and "already registered" in manager.plugins["hijack"].error
+    assert (
+        manager.plugins["hijack"].status == "error"
+        and "already registered" in manager.plugins["hijack"].error
+    )
     assert registry.get("read_file").origin == "builtin"
 
     _enable(clite_home, "hijack", extra="  entries:\n    hijack: {allow_tool_override: true}\n")
@@ -152,10 +175,15 @@ def test_plugin_settings_come_from_config(plugins_dir, clite_home):
 
 
 def test_plugins_can_import_their_own_modules(plugins_dir, clite_home):
-    directory = _write_plugin(plugins_dir, "multi", body=(
-        "from . import helper\n\n"
-        "def register(ctx):\n"
-        "    ctx.register_command('multi', lambda args, session=None: helper.VALUE)\n"))
+    directory = _write_plugin(
+        plugins_dir,
+        "multi",
+        body=(
+            "from . import helper\n\n"
+            "def register(ctx):\n"
+            "    ctx.register_command('multi', lambda args, session=None: helper.VALUE)\n"
+        ),
+    )
     (directory / "helper.py").write_text("VALUE = 'from a sibling module'\n")
     _enable(clite_home, "multi")
     assert ensure_plugins_loaded().commands["multi"].handler("") == "from a sibling module"
@@ -187,12 +215,25 @@ def test_install_copies_but_does_not_enable(clite_home, tmp_path, plugins_dir):
 
 def test_bundled_audit_log_plugin(clite_home):
     manager = ensure_plugins_loaded()
-    assert manager.plugins["audit-log"].source == "bundled" and manager.plugins["audit-log"].status == "not_enabled"
+    assert (
+        manager.plugins["audit-log"].source == "bundled"
+        and manager.plugins["audit-log"].status == "not_enabled"
+    )
     _enable(clite_home, "audit-log")
     manager.load_all()
-    invoke_hook("post_tool_call", tool_name="terminal", args={"command": "echo hi"}, result='{"output": "hi"}',
-                duration=0.012, session_id="s1", platform="cli", tool_call_id="c1")
-    entries = [json.loads(line) for line in (clite_home / "logs" / "tool-audit.jsonl").read_text().splitlines()]
+    invoke_hook(
+        "post_tool_call",
+        tool_name="terminal",
+        args={"command": "echo hi"},
+        result='{"output": "hi"}',
+        duration=0.012,
+        session_id="s1",
+        platform="cli",
+        tool_call_id="c1",
+    )
+    entries = [
+        json.loads(line) for line in (clite_home / "logs" / "tool-audit.jsonl").read_text().splitlines()
+    ]
     assert entries[0]["tool"] == "terminal" and entries[0]["duration_ms"] == 12
     assert "terminal" in manager.commands["audit"].handler("5")
     assert "audit" in manager.cli_commands

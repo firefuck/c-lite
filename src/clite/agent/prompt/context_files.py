@@ -35,8 +35,7 @@ def truncate_middle(text: str, limit: int, label: str) -> str:
     return (
         text[:head]
         + f"\n\n[... {label} truncated: {len(text) - head - tail} of {len(text)} characters omitted. "
-        "Read the file for the rest ...]\n\n"
-        + text[-tail:]
+        "Read the file for the rest ...]\n\n" + text[-tail:]
     )
 
 

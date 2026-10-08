@@ -48,8 +48,13 @@ def resolves(path: str, files: set[str]) -> bool:
 
 def checkout_commit(hermes: Path) -> str:
     try:
-        result = subprocess.run(["git", "-C", str(hermes), "rev-parse", "HEAD"], capture_output=True, text=True,
-                                timeout=30, check=False)
+        result = subprocess.run(
+            ["git", "-C", str(hermes), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
     except (OSError, subprocess.SubprocessError):
         return ""
     return result.stdout.strip() if result.returncode == 0 else ""
@@ -67,8 +72,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     commit = checkout_commit(hermes)
     if commit and commit != PINNED_COMMIT:
-        print(f"note: the checkout is at {commit[:12]}, the documents describe {PINNED_COMMIT[:12]}; "
-              "files may have moved", file=sys.stderr)
+        print(
+            f"note: the checkout is at {commit[:12]}, the documents describe {PINNED_COMMIT[:12]}; "
+            "files may have moved",
+            file=sys.stderr,
+        )
 
     files = doc_refs.repository_files(hermes)
     top_level = {name.split("/", 1)[0] for name in files}

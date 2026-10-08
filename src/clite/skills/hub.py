@@ -32,13 +32,33 @@ from clite.skills.usage import record_created
 
 MAX_BUNDLE_FILES = 200
 MAX_BUNDLE_BYTES = 5_000_000
-_TEXT_SUFFIXES = {".md", ".txt", ".py", ".sh", ".js", ".ts", ".json", ".yaml", ".yml", ".toml", ".html", ".css", ""}
+_TEXT_SUFFIXES = {
+    ".md",
+    ".txt",
+    ".py",
+    ".sh",
+    ".js",
+    ".ts",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".html",
+    ".css",
+    "",
+}
 GITHUB_TOKEN_ENV = "GITHUB_TOKEN"
 # Where GitHub serves file bytes for the contents API. The token goes to these and the API host only.
 _GITHUB_DOWNLOAD_HOSTS = frozenset({"raw.githubusercontent.com"})
 
-register_secret(SecretSpec(GITHUB_TOKEN_ENV, "GitHub token: private skill repositories and a higher rate limit",
-                           category="tool", url="https://github.com/settings/tokens"))
+register_secret(
+    SecretSpec(
+        GITHUB_TOKEN_ENV,
+        "GitHub token: private skill repositories and a higher rate limit",
+        category="tool",
+        url="https://github.com/settings/tokens",
+    )
+)
 
 
 @dataclass
@@ -87,7 +107,9 @@ class GitHubSource(SkillSource):
 
     source_id = "github"
 
-    def __init__(self, api: str = "https://api.github.com", download_hosts: frozenset[str] = _GITHUB_DOWNLOAD_HOSTS) -> None:
+    def __init__(
+        self, api: str = "https://api.github.com", download_hosts: frozenset[str] = _GITHUB_DOWNLOAD_HOSTS
+    ) -> None:
         self.api = api.rstrip("/")
         self._token_hosts = {urllib.parse.urlsplit(self.api).netloc, *download_hosts}
 
@@ -109,8 +131,14 @@ class GitHubSource(SkillSource):
     def _http_error(exc: urllib.error.HTTPError, *, has_token: bool) -> str:
         if exc.code in (403, 429) and exc.headers.get("X-RateLimit-Remaining") == "0":
             reset = exc.headers.get("X-RateLimit-Reset", "")
-            when = time.strftime("%H:%M", time.localtime(int(reset))) if reset.isdigit() else "within the hour"
-            hint = "" if has_token else f" Set {GITHUB_TOKEN_ENV} in .env for 5000 requests an hour instead of 60."
+            when = (
+                time.strftime("%H:%M", time.localtime(int(reset))) if reset.isdigit() else "within the hour"
+            )
+            hint = (
+                ""
+                if has_token
+                else f" Set {GITHUB_TOKEN_ENV} in .env for 5000 requests an hour instead of 60."
+            )
             return f"GitHub rate limit reached; it resets at {when}.{hint}"
         if exc.code == 404:
             hint = "" if has_token else f" If the repository is private, set {GITHUB_TOKEN_ENV} in .env."
@@ -129,7 +157,9 @@ class GitHubSource(SkillSource):
         spec, _, ref = identifier.strip().partition("@")
         parts = spec.strip("/").split("/")
         if len(parts) < 3:
-            raise SkillError("a GitHub skill identifier looks like owner/repo/path/to/skill (optionally @branch-or-tag)")
+            raise SkillError(
+                "a GitHub skill identifier looks like owner/repo/path/to/skill (optionally @branch-or-tag)"
+            )
         owner, repo, path = parts[0], parts[1], "/".join(parts[2:])
         query = f"?ref={urllib.parse.quote(ref, safe='')}" if ref else ""
         files: dict[str, bytes] = {}
@@ -137,7 +167,9 @@ class GitHubSource(SkillSource):
 
         def walk(remote: str, prefix: str) -> None:
             nonlocal total
-            listing = self._get(f"{self.api}/repos/{owner}/{repo}/contents/{urllib.parse.quote(remote)}{query}")
+            listing = self._get(
+                f"{self.api}/repos/{owner}/{repo}/contents/{urllib.parse.quote(remote)}{query}"
+            )
             if not isinstance(listing, list):
                 raise SkillError(f"{identifier} is not a directory in {owner}/{repo}")
             for entry in listing:
@@ -183,8 +215,9 @@ def _pick_source(identifier: str) -> SkillSource:
     return SOURCES["github"]
 
 
-def install_skill(identifier: str, *, source: str | None = None, category: str | None = None,
-                  force: bool = False) -> dict[str, Any]:
+def install_skill(
+    identifier: str, *, source: str | None = None, category: str | None = None, force: bool = False
+) -> dict[str, Any]:
     """Fetch, validate, scan and install a skill into the local tier."""
     if category:
         try:
@@ -212,7 +245,9 @@ def install_skill(identifier: str, *, source: str | None = None, category: str |
                 findings[path] = describe(threats)
     if findings and not force:
         details = "; ".join(f"{path}: {what}" for path, what in findings.items())
-        raise SkillError(f"security scan flagged this skill ({details}). Review it, then install with --force.")
+        raise SkillError(
+            f"security scan flagged this skill ({details}). Review it, then install with --force."
+        )
 
     existing = get_skill(meta.name)
     if existing is not None and existing.tier == TIER_LOCAL and not force:
@@ -227,8 +262,12 @@ def install_skill(identifier: str, *, source: str | None = None, category: str |
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(content)
     lock = installed_skills()
-    lock[meta.name] = {"source": bundle.source, "identifier": bundle.identifier, "installed_at": time.time(),
-                       "version": meta.version}
+    lock[meta.name] = {
+        "source": bundle.source,
+        "identifier": bundle.identifier,
+        "installed_at": time.time(),
+        "version": meta.version,
+    }
     atomic_write_json(_lock_path(), lock)
     record_created(meta.name, f"hub:{bundle.source}")
     return {"name": meta.name, "path": str(directory), "source": bundle.source, "warnings": findings}

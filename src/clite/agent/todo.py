@@ -49,7 +49,9 @@ class TodoStore:
 
     def summary(self) -> dict[str, int]:
         items = self.read()
-        return {status: sum(1 for item in items if item["status"] == status) for status in STATUSES} | {"total": len(items)}
+        return {status: sum(1 for item in items if item["status"] == status) for status in STATUSES} | {
+            "total": len(items)
+        }
 
     def format_active(self) -> str:
         """Unfinished items as text, re-attached after a compression so the plan survives it."""

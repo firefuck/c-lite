@@ -140,7 +140,8 @@ def _open_connection(url: str, timeout: float) -> tuple[http.client.HTTPConnecti
     if proxy is None:
         connection: http.client.HTTPConnection = (
             http.client.HTTPSConnection(host, port, timeout=timeout, context=context)
-            if secure else http.client.HTTPConnection(host, port, timeout=timeout)
+            if secure
+            else http.client.HTTPConnection(host, port, timeout=timeout)
         )
         return connection, target
     proxy_parts = urlsplit(proxy if "://" in proxy else "http://" + proxy)
@@ -163,12 +164,24 @@ class HttpClient:
     def __init__(self, timeout: float = DEFAULT_TIMEOUT) -> None:
         self.timeout = timeout
 
-    def _send(self, method: str, url: str, body: dict[str, Any] | bytes | None, headers: dict[str, str],
-              timeout: float | None, cancel: CancelHandle | None, accept: str) -> tuple[http.client.HTTPConnection, http.client.HTTPResponse]:
+    def _send(
+        self,
+        method: str,
+        url: str,
+        body: dict[str, Any] | bytes | None,
+        headers: dict[str, str],
+        timeout: float | None,
+        cancel: CancelHandle | None,
+        accept: str,
+    ) -> tuple[http.client.HTTPConnection, http.client.HTTPResponse]:
         # Connecting gets a short timeout of its own; the (long) read timeout only bounds the
         # silence between bytes once the request is on its way.
         connection, target = _open_connection(url, CONNECT_TIMEOUT)
-        payload = body if isinstance(body, bytes) else (json.dumps(body, ensure_ascii=False).encode("utf-8") if body is not None else None)
+        payload = (
+            body
+            if isinstance(body, bytes)
+            else (json.dumps(body, ensure_ascii=False).encode("utf-8") if body is not None else None)
+        )
         request_headers = {"User-Agent": USER_AGENT, "Accept": accept, **headers}
         request_headers.update(getattr(connection, "_clite_proxy_headers", {}))
         try:
@@ -199,9 +212,19 @@ class HttpClient:
             raise ProviderHTTPError(response.status, f"unexpected redirect to {location}", {}, url)
         return connection, response
 
-    def request_json(self, method: str, url: str, body: dict[str, Any] | bytes | None = None, headers: dict[str, str] | None = None,
-                     *, timeout: float | None = None, cancel: CancelHandle | None = None) -> dict[str, Any]:
-        connection, response = self._send(method, url, body, headers or {}, timeout, cancel, "application/json")
+    def request_json(
+        self,
+        method: str,
+        url: str,
+        body: dict[str, Any] | bytes | None = None,
+        headers: dict[str, str] | None = None,
+        *,
+        timeout: float | None = None,
+        cancel: CancelHandle | None = None,
+    ) -> dict[str, Any]:
+        connection, response = self._send(
+            method, url, body, headers or {}, timeout, cancel, "application/json"
+        )
         try:
             text = response.read().decode("utf-8", errors="replace")
         except (OSError, http.client.HTTPException) as exc:
@@ -216,18 +239,36 @@ class HttpClient:
             raise ProviderHTTPError(response.status, f"response is not JSON: {text[:200]}", {}, url) from exc
         return parsed if isinstance(parsed, dict) else {"data": parsed}
 
-    def post_json(self, url: str, body: dict[str, Any], headers: dict[str, str] | None = None, *,
-                  timeout: float | None = None, cancel: CancelHandle | None = None) -> dict[str, Any]:
+    def post_json(
+        self,
+        url: str,
+        body: dict[str, Any],
+        headers: dict[str, str] | None = None,
+        *,
+        timeout: float | None = None,
+        cancel: CancelHandle | None = None,
+    ) -> dict[str, Any]:
         return self.request_json("POST", url, body, headers, timeout=timeout, cancel=cancel)
 
-    def get_json(self, url: str, headers: dict[str, str] | None = None, *, timeout: float | None = None) -> dict[str, Any]:
+    def get_json(
+        self, url: str, headers: dict[str, str] | None = None, *, timeout: float | None = None
+    ) -> dict[str, Any]:
         return self.request_json("GET", url, None, headers, timeout=timeout)
 
-    def stream_sse(self, url: str, body: dict[str, Any], headers: dict[str, str] | None = None, *,
-                   timeout: float | None = None, cancel: CancelHandle | None = None) -> Iterator[SSEEvent]:
+    def stream_sse(
+        self,
+        url: str,
+        body: dict[str, Any],
+        headers: dict[str, str] | None = None,
+        *,
+        timeout: float | None = None,
+        cancel: CancelHandle | None = None,
+    ) -> Iterator[SSEEvent]:
         """POST and yield server-sent events. ``timeout`` bounds silence between chunks, so a
         stalled stream raises instead of hanging forever."""
-        connection, response = self._send("POST", url, body, headers or {}, timeout, cancel, "text/event-stream")
+        connection, response = self._send(
+            "POST", url, body, headers or {}, timeout, cancel, "text/event-stream"
+        )
         try:
             yield from parse_sse(_lines(response))
         except (OSError, http.client.HTTPException, ValueError) as exc:

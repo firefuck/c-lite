@@ -14,10 +14,10 @@ register_provider(
         name="groq",
         display_name="Groq",
         description="Groq API",
-        env_vars=('GROQ_API_KEY',),
+        env_vars=("GROQ_API_KEY",),
         base_url="https://api.groq.com/openai/v1",
         base_url_env="GROQ_BASE_URL",
-        fallback_models=('llama-3.3-70b-versatile',),
-        context_lengths={'llama-3.3-70b-versatile': 131_072},
+        fallback_models=("llama-3.3-70b-versatile",),
+        context_lengths={"llama-3.3-70b-versatile": 131_072},
     )
 )

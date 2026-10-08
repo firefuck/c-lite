@@ -46,7 +46,9 @@ def resolve_enabled_tools(
     discover_builtin_tools()
     cfg = config if config is not None else load_config()
     enabled = list(enabled_toolsets) if enabled_toolsets is not None else list(cfg.get("toolsets") or [])
-    disabled = list(disabled_toolsets) if disabled_toolsets is not None else list(cfg.get("disabled_toolsets") or [])
+    disabled = (
+        list(disabled_toolsets) if disabled_toolsets is not None else list(cfg.get("disabled_toolsets") or [])
+    )
     blocked = set(resolve_toolsets(disabled))
     names = [name for name in resolve_toolsets(enabled) if name not in blocked]
     return sorted(name for name in names if registry.is_available(name))
@@ -86,7 +88,9 @@ def get_tool_definitions(
 
 
 def _has_dynamic(names: list[str]) -> bool:
-    return any((entry := registry.get(name)) is not None and entry.dynamic_schema is not None for name in names)
+    return any(
+        (entry := registry.get(name)) is not None and entry.dynamic_schema is not None for name in names
+    )
 
 
 # ── argument coercion ────────────────────────────────────────────────────────────────────
@@ -130,8 +134,7 @@ def cap_result(result: str, limit: int | None) -> str:
     return (
         result[:head]
         + f"\n\n[... {dropped} characters truncated. Narrow the request (offset/limit, a more specific "
-        "query) to see the rest ...]\n\n"
-        + result[-tail:]
+        "query) to see the rest ...]\n\n" + result[-tail:]
     )
 
 
@@ -141,17 +144,25 @@ def handle_function_call(name: str, args: dict[str, Any] | None, ctx: ToolContex
     args = dict(args or {})
     entry = registry.get(name)
     if entry is None:
-        return tool_error(f"Unknown tool: {name}", available_tools=(
-            registry.names() if ctx.enabled_tools is None else sorted(ctx.enabled_tools)
-        ))
+        return tool_error(
+            f"Unknown tool: {name}",
+            available_tools=(registry.names() if ctx.enabled_tools is None else sorted(ctx.enabled_tools)),
+        )
     if ctx.enabled_tools is not None and name not in ctx.enabled_tools:
-        return tool_error(f"Tool {name!r} is not enabled in this session", available_tools=sorted(ctx.enabled_tools))
+        return tool_error(
+            f"Tool {name!r} is not enabled in this session", available_tools=sorted(ctx.enabled_tools)
+        )
     args = coerce_args(entry.schema, args)
 
     if has_hook("pre_tool_call"):
         for directive in invoke_hook(
-            "pre_tool_call", tool_name=name, args=args, session_id=ctx.session_id, platform=ctx.platform,
-            tool_call_id=ctx.tool_call_id, cwd=ctx.cwd,
+            "pre_tool_call",
+            tool_name=name,
+            args=args,
+            session_id=ctx.session_id,
+            platform=ctx.platform,
+            tool_call_id=ctx.tool_call_id,
+            cwd=ctx.cwd,
         ):
             if not isinstance(directive, dict):
                 continue
@@ -167,7 +178,9 @@ def handle_function_call(name: str, args: dict[str, Any] | None, ctx: ToolContex
 
     if has_hook("transform_tool_result"):
         replacement = first_result(
-            invoke_hook("transform_tool_result", tool_name=name, args=args, result=result, session_id=ctx.session_id)
+            invoke_hook(
+                "transform_tool_result", tool_name=name, args=args, result=result, session_id=ctx.session_id
+            )
         )
         if replacement is not None:
             result = replacement
@@ -177,7 +190,14 @@ def handle_function_call(name: str, args: dict[str, Any] | None, ctx: ToolContex
 
     if has_hook("post_tool_call"):
         invoke_hook(
-            "post_tool_call", tool_name=name, args=args, result=result, duration=duration,
-            session_id=ctx.session_id, platform=ctx.platform, tool_call_id=ctx.tool_call_id, cwd=ctx.cwd,
+            "post_tool_call",
+            tool_name=name,
+            args=args,
+            result=result,
+            duration=duration,
+            session_id=ctx.session_id,
+            platform=ctx.platform,
+            tool_call_id=ctx.tool_call_id,
+            cwd=ctx.cwd,
         )
     return result

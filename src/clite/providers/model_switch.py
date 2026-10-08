@@ -57,7 +57,13 @@ def switch_model(
     cfg = config if config is not None else load_config()
     parsed_provider, model = parse_model_input(text, cfg)
     target_provider = provider or parsed_provider or (current.provider if current else None)
-    if model is None and target_provider and current and target_provider == current.provider and not parsed_provider:
+    if (
+        model is None
+        and target_provider
+        and current
+        and target_provider == current.provider
+        and not parsed_provider
+    ):
         return ModelSwitchResult(False, current, "Give a model name, or provider:model.")
     try:
         route = resolve_runtime_provider(target_provider, model, config=cfg)
@@ -66,6 +72,7 @@ def switch_model(
 
     persisted = False
     if persist:
+
         def mutate(document: dict[str, Any]) -> None:
             section = document.get("model")
             if not isinstance(section, dict):

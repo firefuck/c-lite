@@ -26,7 +26,9 @@ def serve_stdio(stdin=None, stdout=None, *, platform: str | None = None) -> int:
     wire = stdout or sys.stdout
     sys.stdout = sys.stderr
     source = stdin or sys.stdin
-    server = RpcServer(StdioTransport(wire), platform=platform or os.environ.get(f"{ENV_PREFIX}_RPC_PLATFORM", "tui"))
+    server = RpcServer(
+        StdioTransport(wire), platform=platform or os.environ.get(f"{ENV_PREFIX}_RPC_PLATFORM", "tui")
+    )
     server.announce()
     try:
         for line in source:
@@ -42,8 +44,11 @@ def serve_stdio(stdin=None, stdout=None, *, platform: str | None = None) -> int:
 def main(argv: list[str] | None = None) -> int:
     apply_profile_override(list(sys.argv[1:] if argv is None else argv))
     load_env()
-    setup_logging(str(config_get("logging.level", "INFO")), max_size_mb=int(config_get("logging.max_size_mb", 5)),
-                  backup_count=int(config_get("logging.backup_count", 3)))
+    setup_logging(
+        str(config_get("logging.level", "INFO")),
+        max_size_mb=int(config_get("logging.max_size_mb", 5)),
+        backup_count=int(config_get("logging.backup_count", 3)),
+    )
     return serve_stdio()
 
 

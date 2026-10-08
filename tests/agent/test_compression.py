@@ -40,8 +40,10 @@ def _chat(count):
 
 def _tool_round(index, output="result"):
     call = {"id": f"call_{index}", "type": "function", "function": {"name": "terminal", "arguments": "{}"}}
-    return [{"role": "assistant", "content": None, "tool_calls": [call]},
-            {"role": "tool", "tool_call_id": f"call_{index}", "name": "terminal", "content": output}]
+    return [
+        {"role": "assistant", "content": None, "tool_calls": [call]},
+        {"role": "tool", "tool_call_id": f"call_{index}", "name": "terminal", "content": output},
+    ]
 
 
 def _image(content: str = "look at this"):
@@ -131,10 +133,19 @@ def test_nothing_to_compress_returns_the_input():
 
 
 def test_tool_calls_are_never_separated_from_their_results():
-    messages = [*_chat(2), *_tool_round(1), *_tool_round(2), *_tool_round(3), *_tool_round(4), {"role": "user", "content": "now?"}]
+    messages = [
+        *_chat(2),
+        *_tool_round(1),
+        *_tool_round(2),
+        *_tool_round(3),
+        *_tool_round(4),
+        {"role": "user", "content": "now?"},
+    ]
     for last in range(1, 8):
         for first in range(0, 5):
-            compressed = _engine(first=first, last=last).compress(list(messages), summarize=lambda prompt: "S")
+            compressed = _engine(first=first, last=last).compress(
+                list(messages), summarize=lambda prompt: "S"
+            )
             _assert_pairs_intact(compressed)
 
 
@@ -201,21 +212,29 @@ def test_pruning_alone_counts_as_a_change():
 
 def test_repair_tool_pairs():
     call = {"id": "kept", "type": "function", "function": {"name": "t", "arguments": "{}"}}
-    repaired = repair_tool_pairs([
-        {"role": "tool", "tool_call_id": "orphan", "content": "x"},
-        {"role": "assistant", "content": None, "tool_calls": [call]},
-        {"role": "user", "content": "next"},
-    ])
+    repaired = repair_tool_pairs(
+        [
+            {"role": "tool", "tool_call_id": "orphan", "content": "x"},
+            {"role": "assistant", "content": None, "tool_calls": [call]},
+            {"role": "user", "content": "next"},
+        ]
+    )
     assert _roles(repaired) == ["assistant", "tool", "user"]
     assert repaired[1]["tool_call_id"] == "kept"
 
 
 def test_summary_input_is_bounded_and_redacted():
-    text = serialize_for_summary([
-        {"role": "user", "content": "token is sk-abcdefghijklmnopqrstuvwxyz0123"},
-        {"role": "tool", "name": "terminal", "content": "z" * 50_000},
-        {"role": "assistant", "content": None, "tool_calls": [{"function": {"name": "read_file", "arguments": '{"path": "a.py"}'}}]},
-    ])
+    text = serialize_for_summary(
+        [
+            {"role": "user", "content": "token is sk-abcdefghijklmnopqrstuvwxyz0123"},
+            {"role": "tool", "name": "terminal", "content": "z" * 50_000},
+            {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [{"function": {"name": "read_file", "arguments": '{"path": "a.py"}'}}],
+            },
+        ]
+    )
     assert "[REDACTED]" in text and "sk-abcdefghijklmnop" not in text
     assert len(text) < 5000 and "[called tools: read_file(" in text
 
@@ -229,9 +248,15 @@ def test_manual_compression_keeps_the_session_and_rebuilds_the_prompt(make_agent
     from clite.agent import AgentCallbacks
 
     agent, client = make_agent(
-        [text_response(f"answer {n}") for n in range(5)] + [
-            tool_call_response(("memory", {"action": "add", "target": "memory", "content": "Deploys run from the ops host"})),
-            text_response("noted"), text_response("HANDOFF SUMMARY"), text_response("after")],
+        [text_response(f"answer {n}") for n in range(5)]
+        + [
+            tool_call_response(
+                ("memory", {"action": "add", "target": "memory", "content": "Deploys run from the ops host"})
+            ),
+            text_response("noted"),
+            text_response("HANDOFF SUMMARY"),
+            text_response("after"),
+        ],
         enabled_toolsets=["memory", "todo"],
         callbacks=AgentCallbacks(on_status=lambda kind, text: statuses.append(kind)),
     )
@@ -261,10 +286,18 @@ def test_manual_compression_keeps_the_session_and_rebuilds_the_prompt(make_agent
 
 def test_preflight_compression_fires_before_the_window_is_exceeded(make_agent, clite_home):
     (clite_home / "config.yaml").write_text(
-        "model:\n  provider: mock\n  context_length: 16000\ncompression:\n  protect_first_n: 1\n  protect_last_n: 2\n")
+        "model:\n  provider: mock\n  context_length: 16000\ncompression:\n  protect_first_n: 1\n  protect_last_n: 2\n"
+    )
     big = "lorem ipsum " * 1500  # about 4.5k tokens per answer
-    agent, client = make_agent([text_response(big), text_response(big), text_response(big),
-                                text_response("SUMMARY"), text_response("small answer")])
+    agent, client = make_agent(
+        [
+            text_response(big),
+            text_response(big),
+            text_response(big),
+            text_response("SUMMARY"),
+            text_response("small answer"),
+        ]
+    )
     for n in range(3):
         agent.run_conversation(f"q{n}")
     assert agent.context_engine.compression_count == 0
@@ -275,7 +308,9 @@ def test_preflight_compression_fires_before_the_window_is_exceeded(make_agent, c
 
 
 def test_compression_can_be_disabled(make_agent, clite_home):
-    (clite_home / "config.yaml").write_text("model:\n  provider: mock\n  context_length: 16000\ncompression:\n  enabled: false\n")
+    (clite_home / "config.yaml").write_text(
+        "model:\n  provider: mock\n  context_length: 16000\ncompression:\n  enabled: false\n"
+    )
     big = "lorem ipsum " * 3000
     agent, _ = make_agent([text_response(big), text_response(big), text_response("ok")])
     for n in range(3):
@@ -408,8 +443,13 @@ def test_estimate_reuses_the_provider_number_for_the_part_it_already_measured():
     appended = [{"role": "user", "content": "z" * 400}]
     messages = [*measured, *appended]
 
-    anchored = estimate_prompt_tokens(messages, system_prompt="S" * 400, tools=[{"a": 1}],
-                                      anchor_tokens=1234, anchor_message_count=len(measured))
+    anchored = estimate_prompt_tokens(
+        messages,
+        system_prompt="S" * 400,
+        tools=[{"a": 1}],
+        anchor_tokens=1234,
+        anchor_message_count=len(measured),
+    )
     # The anchor covers the earlier messages plus the system prompt and tools; only the
     # appended message is estimated on top.
     assert anchored == 1234 + estimate_prompt_tokens(appended)
@@ -421,8 +461,12 @@ def test_engine_reports_anchored_tokens_after_a_response():
     messages = [{"role": "user", "content": "one"}, {"role": "assistant", "content": "two"}]
     engine.update_from_response(Usage(input_tokens=100_000), message_count=len(messages))
     # A later turn appends three messages; the provider number for the first two is reused.
-    grown = [*messages, {"role": "user", "content": "three"}, {"role": "assistant", "content": "four"},
-             {"role": "user", "content": "five"}]
+    grown = [
+        *messages,
+        {"role": "user", "content": "three"},
+        {"role": "assistant", "content": "four"},
+        {"role": "user", "content": "five"},
+    ]
     anchored = engine.anchored_prompt_tokens(grown, system_prompt="", tools=None)
     appended_only = estimate_prompt_tokens(grown[2:])
     assert anchored == 100_000 + appended_only
@@ -440,8 +484,14 @@ def test_the_provider_number_wins_over_the_estimate_before_any_appended_message(
 
 
 def test_images_older_than_the_tail_are_dropped_before_any_text():
-    messages = [_with_image(0), {"role": "assistant", "content": "seen"}, _with_image(2),
-                {"role": "assistant", "content": "ok"}, _with_image(4), {"role": "assistant", "content": "recent"}]
+    messages = [
+        _with_image(0),
+        {"role": "assistant", "content": "seen"},
+        _with_image(2),
+        {"role": "assistant", "content": "ok"},
+        _with_image(4),
+        {"role": "assistant", "content": "recent"},
+    ]
     pruned, dropped = prune_images(messages, keep_last=2)
     assert dropped == 2
     assert not any(part.get("type") == "image_url" for part in pruned[0]["content"])
@@ -456,8 +506,12 @@ def test_compression_drops_old_images_before_pruning_text():
     # Nothing to summarise here (the whole transcript is inside the protected head), so the
     # only work compression does is pruning — and images must be pruned ahead of text.
     engine = _engine(first=6, last=2)
-    messages = [{"role": "user", "content": "start"}, _with_image(1, "first look"),
-                {"role": "assistant", "content": "seen it"}, *_chat(2)]
+    messages = [
+        {"role": "user", "content": "start"},
+        _with_image(1, "first look"),
+        {"role": "assistant", "content": "seen it"},
+        *_chat(2),
+    ]
     compressed = engine.compress(messages, summarize=lambda prompt: "unused")
 
     assert compressed is not messages
@@ -522,7 +576,9 @@ def test_the_compression_eval_script_runs_against_the_mock_provider():
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[2]
-    spec = importlib.util.spec_from_file_location("eval_compression", root / "scripts" / "eval_compression.py")
+    spec = importlib.util.spec_from_file_location(
+        "eval_compression", root / "scripts" / "eval_compression.py"
+    )
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)
@@ -540,7 +596,9 @@ def test_the_compression_eval_script_reports_facts_a_summary_dropped():
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[2]
-    spec = importlib.util.spec_from_file_location("eval_compression", root / "scripts" / "eval_compression.py")
+    spec = importlib.util.spec_from_file_location(
+        "eval_compression", root / "scripts" / "eval_compression.py"
+    )
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)
@@ -550,4 +608,3 @@ def test_the_compression_eval_script_reports_facts_a_summary_dropped():
     report = module.evaluate(provider="mock", summarize=lambda prompt: "## Goal\nNone")
     assert report["facts_kept"] < report["facts_total"]
     assert report["missing"]
-

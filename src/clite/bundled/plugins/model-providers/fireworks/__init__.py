@@ -15,10 +15,10 @@ register_provider(
         name="fireworks",
         display_name="Fireworks",
         description="Fireworks API",
-        env_vars=('FIREWORKS_API_KEY',),
+        env_vars=("FIREWORKS_API_KEY",),
         base_url="https://api.fireworks.ai/inference/v1",
         base_url_env="FIREWORKS_BASE_URL",
-        fallback_models=('accounts/fireworks/models/llama-v3p3-70b-instruct',),
-        context_lengths={'accounts/fireworks/models/llama-v3p3-70b-instruct': 131_072},
+        fallback_models=("accounts/fireworks/models/llama-v3p3-70b-instruct",),
+        context_lengths={"accounts/fireworks/models/llama-v3p3-70b-instruct": 131_072},
     )
 )

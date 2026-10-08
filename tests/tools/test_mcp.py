@@ -23,7 +23,8 @@ def _free_port() -> int:
         sock.bind(("127.0.0.1", 0))
         return int(sock.getsockname()[1])
 
-FAKE_SERVER = textwrap.dedent('''
+
+FAKE_SERVER = textwrap.dedent("""
     import json, os, sys
 
     def send(message):
@@ -67,7 +68,7 @@ FAKE_SERVER = textwrap.dedent('''
                 send({"jsonrpc": "2.0", "id": request_id, "error": {"code": -32602, "message": "unknown tool"}})
         elif request_id is not None and method:
             send({"jsonrpc": "2.0", "id": request_id, "error": {"code": -32601, "message": "method not found"}})
-''')
+""")
 
 
 @pytest.fixture
@@ -83,7 +84,10 @@ def test_handshake_pagination_and_tool_calls(fake_server):
         server.start()
         assert server.server_info == {"name": "fake", "version": "1.0"}
         assert [tool["name"] for tool in server.tools] == ["add", "fail", "env", "picture"]  # both pages
-        assert json.loads(server.call_tool("add", {"a": 2, "b": 40})) == {"result": "42", "structured": {"sum": 42}}
+        assert json.loads(server.call_tool("add", {"a": 2, "b": 40})) == {
+            "result": "42",
+            "structured": {"sum": 42},
+        }
         assert json.loads(server.call_tool("fail", {})) == {"error": "disk is full"}
         assert json.loads(server.call_tool("picture", {})) == {"result": "[image content omitted]"}
         assert "unknown tool" in json.loads(server.call_tool("nope", {}))["error"]
@@ -93,15 +97,26 @@ def test_handshake_pagination_and_tool_calls(fake_server):
 
 
 def test_servers_become_namespaced_tools_in_platform_toolsets(fake_server, clite_home):
-    config = {"mcp_servers": {"calc": {**fake_server, "tools": {"exclude": ["picture"]}}, "off": {**fake_server, "enabled": False}}}
+    config = {
+        "mcp_servers": {
+            "calc": {**fake_server, "tools": {"exclude": ["picture"]}},
+            "off": {**fake_server, "enabled": False},
+        }
+    }
     connected = connect_mcp_servers(config)
     assert connected == {"calc": ["mcp_calc_add", "mcp_calc_fail", "mcp_calc_env"]}
     entry = registry.get("mcp_calc_add")
-    assert (entry.toolset, entry.origin) == ("mcp-calc", "mcp:calc") and entry.description.startswith("[calc] Add two numbers")
-    assert json.loads(handle_function_call("mcp_calc_add", {"a": "1", "b": 2}))["result"] == "3.0"  # "1" coerced by the schema
+    assert (entry.toolset, entry.origin) == ("mcp-calc", "mcp:calc") and entry.description.startswith(
+        "[calc] Add two numbers"
+    )
+    assert (
+        json.loads(handle_function_call("mcp_calc_add", {"a": "1", "b": 2}))["result"] == "3.0"
+    )  # "1" coerced by the schema
 
     assert "mcp_calc_add" in resolve_enabled_tools(["clite-cli"], [])
-    assert "mcp_calc_add" not in resolve_enabled_tools(["clite-cli"], ["mcp-calc"])  # one server can be switched off
+    assert "mcp_calc_add" not in resolve_enabled_tools(
+        ["clite-cli"], ["mcp-calc"]
+    )  # one server can be switched off
     assert "mcp_calc_add" not in resolve_enabled_tools(["file"], [])  # only platform toolsets carry MCP
 
     assert connect_mcp_servers(config) == connected  # idempotent: the running server is reused
@@ -115,8 +130,13 @@ def test_server_environment_excludes_secrets_unless_listed(fake_server, clite_ho
     (clite_home / ".env").write_text("OPENROUTER_API_KEY=sk-or-should-not-leak-1234\n")
     load_env()
     connect_mcp_servers({"mcp_servers": {"envy": {**fake_server, "env": {"SERVER_SETTING": "explicit"}}}})
-    assert json.loads(handle_function_call("mcp_envy_env", {"name": "OPENROUTER_API_KEY"}))["result"] == "(unset)"
-    assert json.loads(handle_function_call("mcp_envy_env", {"name": "SERVER_SETTING"}))["result"] == "explicit"
+    assert (
+        json.loads(handle_function_call("mcp_envy_env", {"name": "OPENROUTER_API_KEY"}))["result"]
+        == "(unset)"
+    )
+    assert (
+        json.loads(handle_function_call("mcp_envy_env", {"name": "SERVER_SETTING"}))["result"] == "explicit"
+    )
 
 
 def test_startup_failure_waits_for_stderr_before_reporting(tmp_path, monkeypatch):
@@ -156,12 +176,16 @@ def test_broken_servers_are_skipped_not_fatal(tmp_path, fake_server, clite_home)
     crash.write_text("import sys; print('boom: missing dependency', file=sys.stderr); sys.exit(3)\n")
     silent = tmp_path / "silent.py"
     silent.write_text("import time; time.sleep(60)\n")
-    connected = connect_mcp_servers({"mcp_servers": {
-        "missing": {"command": "/no/such/binary"},
-        "crash": {"command": sys.executable, "args": [str(crash)]},
-        "http-only": {"url": "https://example.test/mcp"},
-        "good": fake_server,
-    }})
+    connected = connect_mcp_servers(
+        {
+            "mcp_servers": {
+                "missing": {"command": "/no/such/binary"},
+                "crash": {"command": sys.executable, "args": [str(crash)]},
+                "http-only": {"url": "https://example.test/mcp"},
+                "good": fake_server,
+            }
+        }
+    )
     assert list(connected) == ["good"]
 
     server = McpServer("crash", {"command": sys.executable, "args": [str(crash)]})
@@ -189,8 +213,11 @@ def test_agent_uses_mcp_tools_end_to_end(fake_server, clite_home):
 
     (clite_home / "config.yaml").write_text(
         "model: {provider: mock, default: mock-1}\nmcp_servers:\n  calc:\n"
-        f"    command: {sys.executable}\n    args: ['{fake_server['args'][0]}']\n")
-    client = ScriptedClient([tool_call_response(("mcp_calc_add", {"a": 20, "b": 22})), text_response("It is 42.")])
+        f"    command: {sys.executable}\n    args: ['{fake_server['args'][0]}']\n"
+    )
+    client = ScriptedClient(
+        [tool_call_response(("mcp_calc_add", {"a": 20, "b": 22})), text_response("It is 42.")]
+    )
     agent = build_agent(client=client, auto_title=False)
     try:
         assert "mcp_calc_add" in agent.tool_names
@@ -204,7 +231,8 @@ def test_compatible_with_the_official_sdk_server(tmp_path):
     """The same client against a server built with the MCP SDK, when it is installed."""
     pytest.importorskip("mcp.server.mcpserver")
     script = tmp_path / "sdk_server.py"
-    script.write_text(textwrap.dedent('''
+    script.write_text(
+        textwrap.dedent('''
         from mcp.server.mcpserver import MCPServer
 
         server = MCPServer("sdk-demo")
@@ -215,13 +243,17 @@ def test_compatible_with_the_official_sdk_server(tmp_path):
             return text.upper()
 
         server.run()
-    '''))
+    ''')
+    )
     client = McpServer("sdk", {"command": sys.executable, "args": [str(script)]})
     try:
         client.start()
         assert client.server_info["name"] == "sdk-demo"
         tool = next(tool for tool in client.tools if tool["name"] == "shout")
-        assert tool["description"] == "Return the text in upper case." and "text" in tool["inputSchema"]["properties"]
+        assert (
+            tool["description"] == "Return the text in upper case."
+            and "text" in tool["inputSchema"]["properties"]
+        )
         assert json.loads(client.call_tool("shout", {"text": "hello"}))["result"] == "HELLO"
     finally:
         client.stop()
@@ -264,7 +296,8 @@ def _spawn_http_sdk_server(tmp_path, port, *, token=None):
     pytest.importorskip("uvicorn")
     if token:
         script = tmp_path / "http_auth_server.py"
-        script.write_text(textwrap.dedent(f'''
+        script.write_text(
+            textwrap.dedent(f'''
             from mcp.server.mcpserver import MCPServer
             import uvicorn
             from starlette.middleware.base import BaseHTTPMiddleware
@@ -287,17 +320,22 @@ def _spawn_http_sdk_server(tmp_path, port, *, token=None):
 
             app.add_middleware(Auth)
             uvicorn.run(app, host="127.0.0.1", port={port}, log_level="error")
-        '''))
+        ''')
+        )
     else:
         script = tmp_path / "http_server.py"
         script.write_text(HTTP_SDK_SERVER.replace("PORT", str(port)))
 
-    process = subprocess.Popen([sys.executable, str(script)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    process = subprocess.Popen(
+        [sys.executable, str(script)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+    )
     url = f"http://127.0.0.1:{port}/mcp"
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
         if process.poll() is not None:
-            raise AssertionError(f"the HTTP server exited early:\n{process.stdout.read() if process.stdout else ''}")
+            raise AssertionError(
+                f"the HTTP server exited early:\n{process.stdout.read() if process.stdout else ''}"
+            )
         try:
             with socket.create_connection(("127.0.0.1", port), timeout=0.5):
                 break
@@ -331,7 +369,10 @@ def test_http_transport_speaks_to_a_real_sdk_server(http_sdk_server):
         # Resources and prompts arrive as tools and slash commands.
         assert client.resources and client.resources[0]["uri"] == "note://greeting"
         assert [prompt.command for prompt in client.prompts] == ["mcp-http-summarize"]
-        assert json.loads(client.read_resource("note://greeting"))["contents"][0]["text"] == "hello from resource"
+        assert (
+            json.loads(client.read_resource("note://greeting"))["contents"][0]["text"]
+            == "hello from resource"
+        )
         assert "Please summarize: deep" in client.read_prompt("summarize", {"text": "deep"})
         assert client.is_alive()
     finally:
@@ -378,7 +419,7 @@ def test_a_missing_dotenv_header_variable_is_a_clear_error(clite_home):
 # ── tool list changes do not touch the running session (A1) ───────────────────────────────
 
 
-MUTABLE_SERVER = textwrap.dedent('''
+MUTABLE_SERVER = textwrap.dedent("""
     import json, os, sys
 
     CONTROL = sys.argv[1]
@@ -418,7 +459,7 @@ MUTABLE_SERVER = textwrap.dedent('''
                 send({"jsonrpc": "2.0", "id": request_id, "result": {"content": [{"type": "text", "text": name}]}})
         elif request_id is not None and method:
             send({"jsonrpc": "2.0", "id": request_id, "error": {"code": -32601, "message": "method not found"}})
-''')
+""")
 
 
 def test_a_tool_list_change_does_not_alter_the_running_session(tmp_path, clite_home):
@@ -500,7 +541,8 @@ def test_cli_add_writes_the_config_through_the_atomic_writer(clite_home, capsys,
 
 def test_cli_test_reports_the_tools_it_found(tmp_path, clite_home, capsys):
     script = tmp_path / "srv.py"
-    script.write_text(textwrap.dedent('''
+    script.write_text(
+        textwrap.dedent("""
         import json, sys
         for line in sys.stdin:
             m = json.loads(line)
@@ -510,10 +552,12 @@ def test_cli_test_reports_the_tools_it_found(tmp_path, clite_home, capsys):
             elif m.get("method") == "tools/list":
                 print(json.dumps({"jsonrpc": "2.0", "id": m["id"], "result": {"tools": [
                     {"name": "ping", "description": "ping", "inputSchema": {"type": "object", "properties": {}}}]}}), flush=True)
-    '''))
+    """)
+    )
     (clite_home / "config.yaml").write_text(
         "model: {provider: mock, default: mock-1}\n"
-        f"mcp_servers:\n  tiny:\n    command: {sys.executable}\n    args: ['{script}']\n")
+        f"mcp_servers:\n  tiny:\n    command: {sys.executable}\n    args: ['{script}']\n"
+    )
     code, out, _ = _run_cli(capsys, "mcp", "test", "tiny")
     assert code == 0
     assert "connected (stdio)" in out and "tools (1): ping" in out
@@ -522,8 +566,8 @@ def test_cli_test_reports_the_tools_it_found(tmp_path, clite_home, capsys):
 
 def test_cli_remove_deletes_only_the_named_server(clite_home, capsys):
     (clite_home / "config.yaml").write_text(
-        "model: {provider: mock, default: mock-1}\n"
-        "mcp_servers:\n  a: {command: x}\n  b: {command: y}\n")
+        "model: {provider: mock, default: mock-1}\nmcp_servers:\n  a: {command: x}\n  b: {command: y}\n"
+    )
     code, out, _ = _run_cli(capsys, "mcp", "remove", "a")
     assert code == 0 and "Removed MCP server 'a'" in out
     from clite.core.config import load_config
@@ -571,4 +615,3 @@ def test_slash_mcp_reports_no_servers_when_none_are_connected(clite_home):
         pass
 
     assert "No MCP servers are connected" in SLASH_HANDLERS["mcp"](_Session(), "").text
-

@@ -24,7 +24,13 @@ from clite.rpc.contracts import schema  # noqa: E402, F401 - importing registers
 from clite.rpc.contracts.base import EVENTS, METHODS, PROTOCOL_VERSION, SERVER_REQUESTS  # noqa: E402
 
 OUTPUT = ROOT / "apps" / "shared" / "src" / "contracts.generated.ts"
-_PRIMITIVES = {"string": "string", "integer": "number", "number": "number", "boolean": "boolean", "null": "null"}
+_PRIMITIVES = {
+    "string": "string",
+    "integer": "number",
+    "number": "number",
+    "boolean": "boolean",
+    "null": "null",
+}
 
 
 def ts_type(node: dict[str, Any]) -> str:
@@ -127,7 +133,9 @@ def generate() -> str:
 
     out.append(f"export const METHOD_NAMES = [{', '.join(repr_literal(name) for name in METHODS)}] as const;")
     out.append(f"export const EVENT_TYPES = [{', '.join(repr_literal(name) for name in EVENTS)}] as const;")
-    out.append(f"export const SERVER_REQUEST_NAMES = [{', '.join(repr_literal(name) for name in SERVER_REQUESTS)}] as const;")
+    out.append(
+        f"export const SERVER_REQUEST_NAMES = [{', '.join(repr_literal(name) for name in SERVER_REQUESTS)}] as const;"
+    )
     out.append("")
     out.append("export type MethodName = keyof Methods;")
     out.append("export type EventType = keyof Events;")
@@ -148,13 +156,18 @@ def main() -> int:
     if args.check:
         current = OUTPUT.read_text(encoding="utf-8") if OUTPUT.is_file() else ""
         if current != generated:
-            print(f"{OUTPUT.relative_to(ROOT)} is out of date. Run: python scripts/gen_rpc_contracts.py", file=sys.stderr)
+            print(
+                f"{OUTPUT.relative_to(ROOT)} is out of date. Run: python scripts/gen_rpc_contracts.py",
+                file=sys.stderr,
+            )
             return 1
         print("contracts are up to date")
         return 0
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(generated, encoding="utf-8")
-    print(f"wrote {OUTPUT.relative_to(ROOT)} ({len(METHODS)} methods, {len(EVENTS)} events, {len(SERVER_REQUESTS)} server requests)")
+    print(
+        f"wrote {OUTPUT.relative_to(ROOT)} ({len(METHODS)} methods, {len(EVENTS)} events, {len(SERVER_REQUESTS)} server requests)"
+    )
     return 0
 
 

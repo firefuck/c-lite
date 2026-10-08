@@ -15,10 +15,10 @@ register_provider(
         name="nvidia",
         display_name="NVIDIA",
         description="NVIDIA API",
-        env_vars=('NVIDIA_API_KEY',),
+        env_vars=("NVIDIA_API_KEY",),
         base_url="https://integrate.api.nvidia.com/v1",
         base_url_env="NVIDIA_BASE_URL",
-        fallback_models=('meta/llama-3.3-70b-instruct',),
-        context_lengths={'meta/llama-3.3-70b-instruct': 128_000},
+        fallback_models=("meta/llama-3.3-70b-instruct",),
+        context_lengths={"meta/llama-3.3-70b-instruct": 128_000},
     )
 )

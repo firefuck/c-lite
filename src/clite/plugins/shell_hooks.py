@@ -63,9 +63,15 @@ BLOCKING_EVENTS = frozenset({"pre_tool_call"})
 TOOL_EVENTS = frozenset({"pre_tool_call", "post_tool_call"})
 # Hooks whose callbacks return replacement text, or receive live objects, are for Python
 # plugins only: a JSON document on stdin cannot carry them.
-SHELL_HOOK_EVENTS = frozenset(VALID_HOOKS - {
-    "transform_tool_result", "transform_terminal_output", "transform_llm_output", "pre_gateway_dispatch",
-})
+SHELL_HOOK_EVENTS = frozenset(
+    VALID_HOOKS
+    - {
+        "transform_tool_result",
+        "transform_terminal_output",
+        "transform_llm_output",
+        "pre_gateway_dispatch",
+    }
+)
 _TOP_LEVEL_KEYS = frozenset({"tool_name", "args", "session_id", "cwd"})
 _TRUTHY = frozenset({"1", "true", "yes", "on"})
 
@@ -107,13 +113,18 @@ def configured_hooks(config: dict[str, Any] | None = None) -> list[ShellHook]:
     hooks: list[ShellHook] = []
     for event, entries in section.items():
         if event not in SHELL_HOOK_EVENTS:
-            logger.warning("config hooks: %r is not an event a shell hook can handle; valid: %s",
-                           event, ", ".join(sorted(SHELL_HOOK_EVENTS)))
+            logger.warning(
+                "config hooks: %r is not an event a shell hook can handle; valid: %s",
+                event,
+                ", ".join(sorted(SHELL_HOOK_EVENTS)),
+            )
             continue
         for index, raw in enumerate(entries if isinstance(entries, list) else [entries]):
             hook = _parse_entry(str(event), raw)
             if hook is None:
-                logger.warning("config hooks.%s[%d] is not a command or a mapping with `command`; skipped", event, index)
+                logger.warning(
+                    "config hooks.%s[%d] is not a command or a mapping with `command`; skipped", event, index
+                )
             else:
                 hooks.append(hook)
     return hooks
@@ -135,7 +146,9 @@ def _parse_entry(event: str, raw: Any) -> ShellHook | None:
     except (TypeError, ValueError):
         return None
     return ShellHook(
-        event=event, command=str(raw["command"]).strip(), matcher=matcher,
+        event=event,
+        command=str(raw["command"]).strip(),
+        matcher=matcher,
         timeout=min(max(timeout, 1.0), MAX_TIMEOUT_SECONDS),
         fail_closed=bool(raw.get("fail_closed")) and event in BLOCKING_EVENTS,
     )
@@ -157,7 +170,10 @@ def _load_approvals() -> list[dict[str, Any]]:
 def is_approved(hook: ShellHook) -> bool:
     if os.environ.get(ACCEPT_ENV, "").strip().lower() in _TRUTHY:
         return True
-    return any(entry.get("event") == hook.event and entry.get("command") == hook.command for entry in _load_approvals())
+    return any(
+        entry.get("event") == hook.event and entry.get("command") == hook.command
+        for entry in _load_approvals()
+    )
 
 
 def approve_hooks(hooks: Iterable[ShellHook]) -> int:
@@ -167,8 +183,13 @@ def approve_hooks(hooks: Iterable[ShellHook]) -> int:
     added = 0
     for hook in hooks:
         if (hook.event, hook.command) not in known:
-            approvals.append({"event": hook.event, "command": hook.command,
-                              "approved_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
+            approvals.append(
+                {
+                    "event": hook.event,
+                    "command": hook.command,
+                    "approved_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                }
+            )
             known.add((hook.event, hook.command))
             added += 1
     if added:
@@ -212,15 +233,25 @@ def run_hook(hook: ShellHook, kwargs: dict[str, Any]) -> HookRun:
     started = time.monotonic()
     try:
         completed = subprocess.run(  # noqa: S603 - the user wrote and approved this command
-            argv, input=json.dumps(payload, ensure_ascii=False, default=str), capture_output=True, text=True,
-            encoding="utf-8", errors="replace", timeout=hook.timeout,
+            argv,
+            input=json.dumps(payload, ensure_ascii=False, default=str),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=hook.timeout,
             cwd=payload["cwd"] if os.path.isdir(payload["cwd"]) else None,
         )
     except subprocess.TimeoutExpired:
         return HookRun(error=f"timed out after {hook.timeout:g}s", seconds=time.monotonic() - started)
     except OSError as exc:
         return HookRun(error=f"could not start: {exc.strerror or exc}", seconds=time.monotonic() - started)
-    return HookRun(completed.returncode, completed.stdout or "", completed.stderr or "", seconds=time.monotonic() - started)
+    return HookRun(
+        completed.returncode,
+        completed.stdout or "",
+        completed.stderr or "",
+        seconds=time.monotonic() - started,
+    )
 
 
 def _parse_stdout(event: str, stdout: str) -> dict[str, Any] | None:
@@ -239,7 +270,10 @@ def _parse_stdout(event: str, stdout: str) -> dict[str, Any] | None:
         verb = data.get("action") or data.get("decision")
         if verb == "block":
             reason = data.get("message") or data.get("reason")
-            return {"action": "block", "message": reason if isinstance(reason, str) and reason else DEFAULT_BLOCK_MESSAGE}
+            return {
+                "action": "block",
+                "message": reason if isinstance(reason, str) and reason else DEFAULT_BLOCK_MESSAGE,
+            }
         new_args = data.get("args") if isinstance(data.get("args"), dict) else data.get("tool_input")
         if verb == "modify" and isinstance(new_args, dict):
             return {"action": "modify", "args": new_args}
@@ -254,7 +288,11 @@ def evaluate(hook: ShellHook, run: HookRun) -> dict[str, Any] | None:
 
     def failed(reason: str) -> dict[str, Any] | None:
         logger.warning("shell hook %s (%s) %s", hook.command, hook.event, reason)
-        return {"action": "block", "message": f"hook {hook.command} failed closed: {reason}"} if hook.fail_closed else None
+        return (
+            {"action": "block", "message": f"hook {hook.command} failed closed: {reason}"}
+            if hook.fail_closed
+            else None
+        )
 
     if run.error:
         return failed(run.error)
@@ -301,9 +339,13 @@ def register_shell_hooks(config: dict[str, Any] | None = None) -> tuple[list[She
         if bus.timeout and hook.timeout >= bus.timeout:
             # The bus abandons a callback after plugins.hook_callback_timeout, and for
             # pre_tool_call that means "block". Finish first, so the hook's own policy decides.
-            hook = ShellHook(hook.event, hook.command, hook.matcher, max(bus.timeout - 1.0, 1.0), hook.fail_closed)
+            hook = ShellHook(
+                hook.event, hook.command, hook.matcher, max(bus.timeout - 1.0, 1.0), hook.fail_closed
+            )
         bus.register(hook.event, _make_callback(hook), plugin=SHELL_HOOKS_OWNER)
         registered.append(hook)
     if pending:
-        logger.warning("%d shell hook(s) are configured but not approved; run `clite hooks approve`", len(pending))
+        logger.warning(
+            "%d shell hook(s) are configured but not approved; run `clite hooks approve`", len(pending)
+        )
     return registered, pending

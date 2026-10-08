@@ -146,8 +146,22 @@ MIGRATIONS: dict[int, list[str]] = {
 # Columns callers may set through SessionDB.update_session.
 UPDATABLE_SESSION_COLUMNS = frozenset(
     {
-        "model", "provider", "model_config", "system_prompt", "cwd", "title", "title_source",
-        "display_name", "ended_at", "end_reason", "last_activity_at", "archived", "pinned",
-        "hidden", "session_key", "compression_count", "parent_session_id",
+        "model",
+        "provider",
+        "model_config",
+        "system_prompt",
+        "cwd",
+        "title",
+        "title_source",
+        "display_name",
+        "ended_at",
+        "end_reason",
+        "last_activity_at",
+        "archived",
+        "pinned",
+        "hidden",
+        "session_key",
+        "compression_count",
+        "parent_session_id",
     }
 )

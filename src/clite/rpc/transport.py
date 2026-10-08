@@ -17,8 +17,7 @@ class Transport(Protocol):
     def write(self, message: dict[str, Any]) -> bool:
         """Send one message. Returns False when the peer is gone."""
 
-    def close(self) -> None:
-        ...
+    def close(self) -> None: ...
 
 
 class StdioTransport:
@@ -59,7 +58,9 @@ class MemoryTransport:
         with self._condition:
             if self.closed:
                 return False
-            self.messages.append(json.loads(json.dumps(message, default=str)))  # what a real peer would receive
+            self.messages.append(
+                json.loads(json.dumps(message, default=str))
+            )  # what a real peer would receive
             self._condition.notify_all()
             return True
 
@@ -83,13 +84,18 @@ class MemoryTransport:
                 seen = len(self.messages)
                 remaining = end - time.monotonic()
                 if remaining <= 0:
-                    raise TimeoutError(f"no matching message; saw {[m.get('method') or m.get('id') for m in self.messages]}")
+                    raise TimeoutError(
+                        f"no matching message; saw {[m.get('method') or m.get('id') for m in self.messages]}"
+                    )
                 self._condition.wait(remaining)
 
     def events(self, event_type: str | None = None) -> list[dict[str, Any]]:
         with self._condition:
-            return [m["params"] for m in self.messages
-                    if m.get("method") == "event" and (event_type is None or m["params"]["type"] == event_type)]
+            return [
+                m["params"]
+                for m in self.messages
+                if m.get("method") == "event" and (event_type is None or m["params"]["type"] == event_type)
+            ]
 
 
 class WebSocketTransport:

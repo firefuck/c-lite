@@ -41,7 +41,11 @@ def normalize_response(agent: AIAgent, state: TurnState) -> Verdict:
         if state.empty_retries < MAX_EMPTY_RETRIES:
             state.empty_retries += 1
             agent.budget.refund()
-            agent.callbacks.emit("on_status", "retry", f"empty response from the model, retrying ({state.empty_retries}/{MAX_EMPTY_RETRIES})")
+            agent.callbacks.emit(
+                "on_status",
+                "retry",
+                f"empty response from the model, retrying ({state.empty_retries}/{MAX_EMPTY_RETRIES})",
+            )
             return Verdict(CONTINUE, "empty_response")
         message = {"role": "assistant", "content": EMPTY_RESPONSE_TEXT, "finish_reason": "stop"}
         agent.append_message(message)
@@ -51,7 +55,11 @@ def normalize_response(agent: AIAgent, state: TurnState) -> Verdict:
         state.exit_reason = "empty_response"
         return Verdict(BREAK, "empty_response")
 
-    if response.finish_reason == "length" and not response.tool_calls and state.length_continuations < MAX_LENGTH_CONTINUATIONS:
+    if (
+        response.finish_reason == "length"
+        and not response.tool_calls
+        and state.length_continuations < MAX_LENGTH_CONTINUATIONS
+    ):
         # Keep the partial text and ask for the rest. The pieces are joined into one final
         # response; the transcript keeps them as they really happened.
         state.length_continuations += 1
@@ -84,8 +92,13 @@ def dispatch_response(agent: AIAgent, state: TurnState) -> Verdict:
     text = response.content or ""
     if has_hook("transform_llm_output"):
         replacement = first_result(
-            invoke_hook("transform_llm_output", session_id=agent.session_id, text=text, platform=agent.platform,
-                        model=state.route.model)
+            invoke_hook(
+                "transform_llm_output",
+                session_id=agent.session_id,
+                text=text,
+                platform=agent.platform,
+                model=state.route.model,
+            )
         )
         if replacement is not None:
             text = replacement

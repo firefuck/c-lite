@@ -71,7 +71,9 @@ def test_interrupt_stops_a_running_command():
 
 
 def test_secrets_from_dotenv_do_not_reach_the_command(clite_home):
-    (clite_home / ".env").write_text("OPENROUTER_API_KEY=sk-or-very-secret-value-123456\nPUBLIC_SETTING=visible-value\n")
+    (clite_home / ".env").write_text(
+        "OPENROUTER_API_KEY=sk-or-very-secret-value-123456\nPUBLIC_SETTING=visible-value\n"
+    )
     load_env()
     assert _run("echo [$OPENROUTER_API_KEY]")["output"].strip() == "[]"
 
@@ -91,7 +93,10 @@ def test_provider_keys_exported_in_the_shell_do_not_reach_the_command_either(mon
     monkeypatch.setenv("OPENAI_API_KEY", "exported-in-my-shell-profile")
     monkeypatch.setenv("OPENAI_API_KEY_2", "second-exported-key-value")
     monkeypatch.setenv("UNRELATED_SETTING", "plain")
-    assert _run("echo [$OPENAI_API_KEY][$OPENAI_API_KEY_2][$UNRELATED_SETTING]")["output"].strip() == "[][][plain]"
+    assert (
+        _run("echo [$OPENAI_API_KEY][$OPENAI_API_KEY_2][$UNRELATED_SETTING]")["output"].strip()
+        == "[][][plain]"
+    )
     # And if some other program prints it, the transcript does not keep it.
     assert _run("echo exported-in-my-shell-profile")["output"].strip() == "[REDACTED]"
 
@@ -148,11 +153,15 @@ def test_background_process_lifecycle():
 def test_background_process_wait_and_stdin():
     ctx = ToolContext(task_id="t1")
     process_id = _run("read line; echo got:$line", ctx, background=True)["process_id"]
-    assert json.loads(process_tool({"action": "write", "process_id": process_id, "data": "ping\n"}, ctx))["written"]
+    assert json.loads(process_tool({"action": "write", "process_id": process_id, "data": "ping\n"}, ctx))[
+        "written"
+    ]
     waited = json.loads(process_tool({"action": "wait", "process_id": process_id, "timeout": 5}, ctx))
     assert waited["finished"] is True and waited["exit_code"] == 0
     assert "got:ping" in json.loads(process_tool({"action": "log", "process_id": process_id}, ctx))["output"]
 
 
 def test_unknown_process_id():
-    assert "error" in json.loads(process_tool({"action": "poll", "process_id": "proc_missing"}, ToolContext()))
+    assert "error" in json.loads(
+        process_tool({"action": "poll", "process_id": "proc_missing"}, ToolContext())
+    )

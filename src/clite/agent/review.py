@@ -102,7 +102,7 @@ def review_enabled(config: dict[str, Any]) -> bool:
 def turn_tool_calls(agent: AIAgent, state: TurnState) -> int:
     """Tool calls the finished turn made, counted from the messages it added."""
     calls = 0
-    for message in agent.messages[state.first_message_index:]:
+    for message in agent.messages[state.first_message_index :]:
         calls += len(message.get("tool_calls") or [])
     return calls
 
@@ -141,7 +141,7 @@ def build_turn_transcript(agent: AIAgent, state: TurnState, *, max_chars: int = 
     transcript, so the reviewer cannot reach anything that was not put here.
     """
     lines: list[str] = []
-    for message in agent.messages[state.first_message_index:]:
+    for message in agent.messages[state.first_message_index :]:
         role = message.get("role")
         content = message.get("content")
         if role == "user" and isinstance(content, str):
@@ -164,8 +164,9 @@ def build_turn_transcript(agent: AIAgent, state: TurnState, *, max_chars: int = 
 
 
 def review_prompt(agent: AIAgent, state: TurnState) -> str:
-    return _MEMORY_PROMPT.format(tool_calls=turn_tool_calls(agent, state),
-                                 transcript=build_turn_transcript(agent, state))
+    return _MEMORY_PROMPT.format(
+        tool_calls=turn_tool_calls(agent, state), transcript=build_turn_transcript(agent, state)
+    )
 
 
 # ── running the review ───────────────────────────────────────────────────────────────────
@@ -201,7 +202,9 @@ def _build_fork(agent: AIAgent) -> AIAgent:
     """
     from clite.agent.agent import AIAgent as _AIAgent
 
-    max_turns = int(get_path(agent.config, "background_review.max_turns", REVIEW_MAX_TURNS) or REVIEW_MAX_TURNS)
+    max_turns = int(
+        get_path(agent.config, "background_review.max_turns", REVIEW_MAX_TURNS) or REVIEW_MAX_TURNS
+    )
     fork = _AIAgent(
         agent.route,
         platform=agent.platform,

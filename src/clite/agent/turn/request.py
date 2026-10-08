@@ -78,7 +78,7 @@ def _withhold_images(history: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def _backoff(attempt: int, retry_after: float | None) -> float:
     if retry_after is not None:
         return min(max(retry_after, 0.0), 120.0)
-    return min(2.0 ** attempt, MAX_BACKOFF_SECONDS) + random.uniform(0, 0.5)  # noqa: S311 - jitter, not security
+    return min(2.0**attempt, MAX_BACKOFF_SECONDS) + random.uniform(0, 0.5)  # noqa: S311 - jitter, not security
 
 
 def _recover(agent: AIAgent, state: TurnState, error: ClassifiedError) -> str:
@@ -86,12 +86,17 @@ def _recover(agent: AIAgent, state: TurnState, error: ClassifiedError) -> str:
     if error.should_drop_replay and not state.replay_dropped:
         state.replay_dropped = True
         if agent.drop_replay_data():
-            agent.callbacks.emit("on_status", "retry", "the provider rejected replayed reasoning; resending without it")
+            agent.callbacks.emit(
+                "on_status", "retry", "the provider rejected replayed reasoning; resending without it"
+            )
             return "retry"
 
     max_compress = int(get_path(agent.config, "compression.max_attempts", 3))
-    may_compress = (error.should_compress and get_path(agent.config, "compression.enabled", True)
-                    and state.compression_attempts < max_compress)
+    may_compress = (
+        error.should_compress
+        and get_path(agent.config, "compression.enabled", True)
+        and state.compression_attempts < max_compress
+    )
     if may_compress and agent.compress_context(state, reason=error.reason.value):
         return "restart"
 
@@ -110,7 +115,9 @@ def _recover(agent: AIAgent, state: TurnState, error: ClassifiedError) -> str:
         state.api_retries += 1
         delay = _backoff(state.api_retries, error.retry_after)
         agent.callbacks.emit(
-            "on_status", "retry", f"{error.user_message()} - retrying in {delay:.0f}s ({state.api_retries}/{max_retries})"
+            "on_status",
+            "retry",
+            f"{error.user_message()} - retrying in {delay:.0f}s ({state.api_retries}/{max_retries})",
         )
         if agent.interrupt_event.wait(delay):
             return "fail"
@@ -124,27 +131,42 @@ def _recover(agent: AIAgent, state: TurnState, error: ClassifiedError) -> str:
             if (candidate.provider, candidate.model) != (route.provider, route.model):
                 state.route = candidate
                 state.api_retries = 0
-                agent.callbacks.emit("on_status", "fallback",
-                                     f"{error.user_message()} - falling back to {candidate.model} via {candidate.provider}")
+                agent.callbacks.emit(
+                    "on_status",
+                    "fallback",
+                    f"{error.user_message()} - falling back to {candidate.model} via {candidate.provider}",
+                )
                 return "retry"
     return "fail"
 
 
 def call_model(agent: AIAgent, state: TurnState) -> Verdict:
     params = RequestParams(
-        reasoning_effort=agent.reasoning_effort, session_id=agent.session_id,
+        reasoning_effort=agent.reasoning_effort,
+        session_id=agent.session_id,
         show_reasoning=bool(get_path(agent.config, "display.show_reasoning", False)),
         timeout=float(get_path(agent.config, "agent.api_timeout", 600) or 600),
     )
     while True:
         state.api_messages = assemble_api_messages(agent, state)
         if has_hook("pre_api_request"):
-            invoke_hook("pre_api_request", session_id=agent.session_id, model=state.route.model,
-                        provider=state.route.provider, message_count=len(state.api_messages), api_call=state.api_calls + 1)
+            invoke_hook(
+                "pre_api_request",
+                session_id=agent.session_id,
+                model=state.route.model,
+                provider=state.route.provider,
+                message_count=len(state.api_messages),
+                api_call=state.api_calls + 1,
+            )
         try:
             response = agent.client.complete(
-                state.route, state.api_messages, agent.tools or None, params=params, stream=agent.stream,
-                on_delta=agent.callbacks.on_delta, on_reasoning=agent.callbacks.on_reasoning,
+                state.route,
+                state.api_messages,
+                agent.tools or None,
+                params=params,
+                stream=agent.stream,
+                on_delta=agent.callbacks.on_delta,
+                on_reasoning=agent.callbacks.on_reasoning,
                 cancel=agent.interrupt_event,
             )
         except Exception as exc:  # noqa: BLE001 - classified below
@@ -155,9 +177,15 @@ def call_model(agent: AIAgent, state: TurnState) -> Verdict:
                 return Verdict(BREAK, "interrupted")
             logger.warning("model call failed: %s", error.user_message())
             if has_hook("api_request_error"):
-                invoke_hook("api_request_error", session_id=agent.session_id, model=state.route.model,
-                            provider=state.route.provider, reason=error.reason.value, status_code=error.status_code,
-                            message=error.message)
+                invoke_hook(
+                    "api_request_error",
+                    session_id=agent.session_id,
+                    model=state.route.model,
+                    provider=state.route.provider,
+                    reason=error.reason.value,
+                    status_code=error.status_code,
+                    message=error.message,
+                )
             action = _recover(agent, state, error)
             if action == "retry":
                 continue
@@ -177,7 +205,13 @@ def call_model(agent: AIAgent, state: TurnState) -> Verdict:
         state.api_retries = 0
         agent.record_usage(state, response.usage)
         if has_hook("post_api_request"):
-            invoke_hook("post_api_request", session_id=agent.session_id, model=state.route.model,
-                        provider=state.route.provider, usage=response.usage, finish_reason=response.finish_reason,
-                        api_call=state.api_calls)
+            invoke_hook(
+                "post_api_request",
+                session_id=agent.session_id,
+                model=state.route.model,
+                provider=state.route.provider,
+                usage=response.usage,
+                finish_reason=response.finish_reason,
+                api_call=state.api_calls,
+            )
         return PROCEED

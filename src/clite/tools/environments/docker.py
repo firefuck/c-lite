@@ -79,7 +79,12 @@ class DockerEnvironment(LocalEnvironment):
     def _run_docker(self, argv: list[str], *, timeout: int = 60) -> ExecResult:
         try:
             completed = subprocess.run(  # noqa: S603 - managing the container is this backend's job
-                argv, capture_output=True, text=True, timeout=timeout, check=False, env=_docker_client_env(),
+                argv,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+                env=_docker_client_env(),
             )
         except FileNotFoundError:
             return ExecResult("docker is not installed or not on PATH", 127)
@@ -103,8 +108,14 @@ class DockerEnvironment(LocalEnvironment):
         workdir = self.resolve_path(cwd)
         argv = ["docker", "exec", "-i", "-w", workdir, container, "/bin/sh", "-c", command]
         return subprocess.Popen(  # noqa: S603
-            argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, encoding="utf-8", errors="replace", env=_docker_client_env(),
+            argv,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            env=_docker_client_env(),
         )
 
     def execute(
@@ -129,9 +140,14 @@ class DockerEnvironment(LocalEnvironment):
         argv = ["docker", "exec", "-i", "-w", workdir, container, "/bin/sh", "-c", command]
         try:
             process = subprocess.Popen(  # noqa: S603
-                argv, stdin=subprocess.PIPE if stdin_data is not None else subprocess.DEVNULL,
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8",
-                errors="replace", env=_docker_client_env(),
+                argv,
+                stdin=subprocess.PIPE if stdin_data is not None else subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                env=_docker_client_env(),
             )
         except OSError as exc:
             return ExecResult(f"could not run docker exec: {exc}", 126)

@@ -90,8 +90,11 @@ class Change:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Change:
         return cls(
-            path=str(data.get("path", "")), kind=str(data.get("kind", "modified")),
-            saved=data.get("saved"), size=int(data.get("size") or 0), skipped_reason=data.get("skipped_reason"),
+            path=str(data.get("path", "")),
+            kind=str(data.get("kind", "modified")),
+            saved=data.get("saved"),
+            size=int(data.get("size") or 0),
+            skipped_reason=data.get("skipped_reason"),
         )
 
 
@@ -105,14 +108,16 @@ class TurnGroup:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "turn": self.turn, "created_at": self.created_at,
+            "turn": self.turn,
+            "created_at": self.created_at,
             "changes": [change.to_dict() for change in self.changes],
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> TurnGroup:
         return cls(
-            turn=int(data.get("turn") or 0), created_at=float(data.get("created_at") or 0),
+            turn=int(data.get("turn") or 0),
+            created_at=float(data.get("created_at") or 0),
             changes=[Change.from_dict(item) for item in data.get("changes") or []],
         )
 
@@ -134,8 +139,10 @@ class RollbackResult:
     def summary(self) -> str:
         if self.empty:
             return "No checkpoints to roll back."
-        parts = [f"Rolled back {len(self.restored_groups)} turn(s): "
-                 f"{len(self.restored)} file(s) restored, {len(self.removed)} file(s) removed."]
+        parts = [
+            f"Rolled back {len(self.restored_groups)} turn(s): "
+            f"{len(self.restored)} file(s) restored, {len(self.removed)} file(s) removed."
+        ]
         for path, reason in self.skipped:
             parts.append(f"  skipped {path} ({reason})")
         return "\n".join(parts)
@@ -229,7 +236,11 @@ def _user_message_count(ctx: Any) -> int:
         return 0
     count = 0
     for message in messages:
-        if message.get("role") != "user" or message.get("display_kind") == "internal" or message.get("is_summary"):
+        if (
+            message.get("role") != "user"
+            or message.get("display_kind") == "internal"
+            or message.get("is_summary")
+        ):
             continue
         count += 1
     return count
@@ -286,7 +297,9 @@ def record_change(
         size = len(before.encode("utf-8"))
         change.size = size
         if size > MAX_FILE_BYTES:
-            change.skipped_reason = f"file is {size} bytes, larger than the {MAX_FILE_BYTES}-byte checkpoint limit"
+            change.skipped_reason = (
+                f"file is {size} bytes, larger than the {MAX_FILE_BYTES}-byte checkpoint limit"
+            )
         else:
             files = directory / FILES_DIRNAME
             files.mkdir(parents=True, exist_ok=True)
@@ -321,7 +334,7 @@ def rollback(session_id: str, *, turns: int = 1) -> RollbackResult:
     groups = _groups(session_id)
     if not groups:
         return result
-    selected = groups[-result.turns:]
+    selected = groups[-result.turns :]
     for group in reversed(selected):
         _rollback_group(session_id, group, result)
         _remove_group(session_id, group.turn)
@@ -419,7 +432,11 @@ def prune_checkpoints(
         return _prune_missing_sessions(session_ids)
 
     retention_days = float(get_path(config, "sessions.retention_days", 90) or 0)
-    limit = max_bytes if max_bytes is not None else int(get_path(config, "checkpoints.max_bytes", 100_000_000) or 0)
+    limit = (
+        max_bytes
+        if max_bytes is not None
+        else int(get_path(config, "checkpoints.max_bytes", 100_000_000) or 0)
+    )
     moment = time.time() if now is None else now
     cutoff = moment - retention_days * 86400 if retention_days > 0 else None
     emptied: list[str] = []
@@ -455,15 +472,19 @@ def _prune_session_dir(directory: Path, *, cutoff: float | None, limit: int, emp
             removed = True
     if limit > 0 and _dir_size(directory) > limit:
         removed = _trim_to_size(directory, limit) or removed
-    if removed and not any(child.is_dir() and child.name.startswith(TURN_PREFIX) for child in directory.iterdir()):
+    if removed and not any(
+        child.is_dir() and child.name.startswith(TURN_PREFIX) for child in directory.iterdir()
+    ):
         shutil.rmtree(directory, ignore_errors=True)
         emptied.append(directory.name)
 
 
 def _trim_to_size(directory: Path, limit: int) -> bool:
     """Delete oldest turn groups until ``directory`` fits in ``limit`` bytes."""
-    turns = sorted((entry for entry in directory.iterdir()
-                    if entry.is_dir() and entry.name.startswith(TURN_PREFIX)), key=lambda path: path.name)
+    turns = sorted(
+        (entry for entry in directory.iterdir() if entry.is_dir() and entry.name.startswith(TURN_PREFIX)),
+        key=lambda path: path.name,
+    )
     removed = False
     for entry in turns:
         if _dir_size(directory) <= limit:

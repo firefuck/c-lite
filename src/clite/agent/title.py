@@ -41,8 +41,13 @@ def generate_title(agent: AIAgent, user_text: str) -> str:
     if agent.route.api_mode != "mock":
         try:
             raw = call_auxiliary(
-                "title_generation", [{"role": "user", "content": _PROMPT.format(message=user_text[:2000])}],
-                main_route=agent.route, client=agent.client, max_tokens=40, timeout=30.0, config=agent.config,
+                "title_generation",
+                [{"role": "user", "content": _PROMPT.format(message=user_text[:2000])}],
+                main_route=agent.route,
+                client=agent.client,
+                max_tokens=40,
+                timeout=30.0,
+                config=agent.config,
             )
             title = clean_title(raw)
             if title:

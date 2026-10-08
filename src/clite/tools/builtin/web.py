@@ -22,8 +22,30 @@ from clite.tools.web_search import _search, has_web_search_provider
 MAX_DOWNLOAD_BYTES = 3_000_000
 DEFAULT_MAX_CHARS = 20_000
 _SKIP_TAGS = frozenset({"script", "style", "noscript", "svg", "template", "head"})
-_BLOCK_TAGS = frozenset({"p", "div", "br", "li", "tr", "h1", "h2", "h3", "h4", "h5", "h6", "section", "article",
-                         "header", "footer", "pre", "blockquote", "table", "ul", "ol"})
+_BLOCK_TAGS = frozenset(
+    {
+        "p",
+        "div",
+        "br",
+        "li",
+        "tr",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "section",
+        "article",
+        "header",
+        "footer",
+        "pre",
+        "blockquote",
+        "table",
+        "ul",
+        "ol",
+    }
+)
 
 WEB_FETCH_SCHEMA = {
     "name": "web_fetch",
@@ -35,8 +57,14 @@ WEB_FETCH_SCHEMA = {
         "type": "object",
         "properties": {
             "url": {"type": "string", "description": "The http(s) URL to fetch."},
-            "max_chars": {"type": "integer", "description": f"Maximum characters to return (default {DEFAULT_MAX_CHARS})."},
-            "offset": {"type": "integer", "description": "Character offset to continue a truncated page (default 0)."},
+            "max_chars": {
+                "type": "integer",
+                "description": f"Maximum characters to return (default {DEFAULT_MAX_CHARS}).",
+            },
+            "offset": {
+                "type": "integer",
+                "description": "Character offset to continue a truncated page (default 0).",
+            },
         },
         "required": ["url"],
     },
@@ -154,9 +182,13 @@ def web_fetch_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
     except (TypeError, ValueError):
         return tool_error("max_chars and offset must be integers")
 
-    request = urllib.request.Request(url, headers={  # noqa: S310 - scheme checked above
-        "User-Agent": f"clite/{__version__} (+web_fetch)", "Accept": "text/html,text/plain,application/json,*/*;q=0.5",
-    })
+    request = urllib.request.Request(
+        url,
+        headers={  # noqa: S310 - scheme checked above
+            "User-Agent": f"clite/{__version__} (+web_fetch)",
+            "Accept": "text/html,text/plain,application/json,*/*;q=0.5",
+        },
+    )
     opener = urllib.request.build_opener(_GuardedRedirects(allow_private))
     try:
         with opener.open(request, timeout=int(ctx.setting("web.timeout", 30) or 30)) as response:
@@ -180,7 +212,9 @@ def web_fetch_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
     if content_type in ("text/html", "application/xhtml+xml"):
         title, body = html_to_text(body)
     elif not (content_type.startswith("text/") or content_type in ("application/json", "application/xml")):
-        return tool_error(f"unsupported content type {content_type}; web_fetch reads text only", url=final_url)
+        return tool_error(
+            f"unsupported content type {content_type}; web_fetch reads text only", url=final_url
+        )
 
     chunk = body[offset : offset + max_chars]
     payload: dict[str, Any] = {"url": final_url, "title": title, "content": chunk, "total_chars": len(body)}
@@ -204,7 +238,10 @@ WEB_SEARCH_SCHEMA = {
         "type": "object",
         "properties": {
             "query": {"type": "string", "description": "The search query."},
-            "max_results": {"type": "integer", "description": "Maximum results to return (default 5, max 10)."},
+            "max_results": {
+                "type": "integer",
+                "description": "Maximum results to return (default 5, max 10).",
+            },
         },
         "required": ["query"],
     },
@@ -235,11 +272,15 @@ def web_search_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str
         url = str(hit.get("url") or hit.get("link") or "").strip()
         if not url:
             continue
-        clean.append({
-            "title": str(hit.get("title") or "").strip(),
-            "url": url,
-            "snippet": str(hit.get("snippet") or hit.get("content") or hit.get("description") or "").strip(),
-        })
+        clean.append(
+            {
+                "title": str(hit.get("title") or "").strip(),
+                "url": url,
+                "snippet": str(
+                    hit.get("snippet") or hit.get("content") or hit.get("description") or ""
+                ).strip(),
+            }
+        )
     return tool_result({"query": query, "results": clean})
 
 
@@ -248,6 +289,11 @@ def _web_search_available() -> bool:
 
 
 registry.register(
-    "web_search", "web", WEB_SEARCH_SCHEMA, web_search_tool,
-    emoji="🔍", parallel=PARALLEL_SAFE, check_fn=_web_search_available,
+    "web_search",
+    "web",
+    WEB_SEARCH_SCHEMA,
+    web_search_tool,
+    emoji="🔍",
+    parallel=PARALLEL_SAFE,
+    check_fn=_web_search_available,
 )

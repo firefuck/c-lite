@@ -24,14 +24,20 @@ def _find(reference: str):
 
 
 def run_list(args: argparse.Namespace) -> int:
-    rows = get_session_db().list_sessions(limit=args.limit, sources=[args.source] if args.source else None,
-                                          include_archived=args.all, include_children=args.all)
+    rows = get_session_db().list_sessions(
+        limit=args.limit,
+        sources=[args.source] if args.source else None,
+        include_archived=args.all,
+        include_children=args.all,
+    )
     if not rows:
         print("No sessions yet.")
         return 0
     for row in rows:
-        print(f"{row['id']}  {_when(row.get('last_activity_at') or row['started_at'])}  {row['source']:<8} "
-              f"{row['message_count']:>4} msgs  {row.get('model') or '':<24.24} {row.get('title') or ''}")
+        print(
+            f"{row['id']}  {_when(row.get('last_activity_at') or row['started_at'])}  {row['source']:<8} "
+            f"{row['message_count']:>4} msgs  {row.get('model') or '':<24.24} {row.get('title') or ''}"
+        )
     return 0
 
 
@@ -39,7 +45,9 @@ def run_show(args: argparse.Namespace) -> int:
     row = _find(args.session)
     if row is None:
         return 1
-    print(f"# {row.get('title') or row['id']}  ({row['source']}, {row.get('model')}, started {_when(row['started_at'])})\n")
+    print(
+        f"# {row.get('title') or row['id']}  ({row['source']}, {row.get('model')}, started {_when(row['started_at'])})\n"
+    )
     for message in get_session_db().get_messages(row["id"], include_inactive=args.all):
         if is_internal(message) and not args.all:
             continue  # a note the agent wrote to itself, not something the user said
@@ -74,9 +82,20 @@ def run_export(args: argparse.Namespace) -> int:
     if row is None:
         return 1
     db = get_session_db()
-    messages = [{key: value for key, value in message.items() if key != "_row_id"} for message in db.get_messages(row["id"])]
-    payload = json.dumps({"session": {key: row[key] for key in ("id", "source", "model", "provider", "title", "started_at")},
-                          "messages": messages}, ensure_ascii=False, indent=2)
+    messages = [
+        {key: value for key, value in message.items() if key != "_row_id"}
+        for message in db.get_messages(row["id"])
+    ]
+    payload = json.dumps(
+        {
+            "session": {
+                key: row[key] for key in ("id", "source", "model", "provider", "title", "started_at")
+            },
+            "messages": messages,
+        },
+        ensure_ascii=False,
+        indent=2,
+    )
     if args.output:
         with open(args.output, "w", encoding="utf-8") as handle:
             handle.write(payload + "\n")
@@ -97,12 +116,18 @@ def run_search(args: argparse.Namespace) -> int:
 
 
 def run_prune(args: argparse.Namespace) -> int:
-    days = args.older_than if args.older_than is not None else float(config_get("sessions.retention_days", 90) or 90)
+    days = (
+        args.older_than
+        if args.older_than is not None
+        else float(config_get("sessions.retention_days", 90) or 90)
+    )
     db = get_session_db()
     if not args.yes:
         count = db.prune_sessions(days, dry_run=True)
-        print(f"{count} session(s) with no activity for {days:g} days would be deleted (pinned sessions are kept). "
-              "Re-run with --yes to delete them.")
+        print(
+            f"{count} session(s) with no activity for {days:g} days would be deleted (pinned sessions are kept). "
+            "Re-run with --yes to delete them."
+        )
         return 0
     print(f"Deleted {db.prune_sessions(days)} session(s).")
     return 0
@@ -137,7 +162,12 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     search.add_argument("-n", "--limit", type=int, default=20)
     search.set_defaults(handler=run_search)
     prune = actions.add_parser("prune", help="delete old sessions")
-    prune.add_argument("--older-than", type=float, default=None, metavar="DAYS",
-                       help="default: sessions.retention_days from config.yaml")
+    prune.add_argument(
+        "--older-than",
+        type=float,
+        default=None,
+        metavar="DAYS",
+        help="default: sessions.retention_days from config.yaml",
+    )
     prune.add_argument("--yes", action="store_true", help="delete; without it the command only counts")
     prune.set_defaults(handler=run_prune)

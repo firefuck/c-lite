@@ -137,14 +137,23 @@ class _StdioTransport:
         env = build_child_env({str(k): str(v) for k, v in (server.spec.get("env") or {}).items()})
         try:
             self.process = subprocess.Popen(  # noqa: S603 - the user configured this command
-                [str(command), *[str(arg) for arg in server.spec.get("args") or []]], stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace",
-                env=env, cwd=server.spec.get("cwd") or None)
+                [str(command), *[str(arg) for arg in server.spec.get("args") or []]],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                env=env,
+                cwd=server.spec.get("cwd") or None,
+            )
         except OSError as exc:
             raise McpError(f"could not start mcp server {server.name!r}: {exc}") from exc
         server.process = self.process  # the old attribute name, kept for callers that watch it
         threading.Thread(target=self._read_stdout, name=f"clite-mcp-{server.name}", daemon=True).start()
-        self._stderr_reader = threading.Thread(target=server._read_stderr, name=f"clite-mcp-{server.name}-err", daemon=True)
+        self._stderr_reader = threading.Thread(
+            target=server._read_stderr, name=f"clite-mcp-{server.name}-err", daemon=True
+        )
         self._stderr_reader.start()
 
     def send(self, message: dict[str, Any]) -> None:
@@ -156,8 +165,9 @@ class _StdioTransport:
                 process.stdin.write(json.dumps(message, ensure_ascii=False) + "\n")
                 process.stdin.flush()
             except OSError as exc:
-                raise McpError(f"mcp server {self.server.name!r} closed its input: {exc}"
-                               + self.server._stderr_hint()) from exc
+                raise McpError(
+                    f"mcp server {self.server.name!r} closed its input: {exc}" + self.server._stderr_hint()
+                ) from exc
 
     def stderr_hint(self) -> str:
         # stdout EOF/process exit can precede the stderr reader getting its last timeslice.
@@ -211,7 +221,10 @@ class McpServer:
     def __init__(self, name: str, spec: dict[str, Any]) -> None:
         self.name = name
         self.spec = spec
-        self.timeout = float(spec.get("timeout") or (DEFAULT_HTTP_TIMEOUT_SECONDS if spec.get("url") else DEFAULT_CALL_TIMEOUT_SECONDS))
+        self.timeout = float(
+            spec.get("timeout")
+            or (DEFAULT_HTTP_TIMEOUT_SECONDS if spec.get("url") else DEFAULT_CALL_TIMEOUT_SECONDS)
+        )
         self.process: subprocess.Popen | None = None  # set for stdio transports, for callers that watch it
         self.tools: list[dict[str, Any]] = []
         self.resources: list[dict[str, Any]] = []
@@ -238,10 +251,15 @@ class McpServer:
     def start(self) -> None:
         self._transport = HttpTransport(self.name, self.spec) if self.is_http else _StdioTransport(self)
         self._transport.start()
-        result = self.request("initialize", {
-            "protocolVersion": PROTOCOL_VERSION, "capabilities": {},
-            "clientInfo": {"name": "clite", "version": __version__},
-        }, timeout=STARTUP_TIMEOUT_SECONDS)
+        result = self.request(
+            "initialize",
+            {
+                "protocolVersion": PROTOCOL_VERSION,
+                "capabilities": {},
+                "clientInfo": {"name": "clite", "version": __version__},
+            },
+            timeout=STARTUP_TIMEOUT_SECONDS,
+        )
         self.server_info = result.get("serverInfo") or {}
         self.capabilities = result.get("capabilities") or {}
         if isinstance(self._transport, HttpTransport):
@@ -252,8 +270,11 @@ class McpServer:
         if self._supports("resources"):
             self.resources = self._list_paginated("resources/list", "resources")
         if self._supports("prompts"):
-            self.prompts = [self._to_prompt(entry) for entry in self._list_paginated("prompts/list", "prompts")
-                            if isinstance(entry, dict) and entry.get("name")]
+            self.prompts = [
+                self._to_prompt(entry)
+                for entry in self._list_paginated("prompts/list", "prompts")
+                if isinstance(entry, dict) and entry.get("name")
+            ]
 
     def _supports(self, capability: str) -> bool:
         return isinstance(self.capabilities.get(capability), dict)
@@ -266,7 +287,9 @@ class McpServer:
         items: list[dict[str, Any]] = []
         cursor = None
         for _ in range(50):  # a server that never stops paginating must not hang startup
-            result = self.request(method, {"cursor": cursor} if cursor else {}, timeout=STARTUP_TIMEOUT_SECONDS)
+            result = self.request(
+                method, {"cursor": cursor} if cursor else {}, timeout=STARTUP_TIMEOUT_SECONDS
+            )
             items.extend(item for item in result.get(key) or [] if isinstance(item, dict))
             cursor = result.get("nextCursor")
             if not cursor:
@@ -302,7 +325,9 @@ class McpServer:
             message["params"] = params
         self._send(message)
 
-    def request(self, method: str, params: dict[str, Any] | None = None, *, timeout: float | None = None) -> dict[str, Any]:
+    def request(
+        self, method: str, params: dict[str, Any] | None = None, *, timeout: float | None = None
+    ) -> dict[str, Any]:
         with self._lock:
             self._next_id += 1
             request_id = self._next_id
@@ -310,7 +335,9 @@ class McpServer:
         try:
             self._send({"jsonrpc": "2.0", "id": request_id, "method": method, "params": params or {}})
             if not waiter.event.wait(timeout or self.timeout):
-                raise McpError(f"mcp server {self.name!r} did not answer {method} within {timeout or self.timeout:.0f}s")
+                raise McpError(
+                    f"mcp server {self.name!r} did not answer {method} within {timeout or self.timeout:.0f}s"
+                )
         finally:
             with self._lock:
                 self._pending.pop(request_id, None)
@@ -357,8 +384,13 @@ class McpServer:
             if method == "ping":
                 self._send({"jsonrpc": "2.0", "id": message["id"], "result": {}})
             else:  # sampling, roots, elicitation: capabilities we did not announce
-                self._send({"jsonrpc": "2.0", "id": message["id"],
-                            "error": {"code": -32601, "message": f"{method} is not supported by this client"}})
+                self._send(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": message["id"],
+                        "error": {"code": -32601, "message": f"{method} is not supported by this client"},
+                    }
+                )
         except McpError:
             pass
 
@@ -392,16 +424,26 @@ class McpServer:
         self.resources = resources
         if not resources:
             return tool_result({"resources": [], "note": "this server exposes no resources"})
-        return tool_result({"resources": [
-            {"uri": entry.get("uri"), "name": entry.get("name") or entry.get("uri"),
-             "description": entry.get("description") or "", "mimeType": entry.get("mimeType") or ""}
-            for entry in resources
-        ]})
+        return tool_result(
+            {
+                "resources": [
+                    {
+                        "uri": entry.get("uri"),
+                        "name": entry.get("name") or entry.get("uri"),
+                        "description": entry.get("description") or "",
+                        "mimeType": entry.get("mimeType") or "",
+                    }
+                    for entry in resources
+                ]
+            }
+        )
 
     def read_resource(self, uri: str) -> str:
         """Read one resource by ``uri``; text contents are returned, binary is noted by type."""
         if not uri:
-            return tool_error(f"uri is required; call mcp_{safe_name(self.name)}_list_resources to see the available URIs")
+            return tool_error(
+                f"uri is required; call mcp_{safe_name(self.name)}_list_resources to see the available URIs"
+            )
         try:
             result = self.request("resources/read", {"uri": uri})
         except McpError as exc:
@@ -411,10 +453,21 @@ class McpServer:
             if not isinstance(block, dict):
                 continue
             if isinstance(block.get("text"), str):
-                contents.append({"uri": block.get("uri") or uri, "mimeType": block.get("mimeType") or "", "text": block["text"]})
+                contents.append(
+                    {
+                        "uri": block.get("uri") or uri,
+                        "mimeType": block.get("mimeType") or "",
+                        "text": block["text"],
+                    }
+                )
             else:
-                contents.append({"uri": block.get("uri") or uri, "mimeType": block.get("mimeType") or "",
-                                 "note": "non-text content omitted"})
+                contents.append(
+                    {
+                        "uri": block.get("uri") or uri,
+                        "mimeType": block.get("mimeType") or "",
+                        "note": "non-text content omitted",
+                    }
+                )
         if not contents:
             return tool_result({"uri": uri, "contents": [], "note": "the resource is empty"})
         return tool_result({"uri": uri, "contents": contents})
@@ -439,8 +492,16 @@ class McpServer:
                 "description": f"[{self.name}] {tool.get('description') or name}"[:1024],
                 "parameters": tool.get("inputSchema") or {"type": "object", "properties": {}},
             }
-            registry.register(exposed, toolset, schema, lambda args, _name=name: self.call_tool(_name, args),
-                              origin=origin, parallel=PARALLEL_NEVER, override=True, check_fn=self.is_alive)
+            registry.register(
+                exposed,
+                toolset,
+                schema,
+                lambda args, _name=name: self.call_tool(_name, args),
+                origin=origin,
+                parallel=PARALLEL_NEVER,
+                override=True,
+                check_fn=self.is_alive,
+            )
             registered.append(exposed)
         if self._supports("resources"):
             registered += self._register_resource_tools(toolset, origin)
@@ -452,22 +513,39 @@ class McpServer:
         prefix = f"mcp_{safe_name(self.name)}"
         list_name, read_name = f"{prefix}_list_resources", f"{prefix}_read_resource"
         registry.register(
-            list_name, toolset,
-            {"name": list_name,
-             "description": f"[{self.name}] List the resources this server exposes (URIs you can read "
-                            f"with {read_name})"[:1024],
-             "parameters": {"type": "object", "properties": {}}},
-            lambda args: self.list_resources(), origin=origin, parallel=PARALLEL_SAFE,
-            override=True, check_fn=self.is_alive)
+            list_name,
+            toolset,
+            {
+                "name": list_name,
+                "description": f"[{self.name}] List the resources this server exposes (URIs you can read "
+                f"with {read_name})"[:1024],
+                "parameters": {"type": "object", "properties": {}},
+            },
+            lambda args: self.list_resources(),
+            origin=origin,
+            parallel=PARALLEL_SAFE,
+            override=True,
+            check_fn=self.is_alive,
+        )
         registry.register(
-            read_name, toolset,
-            {"name": read_name,
-             "description": f"[{self.name}] Read one resource by URI (from {list_name})"[:1024],
-             "parameters": {"type": "object", "properties": {"uri": {"type": "string",
-                                                                     "description": "The resource URI to read"}},
-                            "required": ["uri"]}},
-            lambda args: self.read_resource(str(args.get("uri") or "")), origin=origin, parallel=PARALLEL_SAFE,
-            override=True, check_fn=self.is_alive, path_args=())
+            read_name,
+            toolset,
+            {
+                "name": read_name,
+                "description": f"[{self.name}] Read one resource by URI (from {list_name})"[:1024],
+                "parameters": {
+                    "type": "object",
+                    "properties": {"uri": {"type": "string", "description": "The resource URI to read"}},
+                    "required": ["uri"],
+                },
+            },
+            lambda args: self.read_resource(str(args.get("uri") or "")),
+            origin=origin,
+            parallel=PARALLEL_SAFE,
+            override=True,
+            check_fn=self.is_alive,
+            path_args=(),
+        )
         return [list_name, read_name]
 
     def is_alive(self) -> bool:
@@ -589,7 +667,9 @@ def connect_mcp_servers(config: dict[str, Any]) -> dict[str, list[str]]:
             logger.warning("mcp server %s is unavailable: %s", name, exc)
             server.stop()
             server.mark_failure()
-            logger.info("mcp server %s will not be retried for %.0fs", name, max(server.retry_seconds_left(), 0))
+            logger.info(
+                "mcp server %s will not be retried for %.0fs", name, max(server.retry_seconds_left(), 0)
+            )
         with _SERVERS_LOCK:
             _SERVERS[key] = server
     return connected
@@ -601,8 +681,11 @@ def _refresh(server: McpServer) -> None:
     if server._supports("resources"):
         server.resources = server._list_paginated("resources/list", "resources")
     if server._supports("prompts"):
-        server.prompts = [server._to_prompt(entry) for entry in server._list_paginated("prompts/list", "prompts")
-                          if isinstance(entry, dict) and entry.get("name")]
+        server.prompts = [
+            server._to_prompt(entry)
+            for entry in server._list_paginated("prompts/list", "prompts")
+            if isinstance(entry, dict) and entry.get("name")
+        ]
     server.tools_changed = False
 
 
@@ -620,15 +703,17 @@ def mcp_servers_snapshot() -> list[dict[str, Any]]:
         servers = list(_SERVERS.values())
     rows = []
     for server in servers:
-        rows.append({
-            "name": server.name,
-            "transport": "http" if server.is_http else "stdio",
-            "alive": server.is_alive(),
-            "tools": list(server.registered),
-            "resources": len(server.resources),
-            "prompts": len(server.prompts),
-            "tools_changed": server.tools_changed,
-        })
+        rows.append(
+            {
+                "name": server.name,
+                "transport": "http" if server.is_http else "stdio",
+                "alive": server.is_alive(),
+                "tools": list(server.registered),
+                "resources": len(server.resources),
+                "prompts": len(server.prompts),
+                "tools_changed": server.tools_changed,
+            }
+        )
     return rows
 
 
@@ -662,8 +747,7 @@ def read_mcp_prompt(command: str, args: str) -> str:
         if index < len(words):
             arguments[name] = " ".join(words[index:]) if index == len(names) - 1 else words[index]
     if names and not words:
-        return (f"/{command} needs arguments: {' '.join(names)}. "
-                f"Usage: /{command} {prompt.usage()}".strip())
+        return f"/{command} needs arguments: {' '.join(names)}. Usage: /{command} {prompt.usage()}".strip()
     server = next((item for item in _servers_for(prompt.server)), None)
     if server is None:
         return f"MCP server {prompt.server!r} is not connected."
@@ -694,8 +778,15 @@ def mcp_prompt_error(command: str, args: str) -> str | None:
 def mcp_prompt_catalog() -> list[dict[str, Any]]:
     """Prompt commands shaped like ``command_catalog`` entries, for help and autocomplete."""
     return [
-        {"name": prompt.command, "description": (prompt.description or f"Prompt from {prompt.server}")[:80],
-         "category": "MCP", "aliases": [], "args_hint": prompt.usage(), "subcommands": [], "kind": "mcp"}
+        {
+            "name": prompt.command,
+            "description": (prompt.description or f"Prompt from {prompt.server}")[:80],
+            "category": "MCP",
+            "aliases": [],
+            "args_hint": prompt.usage(),
+            "subcommands": [],
+            "kind": "mcp",
+        }
         for prompt in sorted(mcp_prompt_commands().values(), key=lambda item: item.command)
     ]
 

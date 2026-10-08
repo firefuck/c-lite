@@ -24,10 +24,10 @@ register_provider(
         name="moonshot",
         display_name="Moonshot",
         description="Moonshot API",
-        env_vars=('MOONSHOT_API_KEY',),
+        env_vars=("MOONSHOT_API_KEY",),
         base_url="https://api.moonshot.ai/v1",
         base_url_env="MOONSHOT_BASE_URL",
-        fallback_models=('kimi-k2.6',),
-        context_lengths={'kimi-k2.6': 256_000},
+        fallback_models=("kimi-k2.6",),
+        context_lengths={"kimi-k2.6": 256_000},
     )
 )

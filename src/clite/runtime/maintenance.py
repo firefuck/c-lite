@@ -37,7 +37,9 @@ def reset_maintenance_state() -> None:
         _DONE.clear()
 
 
-def auto_prune_sessions(config: dict[str, Any], *, keep: Iterable[str] = (), now: float | None = None) -> int | None:
+def auto_prune_sessions(
+    config: dict[str, Any], *, keep: Iterable[str] = (), now: float | None = None
+) -> int | None:
     """Apply ``sessions.auto_prune``. Returns the number of sessions deleted, or ``None``
     when pruning is off or already ran within the last day."""
     if not get_path(config, "sessions.auto_prune", False):
@@ -57,7 +59,9 @@ def auto_prune_sessions(config: dict[str, Any], *, keep: Iterable[str] = (), now
     return deleted
 
 
-def run_startup_maintenance(config: dict[str, Any] | None = None, *, keep_sessions: Iterable[str] = ()) -> None:
+def run_startup_maintenance(
+    config: dict[str, Any] | None = None, *, keep_sessions: Iterable[str] = ()
+) -> None:
     """Run the housekeeping steps once for this process and home."""
     key = home_key()
     with _LOCK:

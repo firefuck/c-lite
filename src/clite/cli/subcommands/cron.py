@@ -20,15 +20,23 @@ def run_list(args: argparse.Namespace) -> int:
         return 0
     for job in jobs:
         state = "active" if job.get("enabled", True) else "paused"
-        print(f"{job['id']}  {state:<7} {job['schedule_display']:<22} next {_when(job.get('next_run_at')):<17} "
-              f"last {job.get('last_status') or '-':<7} {job.get('name') or job['prompt'][:50]}")
+        print(
+            f"{job['id']}  {state:<7} {job['schedule_display']:<22} next {_when(job.get('next_run_at')):<17} "
+            f"last {job.get('last_status') or '-':<7} {job.get('name') or job['prompt'][:50]}"
+        )
     return 0
 
 
 def run_add(args: argparse.Namespace) -> int:
     try:
-        job = get_job_store().create(args.prompt, args.schedule, name=args.name or "", deliver=args.deliver,
-                                     repeat=args.repeat, skills=args.skill or [])
+        job = get_job_store().create(
+            args.prompt,
+            args.schedule,
+            name=args.name or "",
+            deliver=args.deliver,
+            repeat=args.repeat,
+            skills=args.skill or [],
+        )
     except JobError as exc:
         print(f"Not scheduled: {exc}")
         return 1
@@ -54,7 +62,10 @@ def _apply(method: str, job_id: str, done: str) -> int:
 def run_tick(args: argparse.Namespace) -> int:
     outcomes = tick()
     for outcome in outcomes:
-        print(f"{outcome['job_id']}: {outcome['status']}" + (f" ({outcome.get('error')})" if outcome.get("error") else ""))
+        print(
+            f"{outcome['job_id']}: {outcome['status']}"
+            + (f" ({outcome.get('error')})" if outcome.get("error") else "")
+        )
     if not outcomes:
         print("Nothing was due.")
     return 0 if all(outcome["status"] == "ok" for outcome in outcomes) else 1
@@ -85,8 +96,12 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     add.add_argument("--repeat", type=int, help="stop after this many runs")
     add.add_argument("--skill", action="append", help="skill to load into each run (repeatable)")
     add.set_defaults(handler=run_add)
-    for action, method, done in (("pause", "pause", "paused"), ("resume", "resume", "resumed"),
-                                 ("run", "trigger", "due on the next tick"), ("remove", "remove", "removed")):
+    for action, method, done in (
+        ("pause", "pause", "paused"),
+        ("resume", "resume", "resumed"),
+        ("run", "trigger", "due on the next tick"),
+        ("remove", "remove", "removed"),
+    ):
         sub = actions.add_parser(action, help=f"{action} a job")
         sub.add_argument("job_id")
         sub.set_defaults(handler=lambda args, method=method, done=done: _apply(method, args.job_id, done))

@@ -27,8 +27,15 @@ class SessionSource:
     chat_name: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        return {"platform": self.platform, "chat_id": self.chat_id, "user_id": self.user_id, "user_name": self.user_name,
-                "chat_type": self.chat_type, "thread_id": self.thread_id, "chat_name": self.chat_name}
+        return {
+            "platform": self.platform,
+            "chat_id": self.chat_id,
+            "user_id": self.user_id,
+            "user_name": self.user_name,
+            "chat_type": self.chat_type,
+            "thread_id": self.thread_id,
+            "chat_name": self.chat_name,
+        }
 
 
 @dataclass

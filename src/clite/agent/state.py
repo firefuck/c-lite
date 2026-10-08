@@ -75,13 +75,22 @@ class TurnResult:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "final_response": self.final_response, "completed": self.completed, "interrupted": self.interrupted,
-            "error": self.error, "exit_reason": self.exit_reason, "api_calls": self.api_calls,
-            "session_id": self.session_id, "model": self.model, "provider": self.provider,
+            "final_response": self.final_response,
+            "completed": self.completed,
+            "interrupted": self.interrupted,
+            "error": self.error,
+            "exit_reason": self.exit_reason,
+            "api_calls": self.api_calls,
+            "session_id": self.session_id,
+            "model": self.model,
+            "provider": self.provider,
             "duration": round(self.duration, 3),
             "usage": {
-                "input_tokens": self.usage.input_tokens, "output_tokens": self.usage.output_tokens,
-                "cache_read_tokens": self.usage.cache_read_tokens, "cache_write_tokens": self.usage.cache_write_tokens,
-                "reasoning_tokens": self.usage.reasoning_tokens, "prompt_tokens": self.usage.prompt_tokens,
+                "input_tokens": self.usage.input_tokens,
+                "output_tokens": self.usage.output_tokens,
+                "cache_read_tokens": self.usage.cache_read_tokens,
+                "cache_write_tokens": self.usage.cache_write_tokens,
+                "reasoning_tokens": self.usage.reasoning_tokens,
+                "prompt_tokens": self.usage.prompt_tokens,
             },
         }

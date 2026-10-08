@@ -53,23 +53,37 @@ def convert_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
             converted.extend(deepcopy(message["provider_data"][REPLAY_KEY]))
             continue
         if role == "tool":
-            converted.append({"type": "function_call_output", "call_id": message.get("tool_call_id"),
-                              "output": message.get("content") or ""})
+            converted.append(
+                {
+                    "type": "function_call_output",
+                    "call_id": message.get("tool_call_id"),
+                    "output": message.get("content") or "",
+                }
+            )
             continue
         content = message.get("content")
         if content is not None and (content or not message.get("tool_calls")):
             converted.append({"role": role, "content": _content(content, str(role))})
         for call in message.get("tool_calls") or []:
             function = call.get("function") or {}
-            converted.append({"type": "function_call", "call_id": call["id"], "name": function["name"],
-                              "arguments": function.get("arguments") or "{}"})
+            converted.append(
+                {
+                    "type": "function_call",
+                    "call_id": call["id"],
+                    "name": function["name"],
+                    "arguments": function.get("arguments") or "{}",
+                }
+            )
     return converted
 
 
 def parse_response(payload: dict[str, Any]) -> NormalizedResponse:
     """Normalize a response while retaining an independent, replayable output snapshot."""
     if payload.get("error") or payload.get("status") == "failed":
-        error = payload.get("error") or {"code": "server_error", "message": "Response failed; retry the request."}
+        error = payload.get("error") or {
+            "code": "server_error",
+            "message": "Response failed; retry the request.",
+        }
         raise ProviderHTTPError(400, json.dumps({"error": error}), {}, "")
     output = deepcopy(payload.get("output") or [])
     text: list[str] = []
@@ -88,29 +102,40 @@ def parse_response(payload: dict[str, Any]) -> NormalizedResponse:
         elif kind == "reasoning":
             reasoning.extend(part.get("text", "") for part in item.get("summary") or [])
         elif kind == "function_call":
-            calls.append(ToolCall(id=item["call_id"], name=item["name"], arguments=item.get("arguments") or "{}"))
+            calls.append(
+                ToolCall(id=item["call_id"], name=item["name"], arguments=item.get("arguments") or "{}")
+            )
     raw = payload.get("usage")
     usage = None
     if isinstance(raw, dict):
         cached = int((raw.get("input_tokens_details") or {}).get("cached_tokens") or 0)
-        usage = Usage(input_tokens=max(int(raw.get("input_tokens") or 0) - cached, 0),
-                      output_tokens=int(raw.get("output_tokens") or 0), cache_read_tokens=cached,
-                      reasoning_tokens=int((raw.get("output_tokens_details") or {}).get("reasoning_tokens") or 0))
+        usage = Usage(
+            input_tokens=max(int(raw.get("input_tokens") or 0) - cached, 0),
+            output_tokens=int(raw.get("output_tokens") or 0),
+            cache_read_tokens=cached,
+            reasoning_tokens=int((raw.get("output_tokens_details") or {}).get("reasoning_tokens") or 0),
+        )
     finish_reason = "tool_calls" if calls else "stop"
     incomplete = payload.get("status") == "incomplete"
     if incomplete or refused:
         detail = (payload.get("incomplete_details") or {}).get("reason")
         finish_reason = "content_filter" if refused or detail == "content_filter" else "length"
         calls = []  # Never execute a function whose argument stream may have been cut short.
-    return NormalizedResponse(content="".join(text) or None, reasoning="".join(reasoning) or None,
-                              tool_calls=calls, finish_reason=finish_reason, usage=usage,
-                              model=str(payload.get("model") or ""),
-                              provider_data={REPLAY_KEY: output} if output and not incomplete else None)
+    return NormalizedResponse(
+        content="".join(text) or None,
+        reasoning="".join(reasoning) or None,
+        tool_calls=calls,
+        finish_reason=finish_reason,
+        usage=usage,
+        model=str(payload.get("model") or ""),
+        provider_data={REPLAY_KEY: output} if output and not incomplete else None,
+    )
 
 
 class ResponsesAccumulator(StreamAccumulator):
-    def __init__(self, on_delta: Callable[[str], None] | None = None,
-                 on_reasoning: Callable[[str], None] | None = None) -> None:
+    def __init__(
+        self, on_delta: Callable[[str], None] | None = None, on_reasoning: Callable[[str], None] | None = None
+    ) -> None:
         super().__init__(on_delta, on_reasoning)
         self.items: dict[int, dict[str, Any]] = {}
         self.response: dict[str, Any] = {}
@@ -152,49 +177,89 @@ class ResponsesAccumulator(StreamAccumulator):
 
     def finish(self) -> NormalizedResponse:
         if not self.completed:
-            raise ProviderHTTPError(502, json.dumps({"error": {"message":
-                "Responses stream ended before a terminal event; retry the request."}}), {}, "")
+            raise ProviderHTTPError(
+                502,
+                json.dumps(
+                    {
+                        "error": {
+                            "message": "Responses stream ended before a terminal event; retry the request."
+                        }
+                    }
+                ),
+                {},
+                "",
+            )
         return parse_response(self.response)
 
 
 class ResponsesTransport(ProviderTransport):
     api_mode = API_MODE_RESPONSES
 
-    def build_request(self, route: RuntimeRoute, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None,
-                      params: RequestParams, *, stream: bool) -> HttpRequest:
+    def build_request(
+        self,
+        route: RuntimeRoute,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]] | None,
+        params: RequestParams,
+        *,
+        stream: bool,
+    ) -> HttpRequest:
         profile = route.profile
         prepared = deepcopy(messages)
         if profile is not None:
             prepared = profile.prepare_messages(prepared)
-        body: dict[str, Any] = {"model": route.model, "input": convert_messages(prepared),
-                                "store": False, "stream": stream, "include": ["reasoning.encrypted_content"]}
+        body: dict[str, Any] = {
+            "model": route.model,
+            "input": convert_messages(prepared),
+            "store": False,
+            "stream": stream,
+            "include": ["reasoning.encrypted_content"],
+        }
         if tools:
             # Responses defaults to strict schemas, unlike the internal Chat-style tools.
             # Preserve optional parameters unless the tool explicitly requests strict mode.
-            body["tools"] = [{"type": "function", "strict": False, **deepcopy(tool.get("function", tool))}
-                             for tool in tools]
-        max_tokens = params.max_tokens or route.max_tokens or (profile.get_max_tokens(route.model) if profile else None)
+            body["tools"] = [
+                {"type": "function", "strict": False, **deepcopy(tool.get("function", tool))}
+                for tool in tools
+            ]
+        max_tokens = (
+            params.max_tokens
+            or route.max_tokens
+            or (profile.get_max_tokens(route.model) if profile else None)
+        )
         if max_tokens:
             body["max_output_tokens"] = max_tokens
-        temperature = profile.resolve_temperature(route.model, params.temperature) if profile else params.temperature
+        temperature = (
+            profile.resolve_temperature(route.model, params.temperature) if profile else params.temperature
+        )
         if temperature is not None:
             body["temperature"] = temperature
         if profile is not None:
-            body.update(profile.build_extra_body(model=route.model, reasoning_effort=params.reasoning_effort,
-                                                 session_id=params.session_id, show_reasoning=params.show_reasoning))
+            body.update(
+                profile.build_extra_body(
+                    model=route.model,
+                    reasoning_effort=params.reasoning_effort,
+                    session_id=params.session_id,
+                    show_reasoning=params.show_reasoning,
+                )
+            )
         if "reasoning_effort" in body:
             body.setdefault("reasoning", {})["effort"] = body.pop("reasoning_effort")
         if params.show_reasoning:
             body.setdefault("reasoning", {})["summary"] = "auto"
         body.update(params.extra_body)
-        return HttpRequest(url=route.base_url.rstrip("/") + "/responses",
-                           headers={"Content-Type": "application/json", **route.headers}, body=body)
+        return HttpRequest(
+            url=route.base_url.rstrip("/") + "/responses",
+            headers={"Content-Type": "application/json", **route.headers},
+            body=body,
+        )
 
     def parse_response(self, payload: dict[str, Any]) -> NormalizedResponse:
         return parse_response(payload)
 
-    def stream_accumulator(self, on_delta: Callable[[str], None] | None = None,
-                           on_reasoning: Callable[[str], None] | None = None) -> StreamAccumulator:
+    def stream_accumulator(
+        self, on_delta: Callable[[str], None] | None = None, on_reasoning: Callable[[str], None] | None = None
+    ) -> StreamAccumulator:
         return ResponsesAccumulator(on_delta, on_reasoning)
 
 

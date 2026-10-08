@@ -26,7 +26,13 @@ CACHE_TTL_SECONDS = 6 * 3600
 # compression fire too late and the request fail; guessing too small only compresses early.
 DEFAULT_CONTEXT_LENGTH = 128_000
 MIN_CONTEXT_LENGTH = 16_000
-_CONTEXT_KEYS = ("context_length", "context_window", "max_context_length", "max_input_tokens", "input_token_limit")
+_CONTEXT_KEYS = (
+    "context_length",
+    "context_window",
+    "max_context_length",
+    "max_input_tokens",
+    "input_token_limit",
+)
 
 
 @dataclass
@@ -52,7 +58,9 @@ def _parse_catalog(payload: dict[str, Any]) -> list[ModelInfo]:
         model_id = str(entry.get("id") or entry.get("name") or "").removeprefix("models/")
         if not model_id:
             continue
-        length = next((int(entry[key]) for key in _CONTEXT_KEYS if isinstance(entry.get(key), (int, float))), None)
+        length = next(
+            (int(entry[key]) for key in _CONTEXT_KEYS if isinstance(entry.get(key), (int, float))), None
+        )
         models.append(ModelInfo(model_id, length, str(entry.get("display_name") or entry.get("name") or "")))
     return models
 
@@ -65,8 +73,14 @@ def _listing_url(profile: ProviderProfile, base_url: str) -> str:
     return url
 
 
-def fetch_models(profile: ProviderProfile, *, api_key: str = "", base_url: str = "", timeout: float = 10.0,
-                 http: HttpClient | None = None) -> list[ModelInfo] | None:
+def fetch_models(
+    profile: ProviderProfile,
+    *,
+    api_key: str = "",
+    base_url: str = "",
+    timeout: float = 10.0,
+    http: HttpClient | None = None,
+) -> list[ModelInfo] | None:
     """The provider's live catalog, or ``None`` when it cannot be fetched."""
     if not profile.supports_model_listing or profile.api_mode == "mock":
         return None
@@ -91,8 +105,9 @@ def _cached(provider: str, *, max_age: float | None = CACHE_TTL_SECONDS) -> list
     return [ModelInfo(**entry) for entry in data.get("models") or []]
 
 
-def list_models(provider: str, *, route: RuntimeRoute | None = None, refresh: bool = False,
-                http: HttpClient | None = None) -> list[ModelInfo]:
+def list_models(
+    provider: str, *, route: RuntimeRoute | None = None, refresh: bool = False, http: HttpClient | None = None
+) -> list[ModelInfo]:
     """Models for ``provider``: fresh cache, else live fetch, else stale cache, else fallbacks."""
     profile = get_provider(provider)
     if profile is None:
@@ -113,9 +128,13 @@ def list_models(provider: str, *, route: RuntimeRoute | None = None, refresh: bo
     live = fetch_models(profile, api_key=api_key, base_url=base_url, http=http)
     if live:
         ensure_dir(_cache_path(profile.name).parent)
-        atomic_write_json(_cache_path(profile.name), {
-            "fetched_at": time.time(), "models": [model.__dict__ for model in live],
-        })
+        atomic_write_json(
+            _cache_path(profile.name),
+            {
+                "fetched_at": time.time(),
+                "models": [model.__dict__ for model in live],
+            },
+        )
         return live
     stale = _cached(profile.name, max_age=None)
     if stale:

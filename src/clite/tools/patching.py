@@ -32,13 +32,19 @@ from clite.tools.file_safety import write_denied_reason
 # handed in typographic punctuation (or vice versa). Keys are ordinals so the dict works
 # both as a ``str.translate`` table and as a per-character lookup.
 _SMART_QUOTES = {
-    ord("\u2018"): "'", ord("\u2019"): "'",        # left/right single quotes
-    ord("\u201c"): '"', ord("\u201d"): '"',        # left/right double quotes
-    ord("\u201a"): "'", ord("\u201e"): '"',       # low single/double quotes
-    ord("\u2032"): "'", ord("\u2033"): '"',       # prime / double prime
-    ord("\u00ab"): '"', ord("\u00bb"): '"',       # guillemets
-    ord("\u2013"): "-", ord("\u2014"): "-",       # en/em dash
-    ord("\u00a0"): " ",                          # non-breaking space
+    ord("\u2018"): "'",
+    ord("\u2019"): "'",  # left/right single quotes
+    ord("\u201c"): '"',
+    ord("\u201d"): '"',  # left/right double quotes
+    ord("\u201a"): "'",
+    ord("\u201e"): '"',  # low single/double quotes
+    ord("\u2032"): "'",
+    ord("\u2033"): '"',  # prime / double prime
+    ord("\u00ab"): '"',
+    ord("\u00bb"): '"',  # guillemets
+    ord("\u2013"): "-",
+    ord("\u2014"): "-",  # en/em dash
+    ord("\u00a0"): " ",  # non-breaking space
 }
 
 
@@ -48,8 +54,8 @@ class MatchResult:
 
     found: bool
     span: tuple[int, int] | None = None
-    level: str = ""        # which rung matched: "exact" / "trailing_ws" / "indent" / "smart_quotes" / "blank_lines"
-    matches: int = 0      # how many candidates the matched rung saw (0 when nothing matched at all)
+    level: str = ""  # which rung matched: "exact" / "trailing_ws" / "indent" / "smart_quotes" / "blank_lines"
+    matches: int = 0  # how many candidates the matched rung saw (0 when nothing matched at all)
 
 
 # ── normalisation rungs ─────────────────────────────────────────────────────────────────
@@ -60,6 +66,7 @@ class MatchResult:
 # first; the first rung that yields exactly one candidate wins, and a rung that yields two
 # or more stops the chain (ambiguous → reject).
 
+
 def _smart_quote_normalize(text: str) -> str:
     return text.translate(_SMART_QUOTES)
 
@@ -68,6 +75,7 @@ def _blank_line_normalize(text: str) -> str:
     """Collapse runs of blank lines to a single blank line, so a missing or extra empty
     line between two blocks no longer defeats the match."""
     import re
+
     return re.sub(r"\n[ \t]*\n(?:[ \t]*\n)+", "\n\n", text)
 
 
@@ -122,7 +130,11 @@ def _normalise_with_origin(text: str, fn: Callable[[str], str]) -> tuple[str, li
                 origin.append(ti)
                 ti += 1
                 break
-            if fn is _smart_quote_normalize and ord(original) in _SMART_QUOTES and _SMART_QUOTES[ord(original)] == ch:
+            if (
+                fn is _smart_quote_normalize
+                and ord(original) in _SMART_QUOTES
+                and _SMART_QUOTES[ord(original)] == ch
+            ):
                 # replaced: the replacement char ``ch`` matches what the table says
                 result_chars.append(ch)
                 origin.append(ti)
@@ -208,9 +220,9 @@ def apply_replacement(content: str, span: tuple[int, int], new: str) -> str:
 class PatchHunk:
     """One file operation parsed from a V4A patch."""
 
-    op: str            # "update" | "add" | "delete"
+    op: str  # "update" | "add" | "delete"
     path: str
-    context: str       # the `@@ ... @@` context hint line, or ""
+    context: str  # the `@@ ... @@` context hint line, or ""
     removed: list[str]
     added: list[str]
 
@@ -309,7 +321,7 @@ def parse_v4a_patch(patch_text: str) -> ParsedPatch:
 class _AppliedFile:
     path: Path
     created: bool
-    before: str | None      # None when the file did not exist
+    before: str | None  # None when the file did not exist
     diff: str
 
 
@@ -375,11 +387,16 @@ def apply_v4a_patch(patch_text: str, resolve) -> MultiFileResult:
                 atomic_write_text(path, new_content)
             except OSError as exc:
                 _rollback(applied)
-                return MultiFileResult(applied=[], rolled_back=True,
-                                       error=f"could not write {path}: {exc}")
-            diff = "".join(difflib.unified_diff(
-                [], new_content.splitlines(keepends=True),
-                fromfile=f"a/{path.name}", tofile=f"b/{path.name}", n=2))
+                return MultiFileResult(applied=[], rolled_back=True, error=f"could not write {path}: {exc}")
+            diff = "".join(
+                difflib.unified_diff(
+                    [],
+                    new_content.splitlines(keepends=True),
+                    fromfile=f"a/{path.name}",
+                    tofile=f"b/{path.name}",
+                    n=2,
+                )
+            )
             applied.append(_AppliedFile(path=path, created=not existed, before=before, diff=diff))
             continue
 
@@ -390,42 +407,52 @@ def apply_v4a_patch(patch_text: str, resolve) -> MultiFileResult:
                 path.unlink()
             except OSError as exc:
                 _rollback(applied)
-                return MultiFileResult(applied=[], rolled_back=True,
-                                       error=f"could not delete {path}: {exc}")
-            diff = "".join(difflib.unified_diff(
-                (before or "").splitlines(keepends=True), [],
-                fromfile=f"a/{path.name}", tofile=f"b/{path.name}", n=2))
+                return MultiFileResult(applied=[], rolled_back=True, error=f"could not delete {path}: {exc}")
+            diff = "".join(
+                difflib.unified_diff(
+                    (before or "").splitlines(keepends=True),
+                    [],
+                    fromfile=f"a/{path.name}",
+                    tofile=f"b/{path.name}",
+                    n=2,
+                )
+            )
             applied.append(_AppliedFile(path=path, created=False, before=before, diff=diff))
             continue
 
         # op == "update"
         if not existed:
             _rollback(applied)
-            return MultiFileResult(applied=[], rolled_back=True,
-                                   error=f"file not found: {path}")
+            return MultiFileResult(applied=[], rolled_back=True, error=f"file not found: {path}")
         content = before or ""
         old, new, _ = _hunk_to_replacement(hunk)
         if not old:
             _rollback(applied)
-            return MultiFileResult(applied=[], rolled_back=True,
-                                   error=f"update hunk for {path} has no removed lines; "
-                                         "use *** Add File to create content")
+            return MultiFileResult(
+                applied=[],
+                rolled_back=True,
+                error=f"update hunk for {path} has no removed lines; use *** Add File to create content",
+            )
         match = find_tolerant_match(content, old)
         if not match.found or match.span is None:
             reason = "not found" if match.matches == 0 else f"{match.matches} matches"
             _rollback(applied)
-            return MultiFileResult(applied=[], rolled_back=True,
-                                   error=f"old_string {reason} in {path}")
+            return MultiFileResult(applied=[], rolled_back=True, error=f"old_string {reason} in {path}")
         updated = apply_replacement(content, match.span, new)
         try:
             atomic_write_text(path, updated)
         except OSError as exc:
             _rollback(applied)
-            return MultiFileResult(applied=[], rolled_back=True,
-                                   error=f"could not write {path}: {exc}")
-        diff = "".join(difflib.unified_diff(
-            content.splitlines(keepends=True), updated.splitlines(keepends=True),
-            fromfile=f"a/{path.name}", tofile=f"b/{path.name}", n=2))
+            return MultiFileResult(applied=[], rolled_back=True, error=f"could not write {path}: {exc}")
+        diff = "".join(
+            difflib.unified_diff(
+                content.splitlines(keepends=True),
+                updated.splitlines(keepends=True),
+                fromfile=f"a/{path.name}",
+                tofile=f"b/{path.name}",
+                n=2,
+            )
+        )
         applied.append(_AppliedFile(path=path, created=False, before=before, diff=diff))
 
     return MultiFileResult(applied=applied, rolled_back=False)

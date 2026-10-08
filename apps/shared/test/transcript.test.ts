@@ -63,8 +63,8 @@ test("tools run between pieces of assistant text and settle by call id", () => {
     event("message.complete", { role: "assistant", text: "Let me check.", tool_calls: ["read_file", "terminal"] }),
     event("tool.start", { call_id: "c1", name: "read_file", args: { path: "a.txt" }, preview: "a.txt" }),
     event("tool.start", { call_id: "c2", name: "terminal", args: { command: "false" }, preview: "false" }),
-    event("tool.complete", { call_id: "c2", name: "terminal", duration: 0.2, failed: true, result_preview: "" }),
-    event("tool.complete", { call_id: "c1", name: "read_file", duration: 0.05, failed: false, result_preview: "" }),
+    event("tool.complete", { call_id: "c2", name: "terminal", duration: 0.2, failed: true, result_preview: "", diff: "" }),
+    event("tool.complete", { call_id: "c1", name: "read_file", duration: 0.05, failed: false, result_preview: "", diff: "" }),
     event("message.delta", { text: "Done." }),
   ]);
   assert.deepEqual(state.items, [

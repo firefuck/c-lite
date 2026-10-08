@@ -22,7 +22,9 @@ from clite.core.brand import APP_NAME, DISPLAY_NAME
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-pytestmark = pytest.mark.skipif(not (REPO_ROOT / "scripts" / "release.py").is_file(), reason="not a source checkout")
+pytestmark = pytest.mark.skipif(
+    not (REPO_ROOT / "scripts" / "release.py").is_file(), reason="not a source checkout"
+)
 
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 try:
@@ -38,15 +40,23 @@ def _mini_repository(root: Path, version: str = "1.2.3") -> Path:
     shutil.copy2(REPO_ROOT / "src" / APP_NAME / "core" / "brand.py", package / "core" / "brand.py")
     (package / "__init__.py").write_text(f'"""Docstring."""\n\n__version__ = "{version}"\n', encoding="utf-8")
     shutil.copy2(REPO_ROOT / "pyproject.toml", root / "pyproject.toml")
-    (root / "CHANGELOG.md").write_text(f"# Changes\n\n## [{version}] - 2026-01-01\n\n- Something.\n\n## [0.0.1]\n\n- Old.\n",
-                                       encoding="utf-8")
+    (root / "CHANGELOG.md").write_text(
+        f"# Changes\n\n## [{version}] - 2026-01-01\n\n- Something.\n\n## [0.0.1]\n\n- Old.\n",
+        encoding="utf-8",
+    )
     return root
 
 
 def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.invalid",
-           "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.invalid", "GIT_CONFIG_GLOBAL": os.devnull,
-           "GIT_CONFIG_NOSYSTEM": "1"}
+    env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "t",
+        "GIT_AUTHOR_EMAIL": "t@example.invalid",
+        "GIT_COMMITTER_NAME": "t",
+        "GIT_COMMITTER_EMAIL": "t@example.invalid",
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_NOSYSTEM": "1",
+    }
     return subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, timeout=60, env=env)
 
 
@@ -56,8 +66,13 @@ def test_the_version_in_pyproject_the_cli_and_the_release_tag_are_the_same():
     assert project["tool"]["setuptools"]["dynamic"]["version"] == {"attr": f"{APP_NAME}.__version__"}
     assert release.current_version(REPO_ROOT) == __version__
 
-    printed = subprocess.run([sys.executable, "-m", APP_NAME, "--version"], capture_output=True, text=True, timeout=60,
-                             env={**os.environ, "PYTHONPATH": str(REPO_ROOT / "src")})
+    printed = subprocess.run(
+        [sys.executable, "-m", APP_NAME, "--version"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        env={**os.environ, "PYTHONPATH": str(REPO_ROOT / "src")},
+    )
     assert printed.returncode == 0, printed.stderr
     assert printed.stdout.strip() == f"{DISPLAY_NAME} {__version__}"
 
@@ -82,8 +97,10 @@ def test_a_tag_that_does_not_match_the_version_is_reported(tmp_path):
 def test_a_second_spelled_out_version_or_a_missing_changelog_section_is_reported(tmp_path):
     root = _mini_repository(tmp_path)
     pyproject = root / "pyproject.toml"
-    pyproject.write_text(pyproject.read_text(encoding="utf-8").replace('dynamic = ["version"]', 'version = "1.2.3"'),
-                         encoding="utf-8")
+    pyproject.write_text(
+        pyproject.read_text(encoding="utf-8").replace('dynamic = ["version"]', 'version = "1.2.3"'),
+        encoding="utf-8",
+    )
     (root / "CHANGELOG.md").write_text("# Changes\n\n## [0.0.1]\n\n- Old.\n", encoding="utf-8")
     problems = "\n".join(release.check(root))
     assert "pyproject.toml spells the version" in problems
@@ -119,8 +136,12 @@ def _wheel_from_package(root: Path, target: Path, *, leave_out: str | None = Non
         for name in sorted(release.expected_wheel_files(root)):
             if name != leave_out:
                 archive.write(root / "src" / name, name)
-        archive.writestr(f"{dist_info}/METADATA", f"Metadata-Version: 2.4\nName: {project['name']}\nVersion: {version}\n")
-        archive.writestr(f"{dist_info}/entry_points.txt", f"[console_scripts]\n{APP_NAME} = {APP_NAME}.cli.main:main\n")
+        archive.writestr(
+            f"{dist_info}/METADATA", f"Metadata-Version: 2.4\nName: {project['name']}\nVersion: {version}\n"
+        )
+        archive.writestr(
+            f"{dist_info}/entry_points.txt", f"[console_scripts]\n{APP_NAME} = {APP_NAME}.cli.main:main\n"
+        )
         archive.writestr(f"{dist_info}/licenses/LICENSE", "MIT")
     return wheel
 
@@ -137,7 +158,9 @@ def test_the_wheel_check_accepts_a_complete_wheel_and_names_what_is_missing(tmp_
 
 
 def test_area_instructions_for_contributors_are_not_expected_in_the_wheel():
-    assert not any(name.endswith(("/AGENTS.md", "/CLAUDE.md")) for name in release.expected_wheel_files(REPO_ROOT))
+    assert not any(
+        name.endswith(("/AGENTS.md", "/CLAUDE.md")) for name in release.expected_wheel_files(REPO_ROOT)
+    )
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")

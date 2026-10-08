@@ -34,7 +34,13 @@ from clite.rpc.transport import Transport
 
 logger = logging.getLogger("clite.rpc")
 
-PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, INVALID_PARAMS, INTERNAL_ERROR = -32700, -32600, -32601, -32602, -32603
+PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, INVALID_PARAMS, INTERNAL_ERROR = (
+    -32700,
+    -32600,
+    -32601,
+    -32602,
+    -32603,
+)
 SESSION_NOT_FOUND, SESSION_BUSY, NOT_CONFIGURED, REQUEST_FAILED = 4001, 4002, 4003, 4004
 SERVER_REQUEST_TIMEOUT_SECONDS = 300.0
 
@@ -53,10 +59,14 @@ ParamsT = TypeVar("ParamsT", bound=BaseModel)
 ResultT = TypeVar("ResultT")
 
 
-def rpc_method(name: str) -> Callable[[Callable[[RpcServer, ParamsT], ResultT]], Callable[[RpcServer, ParamsT], ResultT]]:
+def rpc_method(
+    name: str,
+) -> Callable[[Callable[[RpcServer, ParamsT], ResultT]], Callable[[RpcServer, ParamsT], ResultT]]:
     """Bind a handler to a declared method. The contract must exist first."""
 
-    def decorate(function: Callable[[RpcServer, ParamsT], ResultT]) -> Callable[[RpcServer, ParamsT], ResultT]:
+    def decorate(
+        function: Callable[[RpcServer, ParamsT], ResultT],
+    ) -> Callable[[RpcServer, ParamsT], ResultT]:
         if name not in METHODS:
             raise KeyError(f"RPC method {name!r} has no contract in clite.rpc.contracts.schema")
         if name in HANDLERS:
@@ -70,7 +80,9 @@ def rpc_method(name: str) -> Callable[[Callable[[RpcServer, ParamsT], ResultT]],
 
 
 class RpcServer:
-    def __init__(self, transport: Transport, *, platform: str = "tui", client_factory: Callable[[], Any] | None = None) -> None:
+    def __init__(
+        self, transport: Transport, *, platform: str = "tui", client_factory: Callable[[], Any] | None = None
+    ) -> None:
         from clite.rpc import methods  # noqa: F401 - registers the handlers
 
         self.transport = transport
@@ -94,12 +106,22 @@ class RpcServer:
         with self._lock:
             self._seq += 1
             seq = self._seq
-        self.transport.write({
-            "jsonrpc": "2.0", "method": "event",
-            "params": {"type": event_type, "session_id": session_id, "payload": body.model_dump(mode="json"), "seq": seq},
-        })
+        self.transport.write(
+            {
+                "jsonrpc": "2.0",
+                "method": "event",
+                "params": {
+                    "type": event_type,
+                    "session_id": session_id,
+                    "payload": body.model_dump(mode="json"),
+                    "seq": seq,
+                },
+            }
+        )
 
-    def request_client(self, name: str, params: dict[str, Any], *, timeout: float = SERVER_REQUEST_TIMEOUT_SECONDS) -> dict[str, Any] | None:
+    def request_client(
+        self, name: str, params: dict[str, Any], *, timeout: float = SERVER_REQUEST_TIMEOUT_SECONDS
+    ) -> dict[str, Any] | None:
         """Ask the client something and wait for the reply. ``None`` on timeout or disconnect."""
         spec = SERVER_REQUESTS[name]
         body = spec.params.model_validate(params).model_dump(mode="json")
@@ -167,25 +189,35 @@ class RpcServer:
         try:
             params = spec.params.model_validate(message.get("params") or {})
         except ValidationError as exc:
-            details = [{"field": ".".join(str(part) for part in error["loc"]), "problem": error["msg"]} for error in exc.errors()]
+            details = [
+                {"field": ".".join(str(part) for part in error["loc"]), "problem": error["msg"]}
+                for error in exc.errors()
+            ]
             self._respond(request_id, error=RpcError(INVALID_PARAMS, f"invalid params for {name}", details))
             return
         # Handlers run off the reader thread: a slow one (a model list, a compression) must
         # not block the reply to a server request that the same client is about to send.
         self._pool.submit(copy_context().run, self._run_handler, name, handler, spec, params, request_id)
 
-    def _run_handler(self, name: str, handler: Handler, spec: Any, params: BaseModel, request_id: Any) -> None:
+    def _run_handler(
+        self, name: str, handler: Handler, spec: Any, params: BaseModel, request_id: Any
+    ) -> None:
         try:
             result = handler(self, params)
             if isinstance(result, BaseModel):
                 body = result.model_dump(mode="json")
             else:
-                body = spec.result.model_validate(result if result is not None else {}).model_dump(mode="json")
+                body = spec.result.model_validate(result if result is not None else {}).model_dump(
+                    mode="json"
+                )
             self._respond(request_id, body)
         except RpcError as exc:
             self._respond(request_id, error=exc)
         except AuthError as exc:
-            self._respond(request_id, error=RpcError(NOT_CONFIGURED, str(exc), {"code": exc.code, "provider": exc.provider}))
+            self._respond(
+                request_id,
+                error=RpcError(NOT_CONFIGURED, str(exc), {"code": exc.code, "provider": exc.provider}),
+            )
         except CliteError as exc:
             self._respond(request_id, error=RpcError(REQUEST_FAILED, str(exc)))
         except Exception as exc:  # noqa: BLE001 - one bad request must not end the connection

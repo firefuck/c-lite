@@ -22,14 +22,27 @@ DELEGATE_SCHEMA = {
     "parameters": {
         "type": "object",
         "properties": {
-            "goal": {"type": "string", "description": "What the subagent must accomplish and what to report back."},
-            "context": {"type": "string", "description": "Background the subagent needs: file paths, constraints, findings so far."},
-            "toolsets": {"type": "array", "items": {"type": "string"},
-                         "description": "Toolsets for the subagent (default: terminal, file, web, skills, session_search, todo)."},
-            "model": {"type": "string",
-                      "description": "Model for this task: a name for the current provider, or provider:model. Must be a configured provider."},
-            "background": {"type": "boolean",
-                           "description": "Return immediately with an id per task; the reports arrive later as a note. Use for long tasks you can work alongside."},
+            "goal": {
+                "type": "string",
+                "description": "What the subagent must accomplish and what to report back.",
+            },
+            "context": {
+                "type": "string",
+                "description": "Background the subagent needs: file paths, constraints, findings so far.",
+            },
+            "toolsets": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Toolsets for the subagent (default: terminal, file, web, skills, session_search, todo).",
+            },
+            "model": {
+                "type": "string",
+                "description": "Model for this task: a name for the current provider, or provider:model. Must be a configured provider.",
+            },
+            "background": {
+                "type": "boolean",
+                "description": "Return immediately with an id per task; the reports arrive later as a note. Use for long tasks you can work alongside.",
+            },
             "tasks": {
                 "type": "array",
                 "description": "Several tasks to run in parallel, each with its own goal, context, toolsets and model.",
@@ -57,8 +70,14 @@ def delegate_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
 
     tasks = args.get("tasks")
     if not tasks:
-        tasks = [{"goal": args.get("goal"), "context": args.get("context"),
-                  "toolsets": args.get("toolsets"), "model": args.get("model")}]
+        tasks = [
+            {
+                "goal": args.get("goal"),
+                "context": args.get("context"),
+                "toolsets": args.get("toolsets"),
+                "model": args.get("model"),
+            }
+        ]
     if not isinstance(tasks, list):
         return tool_error("tasks must be a list of {goal, context?, toolsets?, model?} objects")
     return tool_result(delegate(agent, tasks, background=bool(args.get("background"))))

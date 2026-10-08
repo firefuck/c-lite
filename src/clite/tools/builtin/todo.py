@@ -26,7 +26,10 @@ TODO_SCHEMA = {
                     "properties": {
                         "id": {"type": "string", "description": "Short unique id, e.g. '1'."},
                         "content": {"type": "string", "description": "What to do."},
-                        "status": {"type": "string", "enum": ["pending", "in_progress", "completed", "cancelled"]},
+                        "status": {
+                            "type": "string",
+                            "enum": ["pending", "in_progress", "completed", "cancelled"],
+                        },
                     },
                     "required": ["id", "content", "status"],
                 },

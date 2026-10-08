@@ -15,10 +15,10 @@ register_provider(
         name="xai",
         display_name="xAI",
         description="xAI API",
-        env_vars=('XAI_API_KEY',),
+        env_vars=("XAI_API_KEY",),
         base_url="https://api.x.ai/v1",
         base_url_env="XAI_BASE_URL",
-        fallback_models=('grok-4.7',),
-        context_lengths={'grok-4.7': 500_000},
+        fallback_models=("grok-4.7",),
+        context_lengths={"grok-4.7": 500_000},
     )
 )

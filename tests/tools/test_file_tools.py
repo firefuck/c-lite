@@ -65,7 +65,9 @@ def test_write_creates_parents_and_reports_creation(ctx):
     created = json.loads(write_file_tool({"path": "pkg/mod/a.py", "content": "x = 1\n"}, ctx))
     assert created["created"] is True
     assert (_ws(ctx) / "pkg/mod/a.py").read_text() == "x = 1\n"
-    assert json.loads(write_file_tool({"path": "pkg/mod/a.py", "content": "x = 2\n"}, ctx))["created"] is False
+    assert (
+        json.loads(write_file_tool({"path": "pkg/mod/a.py", "content": "x = 2\n"}, ctx))["created"] is False
+    )
 
 
 def test_relative_paths_follow_the_terminal_cwd(ctx):
@@ -93,8 +95,14 @@ def test_every_profile_and_the_pairing_store_are_guarded_like_the_active_home(ct
     other.mkdir(parents=True)
     (other / ".env").write_text("WORK_API_KEY=sk-work-very-secret-value-123456\n")
     assert "Refused" in json.loads(read_file_tool({"path": str(other / ".env")}, ctx))["error"]
-    for target in (other / ".env", other / "config.yaml", clite_home / "profiles" / "not-made-yet" / "config.yaml",
-                   clite_home / "gateway" / "pairing.json", other / "gateway" / "pairing.json", clite_home / "CONFIG.YAML"):
+    for target in (
+        other / ".env",
+        other / "config.yaml",
+        clite_home / "profiles" / "not-made-yet" / "config.yaml",
+        clite_home / "gateway" / "pairing.json",
+        other / "gateway" / "pairing.json",
+        clite_home / "CONFIG.YAML",
+    ):
         result = json.loads(write_file_tool({"path": str(target), "content": "x"}, ctx))
         assert "Refused" in result["error"], target
     assert (other / ".env").read_text().startswith("WORK_API_KEY=")
@@ -117,10 +125,14 @@ def test_credential_files_cannot_be_read(ctx, clite_home):
 
     ssh = Path.home() / ".ssh"
     ssh.mkdir()
-    (ssh / "id_ed25519").write_text("-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n")
+    (ssh / "id_ed25519").write_text(
+        "-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n"
+    )
     assert "Refused" in json.loads(read_file_tool({"path": str(ssh / "id_ed25519")}, ctx))["error"]
     # A content search across the home directory does not return them either.
-    found = json.loads(search_files_tool({"pattern": "PRIVATE KEY|very-secret", "path": str(Path.home())}, ctx))
+    found = json.loads(
+        search_files_tool({"pattern": "PRIVATE KEY|very-secret", "path": str(Path.home())}, ctx)
+    )
     assert found["count"] == 0
 
     # Settings hold no secrets (they name them), so they stay readable.
@@ -132,7 +144,9 @@ def test_credentials_are_redacted_from_what_the_model_reads(ctx, clite_home):
     (clite_home / ".env").write_text("DEPLOY_TOKEN=correct-horse-battery-staple\n")
     load_env()
     target = _ws(ctx) / "deploy.sh"
-    target.write_text("export DEPLOY=correct-horse-battery-staple\nexport OPENAI=sk-abcdefghijklmnopqrstuvwxyz123456\necho done\n")
+    target.write_text(
+        "export DEPLOY=correct-horse-battery-staple\nexport OPENAI=sk-abcdefghijklmnopqrstuvwxyz123456\necho done\n"
+    )
 
     read = json.loads(read_file_tool({"path": "deploy.sh"}, ctx))
     assert "correct-horse" not in read["content"] and "sk-abcdef" not in read["content"]
@@ -140,9 +154,15 @@ def test_credentials_are_redacted_from_what_the_model_reads(ctx, clite_home):
     assert "[REDACTED]" in read["note"]
 
     found = json.loads(search_files_tool({"pattern": "export"}, ctx))
-    assert found["count"] == 2 and "correct-horse" not in json.dumps(found) and "sk-abcdef" not in json.dumps(found)
+    assert (
+        found["count"] == 2
+        and "correct-horse" not in json.dumps(found)
+        and "sk-abcdef" not in json.dumps(found)
+    )
 
-    patched = json.loads(patch_tool({"path": "deploy.sh", "old_string": "echo done", "new_string": "echo finished"}, ctx))
+    patched = json.loads(
+        patch_tool({"path": "deploy.sh", "old_string": "echo done", "new_string": "echo finished"}, ctx)
+    )
     assert "+echo finished" in patched["diff"] and "sk-abcdef" not in patched["diff"]
     assert "sk-abcdefghijklmnopqrstuvwxyz123456" in target.read_text()  # the file itself is untouched
 
@@ -160,7 +180,9 @@ def test_a_pipe_or_device_is_refused_instead_of_blocking(ctx):
 def test_patch_replaces_a_unique_match_and_returns_a_diff(ctx):
     target = _ws(ctx) / "app.py"
     target.write_text("def a():\n    return 1\n\ndef b():\n    return 2\n")
-    result = json.loads(patch_tool({"path": "app.py", "old_string": "return 1", "new_string": "return 10"}, ctx))
+    result = json.loads(
+        patch_tool({"path": "app.py", "old_string": "return 1", "new_string": "return 10"}, ctx)
+    )
     assert result["replacements"] == 1
     assert "-    return 1" in result["diff"] and "+    return 10" in result["diff"]
     assert "return 10" in target.read_text()
@@ -180,7 +202,14 @@ def test_patch_tolerates_wrong_indentation_when_the_match_is_unique(ctx):
     target = _ws(ctx) / "app.py"
     target.write_text("class A:\n    def run(self):\n        return 1\n")
     result = json.loads(
-        patch_tool({"path": "app.py", "old_string": "def run(self):\n    return 1", "new_string": "    def run(self):\n        return 2"}, ctx)
+        patch_tool(
+            {
+                "path": "app.py",
+                "old_string": "def run(self):\n    return 1",
+                "new_string": "    def run(self):\n        return 2",
+            },
+            ctx,
+        )
     )
     assert result["replacements"] == 1
     assert target.read_text() == "class A:\n    def run(self):\n        return 2\n"
@@ -189,7 +218,10 @@ def test_patch_tolerates_wrong_indentation_when_the_match_is_unique(ctx):
 def test_patch_reports_a_missing_match_without_touching_the_file(ctx):
     target = _ws(ctx) / "app.py"
     target.write_text("a = 1\n")
-    assert "not found" in json.loads(patch_tool({"path": "app.py", "old_string": "b = 2", "new_string": "c"}, ctx))["error"]
+    assert (
+        "not found"
+        in json.loads(patch_tool({"path": "app.py", "old_string": "b = 2", "new_string": "c"}, ctx))["error"]
+    )
     assert target.read_text() == "a = 1\n"
 
 
@@ -214,7 +246,10 @@ def test_search_skips_dependency_and_vcs_directories(ctx):
 def test_search_files_by_glob_and_limit(ctx):
     for name in ("a.py", "b.py", "c.txt"):
         (_ws(ctx) / name).write_text("")
-    assert json.loads(search_files_tool({"pattern": "*.py", "target": "files"}, ctx))["files"] == ["a.py", "b.py"]
+    assert json.loads(search_files_tool({"pattern": "*.py", "target": "files"}, ctx))["files"] == [
+        "a.py",
+        "b.py",
+    ]
     limited = json.loads(search_files_tool({"pattern": "*", "target": "files", "limit": 1}, ctx))
     assert limited["count"] == 1 and limited["truncated"] is True
 
@@ -230,7 +265,9 @@ def test_exact_match_reports_the_exact_level(ctx):
     """Level 0: a verbatim match is reported as 'exact', not via the fuzzy chain."""
     target = _ws(ctx) / "app.py"
     target.write_text("def a():\n    return 1\n")
-    result = json.loads(patch_tool({"path": "app.py", "old_string": "return 1", "new_string": "return 10"}, ctx))
+    result = json.loads(
+        patch_tool({"path": "app.py", "old_string": "return 1", "new_string": "return 10"}, ctx)
+    )
     assert result["replacements"] == 1
     assert result["match_level"] == "exact"
     assert "return 10" in target.read_text()
@@ -241,8 +278,9 @@ def test_trailing_whitespace_match_is_unique_and_reports_the_level(ctx):
     target = _ws(ctx) / "app.py"
     target.write_text("def a():\n    return 1\n")
     # old_string has trailing spaces after 'return 1' that the file does not.
-    result = json.loads(patch_tool(
-        {"path": "app.py", "old_string": "return 1   ", "new_string": "return 10"}, ctx))
+    result = json.loads(
+        patch_tool({"path": "app.py", "old_string": "return 1   ", "new_string": "return 10"}, ctx)
+    )
     assert result["replacements"] == 1
     assert result["match_level"] == "trailing_ws"
     assert "return 10" in target.read_text()
@@ -252,8 +290,7 @@ def test_trailing_whitespace_match_is_rejected_when_ambiguous(ctx):
     """Two lines differing only in trailing whitespace must not be silently patched."""
     target = _ws(ctx) / "app.py"
     target.write_text("x = 1\nx = 1\n")
-    result = json.loads(patch_tool(
-        {"path": "app.py", "old_string": "x = 1   ", "new_string": "x = 2"}, ctx))
+    result = json.loads(patch_tool({"path": "app.py", "old_string": "x = 1   ", "new_string": "x = 2"}, ctx))
     assert "error" in result
     assert result.get("matches") == 2
     assert target.read_text() == "x = 1\nx = 1\n"
@@ -264,8 +301,16 @@ def test_indentation_match_is_unique_and_reports_the_level(ctx):
     behaviour, now reported as 'indent')."""
     target = _ws(ctx) / "app.py"
     target.write_text("class A:\n    def run(self):\n        return 1\n")
-    result = json.loads(patch_tool(
-        {"path": "app.py", "old_string": "def run(self):\n    return 1", "new_string": "    def run(self):\n        return 2"}, ctx))
+    result = json.loads(
+        patch_tool(
+            {
+                "path": "app.py",
+                "old_string": "def run(self):\n    return 1",
+                "new_string": "    def run(self):\n        return 2",
+            },
+            ctx,
+        )
+    )
     assert result["replacements"] == 1
     assert result["match_level"] == "indent"
     assert target.read_text() == "class A:\n    def run(self):\n        return 2\n"
@@ -274,10 +319,20 @@ def test_indentation_match_is_unique_and_reports_the_level(ctx):
 def test_indentation_match_is_rejected_when_ambiguous(ctx):
     """Two blocks with the same stripped text must not be patched by the indent rung."""
     target = _ws(ctx) / "app.py"
-    target.write_text("class A:\n    def run(self):\n        return 1\n\nclass B:\n    def run(self):\n        return 1\n")
+    target.write_text(
+        "class A:\n    def run(self):\n        return 1\n\nclass B:\n    def run(self):\n        return 1\n"
+    )
     # old_string without leading indentation; both blocks strip to the same text.
-    result = json.loads(patch_tool(
-        {"path": "app.py", "old_string": "def run(self):\n        return 1", "new_string": "def run(self):\n        return 9"}, ctx))
+    result = json.loads(
+        patch_tool(
+            {
+                "path": "app.py",
+                "old_string": "def run(self):\n        return 1",
+                "new_string": "def run(self):\n        return 9",
+            },
+            ctx,
+        )
+    )
     assert "error" in result
     assert result.get("matches") == 2
     assert "return 1" in target.read_text()
@@ -288,8 +343,12 @@ def test_smart_quote_match_is_unique_and_reports_the_level(ctx):
     target = _ws(ctx) / "note.md"
     target.write_text('The quick "brown" fox\n')
     # old_string uses smart quotes \u201c \u201d
-    result = json.loads(patch_tool(
-        {"path": "note.md", "old_string": "\u201cbrown\u201d fox", "new_string": "\u201cred\u201d fox"}, ctx))
+    result = json.loads(
+        patch_tool(
+            {"path": "note.md", "old_string": "\u201cbrown\u201d fox", "new_string": "\u201cred\u201d fox"},
+            ctx,
+        )
+    )
     assert result["replacements"] == 1
     assert result["match_level"] == "smart_quotes"
     assert "red" in target.read_text()
@@ -299,8 +358,9 @@ def test_smart_quote_match_is_rejected_when_ambiguous(ctx):
     """Two occurrences of the same smart-quote-normalised text must not be patched."""
     target = _ws(ctx) / "note.md"
     target.write_text('say "hi"\nsay "hi"\n')
-    result = json.loads(patch_tool(
-        {"path": "note.md", "old_string": "\u201chi\u201d", "new_string": "\u201cbye\u201d"}, ctx))
+    result = json.loads(
+        patch_tool({"path": "note.md", "old_string": "\u201chi\u201d", "new_string": "\u201cbye\u201d"}, ctx)
+    )
     assert "error" in result
     assert result.get("matches") == 2
     assert target.read_text() == 'say "hi"\nsay "hi"\n'
@@ -311,8 +371,16 @@ def test_blank_line_match_is_unique_and_reports_the_level(ctx):
     target = _ws(ctx) / "app.py"
     target.write_text("import os\n\n\ndef main():\n    pass\n")
     # old_string collapses the double blank line into one.
-    result = json.loads(patch_tool(
-        {"path": "app.py", "old_string": "import os\n\ndef main():", "new_string": "import sys\n\ndef main():"}, ctx))
+    result = json.loads(
+        patch_tool(
+            {
+                "path": "app.py",
+                "old_string": "import os\n\ndef main():",
+                "new_string": "import sys\n\ndef main():",
+            },
+            ctx,
+        )
+    )
     assert result["replacements"] == 1
     assert result["match_level"] == "blank_lines"
     assert "import sys" in target.read_text()
@@ -324,8 +392,9 @@ def test_blank_line_match_is_rejected_when_ambiguous(ctx):
     # Each block has a double blank line between its two lines.
     target.write_text("x = 1\n\n\ny = 2\nx = 1\n\n\ny = 2\n")
     # old_string collapses the double blank to a single blank; both blocks match.
-    result = json.loads(patch_tool(
-        {"path": "app.py", "old_string": "x = 1\n\ny = 2", "new_string": "x = 1\n\ny = 3"}, ctx))
+    result = json.loads(
+        patch_tool({"path": "app.py", "old_string": "x = 1\n\ny = 2", "new_string": "x = 1\n\ny = 3"}, ctx)
+    )
     assert "error" in result
     assert result.get("matches") == 2
     assert "y = 3" not in target.read_text()
@@ -361,7 +430,9 @@ def test_multi_file_patch_updates_two_files_atomically(ctx):
         "-y = 2",
         "+y = 20",
     )
-    result = json.loads(patch_tool({"path": ".", "old_string": "", "new_string": "", "mode": "patch", "patch": patch}, ctx))
+    result = json.loads(
+        patch_tool({"path": ".", "old_string": "", "new_string": "", "mode": "patch", "patch": patch}, ctx)
+    )
     assert result["count"] == 2
     assert a.read_text() == "x = 10\n"
     assert b.read_text() == "y = 20\n"
@@ -389,7 +460,9 @@ def test_multi_file_patch_rolls_back_when_the_third_file_fails(ctx):
         "-not_in_file",
         "+z = 30",
     )
-    result = json.loads(patch_tool({"path": ".", "old_string": "", "new_string": "", "mode": "patch", "patch": patch}, ctx))
+    result = json.loads(
+        patch_tool({"path": ".", "old_string": "", "new_string": "", "mode": "patch", "patch": patch}, ctx)
+    )
     assert "error" in result
     assert result.get("rolled_back") is True
     # First and second files are unchanged; the third was never written.
@@ -407,7 +480,9 @@ def test_multi_file_patch_adds_and_deletes_files(ctx):
         "*** Delete File: old.py",
         "-gone = True",
     )
-    result = json.loads(patch_tool({"path": ".", "old_string": "", "new_string": "", "mode": "patch", "patch": patch}, ctx))
+    result = json.loads(
+        patch_tool({"path": ".", "old_string": "", "new_string": "", "mode": "patch", "patch": patch}, ctx)
+    )
     assert result["count"] == 2
     new_file = _ws(ctx) / "new.py"
     assert new_file.read_text() == "created = True\n"
@@ -431,7 +506,9 @@ def test_multi_file_patch_refuses_env_and_rolls_back_untouched(ctx, clite_home):
         "-KEY=value",
         "+KEY=hacked",
     )
-    result = json.loads(patch_tool({"path": ".", "old_string": "", "new_string": "", "mode": "patch", "patch": patch}, ctx))
+    result = json.loads(
+        patch_tool({"path": ".", "old_string": "", "new_string": "", "mode": "patch", "patch": patch}, ctx)
+    )
     assert "error" in result
     assert result.get("denied_path") == str(env_path)
     # The .env was never modified, and the first file was rolled back.
@@ -446,8 +523,11 @@ def test_multi_file_patch_requires_patch_argument(ctx):
 
 
 def test_multi_file_patch_rejects_a_bad_format(ctx):
-    result = json.loads(patch_tool(
-        {"path": ".", "old_string": "", "new_string": "", "mode": "patch", "patch": "not v4a"}, ctx))
+    result = json.loads(
+        patch_tool(
+            {"path": ".", "old_string": "", "new_string": "", "mode": "patch", "patch": "not v4a"}, ctx
+        )
+    )
     assert "error" in result
     assert "no file headers" in result["error"]
 
@@ -463,7 +543,9 @@ def test_multi_file_patch_diff_is_redacted(ctx, clite_home):
         "-echo done",
         "+echo finished",
     )
-    result = json.loads(patch_tool({"path": ".", "old_string": "", "new_string": "", "mode": "patch", "patch": patch}, ctx))
+    result = json.loads(
+        patch_tool({"path": ".", "old_string": "", "new_string": "", "mode": "patch", "patch": patch}, ctx)
+    )
     assert result["count"] == 1
     diff = result["files"][0]["diff"]
     assert "+echo finished" in diff

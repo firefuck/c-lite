@@ -55,9 +55,14 @@ def _safe_local_path(path: Path) -> Path:
         relative = path.relative_to(root)
     except ValueError:
         raise SkillError(f"{path} is outside the local skills directory") from None
-    for component in (root, *(root / Path(*relative.parts[:index]) for index in range(1, len(relative.parts) + 1))):
+    for component in (
+        root,
+        *(root / Path(*relative.parts[:index]) for index in range(1, len(relative.parts) + 1)),
+    ):
         if component.is_symlink():
-            raise SkillError(f"{component} is a symlink; use a regular directory or file inside the local skill")
+            raise SkillError(
+                f"{component} is a symlink; use a regular directory or file inside the local skill"
+            )
     if not path.resolve(strict=False).is_relative_to(root.resolve(strict=False)):
         raise SkillError(f"{path} is outside the local skills directory")
     return path
@@ -75,8 +80,7 @@ def _require(name: str, cwd: str | None = None) -> Skill:
     return skill
 
 
-def _writable(skill: Skill, *, write_guard: WriteGuard | None = None,
-              file_path: str | None = None) -> Skill:
+def _writable(skill: Skill, *, write_guard: WriteGuard | None = None, file_path: str | None = None) -> Skill:
     """``skill`` in the local tier, copying it there first when it lives in a read-only tier."""
     if skill.tier == TIER_LOCAL:
         _safe_local_path(skill.directory)
@@ -97,8 +101,14 @@ def _notify(action: str, name: str, origin: str) -> None:
     invoke_hook("on_skill_lifecycle", action=action, skill_name=name, origin=origin)
 
 
-def create_skill(name: str, content: str, *, category: str | None = None, origin: str = "agent",
-                 write_guard: WriteGuard | None = None) -> dict[str, Any]:
+def create_skill(
+    name: str,
+    content: str,
+    *,
+    category: str | None = None,
+    origin: str = "agent",
+    write_guard: WriteGuard | None = None,
+) -> dict[str, Any]:
     try:
         validate_skill_name(name)
     except SkillFormatError as exc:
@@ -116,8 +126,9 @@ def create_skill(name: str, content: str, *, category: str | None = None, origin
     return {"name": name, "path": str(directory / "SKILL.md"), "created": True}
 
 
-def edit_skill(name: str, content: str, *, origin: str = "agent",
-               write_guard: WriteGuard | None = None) -> dict[str, Any]:
+def edit_skill(
+    name: str, content: str, *, origin: str = "agent", write_guard: WriteGuard | None = None
+) -> dict[str, Any]:
     """Replace the whole SKILL.md."""
     skill = _writable(_require(name), write_guard=write_guard)
     _check_content(content, expected_name=name)
@@ -128,9 +139,16 @@ def edit_skill(name: str, content: str, *, origin: str = "agent",
     return {"name": name, "path": str(skill.file), "updated": True}
 
 
-def patch_skill(name: str, old_string: str, new_string: str, *, file_path: str | None = None,
-                replace_all: bool = False, origin: str = "agent",
-                write_guard: WriteGuard | None = None) -> dict[str, Any]:
+def patch_skill(
+    name: str,
+    old_string: str,
+    new_string: str,
+    *,
+    file_path: str | None = None,
+    replace_all: bool = False,
+    origin: str = "agent",
+    write_guard: WriteGuard | None = None,
+) -> dict[str, Any]:
     """Replace text in SKILL.md or a supporting file. Preferred over ``edit``: it cannot
     drop the rest of the document."""
     if not old_string:
@@ -146,7 +164,9 @@ def patch_skill(name: str, old_string: str, new_string: str, *, file_path: str |
     if count == 0:
         raise SkillError("old_string was not found; view the skill again and copy the text exactly")
     if count > 1 and not replace_all:
-        raise SkillError(f"old_string matches {count} places; add context to make it unique or set replace_all=true")
+        raise SkillError(
+            f"old_string matches {count} places; add context to make it unique or set replace_all=true"
+        )
     updated = current.replace(old_string, new_string)
     if target == skill.file:
         _check_content(updated, expected_name=name)
@@ -157,8 +177,9 @@ def patch_skill(name: str, old_string: str, new_string: str, *, file_path: str |
     return {"name": name, "path": str(target), "replacements": count}
 
 
-def delete_skill(name: str, *, origin: str = "agent",
-                 write_guard: WriteGuard | None = None) -> dict[str, Any]:
+def delete_skill(
+    name: str, *, origin: str = "agent", write_guard: WriteGuard | None = None
+) -> dict[str, Any]:
     skill = _require(name)
     if skill.tier != TIER_LOCAL:
         raise SkillError(
@@ -174,7 +195,12 @@ def delete_skill(name: str, *, origin: str = "agent",
 
 def _support_path(skill: Skill, file_path: str) -> Path:
     relative = Path(file_path)
-    if relative.is_absolute() or ".." in relative.parts or not relative.parts or relative.parts[0] not in LINKED_DIRS:
+    if (
+        relative.is_absolute()
+        or ".." in relative.parts
+        or not relative.parts
+        or relative.parts[0] not in LINKED_DIRS
+    ):
         raise SkillError(f"supporting files must live under one of: {', '.join(LINKED_DIRS)}")
     target = _safe_local_path(skill.directory / relative)
     if not target.resolve(strict=False).is_relative_to(skill.directory.resolve(strict=False)):
@@ -190,8 +216,9 @@ def _check_support_content(content: str) -> None:
         raise SkillError(f"file content was rejected by the security scan ({describe(threats)})")
 
 
-def write_skill_file(name: str, file_path: str, content: str, *, origin: str = "agent",
-                     write_guard: WriteGuard | None = None) -> dict[str, Any]:
+def write_skill_file(
+    name: str, file_path: str, content: str, *, origin: str = "agent", write_guard: WriteGuard | None = None
+) -> dict[str, Any]:
     skill = _writable(_require(name), write_guard=write_guard, file_path=file_path)
     target = _support_path(skill, file_path)
     _guard_write(target, write_guard)
@@ -201,8 +228,9 @@ def write_skill_file(name: str, file_path: str, content: str, *, origin: str = "
     return {"name": name, "path": str(target), "written": True}
 
 
-def remove_skill_file(name: str, file_path: str, *, origin: str = "agent",
-                      write_guard: WriteGuard | None = None) -> dict[str, Any]:
+def remove_skill_file(
+    name: str, file_path: str, *, origin: str = "agent", write_guard: WriteGuard | None = None
+) -> dict[str, Any]:
     skill = _writable(_require(name), write_guard=write_guard, file_path=file_path)
     target = _support_path(skill, file_path)
     _guard_write(target, write_guard)

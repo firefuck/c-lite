@@ -126,7 +126,9 @@ def test_stranger_gets_a_pairing_code_and_is_let_in_once_approved(gateway):
     time.sleep(0.1)
     assert len(local.outbox) == 1
 
-    assert runner.pairing.approve("local", code.lower())["user_id"] == "stranger"  # codes are case-insensitive
+    assert (
+        runner.pairing.approve("local", code.lower())["user_id"] == "stranger"
+    )  # codes are case-insensitive
     local.inject("now?", user_id="stranger")
     assert local.wait_for_messages(2)[1] == "ok"
 
@@ -157,13 +159,19 @@ def test_pairing_store_limits(clite_home):
 
     fresh = store.request_code("telegram", "u1", now=now + 5000)
     for _ in range(4):
-        assert store.approve("telegram", "WRONGCODE", now=now + 5001) is None  # (one failure was counted above)
+        assert (
+            store.approve("telegram", "WRONGCODE", now=now + 5001) is None
+        )  # (one failure was counted above)
     with pytest.raises(PermissionError):
         store.approve("telegram", fresh, now=now + 5002)  # locked after five wrong codes
     later = now + 5002 + 3600 + 1  # the lock has expired (and so has that code)
     newest = store.request_code("telegram", "u1", now=later)
     assert store.approve("telegram", newest, now=later + 1) == {"user_id": "u1", "user_name": ""}
-    assert store.is_approved("telegram", "u1") and store.revoke("telegram", "u1") and not store.is_approved("telegram", "u1")
+    assert (
+        store.is_approved("telegram", "u1")
+        and store.revoke("telegram", "u1")
+        and not store.is_approved("telegram", "u1")
+    )
 
 
 # ── commands and busy handling ───────────────────────────────────────────────────────────
@@ -179,7 +187,9 @@ def test_slash_commands_work_in_chat(gateway):
 
     local.inject("/new", user_id="owner")
     assert local.wait_for_messages(3)[2] == "Started a new session."
-    assert runner.session_map.get("local:dm:owner") != old  # a restart resumes the new session, not the old one
+    assert (
+        runner.session_map.get("local:dm:owner") != old
+    )  # a restart resumes the new session, not the old one
     local.inject("/quit", user_id="owner")
     assert "only available in the terminal" in local.wait_for_messages(4)[3]
     local.inject("/approve", user_id="owner")
@@ -227,7 +237,9 @@ def test_queue_mode_runs_messages_in_order(gateway):
         release.wait(5)
         return text_response("first answer")
 
-    runner, local, _ = gateway([slow, text_response("second answer")], extra="display:\n  busy_input_mode: queue")
+    runner, local, _ = gateway(
+        [slow, text_response("second answer")], extra="display:\n  busy_input_mode: queue"
+    )
     local.inject("one", user_id="owner")
     time.sleep(0.1)
     local.inject("two", user_id="owner")
@@ -242,7 +254,9 @@ def test_queue_mode_runs_messages_in_order(gateway):
 def test_dangerous_command_is_approved_by_replying(gateway, tmp_path):
     target = tmp_path / "old-build"
     target.mkdir()
-    runner, local, _ = gateway([tool_call_response(("terminal", {"command": f"rm -rf {target}"})), text_response("Removed.")])
+    runner, local, _ = gateway(
+        [tool_call_response(("terminal", {"command": f"rm -rf {target}"})), text_response("Removed.")]
+    )
     local.inject("clean the build dir", user_id="owner")
     prompt = local.wait_for_messages(1)[0]
     assert f"rm -rf {target}" in prompt and "/approve" in prompt and target.exists()
@@ -258,8 +272,10 @@ def test_deny_and_silence_both_refuse(gateway, tmp_path):
     target = tmp_path / "keep"
     target.mkdir()
     call = tool_call_response(("terminal", {"command": f"rm -rf {target}"}))
-    runner, local, _ = gateway([call, text_response("Left it alone."), call, text_response("No answer, so I did not.")],
-                               extra="approvals:\n  timeout: 0.3")
+    runner, local, _ = gateway(
+        [call, text_response("Left it alone."), call, text_response("No answer, so I did not.")],
+        extra="approvals:\n  timeout: 0.3",
+    )
     local.inject("clean up", user_id="owner")
     local.wait_for_messages(1)
     local.inject("/deny", user_id="owner")
@@ -270,7 +286,9 @@ def test_deny_and_silence_both_refuse(gateway, tmp_path):
 
 
 def test_clarifying_question_is_answered_by_number_or_text(gateway):
-    ask = tool_call_response(("clarify", {"question": "Which environment?", "choices": ["staging", "production"]}))
+    ask = tool_call_response(
+        ("clarify", {"question": "Which environment?", "choices": ["staging", "production"]})
+    )
     runner, local, _ = gateway([ask, text_response("Deploying to production.")])
     local.inject("deploy", user_id="owner")
     assert local.wait_for_messages(1)[0] == "Which environment?\n1. staging\n2. production"
@@ -301,8 +319,15 @@ def test_plugins_can_drop_or_rewrite_incoming_messages(gateway):
 
 def test_cron_output_is_delivered_to_its_origin(gateway):
     runner, local, _ = gateway()
-    runner.deliver({"id": "j1", "name": "morning digest", "deliver": "origin",
-                    "origin": {"platform": "local", "chat_id": "owner"}}, "3 PRs need review.")
+    runner.deliver(
+        {
+            "id": "j1",
+            "name": "morning digest",
+            "deliver": "origin",
+            "origin": {"platform": "local", "chat_id": "owner"},
+        },
+        "3 PRs need review.",
+    )
     runner.deliver({"id": "j2", "name": "", "deliver": "local:ops-room"}, "Disk at 91%.")
     assert local.wait_for_messages(2) == ["[morning digest]\n3 PRs need review.", "[job j2]\nDisk at 91%."]
     assert local.outbox[1]["chat_id"] == "ops-room"
@@ -313,7 +338,8 @@ def test_cron_output_is_delivered_to_its_origin(gateway):
 def test_a_platform_that_fails_to_start_does_not_stop_the_gateway(clite_home):
     (clite_home / "config.yaml").write_text(
         "model: {provider: mock, default: mock-1}\ngateway:\n  platforms:\n"
-        "    telegram: {enabled: true}\n    local: {enabled: true}\n    imaginary: {enabled: true}\n    off: {enabled: false}\n")
+        "    telegram: {enabled: true}\n    local: {enabled: true}\n    imaginary: {enabled: true}\n    off: {enabled: false}\n"
+    )
     runner = GatewayRunner()
     try:
         assert runner.start(with_cron=False) == ["local"]  # telegram has no token; imaginary has no adapter
@@ -338,7 +364,11 @@ def test_idle_sessions_are_closed_and_resumed_from_storage(gateway):
     local.inject("am I remembered?", user_id="owner")
     local.wait_for_messages(2)
     assert runner.sessions["local:dm:owner"] is not first
-    assert [m["content"] for m in client.calls[-1]["messages"][1:]] == ["remember me", "ok", "am I remembered?"]
+    assert [m["content"] for m in client.calls[-1]["messages"][1:]] == [
+        "remember me",
+        "ok",
+        "am I remembered?",
+    ]
 
 
 # ── telegram, against a fake Bot API ─────────────────────────────────────────────────────
@@ -390,9 +420,18 @@ class FakeTelegram:
 
     def push(self, text, *, user=111, chat=111, chat_type="private", **extra):
         with self.lock:
-            self.updates.append({"update_id": len(self.updates) + 1, "message": {
-                "message_id": len(self.updates) + 1, "text": text, "chat": {"id": chat, "type": chat_type},
-                "from": {"id": user, "first_name": "Ada", "is_bot": False}, **extra}})
+            self.updates.append(
+                {
+                    "update_id": len(self.updates) + 1,
+                    "message": {
+                        "message_id": len(self.updates) + 1,
+                        "text": text,
+                        "chat": {"id": chat, "type": chat_type},
+                        "from": {"id": user, "first_name": "Ada", "is_bot": False},
+                        **extra,
+                    },
+                }
+            )
 
     def wait_sent(self, count, timeout=5.0):
         deadline = time.monotonic() + timeout
@@ -407,7 +446,8 @@ def telegram(clite_home, monkeypatch):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "good-token")
     (clite_home / "config.yaml").write_text(
         "model: {provider: mock, default: mock-1}\ngateway:\n  platforms:\n"
-        f"    telegram: {{enabled: true, allowed_users: [111], base_url: '{api.url}', poll_timeout: 1}}\n")
+        f"    telegram: {{enabled: true, allowed_users: [111], base_url: '{api.url}', poll_timeout: 1}}\n"
+    )
     runner = GatewayRunner()
     assert runner.start(with_cron=False) == ["telegram"]
     yield api, runner
@@ -431,9 +471,18 @@ def test_telegram_group_rules(telegram):
     adapter = runner.adapters["telegram"]
 
     def event(text, **extra):
-        return adapter.to_event({"update_id": 1, "message": {
-            "message_id": 5, "text": text, "chat": {"id": -100, "type": "supergroup", "title": "Team"},
-            "from": {"id": 111, "first_name": "Ada", "last_name": "L"}, **extra}})
+        return adapter.to_event(
+            {
+                "update_id": 1,
+                "message": {
+                    "message_id": 5,
+                    "text": text,
+                    "chat": {"id": -100, "type": "supergroup", "title": "Team"},
+                    "from": {"id": 111, "first_name": "Ada", "last_name": "L"},
+                    **extra,
+                },
+            }
+        )
 
     assert event("just chatting with people") is None
     mentioned = event("@clite_bot what is the status?")
@@ -443,7 +492,12 @@ def test_telegram_group_rules(telegram):
     assert event("/status@other_bot") is None
     assert event("yes do it", reply_to_message={"from": {"username": "clite_bot"}}).text == "yes do it"
     assert event("in a topic @clite_bot", message_thread_id=77).source.thread_id == "77"
-    assert adapter.to_event({"update_id": 2, "message": {"chat": {"id": 1, "type": "private"}, "from": {"id": 1}}}) is None
+    assert (
+        adapter.to_event(
+            {"update_id": 2, "message": {"chat": {"id": 1, "type": "private"}, "from": {"id": 1}}}
+        )
+        is None
+    )
 
 
 def test_telegram_needs_a_valid_token(clite_home, monkeypatch):
@@ -451,7 +505,8 @@ def test_telegram_needs_a_valid_token(clite_home, monkeypatch):
     try:
         monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "bad-token")
         (clite_home / "config.yaml").write_text(
-            f"model: {{provider: mock, default: mock-1}}\ngateway:\n  platforms:\n    telegram: {{base_url: '{api.url}'}}\n")
+            f"model: {{provider: mock, default: mock-1}}\ngateway:\n  platforms:\n    telegram: {{base_url: '{api.url}'}}\n"
+        )
         runner = GatewayRunner()
         assert runner.start(with_cron=False) == []
         runner.stop()
@@ -466,7 +521,8 @@ def test_a_network_error_never_puts_the_bot_token_in_the_log(clite_home, monkeyp
     # A base URL without a scheme makes urllib quote the full request URL, token included.
     (clite_home / "config.yaml").write_text(
         "model: {provider: mock, default: mock-1}\ngateway:\n  platforms:\n"
-        "    telegram: {enabled: true, base_url: 'api-telegram-without-scheme'}\n")
+        "    telegram: {enabled: true, base_url: 'api-telegram-without-scheme'}\n"
+    )
     with caplog.at_level("WARNING", logger="clite"):
         runner = GatewayRunner()
         assert runner.start(with_cron=False) == []
@@ -480,8 +536,12 @@ def test_cron_output_reaches_a_named_chat_through_the_gateway(gateway):
     from clite.cron.scheduler import tick
 
     runner, local, _ = gateway()
-    job = get_job_store().create("check the disk", "every 1h", name="disk", deliver="local:ops-room", now=1_000)
-    outcome = tick(1_000 + 3600, client=ScriptedClient([text_response("Disk at 91%.")]), deliver=runner.deliver)
+    job = get_job_store().create(
+        "check the disk", "every 1h", name="disk", deliver="local:ops-room", now=1_000
+    )
+    outcome = tick(
+        1_000 + 3600, client=ScriptedClient([text_response("Disk at 91%.")]), deliver=runner.deliver
+    )
     assert outcome[0]["job_id"] == job["id"] and outcome[0]["delivered"] is True
     assert local.wait_for_messages(1) == ["[disk]\nDisk at 91%."]
     assert local.outbox[0]["chat_id"] == "ops-room"

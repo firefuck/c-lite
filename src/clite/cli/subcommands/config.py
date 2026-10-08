@@ -26,7 +26,10 @@ _MISSING = object()
 
 def run_show(args: argparse.Namespace) -> int:
     data = load_config() if args.all else load_user_config_raw()
-    print(yaml.safe_dump(data, sort_keys=False, allow_unicode=True).rstrip() or "# (empty: every setting is at its default)")
+    print(
+        yaml.safe_dump(data, sort_keys=False, allow_unicode=True).rstrip()
+        or "# (empty: every setting is at its default)"
+    )
     return 0
 
 
@@ -97,4 +100,6 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     actions.add_parser("path", help="print the config file path").set_defaults(handler=run_path)
     actions.add_parser("env", help="list stored secrets (masked)").set_defaults(handler=run_env)
     actions.add_parser("edit", help="open config.yaml in $EDITOR").set_defaults(handler=run_edit)
-    actions.add_parser("migrate", help="upgrade config.yaml to the current version").set_defaults(handler=run_migrate)
+    actions.add_parser("migrate", help="upgrade config.yaml to the current version").set_defaults(
+        handler=run_migrate
+    )

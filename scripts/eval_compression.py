@@ -50,24 +50,66 @@ def sample_transcript() -> list[dict[str, Any]]:
     return [
         {"role": "user", "content": "Session resume drops the running turn; make it pick the turn back up."},
         {"role": "assistant", "content": "I will look at the session layer first."},
-        {"role": "assistant", "content": None,
-         "tool_calls": [{"id": "call_1", "type": "function",
-                         "function": {"name": "read_file", "arguments": '{"path": "src/clite/runtime/session.py"}'}}]},
-        {"role": "tool", "tool_call_id": "call_1", "name": "read_file",
-         "content": "src/clite/runtime/session.py defines ChatSession.resume() and rebuilds the agent there."},
-        {"role": "user", "content": "Also, src/clite/agent/context/compressor.py should be smarter about long middles."},
-        {"role": "assistant", "content": "For src/clite/agent/context/compressor.py we chose staged summarisation over truncation, "
-                                         "because silently cutting the tape loses the newest facts."},
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {
+                        "name": "read_file",
+                        "arguments": '{"path": "src/clite/runtime/session.py"}',
+                    },
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "name": "read_file",
+            "content": "src/clite/runtime/session.py defines ChatSession.resume() and rebuilds the agent there.",
+        },
+        {
+            "role": "user",
+            "content": "Also, src/clite/agent/context/compressor.py should be smarter about long middles.",
+        },
+        {
+            "role": "assistant",
+            "content": "For src/clite/agent/context/compressor.py we chose staged summarisation over truncation, "
+            "because silently cutting the tape loses the newest facts.",
+        },
         {"role": "assistant", "content": "Let me run the tests."},
         {"role": "user", "content": "go on"},
-        {"role": "assistant", "content": None,
-         "tool_calls": [{"id": "call_2", "type": "function",
-                         "function": {"name": "terminal", "arguments": '{"command": "pytest tests/runtime -k session"}'}}]},
-        {"role": "tool", "tool_call_id": "call_2", "name": "terminal",
-         "content": "pytest tests/runtime -k session failed with exit 2: fixture clite_home not found"},
-        {"role": "assistant", "content": "The failure is unrelated to my change; I will note it and move on."},
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": "call_2",
+                    "type": "function",
+                    "function": {
+                        "name": "terminal",
+                        "arguments": '{"command": "pytest tests/runtime -k session"}',
+                    },
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "call_2",
+            "name": "terminal",
+            "content": "pytest tests/runtime -k session failed with exit 2: fixture clite_home not found",
+        },
+        {
+            "role": "assistant",
+            "content": "The failure is unrelated to my change; I will note it and move on.",
+        },
         {"role": "user", "content": "ok, keep going"},
-        {"role": "assistant", "content": "Remaining: finish wiring the eval script into CI, then update the specs."},
+        {
+            "role": "assistant",
+            "content": "Remaining: finish wiring the eval script into CI, then update the specs.",
+        },
         {"role": "user", "content": "sounds good"},
     ]
 
@@ -80,8 +122,12 @@ def build_summarizer(provider: str, *, config: dict[str, Any] | None = None) -> 
     client = LLMClient()
 
     def summarize(prompt: str) -> str:
-        response = client.complete(route, [{"role": "user", "content": prompt}], None,
-                                   params=RequestParams(max_tokens=4000, timeout=60.0))
+        response = client.complete(
+            route,
+            [{"role": "user", "content": prompt}],
+            None,
+            params=RequestParams(max_tokens=4000, timeout=60.0),
+        )
         return (response.content or "").strip()
 
     return summarize
@@ -150,7 +196,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--provider", default="mock", help="provider for the auxiliary compression route")
     parser.add_argument("--json", action="store_true", help="print the report as JSON")
-    parser.add_argument("--show-summary", action="store_true", help="include the produced summary in the text report")
+    parser.add_argument(
+        "--show-summary", action="store_true", help="include the produced summary in the text report"
+    )
     args = parser.parse_args(argv)
 
     report = evaluate(args.provider)

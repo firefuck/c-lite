@@ -34,8 +34,14 @@ DEFAULT_BASE_URL = "https://api.telegram.org"
 POLL_TIMEOUT_SECONDS = 25
 _CHAT_TYPES = {"private": CHAT_DM, "group": CHAT_GROUP, "supergroup": CHAT_GROUP, "channel": CHAT_CHANNEL}
 
-register_secret(SecretSpec(TOKEN_ENV, "Telegram bot token from @BotFather", category="messaging",
-                           url="https://core.telegram.org/bots#how-do-i-create-a-bot"))
+register_secret(
+    SecretSpec(
+        TOKEN_ENV,
+        "Telegram bot token from @BotFather",
+        category="messaging",
+        url="https://core.telegram.org/bots#how-do-i-create-a-bot",
+    )
+)
 
 
 class TelegramAdapter(BasePlatformAdapter):
@@ -55,8 +61,11 @@ class TelegramAdapter(BasePlatformAdapter):
     def _call(self, method: str, payload: dict[str, Any] | None = None, timeout: float = 30.0) -> Any:
         try:
             request = urllib.request.Request(  # noqa: S310 - the scheme comes from configuration
-                f"{self.base_url}/bot{self.token}/{method}", data=json.dumps(payload or {}).encode(),
-                headers={"Content-Type": "application/json"}, method="POST")
+                f"{self.base_url}/bot{self.token}/{method}",
+                data=json.dumps(payload or {}).encode(),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
             with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
                 body = json.loads(response.read())
         except urllib.error.HTTPError as exc:
@@ -68,7 +77,9 @@ class TelegramAdapter(BasePlatformAdapter):
             # The request URL carries the token; some network errors quote it back.
             raise RuntimeError(f"Telegram {method} failed: {redact(str(exc))}") from None
         if not body.get("ok"):
-            raise RuntimeError(f"Telegram {method} failed: {redact(str(body.get('description', 'unknown error')))}")
+            raise RuntimeError(
+                f"Telegram {method} failed: {redact(str(body.get('description', 'unknown error')))}"
+            )
         return body.get("result")
 
     def connect(self) -> None:
@@ -86,8 +97,11 @@ class TelegramAdapter(BasePlatformAdapter):
     def _poll(self) -> None:
         while not self._stop.is_set():
             try:
-                updates = self._call("getUpdates", {"offset": self._offset, "timeout": self.poll_timeout,
-                                                   "allowed_updates": ["message"]}, timeout=self.poll_timeout + 10)
+                updates = self._call(
+                    "getUpdates",
+                    {"offset": self._offset, "timeout": self.poll_timeout, "allowed_updates": ["message"]},
+                    timeout=self.poll_timeout + 10,
+                )
             except Exception as exc:  # noqa: BLE001 - keep polling through network trouble
                 logger.warning("Telegram polling failed: %s", redact(str(exc)))
                 self._stop.wait(5)
@@ -114,18 +128,33 @@ class TelegramAdapter(BasePlatformAdapter):
             text = f"{name} {rest}".strip()
         elif chat_type != CHAT_DM:
             mention = f"@{self.bot_username}" if self.bot_username else ""
-            replied_to_bot = ((message.get("reply_to_message") or {}).get("from") or {}).get("username") == self.bot_username
+            replied_to_bot = ((message.get("reply_to_message") or {}).get("from") or {}).get(
+                "username"
+            ) == self.bot_username
             if mention and mention in text:
                 text = text.replace(mention, "").strip()
             elif not (self.bot_username and replied_to_bot):
                 return None  # ordinary group chatter is not for the agent
-        name = " ".join(part for part in (sender.get("first_name"), sender.get("last_name")) if part) or sender.get("username", "")
+        name = " ".join(
+            part for part in (sender.get("first_name"), sender.get("last_name")) if part
+        ) or sender.get("username", "")
         thread = message.get("message_thread_id")
-        source = SessionSource(platform=self.name, chat_id=str(chat["id"]), user_id=str(sender.get("id", "")), user_name=name,
-                               chat_type=chat_type, thread_id=str(thread) if thread else None, chat_name=chat.get("title") or "")
-        return MessageEvent(text=text, source=source, message_id=str(message.get("message_id", "")), raw=update)
+        source = SessionSource(
+            platform=self.name,
+            chat_id=str(chat["id"]),
+            user_id=str(sender.get("id", "")),
+            user_name=name,
+            chat_type=chat_type,
+            thread_id=str(thread) if thread else None,
+            chat_name=chat.get("title") or "",
+        )
+        return MessageEvent(
+            text=text, source=source, message_id=str(message.get("message_id", "")), raw=update
+        )
 
-    def send(self, chat_id: str, text: str, *, reply_to: str | None = None, thread_id: str | None = None) -> SendResult:
+    def send(
+        self, chat_id: str, text: str, *, reply_to: str | None = None, thread_id: str | None = None
+    ) -> SendResult:
         payload: dict[str, Any] = {"chat_id": chat_id, "text": text}
         if reply_to:
             payload["reply_parameters"] = {"message_id": int(reply_to)}

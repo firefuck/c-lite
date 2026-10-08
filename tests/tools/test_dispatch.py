@@ -21,16 +21,20 @@ SCHEMA = {
     "parameters": {
         "type": "object",
         "properties": {
-            "count": {"type": "integer"}, "ratio": {"type": "number"}, "flag": {"type": "boolean"},
-            "items": {"type": "array"}, "name": {"type": "string"},
+            "count": {"type": "integer"},
+            "ratio": {"type": "number"},
+            "flag": {"type": "boolean"},
+            "items": {"type": "array"},
+            "name": {"type": "string"},
         },
     },
 }
 
 
 def _register(name="t_tool", handler=None, toolset="test-set", **kwargs):
-    return registry.register(name, toolset, dict(SCHEMA), handler or (lambda args: tool_result(args)),
-                             origin="test", **kwargs)
+    return registry.register(
+        name, toolset, dict(SCHEMA), handler or (lambda args: tool_result(args)), origin="test", **kwargs
+    )
 
 
 def _names(definitions):
@@ -127,12 +131,17 @@ def test_dynamic_schema_is_applied_each_time():
 
 
 def test_string_arguments_are_coerced_to_declared_types():
-    coerced = coerce_args(SCHEMA, {"count": "5", "ratio": "0.5", "flag": "TRUE", "items": '["a"]', "name": "7"})
+    coerced = coerce_args(
+        SCHEMA, {"count": "5", "ratio": "0.5", "flag": "TRUE", "items": '["a"]', "name": "7"}
+    )
     assert coerced == {"count": 5, "ratio": 0.5, "flag": True, "items": ["a"], "name": "7"}
 
 
 def test_uncoercible_values_are_left_for_the_handler():
-    assert coerce_args(SCHEMA, {"count": "many", "items": "not json"}) == {"count": "many", "items": "not json"}
+    assert coerce_args(SCHEMA, {"count": "many", "items": "not json"}) == {
+        "count": "many",
+        "items": "not json",
+    }
 
 
 def test_call_runs_the_handler():
@@ -148,7 +157,9 @@ def test_unknown_tool_lists_what_is_available():
 
 def test_tool_outside_the_session_toolset_is_refused():
     _register()
-    result = json.loads(handle_function_call("t_tool", {}, ToolContext(enabled_tools=frozenset({"read_file"}))))
+    result = json.loads(
+        handle_function_call("t_tool", {}, ToolContext(enabled_tools=frozenset({"read_file"})))
+    )
     assert "not enabled" in result["error"]
 
 
@@ -163,13 +174,17 @@ def test_an_explicitly_empty_tool_allowlist_refuses_registered_tools():
 
 def test_pre_tool_call_can_block():
     _register()
-    get_hook_bus().register("pre_tool_call", lambda tool_name: {"action": "block", "message": "policy says no"})
+    get_hook_bus().register(
+        "pre_tool_call", lambda tool_name: {"action": "block", "message": "policy says no"}
+    )
     assert json.loads(handle_function_call("t_tool", {})) == {"error": "policy says no", "blocked": True}
 
 
 def test_pre_tool_call_can_rewrite_arguments():
     _register()
-    get_hook_bus().register("pre_tool_call", lambda args: {"action": "modify", "args": {**args, "name": "rewritten"}})
+    get_hook_bus().register(
+        "pre_tool_call", lambda args: {"action": "modify", "args": {**args, "name": "rewritten"}}
+    )
     assert json.loads(handle_function_call("t_tool", {"count": 1})) == {"count": 1, "name": "rewritten"}
 
 
@@ -194,7 +209,9 @@ def test_transform_tool_result_replaces_the_result():
 def test_post_tool_call_observes_the_final_result():
     seen = {}
     _register()
-    get_hook_bus().register("post_tool_call", lambda tool_name, result, duration: seen.update(tool=tool_name, result=result))
+    get_hook_bus().register(
+        "post_tool_call", lambda tool_name, result, duration: seen.update(tool=tool_name, result=result)
+    )
     handle_function_call("t_tool", {"count": 1})
     assert seen == {"tool": "t_tool", "result": '{"count": 1}'}
 

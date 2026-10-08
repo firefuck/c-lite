@@ -21,21 +21,56 @@ CRONJOB_SCHEMA = {
     "parameters": {
         "type": "object",
         "properties": {
-            "action": {"type": "string", "enum": ["create", "list", "update", "pause", "resume", "run", "remove"]},
-            "job_id": {"type": "string", "description": "Job id (or a unique prefix) for update, pause, resume, run, remove."},
-            "prompt": {"type": "string", "description": "What the agent should do on each run. Self-contained."},
-            "schedule": {"type": "string", "description": "When to run: '30m', 'every 2h', '0 9 * * *', or an ISO timestamp."},
+            "action": {
+                "type": "string",
+                "enum": ["create", "list", "update", "pause", "resume", "run", "remove"],
+            },
+            "job_id": {
+                "type": "string",
+                "description": "Job id (or a unique prefix) for update, pause, resume, run, remove.",
+            },
+            "prompt": {
+                "type": "string",
+                "description": "What the agent should do on each run. Self-contained.",
+            },
+            "schedule": {
+                "type": "string",
+                "description": "When to run: '30m', 'every 2h', '0 9 * * *', or an ISO timestamp.",
+            },
             "name": {"type": "string", "description": "Short label for the job."},
-            "deliver": {"type": "string", "description": "'local' (default), 'origin', or '<platform>:<chat id>'."},
-            "repeat": {"type": "integer", "description": "Stop after this many runs. Omit to run until removed."},
-            "skills": {"type": "array", "items": {"type": "string"}, "description": "Skills to load into each run."},
+            "deliver": {
+                "type": "string",
+                "description": "'local' (default), 'origin', or '<platform>:<chat id>'.",
+            },
+            "repeat": {
+                "type": "integer",
+                "description": "Stop after this many runs. Omit to run until removed.",
+            },
+            "skills": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Skills to load into each run.",
+            },
         },
         "required": ["action"],
     },
 }
 
-_PUBLIC_FIELDS = ("id", "name", "prompt", "schedule_display", "enabled", "deliver", "repeat", "next_run_at",
-                  "last_run_at", "last_status", "last_error", "run_count", "skills")
+_PUBLIC_FIELDS = (
+    "id",
+    "name",
+    "prompt",
+    "schedule_display",
+    "enabled",
+    "deliver",
+    "repeat",
+    "next_run_at",
+    "last_run_at",
+    "last_status",
+    "last_error",
+    "run_count",
+    "skills",
+)
 
 
 def _public(job: dict[str, Any]) -> dict[str, Any]:
@@ -44,8 +79,12 @@ def _public(job: dict[str, Any]) -> dict[str, Any]:
 
 def _origin(ctx: ToolContext) -> dict[str, Any]:
     meta = getattr(ctx.agent, "session_meta", None) or {}
-    return {"platform": ctx.platform, "chat_id": meta.get("chat_id"), "thread_id": meta.get("thread_id"),
-            "session_id": ctx.session_id}
+    return {
+        "platform": ctx.platform,
+        "chat_id": meta.get("chat_id"),
+        "thread_id": meta.get("thread_id"),
+        "session_id": ctx.session_id,
+    }
 
 
 def cronjob_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
@@ -61,23 +100,38 @@ def cronjob_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
         if action == "create":
             deliver = str(args.get("deliver") or "local")
             job = store.create(
-                str(args.get("prompt") or ""), str(args.get("schedule") or ""), name=str(args.get("name") or ""),
-                deliver=deliver, repeat=args.get("repeat"), skills=args.get("skills") or [], origin=_origin(ctx),
+                str(args.get("prompt") or ""),
+                str(args.get("schedule") or ""),
+                name=str(args.get("name") or ""),
+                deliver=deliver,
+                repeat=args.get("repeat"),
+                skills=args.get("skills") or [],
+                origin=_origin(ctx),
             )
             return tool_result(job=_public(job), created=True)
         if not job_id:
             return tool_error("job_id is required for this action; use action='list' to see ids")
         if action == "update":
-            fields = {key: args[key] for key in ("prompt", "name", "deliver", "repeat", "skills") if key in args}
-            return tool_result(job=_public(store.update(job_id, schedule=args.get("schedule"), **fields)), updated=True)
+            fields = {
+                key: args[key] for key in ("prompt", "name", "deliver", "repeat", "skills") if key in args
+            }
+            return tool_result(
+                job=_public(store.update(job_id, schedule=args.get("schedule"), **fields)), updated=True
+            )
         if action == "pause":
             return tool_result(job=_public(store.pause(job_id)))
         if action == "resume":
             return tool_result(job=_public(store.resume(job_id)))
         if action == "run":
-            return tool_result(job=_public(store.trigger(job_id)), note="The job will run on the next scheduler tick.")
+            return tool_result(
+                job=_public(store.trigger(job_id)), note="The job will run on the next scheduler tick."
+            )
         if action == "remove":
-            return tool_result(removed=True) if store.remove(job_id) else tool_error(f"no job with id {job_id!r}")
+            return (
+                tool_result(removed=True)
+                if store.remove(job_id)
+                else tool_error(f"no job with id {job_id!r}")
+            )
     except JobError as exc:
         return tool_error(str(exc))
     return tool_error(f"Unknown action {action!r}.")

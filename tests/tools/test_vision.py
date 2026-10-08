@@ -44,8 +44,13 @@ class _ChatHandler(BaseHTTPRequestHandler):
         self.requests.append({"path": self.path, "body": body})
         reply = {
             "id": "chatcmpl-1",
-            "choices": [{"index": 0, "message": {"role": "assistant", "content": "a red square"},
-                         "finish_reason": "stop"}],
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "a red square"},
+                    "finish_reason": "stop",
+                }
+            ],
             "usage": {"prompt_tokens": 100, "completion_tokens": 10, "total_tokens": 110},
         }
         payload = json.dumps(reply).encode()
@@ -88,7 +93,9 @@ def _vision_config(base_url: str) -> dict:
 # ── the image is routed to the auxiliary model ─────────────────────────────────────────────
 
 
-def test_vision_analyze_sends_the_image_to_the_auxiliary_route(tmp_path, chat_server, clite_home, monkeypatch):
+def test_vision_analyze_sends_the_image_to_the_auxiliary_route(
+    tmp_path, chat_server, clite_home, monkeypatch
+):
     base_url, handler = chat_server
     monkeypatch.setenv("CUSTOM_API_KEY", "synthetic-key")
     image = _write_image(tmp_path)
@@ -99,9 +106,13 @@ def test_vision_analyze_sends_the_image_to_the_auxiliary_route(tmp_path, chat_se
         config=_vision_config(base_url),
     )
 
-    result = json.loads(handle_function_call(
-        "vision_analyze", {"path": str(image), "prompt": "what is in this picture?"}, ctx,
-    ))
+    result = json.loads(
+        handle_function_call(
+            "vision_analyze",
+            {"path": str(image), "prompt": "what is in this picture?"},
+            ctx,
+        )
+    )
     assert "analysis" in result, result
     assert result["analysis"] == "a red square"
     assert result["model"] == "vision-model"
@@ -140,18 +151,31 @@ def test_the_main_model_never_receives_the_image_parts(tmp_path, chat_server, cl
 # ── a route that cannot see is refused, with a way forward ─────────────────────────────────
 
 
-def test_a_vision_route_whose_model_cannot_see_is_refused_before_any_call(tmp_path, chat_server, clite_home, monkeypatch):
+def test_a_vision_route_whose_model_cannot_see_is_refused_before_any_call(
+    tmp_path, chat_server, clite_home, monkeypatch
+):
     base_url, handler = chat_server
     monkeypatch.setenv("CUSTOM_API_KEY", "synthetic-key")
     image = _write_image(tmp_path)
     # A profile whose model ids are declared blind: images must never be sent to it.
     blind_profile = ProviderProfile(
-        name="blind", base_url=base_url, vision_models=(), no_vision_prefixes=("main-model",),
+        name="blind",
+        base_url=base_url,
+        vision_models=(),
+        no_vision_prefixes=("main-model",),
     )
-    blind = RuntimeRoute(provider="blind", model="main-model", api_mode="chat_completions",
-                         base_url=base_url, profile=blind_profile, source="test")
-    ctx = ToolContext(agent=SimpleNamespace(route=blind, client=LLMClient()),
-                      config={"auxiliary": {"vision": {"provider": "main", "model": ""}}})
+    blind = RuntimeRoute(
+        provider="blind",
+        model="main-model",
+        api_mode="chat_completions",
+        base_url=base_url,
+        profile=blind_profile,
+        source="test",
+    )
+    ctx = ToolContext(
+        agent=SimpleNamespace(route=blind, client=LLMClient()),
+        config={"auxiliary": {"vision": {"provider": "main", "model": ""}}},
+    )
 
     result = json.loads(handle_function_call("vision_analyze", {"path": str(image)}, ctx))
     assert "accept images" in result.get("error", "")
@@ -179,9 +203,7 @@ def test_vision_route_defaults_to_the_main_route(clite_home):
 
 
 def test_vision_route_is_configured_per_task(clite_home):
-    (clite_home / "config.yaml").write_text(
-        "auxiliary:\n  vision: {provider: main, model: sees-things}\n"
-    )
+    (clite_home / "config.yaml").write_text("auxiliary:\n  vision: {provider: main, model: sees-things}\n")
     from clite.core.config import reset_config_cache
 
     reset_config_cache()
@@ -199,5 +221,3 @@ def test_a_profile_names_the_models_that_accept_images(clite_home):
     assert deepseek is not None
     assert deepseek.supports_vision("deepseek-chat") is False
     assert deepseek.supports_vision("deepseek-v4-flash-vision-exp") is True
-
-

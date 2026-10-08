@@ -38,7 +38,9 @@ class Client:
     def call_raw(self, method, params=None):
         self._next += 1
         request_id = self._next
-        self.server.handle_message({"jsonrpc": "2.0", "id": request_id, "method": method, "params": params or {}})
+        self.server.handle_message(
+            {"jsonrpc": "2.0", "id": request_id, "method": method, "params": params or {}}
+        )
         return self.transport.wait_for(lambda m: m.get("id") == request_id and "method" not in m)
 
     def call(self, method, params=None):
@@ -51,15 +53,22 @@ class Client:
 
     def wait_event(self, event_type, timeout=5.0):
         return self.transport.wait_for(
-            lambda m: m.get("method") == "event" and m["params"]["type"] == event_type, timeout)["params"]
+            lambda m: m.get("method") == "event" and m["params"]["type"] == event_type, timeout
+        )["params"]
 
     def answer_server_requests(self):
         """Reply to any pending server request using ``auto_reply[method]``."""
         for message in list(self.transport.messages):
             request_id = message.get("id")
-            if isinstance(request_id, str) and request_id.startswith("srq-") and request_id not in self._answered:
+            if (
+                isinstance(request_id, str)
+                and request_id.startswith("srq-")
+                and request_id not in self._answered
+            ):
                 self._answered.add(request_id)
-                self.server.handle_message({"jsonrpc": "2.0", "id": request_id, "result": self.auto_reply[message["method"]]})
+                self.server.handle_message(
+                    {"jsonrpc": "2.0", "id": request_id, "result": self.auto_reply[message["method"]]}
+                )
 
     def run_turn(self, session_id, text, **params):
         started = len(self.transport.events("turn.complete"))
@@ -147,8 +156,17 @@ def test_a_turn_is_a_stream_of_events_ending_with_turn_complete(client, tmp_path
 
     events = rpc.transport.events()
     types = [event["type"] for event in events]
-    assert types == ["turn.start", "turn.step", "message.complete", "tool.start", "tool.complete", "turn.step",
-                     "message.delta", "message.complete", "turn.complete"]
+    assert types == [
+        "turn.start",
+        "turn.step",
+        "message.complete",
+        "tool.start",
+        "tool.complete",
+        "turn.step",
+        "message.delta",
+        "message.complete",
+        "turn.complete",
+    ]
     assert [event["seq"] for event in events] == list(range(1, len(events) + 1))
     assert all(event["session_id"] == session["session_id"] for event in events)
 
@@ -156,11 +174,20 @@ def test_a_turn_is_a_stream_of_events_ending_with_turn_complete(client, tmp_path
     assert tool_start["name"] == "read_file" and tool_start["preview"] == "notes.txt"
     assert tool_done["call_id"] == tool_start["call_id"] and tool_done["failed"] is False
     done = events[-1]["payload"]
-    assert done["turn_id"] == submitted["turn_id"] and done["final_response"] == "Friday." and done["completed"] is True
+    assert (
+        done["turn_id"] == submitted["turn_id"]
+        and done["final_response"] == "Friday."
+        and done["completed"] is True
+    )
     assert done["api_calls"] == 2 and done["usage"]["output_tokens"] == 10
 
     history = rpc.call("session.history", {"session_id": session["session_id"]})["messages"]
-    assert [(m["role"], m["tool_name"]) for m in history] == [("user", ""), ("assistant", ""), ("tool", "read_file"), ("assistant", "")]
+    assert [(m["role"], m["tool_name"]) for m in history] == [
+        ("user", ""),
+        ("assistant", ""),
+        ("tool", "read_file"),
+        ("assistant", ""),
+    ]
     assert history[1]["tool_calls"] == ["read_file"]
     usage = rpc.call("session.usage", {"session_id": session["session_id"]})
     assert usage["usage"]["input_tokens"] == 20 and usage["context"]["messages"] == 4
@@ -181,8 +208,9 @@ def test_prompt_submit_carries_image_attachments_into_the_turn(client, tmp_path)
 def test_prompt_submit_reports_a_bad_attachment_as_an_error_not_a_failed_turn(client, tmp_path):
     rpc = client()
     sid = rpc.call("session.create", {"cwd": str(tmp_path)})["session_id"]
-    error = rpc.error("prompt.submit", {"session_id": sid, "text": "hi",
-                                        "attachments": [str(tmp_path / "missing.png")]})
+    error = rpc.error(
+        "prompt.submit", {"session_id": sid, "text": "hi", "attachments": [str(tmp_path / "missing.png")]}
+    )
     assert error["code"] == 4004 and "no file at" in error["message"]
     assert rpc.transport.events("turn.complete") == []  # the turn never started
 
@@ -227,9 +255,14 @@ def test_busy_modes(client):
     rpc.call("prompt.submit", {"session_id": sid, "text": "first"})
     rpc.wait_event("turn.step")
 
-    assert rpc.error("prompt.submit", {"session_id": sid, "text": "x", "busy_mode": "reject"})["code"] == SESSION_BUSY
+    assert (
+        rpc.error("prompt.submit", {"session_id": sid, "text": "x", "busy_mode": "reject"})["code"]
+        == SESSION_BUSY
+    )
     assert rpc.error("slash.exec", {"session_id": sid, "command": "/new"})["code"] == SESSION_BUSY
-    assert "working" in rpc.call("slash.exec", {"session_id": sid, "command": "/status"})["text"]  # allowed while busy
+    assert (
+        "working" in rpc.call("slash.exec", {"session_id": sid, "command": "/status"})["text"]
+    )  # allowed while busy
     steered = rpc.call("prompt.submit", {"session_id": sid, "text": "be brief", "busy_mode": "steer"})
     assert steered == {"accepted": True, "turn_id": "", "queued": False}
     queued = rpc.call("prompt.submit", {"session_id": sid, "text": "second", "busy_mode": "queue"})
@@ -287,8 +320,10 @@ def _pump(rpc, until_event="turn.complete"):
 def test_approval_goes_to_the_client_and_back(client, tmp_path):
     target = tmp_path / "scratch"
     target.mkdir()
-    rpc = client([tool_call_response(("terminal", {"command": f"rm -rf {target}"})), text_response("removed")],
-                 auto_reply={"approval.request": {"choice": "once"}})
+    rpc = client(
+        [tool_call_response(("terminal", {"command": f"rm -rf {target}"})), text_response("removed")],
+        auto_reply={"approval.request": {"choice": "once"}},
+    )
     sid = rpc.call("session.create", {"cwd": str(tmp_path)})["session_id"]
     rpc.call("prompt.submit", {"session_id": sid, "text": "clean up"})
     _pump(rpc)
@@ -300,10 +335,14 @@ def test_approval_goes_to_the_client_and_back(client, tmp_path):
 
 @pytest.mark.platforms("posix")
 def test_no_answer_to_an_approval_means_deny(client, tmp_path, clite_home):
-    (clite_home / "config.yaml").write_text("model:\n  provider: mock\n  default: mock-1\napprovals:\n  timeout: 0.2\n")
+    (clite_home / "config.yaml").write_text(
+        "model:\n  provider: mock\n  default: mock-1\napprovals:\n  timeout: 0.2\n"
+    )
     target = tmp_path / "keep"
     target.mkdir()
-    rpc = client([tool_call_response(("terminal", {"command": f"rm -rf {target}"})), text_response("could not")])
+    rpc = client(
+        [tool_call_response(("terminal", {"command": f"rm -rf {target}"})), text_response("could not")]
+    )
     sid = rpc.call("session.create")["session_id"]
     rpc.run_turn(sid, "clean up")
     assert target.exists()
@@ -311,8 +350,15 @@ def test_no_answer_to_an_approval_means_deny(client, tmp_path, clite_home):
 
 
 def test_clarify_goes_to_the_client_and_back(client):
-    rpc = client([tool_call_response(("clarify", {"question": "Which environment?", "choices": ["staging", "prod"]})),
-                  text_response("deploying to staging")], auto_reply={"clarify.request": {"answer": "staging"}})
+    rpc = client(
+        [
+            tool_call_response(
+                ("clarify", {"question": "Which environment?", "choices": ["staging", "prod"]})
+            ),
+            text_response("deploying to staging"),
+        ],
+        auto_reply={"clarify.request": {"answer": "staging"}},
+    )
     sid = rpc.call("session.create")["session_id"]
     rpc.call("prompt.submit", {"session_id": sid, "text": "deploy"})
     _pump(rpc)
@@ -328,7 +374,9 @@ def test_clarify_goes_to_the_client_and_back(client):
 def test_slash_commands_through_rpc(client, clite_home):
     skill = clite_home / "skills" / "standup"
     skill.mkdir(parents=True)
-    (skill / "SKILL.md").write_text("---\nname: standup\ndescription: Write a standup note.\n---\n\nThree bullets.\n")
+    (skill / "SKILL.md").write_text(
+        "---\nname: standup\ndescription: Write a standup note.\n---\n\nThree bullets.\n"
+    )
     rpc = client([text_response("- did\n- doing\n- blocked")])
     sid = rpc.call("session.create")["session_id"]
 
@@ -353,14 +401,20 @@ def test_catalog_and_completion(client):
     assert commands["model"]["args_hint"] and commands["skill-authoring"]["kind"] == "skill"
     names = [item["name"] for item in rpc.call("complete.slash", {"prefix": "/re"})["items"]]
     assert names == ["new", "retry", "resume", "reasoning", "reload"]  # /new matches through its alias /reset
-    assert [item["name"] for item in rpc.call("complete.slash", {"prefix": "exi"})["items"]] == ["quit"]  # by alias
+    assert [item["name"] for item in rpc.call("complete.slash", {"prefix": "exi"})["items"]] == [
+        "quit"
+    ]  # by alias
 
 
 def test_model_and_provider_methods(client):
     rpc = client()
     sid = rpc.call("session.create")["session_id"]
     listed = rpc.call("model.list")
-    assert listed["provider"] == "mock" and listed["current"] == "mock-1" and listed["models"][0]["id"] == "mock-1"
+    assert (
+        listed["provider"] == "mock"
+        and listed["current"] == "mock-1"
+        and listed["models"][0]["id"] == "mock-1"
+    )
     changed = rpc.call("model.set", {"session_id": sid, "model": "mock-3", "persist": True})
     assert changed["success"] is True and changed["model"] == "mock-3"
     assert rpc.call("config.get", {"key": "model.default"})["value"] == "mock-3"
@@ -369,12 +423,16 @@ def test_model_and_provider_methods(client):
 
     providers = {p["name"]: p for p in rpc.call("providers.list")["providers"]}
     assert providers["mock"]["configured"] is True and providers["anthropic"]["configured"] is False
-    assert providers["custom"]["needs_base_url"] is True and providers["anthropic"]["env_vars"] == ["ANTHROPIC_API_KEY"]
+    assert providers["custom"]["needs_base_url"] is True and providers["anthropic"]["env_vars"] == [
+        "ANTHROPIC_API_KEY"
+    ]
 
 
 def test_setup_from_a_client_stores_key_and_choice(client, clite_home):
     rpc = client()
-    applied = rpc.call("setup.apply", {"provider": "deepseek", "api_key": "sk-ds-from-the-gui", "model": "deepseek-chat"})
+    applied = rpc.call(
+        "setup.apply", {"provider": "deepseek", "api_key": "sk-ds-from-the-gui", "model": "deepseek-chat"}
+    )
     assert applied == {"provider": "deepseek", "model": "deepseek-chat"}
     assert "DEEPSEEK_API_KEY=sk-ds-from-the-gui" in (clite_home / ".env").read_text()
     info = rpc.call("system.info")
@@ -390,25 +448,43 @@ def test_config_tools_skills_plugins_memory_cron(client):
     assert rpc.error("config.set", {"key": "_config_version", "value": 9})["code"] == 4004
 
     toolsets = {t["name"]: t for t in rpc.call("tools.list")["toolsets"]}
-    assert toolsets["file"]["enabled_tools"] == toolsets["file"]["tools"] == ["read_file", "write_file", "patch", "search_files"]
+    assert (
+        toolsets["file"]["enabled_tools"]
+        == toolsets["file"]["tools"]
+        == ["read_file", "write_file", "patch", "search_files"]
+    )
 
     assert "skill-authoring" in {s["name"] for s in rpc.call("skills.list")["skills"]}
     viewed = rpc.call("skills.view", {"name": "skill-authoring"})
-    assert viewed["content"].startswith("---") and "no skill" in rpc.error("skills.view", {"name": "zzz"})["message"]
+    assert (
+        viewed["content"].startswith("---")
+        and "no skill" in rpc.error("skills.view", {"name": "zzz"})["message"]
+    )
 
     plugins = {p["name"]: p for p in rpc.call("plugins.list")["plugins"]}
     assert plugins["audit-log"]["status"] == "not_enabled"
-    enabled = {p["name"]: p for p in rpc.call("plugins.set_enabled", {"name": "audit-log", "enabled": True})["plugins"]}
+    enabled = {
+        p["name"]: p
+        for p in rpc.call("plugins.set_enabled", {"name": "audit-log", "enabled": True})["plugins"]
+    }
     assert enabled["audit-log"]["status"] == "loaded"
 
-    assert rpc.call("memory.get") == {"memory": [], "user": [], "memory_limit": 2200, "user_limit": 1375, "provider": ""}
+    assert rpc.call("memory.get") == {
+        "memory": [],
+        "user": [],
+        "memory_limit": 2200,
+        "user_limit": 1375,
+        "provider": "",
+    }
 
     job = rpc.call("cron.create", {"prompt": "check the queue", "schedule": "every 1h", "name": "queue"})
     assert job["schedule_display"] == "every 1h" and job["enabled"] is True
     paused = rpc.call("cron.action", {"job_id": job["id"], "action": "pause"})["jobs"]
     assert paused[0]["enabled"] is False
     assert rpc.call("cron.action", {"job_id": job["id"], "action": "remove"})["jobs"] == []
-    assert "cannot read schedule" in rpc.error("cron.create", {"prompt": "x", "schedule": "whenever"})["message"]
+    assert (
+        "cannot read schedule" in rpc.error("cron.create", {"prompt": "x", "schedule": "whenever"})["message"]
+    )
 
 
 def test_closing_the_server_ends_its_sessions(client):
@@ -426,8 +502,14 @@ def test_closing_the_server_ends_its_sessions(client):
 def test_stdio_entry_point_end_to_end(clite_home):
     """Spawn the server as the TUI does and talk to it over pipes."""
     env = {**os.environ, "CLITE_HOME": str(clite_home), "PYTHONPATH": os.pathsep.join(sys.path)}
-    process = subprocess.Popen([sys.executable, "-m", "clite.rpc.entry"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE, text=True, env=env)
+    process = subprocess.Popen(
+        [sys.executable, "-m", "clite.rpc.entry"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+    )
 
     def send(message):
         process.stdin.write(json.dumps(message) + "\n")
@@ -446,7 +528,14 @@ def test_stdio_entry_point_end_to_end(clite_home):
         assert ready["params"]["type"] == "gateway.ready"
         send({"jsonrpc": "2.0", "id": 1, "method": "session.create", "params": {}})
         session_id = read_until(lambda m: m.get("id") == 1)["result"]["session_id"]
-        send({"jsonrpc": "2.0", "id": 2, "method": "prompt.submit", "params": {"session_id": session_id, "text": "hello pipes"}})
+        send(
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "prompt.submit",
+                "params": {"session_id": session_id, "text": "hello pipes"},
+            }
+        )
         done = read_until(lambda m: m.get("method") == "event" and m["params"]["type"] == "turn.complete")
         assert done["params"]["payload"]["final_response"] == "You said: hello pipes"
     finally:

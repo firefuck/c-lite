@@ -24,13 +24,14 @@ import time
 from typing import Any
 
 from clite.agent import AgentCallbacks, TurnResult
-from clite.cli.display import Display
+from clite.cli.display import Display, load_skin
 from clite.cli.input import Completer, build_completer, make_reader
 from clite.core.config import get_path, load_config
 from clite.core.constants import get_home
 from clite.core.errors import CliteError
 from clite.runtime.commands import BUSY_ALLOW, command_catalog, resolve_command, split_command
 from clite.runtime.session import (
+    ACTION_CLIPBOARD,
     ACTION_NEW,
     ACTION_QUIT,
     ACTION_SUBMIT,
@@ -49,14 +50,30 @@ try:
 except ImportError:  # Windows without pyreadline
     readline = None  # type: ignore[assignment]
 
-_APPROVAL_KEYS = {"o": "once", "once": "once", "s": "session", "session": "session", "a": "always",
-                  "always": "always", "d": "deny", "deny": "deny", "n": "deny", "": "deny"}
+_APPROVAL_KEYS = {
+    "o": "once",
+    "once": "once",
+    "s": "session",
+    "session": "session",
+    "a": "always",
+    "always": "always",
+    "d": "deny",
+    "deny": "deny",
+    "n": "deny",
+    "": "deny",
+}
 FORCE_EXIT_WINDOW_SECONDS = 2.0
 
 
 class Repl:
-    def __init__(self, *, display: Display | None = None, input_fn=input, images: list[str] | None = None,
-                 **session_options: Any) -> None:
+    def __init__(
+        self,
+        *,
+        display: Display | None = None,
+        input_fn=input,
+        images: list[str] | None = None,
+        **session_options: Any,
+    ) -> None:
         config = load_config()
         self.display = display or Display(
             skin=str(get_path(config, "display.skin", "default")),
@@ -73,7 +90,9 @@ class Repl:
         self._start_images = list(images or [])
         self.session = ChatSession(platform="cli", callbacks=self._callbacks(), **session_options)
         # The queue, the worker and the busy policy are shared with RPC and the gateway.
-        self.turns = TurnQueue(self.session, self._run_turn, merge_bursts=False, thread_name="clite-repl-turn")
+        self.turns = TurnQueue(
+            self.session, self._run_turn, merge_bursts=False, thread_name="clite-repl-turn"
+        )
 
     # ── callbacks ────────────────────────────────────────────────────────────────────────
 
@@ -93,10 +112,12 @@ class Repl:
 
         return AgentCallbacks(
             on_delta=on_delta,
-            on_reasoning=(lambda text: self.display.delta(self.display.style(text, "info"))) if self.show_reasoning else None,
+            on_reasoning=(self.display.reasoning) if self.show_reasoning else None,
             on_message=on_message,
             on_tool_start=lambda call_id, name, args: self.display.tool_start(name, args),
-            on_tool_complete=lambda call_id, name, args, result, seconds: self.display.tool_done(name, args, result, seconds),
+            on_tool_complete=lambda call_id, name, args, result, seconds: self.display.tool_done(
+                name, args, result, seconds
+            ),
             on_status=self.display.status,
             on_subagent=self._show_subagent,
             approve=self._approve,
@@ -162,7 +183,9 @@ class Repl:
         def complete(text: str, state: int) -> str | None:
             if not readline.get_line_buffer().startswith("/"):
                 return None
-            names = sorted("/" + entry["name"] for entry in command_catalog("cli", cwd=self.session.agent.cwd))
+            names = sorted(
+                "/" + entry["name"] for entry in command_catalog("cli", cwd=self.session.agent.cwd)
+            )
             matches = [name for name in names if name.startswith(text)]
             return matches[state] if state < len(matches) else None
 
@@ -188,8 +211,15 @@ class Repl:
     def show_result(self, result: SlashResult | TurnResult) -> bool:
         """Print a command's or a turn's outcome. Returns False when the loop should end."""
         if isinstance(result, SlashResult):
+            if result.action == ACTION_CLIPBOARD:
+                self._copy(result)
+                return True
             if result.text:
                 self.display.line(result.text)
+            if "skin" in result.data:
+                self.display.skin = load_skin(result.data["skin"])
+            if "tool_progress" in result.data:
+                self.display.tool_progress = result.data["tool_progress"]
             if result.action == ACTION_NEW:
                 self.display.info(f"session {self.session.session_id}")
             return result.action != ACTION_QUIT
@@ -199,6 +229,20 @@ class Repl:
         elif result.error:
             self.display.error(result.final_response or result.error)
         return True
+
+    def _copy(self, result: SlashResult) -> None:
+        """Put the last answer on the clipboard. The one place clipboard I/O happens."""
+        from clite.cli.clipboard import copy_to_clipboard
+
+        if copy_to_clipboard(result.text, stream=self.display.out):
+            self.display.line(
+                f"Copied {result.data.get('chars', len(result.text))} characters to the clipboard.", "status"
+            )
+        else:
+            self.display.error(
+                "Could not reach the clipboard. Install one of pbcopy, wl-copy, xclip "
+                "or xsel, or use a terminal that supports OSC 52."
+            )
 
     def _run_turn(self, turn: Turn) -> None:
         """Run one queued turn on the worker thread. The caller's thread keeps reading."""
@@ -292,18 +336,22 @@ class Repl:
             completer = build_completer(surface="cli", cwd=self.session.agent.cwd)
         except Exception:  # noqa: BLE001 - completion is optional; the REPL is not
             completer = None
-        reader = make_reader(input_fn=self.input_fn if self.input_fn is not input else None,
-                             completer=completer, history_path=get_home() / ".cli_history")
+        reader = make_reader(
+            input_fn=self.input_fn if self.input_fn is not input else None,
+            completer=completer,
+            history_path=get_home() / ".cli_history",
+        )
         # The concurrent loop needs a reader that owns the prompt line (prompt_toolkit, which
         # also keeps streaming output off it). Without it we keep the classic loop: read a line,
         # run the turn, read the next — the behaviour that always works.
-        concurrent = hasattr(reader, "streaming")
+        streaming = getattr(reader, "streaming", None)
+        concurrent = streaming is not None
         previous = None
         try:
             previous = signal.signal(signal.SIGINT, self._on_sigint)
         except ValueError:
             pass  # not on the main thread (embedded use): Ctrl+C handling is the host's job
-        stream = reader.streaming() if concurrent else None
+        stream = streaming() if streaming is not None else None
         if stream is not None:
             stream.__enter__()
         self.display.banner(self.session.info())
@@ -344,14 +392,22 @@ def _save_history(path) -> None:
         pass
 
 
-def run_single_query(query: str, *, as_json: bool = False, quiet: bool = False,
-                     images: list[str] | None = None, **session_options: Any) -> int:
+def run_single_query(
+    query: str,
+    *,
+    as_json: bool = False,
+    quiet: bool = False,
+    images: list[str] | None = None,
+    **session_options: Any,
+) -> int:
     """``clite chat -q``: one turn, the answer on stdout, everything else on stderr."""
     import json
 
     progress = Display(stream=sys.stderr, tool_progress="off" if quiet or as_json else "all")
     callbacks = AgentCallbacks(
-        on_tool_complete=lambda call_id, name, args, result, seconds: progress.tool_done(name, args, result, seconds),
+        on_tool_complete=lambda call_id, name, args, result, seconds: progress.tool_done(
+            name, args, result, seconds
+        ),
         on_status=lambda kind, text: None if quiet else progress.status(kind, text),
     )
     session = ChatSession(platform="cli", callbacks=callbacks, **session_options)

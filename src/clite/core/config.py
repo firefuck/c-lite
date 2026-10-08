@@ -212,7 +212,9 @@ def atomic_config_update(mutate: Callable[[dict[str, Any]], None], path: Path | 
     reset_config_cache()
 
 
-def _descend(document: MutableMapping[str, Any], parts: list[str], *, create: bool) -> MutableMapping[str, Any] | None:
+def _descend(
+    document: MutableMapping[str, Any], parts: list[str], *, create: bool
+) -> MutableMapping[str, Any] | None:
     node: Any = document
     for part in parts:
         child = node.get(part) if isinstance(node, Mapping) else None

@@ -46,7 +46,9 @@ def register_provider(profile: ProviderProfile) -> None:
     # Known as credentials from now on: stripped from the commands the agent runs and
     # redacted from what the model reads, wherever the value came from.
     for name in profile.env_vars:
-        register_secret(SecretSpec(name, f"{profile.display_name or profile.name} API key", url=profile.signup_url))
+        register_secret(
+            SecretSpec(name, f"{profile.display_name or profile.name} API key", url=profile.signup_url)
+        )
 
 
 def _load_directory(directory: Path, target: dict[str, ProviderProfile], label: str) -> None:
@@ -55,8 +57,9 @@ def _load_directory(directory: Path, target: dict[str, ProviderProfile], label: 
     for plugin_dir in sorted(p for p in directory.iterdir() if (p / "__init__.py").is_file()):
         slug = plugin_dir.name.replace("-", "_")
         module_name = f"{PLUGIN_NAMESPACE}.model_providers.{label}.{slug}"
-        spec = importlib.util.spec_from_file_location(module_name, plugin_dir / "__init__.py",
-                                                      submodule_search_locations=[str(plugin_dir)])
+        spec = importlib.util.spec_from_file_location(
+            module_name, plugin_dir / "__init__.py", submodule_search_locations=[str(plugin_dir)]
+        )
         if spec is None or spec.loader is None:
             continue
         module = importlib.util.module_from_spec(spec)

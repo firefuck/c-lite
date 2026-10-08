@@ -15,19 +15,37 @@ def add_chat_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("-m", "--model", help="model for this run, optionally as provider:model")
     parser.add_argument("--provider", help="provider for this run")
     parser.add_argument("-t", "--toolsets", help="comma-separated toolsets for this run")
-    parser.add_argument("-r", "--resume", metavar="SESSION", help="resume a session by id, id prefix or title")
-    parser.add_argument("-c", "--continue", dest="continue_last", action="store_true", help="resume the most recent session")
+    parser.add_argument(
+        "-r", "--resume", metavar="SESSION", help="resume a session by id, id prefix or title"
+    )
+    parser.add_argument(
+        "-c", "--continue", dest="continue_last", action="store_true", help="resume the most recent session"
+    )
     parser.add_argument("--yolo", action="store_true", help="skip command approval prompts")
     parser.add_argument("--max-turns", type=int, help="limit tool-calling iterations per turn")
     parser.add_argument("--json", action="store_true", help="with -q: print the full result as JSON")
     parser.add_argument("--quiet", action="store_true", help="with -q: print nothing but the answer")
-    parser.add_argument("--image", action="append", metavar="PATH",
-                        help="attach an image to the prompt (repeat for more than one)")
+    parser.add_argument(
+        "--image",
+        action="append",
+        metavar="PATH",
+        help="attach an image to the prompt (repeat for more than one)",
+    )
     interface = parser.add_mutually_exclusive_group()
-    interface.add_argument("--tui", dest="interface", action="store_const", const="tui",
-                           help="use the terminal UI for this chat (default: display.interface)")
-    interface.add_argument("--classic", dest="interface", action="store_const", const="cli",
-                           help="use the classic CLI even when display.interface is tui")
+    interface.add_argument(
+        "--tui",
+        dest="interface",
+        action="store_const",
+        const="tui",
+        help="use the terminal UI for this chat (default: display.interface)",
+    )
+    interface.add_argument(
+        "--classic",
+        dest="interface",
+        action="store_const",
+        const="cli",
+        help="use the classic CLI even when display.interface is tui",
+    )
 
 
 def session_options(args: argparse.Namespace) -> dict:
@@ -49,9 +67,19 @@ def session_options(args: argparse.Namespace) -> dict:
         parsed_provider, parsed_model = parse_model_input(model)
         if parsed_provider:
             provider, model = parsed_provider, parsed_model
-    toolsets = [name.strip() for name in args.toolsets.split(",") if name.strip()] if getattr(args, "toolsets", None) else None
-    return {"session_id": session_id, "model": model, "provider": provider, "toolsets": toolsets,
-            "yolo": bool(getattr(args, "yolo", False)), "max_turns": getattr(args, "max_turns", None)}
+    toolsets = (
+        [name.strip() for name in args.toolsets.split(",") if name.strip()]
+        if getattr(args, "toolsets", None)
+        else None
+    )
+    return {
+        "session_id": session_id,
+        "model": model,
+        "provider": provider,
+        "toolsets": toolsets,
+        "yolo": bool(getattr(args, "yolo", False)),
+        "max_turns": getattr(args, "max_turns", None),
+    }
 
 
 def wants_tui(args: argparse.Namespace, options: dict) -> bool:

@@ -33,13 +33,23 @@ def test_process_actions_reject_other_owners_without_touching_the_process(tmp_pa
         caller = ToolContext()
     scope = home_scope(tmp_path / "other-profile") if foreign == "profile" else nullcontext()
     with scope:
-        result = json.loads(process_tool({
-            "action": action, "process_id": process_id, "data": "intruder\n", "timeout": 1,
-        }, caller))
+        result = json.loads(
+            process_tool(
+                {
+                    "action": action,
+                    "process_id": process_id,
+                    "data": "intruder\n",
+                    "timeout": 1,
+                },
+                caller,
+            )
+        )
     assert "error" in result
     managed = process_registry.get(process_id)
     assert managed is not None and managed.exit_code is None
-    assert json.loads(process_tool({"action": "write", "process_id": process_id, "data": "owner\n"}, owner))["written"]
+    assert json.loads(process_tool({"action": "write", "process_id": process_id, "data": "owner\n"}, owner))[
+        "written"
+    ]
     waited = json.loads(process_tool({"action": "wait", "process_id": process_id, "timeout": 5}, owner))
     assert waited["finished"] and "got:owner" in waited["output"]
     assert "intruder" not in waited["output"]
@@ -49,8 +59,12 @@ def test_session_fallback_and_profile_filter_keep_process_lists_private(tmp_path
     ctx = ToolContext(session_id="session", cwd=str(tmp_path))
     started = json.loads(terminal_tool({"command": "echo session-output", "background": True}, ctx))
     process_id = started["process_id"]
-    assert json.loads(process_tool({"action": "wait", "process_id": process_id, "timeout": 5}, ctx))["finished"]
-    assert [p["process_id"] for p in json.loads(process_tool({"action": "list"}, ctx))["processes"]] == [process_id]
+    assert json.loads(process_tool({"action": "wait", "process_id": process_id, "timeout": 5}, ctx))[
+        "finished"
+    ]
+    assert [p["process_id"] for p in json.loads(process_tool({"action": "list"}, ctx))["processes"]] == [
+        process_id
+    ]
     assert json.loads(process_tool({"action": "list"}, ToolContext()))["processes"] == []
     with home_scope(tmp_path / "foreign"):
         assert json.loads(process_tool({"action": "list"}, ctx))["processes"] == []
@@ -60,7 +74,9 @@ def test_foreground_output_drains_a_huge_line_but_retains_only_the_character_lim
     chunks = []
     result = LocalEnvironment(str(tmp_path)).execute(
         _python("import sys; sys.stdout.write('x' * 1000000 + 'END')"),
-        max_output_chars=1000, on_output=chunks.append, timeout=5,
+        max_output_chars=1000,
+        on_output=chunks.append,
+        timeout=5,
     )
     assert result.exit_code == 0 and result.truncated
     assert result.output.split("\n[output truncated", 1)[0] == "x" * 1000
@@ -69,7 +85,9 @@ def test_foreground_output_drains_a_huge_line_but_retains_only_the_character_lim
 
 
 def test_background_output_drains_a_huge_line_and_retains_the_exact_tail(tmp_path):
-    managed = process_registry.spawn(_python("import sys; sys.stdout.write('x' * 1000000 + 'END')"), cwd=str(tmp_path), task_id="bounded")
+    managed = process_registry.spawn(
+        _python("import sys; sys.stdout.write('x' * 1000000 + 'END')"), cwd=str(tmp_path), task_id="bounded"
+    )
     assert process_registry.wait(managed, 5)
     assert managed.exit_code == 0
     assert managed.size == 200000
@@ -80,7 +98,9 @@ def test_background_output_drains_a_huge_line_and_retains_the_exact_tail(tmp_pat
 
 def test_chunked_output_preserves_multibyte_characters_across_pipe_reads(tmp_path):
     result = LocalEnvironment(str(tmp_path)).execute(
-        _python("import sys; sys.stdout.write('😀' * 10000)"), max_output_chars=123, timeout=5,
+        _python("import sys; sys.stdout.write('😀' * 10000)"),
+        max_output_chars=123,
+        timeout=5,
     )
     assert result.exit_code == 0 and result.truncated
     assert result.output.split("\n[output truncated", 1)[0] == "😀" * 123
@@ -109,7 +129,8 @@ def test_background_reader_carries_secret_scope_and_output_redacts_it(tmp_path, 
 
 def test_chunked_output_preserves_universal_newline_translation(tmp_path):
     result = LocalEnvironment(str(tmp_path)).execute(
-        _python("import sys; sys.stdout.buffer.write(b'first\\r\\nsecond\\rthird\\n')"), timeout=5,
+        _python("import sys; sys.stdout.buffer.write(b'first\\r\\nsecond\\rthird\\n')"),
+        timeout=5,
     )
     assert result.exit_code == 0
     assert result.output == "first\nsecond\nthird\n"
@@ -121,7 +142,8 @@ def test_foreground_output_callback_carries_the_callers_secret_scope(tmp_path):
     observed = []
     with secret_scope({"LOCAL_PROCESS_TEST_SECRET": "synthetic-callback-value"}):
         result = LocalEnvironment(str(tmp_path)).execute(
-            "echo callback", on_output=lambda text: observed.append(get_secret("LOCAL_PROCESS_TEST_SECRET")),
+            "echo callback",
+            on_output=lambda text: observed.append(get_secret("LOCAL_PROCESS_TEST_SECRET")),
             timeout=5,
         )
     assert result.exit_code == 0

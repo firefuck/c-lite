@@ -31,8 +31,13 @@ def _child_env() -> dict[str, str]:
 
 def test_a_lock_held_by_another_process_blocks_until_that_process_lets_go(tmp_path):
     path = tmp_path / "state" / ".lock"
-    holder = subprocess.Popen([sys.executable, "-c", _HOLDER, str(path)], stdin=subprocess.PIPE,
-                              stdout=subprocess.PIPE, text=True, env=_child_env())
+    holder = subprocess.Popen(
+        [sys.executable, "-c", _HOLDER, str(path)],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        text=True,
+        env=_child_env(),
+    )
     acquired = threading.Event()
 
     def contend() -> None:
@@ -68,9 +73,15 @@ def test_store_mutations_wait_for_another_process_lock(tmp_path, store, lock_nam
         "    JobStore(directory=Path(sys.argv[2])).create('child job', 'every 1h')\n"
         "print('written', flush=True)\n"
     )
-    child = subprocess.Popen([sys.executable, "-c", script, store, str(directory)],
-                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                             text=True, encoding="utf-8", env=_child_env())
+    child = subprocess.Popen(
+        [sys.executable, "-c", script, store, str(directory)],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        env=_child_env(),
+    )
     with ThreadPoolExecutor(max_workers=1) as pool:
         try:
             assert pool.submit(child.stdout.readline).result(timeout=20).strip() == "ready"
@@ -90,8 +101,13 @@ def test_store_mutations_wait_for_another_process_lock(tmp_path, store, lock_nam
 
 def test_a_process_that_dies_holding_the_lock_does_not_leave_it_stuck(tmp_path):
     path = tmp_path / ".lock"
-    holder = subprocess.Popen([sys.executable, "-c", _HOLDER, str(path)], stdin=subprocess.PIPE,
-                              stdout=subprocess.PIPE, text=True, env=_child_env())
+    holder = subprocess.Popen(
+        [sys.executable, "-c", _HOLDER, str(path)],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        text=True,
+        env=_child_env(),
+    )
     with ThreadPoolExecutor(max_workers=2) as pool:
         assert holder.stdout is not None
         assert pool.submit(holder.stdout.readline).result(timeout=20).strip() == "held"

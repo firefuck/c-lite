@@ -42,12 +42,22 @@ def _long_turn(agent, count=8):
     agent.ensure_session()
     agent.append_message({"role": "user", "content": "go", "timestamp": time.time()})
     for index in range(count):
-        agent.append_message({
-            "role": "assistant", "content": None,
-            "tool_calls": [{"id": f"c{index}", "type": "function",
-                            "function": {"name": "read_file", "arguments": json.dumps({"path": f"f{index}"})}}],
-        })
-        agent.append_message({"role": "tool", "tool_call_id": f"c{index}", "name": "read_file", "content": "{}"})
+        agent.append_message(
+            {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {
+                        "id": f"c{index}",
+                        "type": "function",
+                        "function": {"name": "read_file", "arguments": json.dumps({"path": f"f{index}"})},
+                    }
+                ],
+            }
+        )
+        agent.append_message(
+            {"role": "tool", "tool_call_id": f"c{index}", "name": "read_file", "content": "{}"}
+        )
     agent.append_message({"role": "assistant", "content": "done"})
 
 
@@ -143,8 +153,9 @@ def test_review_writes_one_memory_entry_and_leaves_the_main_session_untouched(ma
 
 
 def test_review_writes_to_the_real_memory_store(make_agent, clite_home):
-    agent, _ = make_agent([tool_call_response(MEMORY_CALL), text_response("saved")],
-                          enabled_toolsets=["memory", "skills"])
+    agent, _ = make_agent(
+        [tool_call_response(MEMORY_CALL), text_response("saved")], enabled_toolsets=["memory", "skills"]
+    )
     _long_turn(agent, count=8)
     run_review(agent, _state())
     from clite.core.constants import get_memories_dir
@@ -154,14 +165,17 @@ def test_review_writes_to_the_real_memory_store(make_agent, clite_home):
 
 
 def test_the_reviewer_sees_only_the_turn_copy_as_its_input(make_agent):
-    agent, client = make_agent([tool_call_response(MEMORY_CALL), text_response("saved")],
-                               enabled_toolsets=["memory", "skills"])
+    agent, client = make_agent(
+        [tool_call_response(MEMORY_CALL), text_response("saved")], enabled_toolsets=["memory", "skills"]
+    )
     _long_turn(agent, count=8)
     run_review(agent, _state())
     # The review's own first request: a system prompt and the turn copy as the user message.
     review_request = next(
-        call["messages"] for call in client.calls
-        if call["messages"][-1]["role"] == "user" and "reviewing a conversation turn" in call["messages"][-1]["content"]
+        call["messages"]
+        for call in client.calls
+        if call["messages"][-1]["role"] == "user"
+        and "reviewing a conversation turn" in call["messages"][-1]["content"]
     )
     assert review_request[0]["role"] == "system"
     assert "go" in review_request[-1]["content"]  # the turn copy, not the live transcript
@@ -169,8 +183,10 @@ def test_the_reviewer_sees_only_the_turn_copy_as_its_input(make_agent):
 
 
 def test_the_review_toolset_is_narrow(make_agent):
-    agent, client = make_agent([tool_call_response(MEMORY_CALL), text_response("saved")],
-                               enabled_toolsets=["file", "terminal", "memory", "skills"])
+    agent, client = make_agent(
+        [tool_call_response(MEMORY_CALL), text_response("saved")],
+        enabled_toolsets=["file", "terminal", "memory", "skills"],
+    )
     _long_turn(agent, count=8)
     run_review(agent, _state())
     offered = {tool["function"]["name"] for tool in (client.calls[-1]["tools"] or [])}
@@ -184,8 +200,11 @@ def test_the_review_has_its_own_small_budget(make_agent, clite_home):
 
     config_module.reset_config_cache()
     loop_forever = tool_call_response(("memory", {"action": "add", "target": "memory", "content": "x"}))
-    agent, client = make_agent([loop_forever, loop_forever, text_response("wrapped up")],
-                               enabled_toolsets=["memory", "skills"], config=config_module.load_config())
+    agent, client = make_agent(
+        [loop_forever, loop_forever, text_response("wrapped up")],
+        enabled_toolsets=["memory", "skills"],
+        config=config_module.load_config(),
+    )
     _long_turn(agent, count=8)
     before = len(client.calls)
 
@@ -197,8 +216,7 @@ def test_the_review_has_its_own_small_budget(make_agent, clite_home):
 
 
 def test_a_failing_review_does_not_break_the_next_turn(make_agent):
-    agent, client = make_agent([RuntimeError("provider exploded")],
-                               enabled_toolsets=["memory", "skills"])
+    agent, client = make_agent([RuntimeError("provider exploded")], enabled_toolsets=["memory", "skills"])
     _long_turn(agent, count=8)
     outcome = run_review(agent, _state())
     assert outcome.error and "exploded" in outcome.error
@@ -226,9 +244,11 @@ def test_a_timed_out_review_does_not_break_the_next_turn(make_agent):
 
 def test_spawn_review_runs_in_the_background_and_reports_a_status_line(make_agent):
     events = []
-    agent, _ = make_agent([tool_call_response(MEMORY_CALL), text_response("saved")],
-                          enabled_toolsets=["memory", "skills"],
-                          callbacks=AgentCallbacks(on_status=lambda kind, text: events.append((kind, text))))
+    agent, _ = make_agent(
+        [tool_call_response(MEMORY_CALL), text_response("saved")],
+        enabled_toolsets=["memory", "skills"],
+        callbacks=AgentCallbacks(on_status=lambda kind, text: events.append((kind, text))),
+    )
     _long_turn(agent, count=8)
     thread = spawn_background_review(agent, _state())
     assert isinstance(thread, threading.Thread)
@@ -248,10 +268,16 @@ def test_a_review_that_learns_nothing_says_so(make_agent):
 
 
 def test_a_review_that_writes_a_skill_reports_it(make_agent):
-    skill_body = "---\nname: deploy-notes\ndescription: how the deploy host is reached\n---\n\n1. ssh gilead\n"
+    skill_body = (
+        "---\nname: deploy-notes\ndescription: how the deploy host is reached\n---\n\n1. ssh gilead\n"
+    )
     agent, _ = make_agent(
-        [tool_call_response(("skill_manage", {"action": "create", "name": "deploy-notes", "content": skill_body})),
-         text_response("saved")],
+        [
+            tool_call_response(
+                ("skill_manage", {"action": "create", "name": "deploy-notes", "content": skill_body})
+            ),
+            text_response("saved"),
+        ],
         enabled_toolsets=["memory", "skills"],
     )
     _long_turn(agent, count=8)
@@ -272,7 +298,9 @@ def test_a_real_long_turn_triggers_a_review_and_its_own_history_is_untouched(mak
     result = agent.run_conversation("read every note")
 
     assert result.completed and result.final_response == "all read"
-    assert [message["role"] for message in agent.messages] == ["user"] + ["assistant", "tool"] * 8 + ["assistant"]
+    assert [message["role"] for message in agent.messages] == ["user"] + ["assistant", "tool"] * 8 + [
+        "assistant"
+    ]
     # The review runs on a background thread; wait for it to land in the real memory store.
     memory_file = get_memories_dir() / "MEMORY.md"
     deadline = time.monotonic() + 10
@@ -280,7 +308,9 @@ def test_a_real_long_turn_triggers_a_review_and_its_own_history_is_untouched(mak
         time.sleep(0.02)
     assert memory_file.exists() and "gilead" in memory_file.read_text()
     # And the turn that triggered it is still exactly the turn.
-    assert [message["role"] for message in agent.messages] == ["user"] + ["assistant", "tool"] * 8 + ["assistant"]
+    assert [message["role"] for message in agent.messages] == ["user"] + ["assistant", "tool"] * 8 + [
+        "assistant"
+    ]
 
 
 # ── the scheduled curator ────────────────────────────────────────────────────────────────
@@ -315,7 +345,9 @@ def test_the_startup_curator_runs_at_most_once_per_interval(clite_home, monkeypa
     config = load_config()
 
     calls = []
-    monkeypatch.setattr(maintenance, "_prune_curator_store", lambda cfg, **kw: calls.append(1) or {"archived": []})
+    monkeypatch.setattr(
+        maintenance, "_prune_curator_store", lambda cfg, **kw: calls.append(1) or {"archived": []}
+    )
 
     first = maintenance.run_curator_maintenance(config, now=1_000_000.0)
     second = maintenance.run_curator_maintenance(config, now=1_000_000.0 + 60)
@@ -334,7 +366,9 @@ def test_the_startup_curator_is_off_when_disabled(clite_home, monkeypatch):
 
     config_module.reset_config_cache()
     calls = []
-    monkeypatch.setattr(maintenance, "_prune_curator_store", lambda cfg, **kw: calls.append(1) or {"archived": []})
+    monkeypatch.setattr(
+        maintenance, "_prune_curator_store", lambda cfg, **kw: calls.append(1) or {"archived": []}
+    )
     assert maintenance.run_curator_maintenance(load_config(), now=1_000_000.0) is None
     assert calls == []
 
@@ -372,4 +406,6 @@ def test_the_startup_curator_archives_a_stale_agent_skill(clite_home, monkeypatc
     report = maintenance.run_curator_maintenance(load_config(), now=time.time())
     assert [entry["name"] for entry in report["stale"]] == ["old-lesson"]
     assert any("old-lesson" in path for path in report["archived"])
-    assert all(skill.name != "old-lesson" for skill in discover_skills(include_disabled=True, all_platforms=True))
+    assert all(
+        skill.name != "old-lesson" for skill in discover_skills(include_disabled=True, all_platforms=True)
+    )

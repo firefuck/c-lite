@@ -26,7 +26,9 @@ from clite.core.threats import describe, scan_text
 from clite.cron.schedule import KIND_ONCE, Schedule, ScheduleError, next_run, parse_schedule
 
 MAX_PROMPT_CHARS = 20_000
-UPDATABLE_FIELDS = frozenset({"name", "prompt", "deliver", "model", "provider", "toolsets", "skills", "repeat"})
+UPDATABLE_FIELDS = frozenset(
+    {"name", "prompt", "deliver", "model", "provider", "toolsets", "skills", "repeat"}
+)
 
 
 class JobError(ValueError):
@@ -91,14 +93,31 @@ class JobStore:
 
     def due(self, now: float | None = None) -> list[dict[str, Any]]:
         current = time.time() if now is None else now
-        return [job for job in self._load()
-                if job.get("enabled", True) and job.get("next_run_at") is not None and job["next_run_at"] <= current]
+        return [
+            job
+            for job in self._load()
+            if job.get("enabled", True)
+            and job.get("next_run_at") is not None
+            and job["next_run_at"] <= current
+        ]
 
     # ── mutations ────────────────────────────────────────────────────────────────────────
 
-    def create(self, prompt: str, schedule: str, *, name: str = "", deliver: str = "local", repeat: int | None = None,
-               model: str | None = None, provider: str | None = None, toolsets: list[str] | None = None,
-               skills: list[str] | None = None, origin: dict[str, Any] | None = None, now: float | None = None) -> dict[str, Any]:
+    def create(
+        self,
+        prompt: str,
+        schedule: str,
+        *,
+        name: str = "",
+        deliver: str = "local",
+        repeat: int | None = None,
+        model: str | None = None,
+        provider: str | None = None,
+        toolsets: list[str] | None = None,
+        skills: list[str] | None = None,
+        origin: dict[str, Any] | None = None,
+        now: float | None = None,
+    ) -> dict[str, Any]:
         current = time.time() if now is None else now
         prompt = _check_prompt(prompt)
         deliver = _check_deliver(deliver)
@@ -118,10 +137,17 @@ class JobStore:
             "enabled": True,
             "deliver": deliver,
             "repeat": repeat,
-            "model": model, "provider": provider, "toolsets": toolsets, "skills": list(skills or []),
+            "model": model,
+            "provider": provider,
+            "toolsets": toolsets,
+            "skills": list(skills or []),
             "origin": origin,
-            "created_at": current, "next_run_at": first_run,
-            "last_run_at": None, "last_status": None, "last_error": None, "run_count": 0,
+            "created_at": current,
+            "next_run_at": first_run,
+            "last_run_at": None,
+            "last_status": None,
+            "last_error": None,
+            "run_count": 0,
         }
         with self._locked():
             jobs = self._load()
@@ -134,12 +160,16 @@ class JobStore:
             jobs = self._load()
             matches = [job for job in jobs if job["id"] == job_id or job["id"].startswith(job_id)]
             if len(matches) != 1:
-                raise JobError(f"no job with id {job_id!r}" if not matches else f"job id {job_id!r} is ambiguous")
+                raise JobError(
+                    f"no job with id {job_id!r}" if not matches else f"job id {job_id!r} is ambiguous"
+                )
             change(matches[0])
             self._save(jobs)
             return matches[0]
 
-    def update(self, job_id: str, *, schedule: str | None = None, now: float | None = None, **fields: Any) -> dict[str, Any]:
+    def update(
+        self, job_id: str, *, schedule: str | None = None, now: float | None = None, **fields: Any
+    ) -> dict[str, Any]:
         unknown = set(fields) - UPDATABLE_FIELDS
         if unknown:
             raise JobError(f"cannot update field(s): {', '.join(sorted(unknown))}")
@@ -172,7 +202,8 @@ class JobStore:
             schedule = Schedule.from_dict(job["schedule"])
             if job.get("next_run_at") is None or job["next_run_at"] < current:
                 job["next_run_at"] = next_run(schedule, current, timezone=self._timezone()) or (
-                    current if schedule.kind == KIND_ONCE else None)
+                    current if schedule.kind == KIND_ONCE else None
+                )
 
         return self._mutate(job_id, change)
 
@@ -222,9 +253,13 @@ class JobStore:
 
         return self._mutate(job_id, change)
 
-    def mark_finished(self, job_id: str, *, status: str, error: str | None = None, output_path: str | None = None) -> None:
+    def mark_finished(
+        self, job_id: str, *, status: str, error: str | None = None, output_path: str | None = None
+    ) -> None:
         with contextlib.suppress(JobError):  # the job may have been removed while it ran
-            self._mutate(job_id, lambda job: job.update(last_status=status, last_error=error, last_output=output_path))
+            self._mutate(
+                job_id, lambda job: job.update(last_status=status, last_error=error, last_output=output_path)
+            )
 
     def save_output(self, job_id: str, text: str, now: float | None = None) -> Path:
         stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime(now if now is not None else time.time()))

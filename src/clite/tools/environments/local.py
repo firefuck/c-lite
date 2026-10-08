@@ -26,7 +26,9 @@ _POLL_SECONDS = 0.05
 _KILL_GRACE_SECONDS = 2.0
 
 
-def build_child_env(extra: dict[str, str] | None = None, passthrough: list[str] | None = None) -> dict[str, str]:
+def build_child_env(
+    extra: dict[str, str] | None = None, passthrough: list[str] | None = None
+) -> dict[str, str]:
     """Environment for a command the agent runs.
 
     Known credentials (``core.env.secret_names``: everything from ``.env``, and every provider
@@ -34,7 +36,9 @@ def build_child_env(extra: dict[str, str] | None = None, passthrough: list[str] 
     them in ``terminal.env_passthrough``: an API key has no business in a build script's
     environment, and one ``env`` call would otherwise put every credential into the transcript.
     """
-    allowed = set(passthrough if passthrough is not None else (config_get("terminal.env_passthrough", []) or []))
+    allowed = set(
+        passthrough if passthrough is not None else (config_get("terminal.env_passthrough", []) or [])
+    )
     secrets = secret_names() - allowed
     env = {key: value for key, value in os.environ.items() if key not in secrets}
     env.setdefault("TERM", "dumb")
@@ -55,8 +59,16 @@ def find_shell() -> list[str]:
         for variable in ("ProgramFiles", "ProgramFiles(x86)"):
             if os.environ.get(variable):
                 candidates.append(str(Path(os.environ[variable]) / "Git" / "bin" / "bash.exe"))
-        bash = next((path for path in candidates if path and Path(path).is_file()
-                     and "system32" not in path.lower().replace("\\", "/").split("/")), None)
+        bash = next(
+            (
+                path
+                for path in candidates
+                if path
+                and Path(path).is_file()
+                and "system32" not in path.lower().replace("\\", "/").split("/")
+            ),
+            None,
+        )
         return [bash, "-c"] if bash else [os.environ.get("COMSPEC", "cmd.exe"), "/d", "/s", "/c"]
     return [shutil.which("bash") or "/bin/sh", "-c"]
 
@@ -67,7 +79,9 @@ def kill_process_tree(process: subprocess.Popen, *, force: bool = False) -> None
         return
     try:
         if sys.platform == "win32":
-            subprocess.run(["taskkill", "/F", "/T", "/PID", str(process.pid)], capture_output=True, check=False)
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(process.pid)], capture_output=True, check=False
+            )
         else:
             os.killpg(os.getpgid(process.pid), signal.SIGKILL if force else signal.SIGTERM)
     except (ProcessLookupError, PermissionError, OSError):
@@ -77,7 +91,8 @@ def kill_process_tree(process: subprocess.Popen, *, force: bool = False) -> None
 def read_output_chunks(stream) -> Iterator[str]:
     """Drain a subprocess pipe in bounded chunks, preserving split UTF-8 characters."""
     decoder = io.IncrementalNewlineDecoder(
-        codecs.getincrementaldecoder("utf-8")(errors="replace"), translate=True,
+        codecs.getincrementaldecoder("utf-8")(errors="replace"),
+        translate=True,
     )
     while data := stream.buffer.read1(8192):
         text = decoder.decode(data)
@@ -115,8 +130,14 @@ class LocalEnvironment(BaseEnvironment):
     def list_dir(self, path: str) -> list[DirEntry]:
         entries = []
         for child in Path(path).iterdir():
-            entries.append(DirEntry(child.name, child.is_dir(), child.is_file(),
-                                    child.stat().st_size if child.is_file() else 0))
+            entries.append(
+                DirEntry(
+                    child.name,
+                    child.is_dir(),
+                    child.is_file(),
+                    child.stat().st_size if child.is_file() else 0,
+                )
+            )
         return entries
 
     def stat(self, path: str) -> FileInfo:
@@ -124,18 +145,28 @@ class LocalEnvironment(BaseEnvironment):
         if not target.exists():
             return FileInfo()
         is_dir, is_file = target.is_dir(), target.is_file()
-        return FileInfo(exists=True, is_dir=is_dir, is_file=is_file,
-                        size=target.stat().st_size if is_file else 0)
+        return FileInfo(
+            exists=True, is_dir=is_dir, is_file=is_file, size=target.stat().st_size if is_file else 0
+        )
 
     def spawn_background(self, command: str, *, cwd: str) -> object:
         shell = find_shell()
         # list2cmdline quotes argv using CRT rules, which cmd.exe does not follow for /c.
         is_cmd = shell[0].replace("\\", "/").rsplit("/", 1)[-1].lower() in {"cmd", "cmd.exe"}
-        argv = subprocess.list2cmdline(shell) + " chcp 65001 >nul & " + command if is_cmd else [*shell, command]
+        argv = (
+            subprocess.list2cmdline(shell) + " chcp 65001 >nul & " + command if is_cmd else [*shell, command]
+        )
         return subprocess.Popen(  # noqa: S603 - running the model's command is this tool's job
-            argv, cwd=cwd, env=build_child_env(), stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8",
-            errors="replace", start_new_session=sys.platform != "win32",
+            argv,
+            cwd=cwd,
+            env=build_child_env(),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            start_new_session=sys.platform != "win32",
         )
 
     def execute(
@@ -166,14 +197,16 @@ class LocalEnvironment(BaseEnvironment):
             os.close(handle)
             if not is_cmd:
                 pwd = "pwd -W" if sys.platform == "win32" else "pwd -P"
-                script = (f"{command}\n__clite_ec=$?\n{pwd} > "
-                          f"{shlex.quote(Path(cwd_file).as_posix())} 2>/dev/null\nexit $__clite_ec")
+                script = (
+                    f"{command}\n__clite_ec=$?\n{pwd} > "
+                    f"{shlex.quote(Path(cwd_file).as_posix())} 2>/dev/null\nexit $__clite_ec"
+                )
         if is_cmd:
             # A batch file expands ERRORLEVEL/CD on separate lines, after the user command.
             # /d disables AutoRun; UTF-8 covers non-ASCII paths and output on Windows.
             handle, batch_file = tempfile.mkstemp(prefix="clite-command-", suffix=".cmd")
             with os.fdopen(handle, "w", encoding="utf-8", newline="\r\n") as batch:
-                batch.write(f"@echo off\n{command}\nset \"__clite_ec=%errorlevel%\"\n")
+                batch.write(f'@echo off\n{command}\nset "__clite_ec=%errorlevel%"\n')
                 if cwd_file:
                     batch.write(f'cd > "{cwd_file}"\n')
                 batch.write("exit /b %__clite_ec%\n")
@@ -210,7 +243,7 @@ class LocalEnvironment(BaseEnvironment):
                         on_output(line)
                     except Exception:  # noqa: BLE001 - a display callback must not kill the read loop
                         pass
-                retained = line[:max(0, limit - size)]
+                retained = line[: max(0, limit - size)]
                 if retained:
                     chunks.append(retained)
                     size += len(retained)

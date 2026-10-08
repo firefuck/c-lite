@@ -16,8 +16,10 @@ def run_list(args: argparse.Namespace) -> int:
         print("No plugins found.")
         return 0
     for info in plugins:
-        print(f"{info.status:<12} {info.name:<20} {info.manifest.version:<8} {info.manifest.kind:<15} {info.source:<8} "
-              f"{info.error or info.manifest.description}")
+        print(
+            f"{info.status:<12} {info.name:<20} {info.manifest.version:<8} {info.manifest.kind:<15} {info.source:<8} "
+            f"{info.error or info.manifest.description}"
+        )
     return 0
 
 

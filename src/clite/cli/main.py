@@ -58,7 +58,9 @@ def _register_plugin_commands(subparsers: argparse._SubParsersAction) -> None:
     builtin = set(subparsers.choices)
     for name, command in sorted(manager.cli_commands.items()):
         if name in builtin:
-            logger.warning("plugin %s tried to replace the built-in command %r; ignored", command.plugin, name)
+            logger.warning(
+                "plugin %s tried to replace the built-in command %r; ignored", command.plugin, name
+            )
             continue
         try:
             parser = subparsers.add_parser(name, help=command.help)
@@ -83,8 +85,11 @@ def main(argv: list[str] | None = None) -> int:
         # Still let `clite config edit` and `clite doctor` run so the user can fix the file.
         print(f"warning: {exc}", file=sys.stderr)
         config = {}
-    setup_logging(str(get_path(config, "logging.level", "INFO")), max_size_mb=int(get_path(config, "logging.max_size_mb", 5)),
-                  backup_count=int(get_path(config, "logging.backup_count", 3)))
+    setup_logging(
+        str(get_path(config, "logging.level", "INFO")),
+        max_size_mb=int(get_path(config, "logging.max_size_mb", 5)),
+        backup_count=int(get_path(config, "logging.backup_count", 3)),
+    )
     try:
         parser = build_parser()
         args, extra = parser.parse_known_args(arguments)

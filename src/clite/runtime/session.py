@@ -18,7 +18,7 @@ from typing import Any
 from clite.agent import AgentCallbacks, AIAgent, TurnResult
 from clite.agent.attachments import AttachmentError, build_content, load_images
 from clite.agent.messages import content_text, is_internal
-from clite.core.config import load_config
+from clite.core.config import config_set, load_config
 from clite.core.threads import start_thread
 from clite.plugins.hooks import invoke_hook
 from clite.plugins.manager import get_plugin_manager
@@ -27,7 +27,7 @@ from clite.providers.model_switch import ModelSwitchResult, switch_model
 from clite.runtime.commands import resolve_command, split_command
 from clite.runtime.factory import build_agent
 from clite.skills.commands import build_skill_message, skill_commands
-from clite.state.db import get_session_db
+from clite.state.db import get_session_db, new_session_id
 from clite.tools.checkpoints import RollbackResult, TurnGroup, list_checkpoints, rollback
 
 logger = logging.getLogger("clite.runtime.session")
@@ -35,7 +35,18 @@ logger = logging.getLogger("clite.runtime.session")
 ACTION_QUIT = "quit"
 ACTION_SUBMIT = "submit"  # ``text`` is a prompt to run as the next turn
 ACTION_NEW = "new"  # the session was replaced; the surface should refresh its view
+ACTION_CLIPBOARD = "clipboard"  # ``text`` should be placed on the local clipboard (CLI only)
 QUICK_COMMAND_TIMEOUT = 30
+# A transcript longer than this is exported as one line per message, not per message body, so
+# neither hand-editing the file nor the export itself turns a long session into a megabyte.
+EXPORT_COMPACT_MESSAGE_LIMIT = 400
+
+
+def _clip_text(text: str, width: int = 2000) -> str:
+    """Collapse whitespace and cap a message's text for an export or a summary line."""
+    text = " ".join(text.split())
+    return text if len(text) <= width else text[: width - 1] + "…"
+
 
 # What a line that arrives while a turn already runs should do (``display.busy_input_mode``).
 BUSY_QUEUE = "queue"  # run it after the current turn finishes
@@ -76,9 +87,15 @@ class TurnQueue:
     worker and the policy.
     """
 
-    def __init__(self, session: ChatSession, run: Callable[[Turn], None], *,
-                 merge_bursts: bool = False, thread_name: str = "clite-turn",
-                 lock: threading.Lock | None = None) -> None:
+    def __init__(
+        self,
+        session: ChatSession,
+        run: Callable[[Turn], None],
+        *,
+        merge_bursts: bool = False,
+        thread_name: str = "clite-turn",
+        lock: threading.Lock | None = None,
+    ) -> None:
         self.session = session
         self._run = run
         # When several lines pile up in ``interrupt`` mode they are one thought: run them as
@@ -190,12 +207,23 @@ class ChatSession:
         self.callbacks = callbacks or AgentCallbacks()
         self.yolo = yolo
         self._options: dict[str, Any] = {
-            "model": model, "provider": provider, "toolsets": toolsets, "cwd": cwd, "client": client,
-            "system_message": system_message, "session_meta": session_meta, "max_turns": max_turns,
+            "model": model,
+            "provider": provider,
+            "toolsets": toolsets,
+            "cwd": cwd,
+            "client": client,
+            "system_message": system_message,
+            "session_meta": session_meta,
+            "max_turns": max_turns,
         }
         self.agent: AIAgent = self._build(session_id)
         # Image paths the user queued with /image, waiting for the next submitted message.
         self._pending_images: list[str] = []
+        # Session-local display overrides set by /verbose and /skin. Kept off ``_options``
+        # because that dict is passed straight to ``build_agent``; these are display-only and
+        # must not reach the agent.
+        self._tool_progress: str | None = None
+        self._skin: str | None = None
 
     # ── construction ─────────────────────────────────────────────────────────────────────
 
@@ -203,8 +231,14 @@ class ChatSession:
         options = dict(self._options)
         if route is not None:
             options.update(route=route, model=None, provider=None)
-        return build_agent(platform=self.platform, session_id=session_id, callbacks=self.callbacks, yolo=self.yolo,
-                           config=load_config(), **options)
+        return build_agent(
+            platform=self.platform,
+            session_id=session_id,
+            callbacks=self.callbacks,
+            yolo=self.yolo,
+            config=load_config(),
+            **options,
+        )
 
     def _replace_agent(self, session_id: str | None, *, close_reason: str, keep_route: bool = True) -> None:
         route = self.agent.route if keep_route else None
@@ -221,8 +255,9 @@ class ChatSession:
 
     # ── turns ────────────────────────────────────────────────────────────────────────────
 
-    def submit(self, text: Any, *, images: list[str] | None = None,
-               image_parts: list[dict[str, Any]] | None = None) -> TurnResult:
+    def submit(
+        self, text: Any, *, images: list[str] | None = None, image_parts: list[dict[str, Any]] | None = None
+    ) -> TurnResult:
         """Run one turn with ``text`` as the user's message.
 
         ``images`` are local paths attached to this message; ``image_parts`` are already
@@ -344,8 +379,14 @@ class ChatSession:
             # the model and without the approval gate.
             try:
                 completed = subprocess.run(  # noqa: S602
-                    str(spec.get("command") or ""), shell=True, capture_output=True, text=True,
-                    timeout=QUICK_COMMAND_TIMEOUT, cwd=self.agent.cwd, check=False)
+                    str(spec.get("command") or ""),
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=QUICK_COMMAND_TIMEOUT,
+                    cwd=self.agent.cwd,
+                    check=False,
+                )
             except subprocess.TimeoutExpired:
                 return SlashResult(f"/{name} timed out after {QUICK_COMMAND_TIMEOUT}s")
             output = (completed.stdout + completed.stderr).strip()
@@ -365,6 +406,162 @@ class ChatSession:
             return False
         self._replace_agent(row["id"], close_reason="resumed_other")
         return True
+
+    def branch(self, title: str = "") -> str:
+        """Fork the conversation into a new session and switch to it.
+
+        The active transcript is copied *without* ``provider_data``: the new session's prefix
+        differs from the parent's (it is a different system prompt and session id), so signed
+        reasoning blocks that were valid for the parent would be rejected. The branch records
+        ``parent_session_id`` and, when no title is given, inherits the parent's title with a
+        "branch" suffix. Returns the new session id.
+        """
+        parent_id = self.agent.session_id
+        self.agent.ensure_session()  # flush the prompt so the parent row is complete
+        db = get_session_db()
+        parent_row = db.get_session(parent_id) or {}
+        new_id = new_session_id()
+        base = title.strip() or f"{parent_row.get('title') or 'branch'} (branch)"
+        copied = [
+            {
+                key: value
+                for key, value in message.items()
+                if key not in ("_row_id", "_timestamp", "provider_data")
+            }
+            for message in self.agent.messages
+        ]
+        invoke_hook("on_session_reset", session_id=parent_id, platform=self.platform)
+        db.create_session(
+            new_id,
+            self.platform,
+            parent_session_id=parent_id,
+            title=base,
+            cwd=self.agent.cwd,
+            model=self.agent.route.model,
+            provider=self.agent.route.provider,
+        )
+        if copied:
+            db.append_messages(new_id, copied)
+        self._replace_agent(new_id, close_reason="branched")
+        return new_id
+
+    def set_session_flag(self, flag: str, value: bool) -> bool:
+        """Set ``pinned`` or ``archived`` on this session row. Returns the value stored."""
+        if flag not in ("pinned", "archived"):
+            raise ValueError(f"unknown session flag {flag!r}; use pinned or archived")
+        self.agent.ensure_session()
+        get_session_db().update_session(self.agent.session_id, **{flag: int(value)})
+        return value
+
+    def session_flag(self, flag: str) -> bool:
+        row = get_session_db().get_session(self.agent.session_id) or {}
+        return bool(row.get(flag))
+
+    def export_transcript(self, path: str = "") -> str:
+        """Write the visible transcript to ``path`` (Markdown or JSON by extension).
+
+        With no path, a file named after the session is written into the working directory.
+        Returns the path written. Messages the agent wrote for itself (``internal``) and
+        tool-call plumbing are left out: this is the conversation the user saw.
+        """
+        from pathlib import Path
+
+        self.agent.ensure_session()
+        rows = get_session_db().get_session(self.agent.session_id) or {}
+        title = rows.get("title") or self.agent.session_id
+        target = (
+            Path(path).expanduser() if path.strip() else Path(self.agent.cwd) / f"{self.agent.session_id}.md"
+        )
+        if target.suffix.lower() not in (".md", ".markdown", ".json"):
+            raise ValueError(f"export path must end in .md or .json, not {target.suffix or '(none)'!r}")
+        visible = [message for message in self.agent.messages if not is_internal(message)]
+        snippets = self._export_snippets(visible)
+        if target.suffix.lower() == ".json":
+            import json
+
+            payload = {
+                "session_id": self.agent.session_id,
+                "title": title,
+                "model": self.agent.route.model,
+                "provider": self.agent.route.provider,
+                "messages": snippets,
+            }
+            target.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        elif len(visible) > EXPORT_COMPACT_MESSAGE_LIMIT:
+            target.write_text(self._export_compact_markdown(title, snippets), encoding="utf-8")
+        else:
+            target.write_text(self._export_markdown(title, visible), encoding="utf-8")
+        return str(target)
+
+    def _export_snippets(self, messages: list[dict[str, Any]]) -> list[dict[str, str]]:
+        out = []
+        for message in messages:
+            role = message.get("role", "")
+            if role == "tool":
+                out.append(
+                    {
+                        "role": "tool",
+                        "name": message.get("name") or "",
+                        "content": _clip_text(content_text(message.get("content"))),
+                    }
+                )
+            else:
+                out.append({"role": role, "content": _clip_text(content_text(message.get("content")))})
+        return out
+
+    def _export_markdown(self, title: str, messages: list[dict[str, Any]]) -> str:
+        lines = [f"# {title}", ""]
+        for message in messages:
+            role = message.get("role", "")
+            if role == "tool":
+                lines += [
+                    f"**tool · {message.get('name') or ''}**",
+                    "",
+                    _clip_text(content_text(message.get("content"))),
+                    "",
+                ]
+                continue
+            heading = {"user": "User", "assistant": "Assistant", "system": "System"}.get(
+                role, role.title() or "Message"
+            )
+            calls = ", ".join(call["function"]["name"] for call in message.get("tool_calls") or [])
+            body = content_text(message.get("content"))
+            if calls:
+                body = f"{body} [calls: {calls}]".strip()
+            lines += [f"## {heading}", "", body, ""]
+        return "\n".join(lines).rstrip("\n") + "\n"
+
+    def _export_compact_markdown(self, title: str, snippets: list[dict[str, str]]) -> str:
+        lines = [
+            f"# {title}",
+            "",
+            f"_Long transcript ({len(snippets)} messages); each message is summarised to one line._",
+            "",
+        ]
+        for snippet in snippets:
+            label = (
+                snippet["role"] if snippet["role"] != "tool" else f"tool {snippet.get('name', '')}".strip()
+            )
+            lines.append(f"- **{label}**: {snippet['content']}")
+        return "\n".join(lines).rstrip("\n") + "\n"
+
+    def background(self, text: str) -> dict[str, Any]:
+        """Run one turn in a separate session, leaving this conversation untouched.
+
+        Blocks until the turn is done and returns ``{"session_id", "response", "completed"}``.
+        The background session is a fresh ``AIAgent`` with its own id, so it does not touch
+        this session's transcript or prompt cache.
+        """
+        agent = self._build(None)
+        try:
+            result = agent.run_conversation(text)
+            return {
+                "session_id": agent.session_id,
+                "response": result.final_response,
+                "completed": result.completed,
+            }
+        finally:
+            agent.close("background")
 
     def reload(self) -> None:
         """Pick up config and plugin changes. The conversation continues, but the tool list
@@ -392,6 +589,47 @@ class ChatSession:
     def set_yolo(self, enabled: bool) -> None:
         self.yolo = enabled
         self.agent.approval_mode = "off" if enabled else None
+
+    @property
+    def tool_progress(self) -> str:
+        """How much tool progress this session shows (``display.tool_progress``)."""
+        if self._tool_progress is not None:
+            return self._tool_progress
+        from clite.core.config import get_path
+
+        return str(get_path(self.agent.config, "display.tool_progress", "all") or "all")
+
+    def set_tool_progress(self, level: str) -> None:
+        """Change the tool-progress level for this session.
+
+        The value is also persisted to config so it survives ``/new`` and a restart, and kept
+        on the session so a surface can read it back without re-loading config.
+        """
+        config_set("display.tool_progress", level)
+        self._tool_progress = level
+
+    @property
+    def skin(self) -> str:
+        """The display skin this session uses (``display.skin``)."""
+        if self._skin is not None:
+            return self._skin
+        from clite.core.config import get_path
+
+        return str(get_path(self.agent.config, "display.skin", "default") or "default")
+
+    def set_skin(self, name: str) -> None:
+        """Change the skin for this session and persist it for the next one."""
+        config_set("display.skin", name)
+        self._skin = name
+
+    def queue_note(self, text: str) -> None:
+        """Queue a note to reach the running turn (a ``/queue`` message).
+
+        The note rides on the next tool result or becomes an internal message; it is never
+        inserted into a message already sent, so the prompt cache stays valid. When nothing
+        is running it is simply a prompt for the next turn.
+        """
+        self.agent.queue_note(text)
 
     def undo(self) -> str | None:
         """Remove the last user turn and everything after it. Returns the removed user text."""
@@ -424,11 +662,19 @@ class ChatSession:
     def info(self) -> dict[str, Any]:
         row = get_session_db().get_session(self.agent.session_id) or {}
         return {
-            "session_id": self.agent.session_id, "title": row.get("title") or "", "platform": self.platform,
-            "model": self.agent.route.model, "provider": self.agent.route.provider, "cwd": self.agent.cwd,
-            "busy": self.busy, "yolo": self.yolo, "message_count": len(self.agent.messages),
-            "tools": sorted(self.agent.tool_names), "toolsets": list(self.agent.enabled_toolsets),
-            "context": self.agent.context_status(), "reasoning_effort": self.agent.reasoning_effort,
+            "session_id": self.agent.session_id,
+            "title": row.get("title") or "",
+            "platform": self.platform,
+            "model": self.agent.route.model,
+            "provider": self.agent.route.provider,
+            "cwd": self.agent.cwd,
+            "busy": self.busy,
+            "yolo": self.yolo,
+            "message_count": len(self.agent.messages),
+            "tools": sorted(self.agent.tool_names),
+            "toolsets": list(self.agent.enabled_toolsets),
+            "context": self.agent.context_status(),
+            "reasoning_effort": self.agent.reasoning_effort,
         }
 
     def close(self, reason: str = "closed") -> None:

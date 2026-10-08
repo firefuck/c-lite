@@ -37,8 +37,13 @@ def find_stale_skills(stale_days: int = DEFAULT_STALE_DAYS, now: float | None = 
             continue
         last = entry.get("last_used_at") or entry.get("created_at") or 0
         if last < cutoff:
-            stale.append({"name": skill.name, "last_used_at": entry.get("last_used_at"),
-                          "use_count": entry.get("use_count", 0)})
+            stale.append(
+                {
+                    "name": skill.name,
+                    "last_used_at": entry.get("last_used_at"),
+                    "use_count": entry.get("use_count", 0),
+                }
+            )
     return stale
 
 
@@ -63,8 +68,9 @@ def restore_skill(archived_name: str) -> Path:
     return destination
 
 
-def run_curator(stale_days: int = DEFAULT_STALE_DAYS, *, dry_run: bool = True,
-                now: float | None = None) -> dict[str, Any]:
+def run_curator(
+    stale_days: int = DEFAULT_STALE_DAYS, *, dry_run: bool = True, now: float | None = None
+) -> dict[str, Any]:
     """Archive stale agent-created skills. ``dry_run`` (the default) only reports.
 
     ``now`` lets a caller inject the clock (a scheduled run, a test); it is handed straight to

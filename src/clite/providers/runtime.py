@@ -41,20 +41,29 @@ class RuntimeRoute:
     def validate_credential_origin(self, url: str) -> None:
         """Reject a credential-bearing request outside its resolved origin."""
         if self.api_key and (self.credential_origin is None or _origin(url) != self.credential_origin):
-            raise AuthError("The API key is bound to another endpoint origin. Resolve a new provider route.",
-                            provider=self.provider, code="credential_origin_mismatch")
+            raise AuthError(
+                "The API key is bound to another endpoint origin. Resolve a new provider route.",
+                provider=self.provider,
+                code="credential_origin_mismatch",
+            )
 
     def credential_pool(self) -> CredentialPool | None:
         """Only the pool selected when this route was resolved can supply replacement keys."""
         if not self.credential_env_vars or self.credential_origin is None:
             return None
-        return get_credential_pool(self.provider, self.credential_env_vars, origin=str(self.credential_origin))
+        return get_credential_pool(
+            self.provider, self.credential_env_vars, origin=str(self.credential_origin)
+        )
 
     def describe(self) -> dict[str, Any]:
         """The route without secrets, safe to log or send to a UI."""
         return {
-            "provider": self.provider, "model": self.model, "api_mode": self.api_mode,
-            "base_url": self.base_url, "source": self.source, "has_api_key": bool(self.api_key),
+            "provider": self.provider,
+            "model": self.model,
+            "api_mode": self.api_mode,
+            "base_url": self.base_url,
+            "source": self.source,
+            "has_api_key": bool(self.api_key),
         }
 
     def with_credential(self, credential: Credential) -> RuntimeRoute:
@@ -62,22 +71,31 @@ class RuntimeRoute:
         self.validate_credential_origin(self.base_url)
         pool = self.credential_pool()
         if pool is None or credential not in pool.candidates():
-            raise AuthError("The replacement API key does not belong to this endpoint's credential pool.",
-                            provider=self.provider, code="credential_pool_mismatch")
+            raise AuthError(
+                "The replacement API key does not belong to this endpoint's credential pool.",
+                provider=self.provider,
+                code="credential_pool_mismatch",
+            )
         profile = self.profile
         headers = profile.get_headers(credential.value) if profile else dict(self.headers)
-        return RuntimeRoute(**{**self.__dict__, "api_key": credential.value, "headers": headers, "credential": credential})
+        return RuntimeRoute(
+            **{**self.__dict__, "api_key": credential.value, "headers": headers, "credential": credential}
+        )
 
     def with_model(self, model: str) -> RuntimeRoute:
-        mode = self.api_mode_override or (self.profile.resolve_api_mode(model) if self.profile else self.api_mode)
+        mode = self.api_mode_override or (
+            self.profile.resolve_api_mode(model) if self.profile else self.api_mode
+        )
         return RuntimeRoute(**{**self.__dict__, "model": model, "api_mode": mode})
 
 
 def _origin(url: str) -> tuple[str, str, int | None]:
     parsed = urlsplit(url)
     scheme = parsed.scheme.lower()
-    return scheme, (parsed.hostname or "").lower(), (
-        parsed.port if parsed.port is not None else {"http": 80, "https": 443}.get(scheme)
+    return (
+        scheme,
+        (parsed.hostname or "").lower(),
+        (parsed.port if parsed.port is not None else {"http": 80, "https": 443}.get(scheme)),
     )
 
 
@@ -149,30 +167,41 @@ def resolve_runtime_provider(
     if not key and profile.auth_type == "api_key":
         # A vendor key stays on its original scheme, host and port. A custom endpoint
         # needs an explicitly selected credential pool, including during recovery.
-        same_origin = not (profile.base_url or native_base_url) or _origin(resolved_base_url) == _origin(profile.base_url or native_base_url)
+        same_origin = not (profile.base_url or native_base_url) or _origin(resolved_base_url) == _origin(
+            profile.base_url or native_base_url
+        )
         override_env = str(section.get("api_key_env") or "") if config_applies else ""
         if override_env:
             credential_env_vars = (override_env,)
-            credential = get_credential_pool(profile.name, credential_env_vars,
-                                             origin=str(_origin(resolved_base_url))).current()
+            credential = get_credential_pool(
+                profile.name, credential_env_vars, origin=str(_origin(resolved_base_url))
+            ).current()
             key = credential.value if credential else ""
         elif same_origin:
             credential_env_vars = profile.env_vars
-            credential = get_credential_pool(profile.name, credential_env_vars,
-                                             origin=str(_origin(resolved_base_url))).current()
+            credential = get_credential_pool(
+                profile.name, credential_env_vars, origin=str(_origin(resolved_base_url))
+            ).current()
             key = credential.value if credential else ""
         if not key:
             names = " or ".join(profile.env_vars) or "an API key"
-            hint = "" if same_origin else " (the provider's own key is not sent to a different host; set model.api_key_env)"
+            hint = (
+                ""
+                if same_origin
+                else " (the provider's own key is not sent to a different host; set model.api_key_env)"
+            )
             raise AuthError(
                 f"Provider {profile.display_name!r} needs {names} in .env{hint}. Run `clite setup` to add it.",
-                provider=profile.name, code="missing_key",
+                provider=profile.name,
+                code="missing_key",
             )
 
     if profile.auth_type not in ("api_key", "none"):
         key = profile.resolve_credential(resolved_base_url, key)
 
-    resolved_model = (model or (str(section.get("default") or "") if config_applies else "") or profile.default_model).strip()
+    resolved_model = (
+        model or (str(section.get("default") or "") if config_applies else "") or profile.default_model
+    ).strip()
     if not resolved_model:
         raise ProviderError(
             f"No model selected for provider {profile.name!r}. Choose one with `clite model` "
@@ -211,8 +240,11 @@ def resolve_fallback_routes(config: dict[str, Any] | None = None) -> list[Runtim
             continue
         try:
             # Resolved as an explicit request so the primary route's base_url never leaks in.
-            routes.append(resolve_runtime_provider(str(entry["provider"]), str(entry.get("model") or "") or None,
-                                                   config=cfg))
+            routes.append(
+                resolve_runtime_provider(
+                    str(entry["provider"]), str(entry.get("model") or "") or None, config=cfg
+                )
+            )
         except (AuthError, ProviderError):
             continue
     return routes

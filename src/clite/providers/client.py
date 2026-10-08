@@ -28,8 +28,7 @@ class ModelClient(Protocol):
         on_delta: Callable[[str], None] | None = None,
         on_reasoning: Callable[[str], None] | None = None,
         cancel: threading.Event | None = None,
-    ) -> NormalizedResponse:
-        ...
+    ) -> NormalizedResponse: ...
 
 
 class LLMClient:
@@ -65,6 +64,7 @@ class LLMClient:
         handle = CancelHandle()
         watcher_done = threading.Event()
         if cancel is not None:
+
             def watch() -> None:
                 while not watcher_done.is_set():
                     if cancel.wait(0.05):
@@ -75,16 +75,22 @@ class LLMClient:
         try:
             if route.profile is not None:
                 request = route.profile.authenticate_request(
-                    route, request, self.http, timeout=params.timeout, cancel=handle,
+                    route,
+                    request,
+                    self.http,
+                    timeout=params.timeout,
+                    cancel=handle,
                 )
                 route.validate_credential_origin(request.url)
             if not stream:
-                payload = self.http.post_json(request.url, request.body, request.headers,
-                                              timeout=params.timeout, cancel=handle)
+                payload = self.http.post_json(
+                    request.url, request.body, request.headers, timeout=params.timeout, cancel=handle
+                )
                 return transport.parse_response(payload)
             accumulator = transport.stream_accumulator(on_delta, on_reasoning)
-            for event in self.http.stream_sse(request.url, request.body, request.headers,
-                                              timeout=params.timeout, cancel=handle):
+            for event in self.http.stream_sse(
+                request.url, request.body, request.headers, timeout=params.timeout, cancel=handle
+            ):
                 if not accumulator.feed(event.event, event.data):
                     break
             if handle.cancelled:

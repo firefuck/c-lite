@@ -33,7 +33,9 @@ _PROCESS_LOCK = threading.RLock()
 
 
 class MemoryStore:
-    def __init__(self, memory_char_limit: int = 2200, user_char_limit: int = 1375, directory: Path | None = None) -> None:
+    def __init__(
+        self, memory_char_limit: int = 2200, user_char_limit: int = 1375, directory: Path | None = None
+    ) -> None:
         self.directory = Path(directory) if directory is not None else get_memories_dir()
         self.limits = {"memory": memory_char_limit, "user": user_char_limit}
         self._snapshot: dict[str, list[str]] = {"memory": [], "user": []}
@@ -80,10 +82,17 @@ class MemoryStore:
 
     def _result(self, target: str, entries: list[str], message: str) -> dict[str, Any]:
         used, limit = len(ENTRY_DELIMITER.join(entries)), self.limits[target]
-        return {"success": True, "target": target, "message": message, "entries": entries,
-                "usage": f"{round(used * 100 / limit)}% — {used:,}/{limit:,} chars"}
+        return {
+            "success": True,
+            "target": target,
+            "message": message,
+            "entries": entries,
+            "usage": f"{round(used * 100 / limit)}% — {used:,}/{limit:,} chars",
+        }
 
-    def _error(self, target: str, message: str, entries: list[str] | None = None, **extra: Any) -> dict[str, Any]:
+    def _error(
+        self, target: str, message: str, entries: list[str] | None = None, **extra: Any
+    ) -> dict[str, Any]:
         payload: dict[str, Any] = {"success": False, "target": target, "error": message, **extra}
         if entries is not None:
             payload["entries"] = entries
@@ -95,18 +104,29 @@ class MemoryStore:
     @staticmethod
     def _check(content: str) -> str | None:
         threats = scan_text(content)
-        return f"Rejected by the security scan ({describe(threats)}). Memory is injected into the system prompt." if threats else None
+        return (
+            f"Rejected by the security scan ({describe(threats)}). Memory is injected into the system prompt."
+            if threats
+            else None
+        )
 
-    def _locate(self, target: str, entries: list[str], old_text: str) -> tuple[int | None, dict[str, Any] | None]:
+    def _locate(
+        self, target: str, entries: list[str], old_text: str
+    ) -> tuple[int | None, dict[str, Any] | None]:
         needle = (old_text or "").strip()
         if not needle:
-            return None, self._error(target, "old_text is required: a short unique substring of the entry.", entries)
+            return None, self._error(
+                target, "old_text is required: a short unique substring of the entry.", entries
+            )
         matches = [index for index, entry in enumerate(entries) if needle in entry]
         if not matches:
             return None, self._error(target, f"No entry contains {needle!r}.", entries)
         if len(matches) > 1:
-            return None, self._error(target, f"{len(matches)} entries contain {needle!r}. Use a more specific substring.",
-                                     matches=[entries[index] for index in matches])
+            return None, self._error(
+                target,
+                f"{len(matches)} entries contain {needle!r}. Use a more specific substring.",
+                matches=[entries[index] for index in matches],
+            )
         return matches[0], None
 
     def add(self, target: str, content: str) -> dict[str, Any]:
@@ -153,7 +173,9 @@ class MemoryStore:
             updated[index] = content
             size, limit = len(ENTRY_DELIMITER.join(updated)), self.limits[target]
             if size > limit:
-                return self._error(target, f"The replacement would use {size:,} of {limit:,} chars. Shorten it.", entries)
+                return self._error(
+                    target, f"The replacement would use {size:,} of {limit:,} chars. Shorten it.", entries
+                )
             self._write(target, updated)
         return self._result(target, updated, "Entry replaced.")
 

@@ -29,17 +29,34 @@ pytestmark = pytest.mark.skipif(not (REPO_ROOT / SCRIPT).is_file(), reason="not 
 NEW_NAME, NEW_DISPLAY = ("orbit", "Orbit") if APP_NAME != "orbit" else ("comet", "Comet")
 THIRD_NAME, THIRD_DISPLAY = ("nimbus", "Nimbus") if APP_NAME != "nimbus" else ("comet", "Comet")
 
-NOT_SOURCE = (".git", "node_modules", "dist", "build", "__pycache__", ".pytest_cache", ".ruff_cache", ".mypy_cache",
-              ".venv", "venv", "*.egg-info")
+NOT_SOURCE = (
+    ".git",
+    "node_modules",
+    "dist",
+    "build",
+    "__pycache__",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".mypy_cache",
+    ".venv",
+    "venv",
+    "*.egg-info",
+)
 
 
 def _copy_repository(target: Path) -> Path:
     """What a commit of the working tree would contain, copied to ``target``. Outside a git
     checkout (a source archive), everything except caches and build output."""
     try:
-        listed = subprocess.run(["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"], cwd=REPO_ROOT,
-                                capture_output=True, timeout=60)
-        names = [name for name in listed.stdout.decode().split("\0") if name] if listed.returncode == 0 else []
+        listed = subprocess.run(
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            timeout=60,
+        )
+        names = (
+            [name for name in listed.stdout.decode().split("\0") if name] if listed.returncode == 0 else []
+        )
     except (OSError, subprocess.TimeoutExpired):
         names = []
     if not names:
@@ -54,19 +71,37 @@ def _copy_repository(target: Path) -> Path:
 
 
 def _rename(root: Path, name: str, display: str, *extra: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run([sys.executable, str(root / SCRIPT), "--name", name, "--display", display, *extra],
-                          capture_output=True, text=True, timeout=120)
+    return subprocess.run(
+        [sys.executable, str(root / SCRIPT), "--name", name, "--display", display, *extra],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
 
 
 def _snapshot(root: Path) -> dict[str, bytes]:
-    return {path.relative_to(root).as_posix(): path.read_bytes() for path in sorted(root.rglob("*")) if path.is_file()}
+    return {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
 
 
 def _run_renamed(root: Path, name: str, home: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
-    env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(root / "src"), *sys.path]), f"{name.upper()}_HOME": str(home),
-           "PYTHONDONTWRITEBYTECODE": "1"}
-    return subprocess.run([sys.executable, "-m", name, *arguments], capture_output=True, text=True, timeout=120, env=env,
-                          cwd=home)
+    env = {
+        **os.environ,
+        "PYTHONPATH": os.pathsep.join([str(root / "src"), *sys.path]),
+        f"{name.upper()}_HOME": str(home),
+        "PYTHONDONTWRITEBYTECODE": "1",
+    }
+    return subprocess.run(
+        [sys.executable, "-m", name, *arguments],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=env,
+        cwd=home,
+    )
 
 
 def test_a_dry_run_reports_the_changes_and_makes_none(tmp_path):
@@ -98,8 +133,11 @@ def test_renaming_leaves_no_trace_of_the_old_name_and_the_program_still_runs(tmp
             lines = path.read_text(encoding="utf-8").splitlines()
         except UnicodeDecodeError:
             continue
-        left += [f"{path.relative_to(copy)}:{number}: {line.strip()}" for number, line in enumerate(lines, 1)
-                 if old_name.search(line) and "git clone " not in line]
+        left += [
+            f"{path.relative_to(copy)}:{number}: {line.strip()}"
+            for number, line in enumerate(lines, 1)
+            if old_name.search(line) and "git clone " not in line
+        ]
     assert left == [], "these spell the old name in a way scripts/rename_project.py does not rewrite"
 
     home = tmp_path / "home"

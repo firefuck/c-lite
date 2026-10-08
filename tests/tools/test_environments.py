@@ -39,6 +39,7 @@ def _ctx(tmp_path, *parts: str) -> ToolContext:
 
 def test_base_environment_file_operations_are_abstract_by_default():
     """A backend must answer the four operations; the base class only declares them."""
+
     class Bare(BaseEnvironment):
         name = "bare"
 
@@ -46,9 +47,13 @@ def test_base_environment_file_operations_are_abstract_by_default():
             return ExecResult("", 0)
 
     environment = Bare(cwd=".")
-    for call in (lambda: environment.read_file("x"), lambda: environment.write_file("x", "y"),
-                 lambda: environment.list_dir("."), lambda: environment.stat("x"),
-                 lambda: environment.spawn_background("true", cwd=".")):
+    for call in (
+        lambda: environment.read_file("x"),
+        lambda: environment.write_file("x", "y"),
+        lambda: environment.list_dir("."),
+        lambda: environment.stat("x"),
+        lambda: environment.spawn_background("true", cwd="."),
+    ):
         with pytest.raises(NotImplementedError):
             call()
 
@@ -93,7 +98,9 @@ def test_file_tools_read_and_write_through_the_environment(tmp_path, clite_home)
             calls.append("stat")
             return super().stat(path)
 
-    register_environment_backend("recording", lambda *, cwd="", timeout=180: Recording(cwd=cwd, timeout=timeout))
+    register_environment_backend(
+        "recording", lambda *, cwd="", timeout=180: Recording(cwd=cwd, timeout=timeout)
+    )
     import clite.core.config as config
 
     (clite_home / "config.yaml").write_text("terminal:\n  backend: recording\n")
@@ -103,7 +110,12 @@ def test_file_tools_read_and_write_through_the_environment(tmp_path, clite_home)
     assert json.loads(write_file_tool({"path": "x.txt", "content": "hi\n"}, ctx))["created"] is True
     assert json.loads(read_file_tool({"path": "x.txt"}, ctx))["content"] == "1|hi"
     assert json.loads(search_files_tool({"pattern": "hi"}, ctx))["count"] == 1
-    assert json.loads(patch_tool({"path": "x.txt", "old_string": "hi", "new_string": "bye"}, ctx))["replacements"] == 1
+    assert (
+        json.loads(patch_tool({"path": "x.txt", "old_string": "hi", "new_string": "bye"}, ctx))[
+            "replacements"
+        ]
+        == 1
+    )
     assert set(calls) >= {"write", "read", "list", "stat"}
 
 
@@ -179,7 +191,9 @@ def test_docker_file_tools_write_through_the_mount(tmp_path, clite_home):
     cleanup_all_environments()
 
     ctx = ToolContext(task_id="docker-files", cwd=str(tmp_path))
-    assert json.loads(write_file_tool({"path": "made-in-container.txt", "content": "from the mount\n"}, ctx))["created"]
+    assert json.loads(write_file_tool({"path": "made-in-container.txt", "content": "from the mount\n"}, ctx))[
+        "created"
+    ]
     assert (tmp_path / "made-in-container.txt").read_text() == "from the mount\n"
     assert json.loads(read_file_tool({"path": "made-in-container.txt"}, ctx))["content"] == "1|from the mount"
     cleanup_environment("docker-files")
@@ -271,10 +285,16 @@ def fake_ssh(monkeypatch):
     from clite.tools.environments import ssh as ssh_module
 
     fake = _FakeSSH()
-    monkeypatch.setattr(ssh_module.SSHEnvironment, "_run_ssh",
-                        lambda self, command, timeout=60, stdin_data=None: fake.run(command, stdin_data=stdin_data))
-    monkeypatch.setattr(ssh_module.SSHEnvironment, "execute",
-                        lambda self, command, **kwargs: fake.run(command, stdin_data=None))
+    monkeypatch.setattr(
+        ssh_module.SSHEnvironment,
+        "_run_ssh",
+        lambda self, command, timeout=60, stdin_data=None: fake.run(command, stdin_data=stdin_data),
+    )
+    monkeypatch.setattr(
+        ssh_module.SSHEnvironment,
+        "execute",
+        lambda self, command, **kwargs: fake.run(command, stdin_data=None),
+    )
     return fake
 
 

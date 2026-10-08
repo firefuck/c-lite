@@ -164,7 +164,7 @@ Sebelum membawa sesuatu, baca
 | `hermes_cli/main.py`, `hermes_cli/_parser.py` | `src/clite/cli/main.py` | |
 | `hermes_cli/subcommands/` | `src/clite/cli/subcommands/` | Satu modul per kelompok sub-perintah |
 | `cli.py` | `src/clite/cli/repl.py` | REPL. Hermes memakai `prompt_toolkit`: F3-T1 |
-| `agent/display.py`, `hermes_cli/skin_engine.py`, `hermes_cli/banner.py` | `src/clite/cli/display.py` | Render Markdown dan diff: F3-T2 |
+| `agent/display.py`, `hermes_cli/skin_engine.py`, `hermes_cli/banner.py` | `src/clite/cli/display.py`, `src/clite/cli/markdown.py`, `src/clite/runtime/presentation.py` | Render Markdown dan diff (perender murni di `markdown.py`): F3-T2 |
 | `hermes_cli/commands.py` | `src/clite/runtime/commands.py`, `src/clite/runtime/slash.py` | Registry slash command dan handler |
 | `hermes_cli/setup.py` | `src/clite/cli/subcommands/setup.py`, `src/clite/runtime/setup.py` | Wizard bertahap: F3-T5 |
 | `hermes_cli/doctor.py`, `hermes_cli/status.py`, `hermes_cli/logs.py` | `src/clite/cli/subcommands/misc.py` | |

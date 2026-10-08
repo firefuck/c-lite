@@ -19,7 +19,9 @@ from clite.providers.transports.types import RequestParams
 logger = logging.getLogger("clite.providers.auxiliary")
 
 
-def resolve_auxiliary_route(task: str, main_route: RuntimeRoute, config: dict[str, Any] | None = None) -> RuntimeRoute:
+def resolve_auxiliary_route(
+    task: str, main_route: RuntimeRoute, config: dict[str, Any] | None = None
+) -> RuntimeRoute:
     cfg = config if config is not None else load_config()
     provider = str(get_path(cfg, f"auxiliary.{task}.provider", "main") or "main")
     model = str(get_path(cfg, f"auxiliary.{task}.model", "") or "")
@@ -50,7 +52,10 @@ def call_auxiliary(
     fallback (a compression that cannot summarise still has to make room)."""
     route = resolve_auxiliary_route(task, main_route, config)
     response = (client or LLMClient()).complete(
-        route, messages, None, stream=False,
+        route,
+        messages,
+        None,
+        stream=False,
         params=RequestParams(max_tokens=max_tokens, temperature=temperature, timeout=timeout),
     )
     return (response.content or "").strip()

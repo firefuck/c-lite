@@ -80,8 +80,11 @@ def run_add(args: argparse.Namespace) -> int:
     transport = f"url {args.url}" if args.url else f"command {args.command}"
     print(f"Added MCP server {args.name!r} ({transport}).")
     if headers and not _references_resolve(headers):
-        print("Note: a header references a variable that is not set in .env yet. Add it to .env, "
-              "then `clite mcp test` will connect.", file=sys.stderr)
+        print(
+            "Note: a header references a variable that is not set in .env yet. Add it to .env, "
+            "then `clite mcp test` will connect.",
+            file=sys.stderr,
+        )
     print(f"Check it with `clite mcp test {args.name}`; new sessions will pick it up.")
     return 0
 
@@ -108,9 +111,15 @@ def run_list(args: argparse.Namespace) -> int:
         selection = spec.get("tools")
         included = len(selection.get("include") or []) if isinstance(selection, dict) else 0
         row = live.get(name)
-        status = f"{len(row['tools'])} tools live" if row and row["alive"] else ("not started" if not row else "down")
-        print(f"{name:<16} {('http' if spec.get('url') else 'stdio'):<6} {status:<12} {target}"
-              f"{f'  (restricted to {included} tools)' if included else ''}{enabled}")
+        status = (
+            f"{len(row['tools'])} tools live"
+            if row and row["alive"]
+            else ("not started" if not row else "down")
+        )
+        print(
+            f"{name:<16} {('http' if spec.get('url') else 'stdio'):<6} {status:<12} {target}"
+            f"{f'  (restricted to {included} tools)' if included else ''}{enabled}"
+        )
     print("\nTest one with `clite mcp test <name>`, remove it with `clite mcp remove <name>`.")
     return 0
 
@@ -154,13 +163,25 @@ def run_test(args: argparse.Namespace) -> int:
         tool_names = [str(tool.get("name")) for tool in server.tools]
         print(f"  tools ({len(tool_names)}): {', '.join(tool_names) or 'none'}")
         if server.resources:
-            print(f"  resources ({len(server.resources)}): "
-                  f"{', '.join(str(item.get('uri')) for item in server.resources)}")
+            print(
+                f"  resources ({len(server.resources)}): "
+                f"{', '.join(str(item.get('uri')) for item in server.resources)}"
+            )
         if server.prompts:
-            print(f"  prompts ({len(server.prompts)}): {', '.join(prompt.command for prompt in server.prompts)}")
+            print(
+                f"  prompts ({len(server.prompts)}): {', '.join(prompt.command for prompt in server.prompts)}"
+            )
         if args.json:
-            print(json.dumps({"tools": server.tools, "resources": server.resources,
-                              "prompts": [prompt.name for prompt in server.prompts]}, indent=2))
+            print(
+                json.dumps(
+                    {
+                        "tools": server.tools,
+                        "resources": server.resources,
+                        "prompts": [prompt.name for prompt in server.prompts],
+                    },
+                    indent=2,
+                )
+            )
     finally:
         server.stop()
     return 0
@@ -176,10 +197,16 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     add = actions.add_parser("add", help="add an MCP server to the config")
     add.add_argument("name", help="the server name used in tool names (mcp_<name>_<tool>)")
     add.add_argument("--command", help="the program that speaks MCP over stdio")
-    add.add_argument("--args", action="append", help="arguments for --command (repeatable, or one quoted string)")
+    add.add_argument(
+        "--args", action="append", help="arguments for --command (repeatable, or one quoted string)"
+    )
     add.add_argument("--url", help="the Streamable HTTP endpoint of a remote server")
-    add.add_argument("--header", action="append", metavar="NAME=VALUE",
-                     help="an HTTP header; use ${VAR} to read a secret from .env (repeatable)")
+    add.add_argument(
+        "--header",
+        action="append",
+        metavar="NAME=VALUE",
+        help="an HTTP header; use ${VAR} to read a secret from .env (repeatable)",
+    )
     add.add_argument("--cwd", help="working directory for a stdio server")
     add.add_argument("--timeout", type=float, help="seconds to wait for one call")
     add.add_argument("--disabled", action="store_true", help="write the entry but do not connect it")

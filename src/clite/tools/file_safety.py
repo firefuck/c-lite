@@ -15,7 +15,16 @@ from pathlib import Path
 
 from clite.core.constants import get_default_root, get_home, get_profiles_root
 
-_HOME_RELATIVE_DENY = (".ssh", ".gnupg", ".aws", ".kube", ".docker/config.json", ".netrc", ".npmrc", ".pypirc")
+_HOME_RELATIVE_DENY = (
+    ".ssh",
+    ".gnupg",
+    ".aws",
+    ".kube",
+    ".docker/config.json",
+    ".netrc",
+    ".npmrc",
+    ".pypirc",
+)
 _SYSTEM_PREFIXES = ("/etc", "/boot", "/usr", "/bin", "/sbin", "/lib", "/sys", "/proc", "/dev")
 # Files in each of the agent's homes that hold its credentials and its policy, as paths inside
 # that home. config.yaml *is* the approval policy (mode, allowlist, enabled plugins),

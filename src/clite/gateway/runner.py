@@ -36,8 +36,16 @@ from clite.runtime.session import ACTION_NEW, ACTION_SUBMIT, BUSY_INTERRUPT, Cha
 logger = logging.getLogger("clite.gateway")
 
 _APPROVAL_WORDS = {
-    "approve": "once", "yes": "once", "y": "once", "ok": "once", "once": "once",
-    "session": "session", "always": "always", "deny": "deny", "no": "deny", "n": "deny",
+    "approve": "once",
+    "yes": "once",
+    "y": "once",
+    "ok": "once",
+    "once": "once",
+    "session": "session",
+    "always": "always",
+    "deny": "deny",
+    "no": "deny",
+    "n": "deny",
 }
 
 
@@ -105,7 +113,9 @@ class GatewayRunner:
         if with_cron and get_path(self.config, "cron.enabled", True):
             from clite.cron.scheduler import Scheduler
 
-            self._scheduler = Scheduler(deliver=self.deliver, client=self.client_factory() if self.client_factory else None)
+            self._scheduler = Scheduler(
+                deliver=self.deliver, client=self.client_factory() if self.client_factory else None
+            )
             self._scheduler.start()
         return started
 
@@ -150,14 +160,22 @@ class GatewayRunner:
         target = str(job.get("deliver") or "local")
         origin = job.get("origin") or {}
         if target == "origin":
-            platform, chat_id, thread_id = origin.get("platform"), origin.get("chat_id"), origin.get("thread_id")
+            platform, chat_id, thread_id = (
+                origin.get("platform"),
+                origin.get("chat_id"),
+                origin.get("thread_id"),
+            )
         else:
             platform, _, chat_id = target.partition(":")
             thread_id = None
         if not platform or not chat_id or platform not in self.adapters:
-            raise RuntimeError(f"cannot deliver to {target!r}: the platform is not connected or the chat is unknown")
+            raise RuntimeError(
+                f"cannot deliver to {target!r}: the platform is not connected or the chat is unknown"
+            )
         label = job.get("name") or f"job {job['id']}"
-        self.reply(SessionSource(platform=platform, chat_id=str(chat_id), thread_id=thread_id), f"[{label}]\n{text}")
+        self.reply(
+            SessionSource(platform=platform, chat_id=str(chat_id), thread_id=thread_id), f"[{label}]\n{text}"
+        )
 
     # ── authorization ────────────────────────────────────────────────────────────────────
 
@@ -175,10 +193,13 @@ class GatewayRunner:
         code = self.pairing.request_code(source.platform, source.user_id, source.user_name)
         if code is None:
             return  # rate-limited: stay silent rather than become a spam relay
-        self.reply(source, (
-            "I do not know you yet. Ask the owner of this agent to approve you with:\n\n"
-            f"clite gateway pair approve {source.platform} {code}\n\nThe code is valid for one hour."
-        ))
+        self.reply(
+            source,
+            (
+                "I do not know you yet. Ask the owner of this agent to approve you with:\n\n"
+                f"clite gateway pair approve {source.platform} {code}\n\nThe code is valid for one hour."
+            ),
+        )
 
     # ── sessions ─────────────────────────────────────────────────────────────────────────
 
@@ -196,10 +217,13 @@ class GatewayRunner:
             return pending.answer
 
         def approve(*, command: str, description: str, pattern_keys: list[str]) -> str:
-            answer = ask(_Pending("approval"), (
-                f"This command needs your approval ({description}):\n\n{command}\n\n"
-                "Reply /approve (once), /approve session, /approve always, or /deny."
-            ))
+            answer = ask(
+                _Pending("approval"),
+                (
+                    f"This command needs your approval ({description}):\n\n{command}\n\n"
+                    "Reply /approve (once), /approve session, /approve always, or /deny."
+                ),
+            )
             return answer or "deny"  # silence is a no
 
         def clarify(question: str, choices: list[str]) -> str:
@@ -213,22 +237,39 @@ class GatewayRunner:
         return AgentCallbacks(approve=approve, clarify=clarify, on_status=on_status)
 
     def _get_session(self, source: SessionSource) -> GatewaySession:
-        key = build_session_key(source, group_sessions_per_user=bool(get_path(self.config, "gateway.group_sessions_per_user", True)))
+        key = build_session_key(
+            source,
+            group_sessions_per_user=bool(get_path(self.config, "gateway.group_sessions_per_user", True)),
+        )
         with self._lock:
             self._evict_idle()
             session = self.sessions.get(key)
             if session is None:
                 chat = ChatSession(
-                    platform=source.platform, callbacks=self._callbacks(key, source), session_id=self.session_map.get(key),
+                    platform=source.platform,
+                    callbacks=self._callbacks(key, source),
+                    session_id=self.session_map.get(key),
                     client=self.client_factory() if self.client_factory else None,
-                    session_meta={"session_key": key, "user_id": source.user_id, "chat_id": source.chat_id,
-                                  "chat_type": source.chat_type, "thread_id": source.thread_id,
-                                  "display_name": source.user_name, "origin": source.to_dict()},
+                    session_meta={
+                        "session_key": key,
+                        "user_id": source.user_id,
+                        "chat_id": source.chat_id,
+                        "chat_type": source.chat_type,
+                        "thread_id": source.thread_id,
+                        "display_name": source.user_name,
+                        "origin": source.to_dict(),
+                    },
                 )
                 session = self.sessions[key] = GatewaySession(
-                    key, source, chat,
-                    turns=TurnQueue(chat, lambda turn: self._run_turn(key, turn), merge_bursts=self._merge_bursts(),
-                                    thread_name=f"clite-gw-{key}"),
+                    key,
+                    source,
+                    chat,
+                    turns=TurnQueue(
+                        chat,
+                        lambda turn: self._run_turn(key, turn),
+                        merge_bursts=self._merge_bursts(),
+                        thread_name=f"clite-gw-{key}",
+                    ),
                 )
                 self.session_map.set(key, chat.session_id, source)
             session.last_used = time.monotonic()
@@ -239,7 +280,11 @@ class GatewayRunner:
         if not ttl:
             return
         now = time.monotonic()
-        for key in [key for key, session in self.sessions.items() if now - session.last_used > ttl and not session.busy]:
+        for key in [
+            key
+            for key, session in self.sessions.items()
+            if now - session.last_used > ttl and not session.busy
+        ]:
             # The conversation is not lost: the next message resumes it from the database.
             self._close_session(self.sessions.pop(key), "idle")
 
@@ -299,11 +344,17 @@ class GatewayRunner:
             word = words[1] if len(words) > 1 and words[0] == "approve" else (words[0] if words else "")
             choice = _APPROVAL_WORDS.get(word)
             if choice is None:
-                self.reply(session.source, "Please answer /approve, /approve session, /approve always, or /deny.")
+                self.reply(
+                    session.source, "Please answer /approve, /approve session, /approve always, or /deny."
+                )
                 return True
             pending.answer = choice
         else:
-            pending.answer = pending.choices[int(text) - 1] if text.isdigit() and 1 <= int(text) <= len(pending.choices) else text
+            pending.answer = (
+                pending.choices[int(text) - 1]
+                if text.isdigit() and 1 <= int(text) <= len(pending.choices)
+                else text
+            )
         pending.answered.set()
         return True
 

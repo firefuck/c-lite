@@ -83,7 +83,9 @@ def event(event_type: str, payload: type[BaseModel]) -> type[BaseModel]:
     return payload
 
 
-def server_request(name: str, params: type[BaseModel], result: type[BaseModel], description: str = "") -> ServerRequestSpec:
+def server_request(
+    name: str, params: type[BaseModel], result: type[BaseModel], description: str = ""
+) -> ServerRequestSpec:
     if name in SERVER_REQUESTS:
         raise ValueError(f"server request {name!r} is declared twice")
     spec = SERVER_REQUESTS[name] = ServerRequestSpec(name, params, result, description)

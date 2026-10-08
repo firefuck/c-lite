@@ -80,30 +80,42 @@ class AIAgent:
         self.system_message = system_message
         self.skip_context_files = skip_context_files
         self.auto_title = auto_title
-        self.session_meta = {key: value for key, value in (session_meta or {}).items() if key in _SESSION_META_KEYS}
+        self.session_meta = {
+            key: value for key, value in (session_meta or {}).items() if key in _SESSION_META_KEYS
+        }
 
         self.db: SessionDB | None = (session_db or get_session_db()) if persist else None
         self.session_id: str = session_id or new_session_id()
 
-        self.enabled_toolsets = list(enabled_toolsets if enabled_toolsets is not None else self.config.get("toolsets") or [])
+        self.enabled_toolsets = list(
+            enabled_toolsets if enabled_toolsets is not None else self.config.get("toolsets") or []
+        )
         self.disabled_toolsets = list(
             disabled_toolsets if disabled_toolsets is not None else self.config.get("disabled_toolsets") or []
         )
         # The tool list is fixed for the session: it is part of the cached request prefix.
-        self.tools: list[dict[str, Any]] = get_tool_definitions(self.enabled_toolsets, self.disabled_toolsets, config=self.config)
+        self.tools: list[dict[str, Any]] = get_tool_definitions(
+            self.enabled_toolsets, self.disabled_toolsets, config=self.config
+        )
 
         self.memory: MemoryManager | None = None if skip_memory else MemoryManager(self.config)
         if self.memory is not None:
-            self.tools.extend({"type": "function", "function": schema} for schema in self.memory.provider_tool_schemas())
+            self.tools.extend(
+                {"type": "function", "function": schema} for schema in self.memory.provider_tool_schemas()
+            )
         self.tool_names: frozenset[str] = frozenset(tool["function"]["name"] for tool in self.tools)
 
         limit = max_turns if max_turns is not None else get_path(self.config, "agent.max_turns")
         self.budget: IterationBudget = IterationBudget(limit)
         self.run_budget_seconds: float | None = get_path(self.config, "agent.run_budget_seconds")
         self.reasoning_effort: str = str(get_path(self.config, "agent.reasoning_effort", "") or "")
-        self.stream: bool = bool(get_path(self.config, "display.streaming", True)) if stream is None else stream
+        self.stream: bool = (
+            bool(get_path(self.config, "display.streaming", True)) if stream is None else stream
+        )
 
-        self.context_engine: ContextEngine = create_context_engine(str(get_path(self.config, "context.engine", "compressor") or "compressor"))
+        self.context_engine: ContextEngine = create_context_engine(
+            str(get_path(self.config, "context.engine", "compressor") or "compressor")
+        )
         self.context_engine.configure(
             context_length=get_context_length(self.route, self.config),
             auxiliary_context_length=self._auxiliary_context_length(),
@@ -156,11 +168,18 @@ class AIAgent:
 
     def _prompt_inputs(self) -> PromptInputs:
         return PromptInputs(
-            platform=self.platform, tool_names=self.tool_names, toolsets=tuple(self.enabled_toolsets), cwd=self.cwd,
-            config=self.config, model=self.route.model, provider=self.route.provider,
+            platform=self.platform,
+            tool_names=self.tool_names,
+            toolsets=tuple(self.enabled_toolsets),
+            cwd=self.cwd,
+            config=self.config,
+            model=self.route.model,
+            provider=self.route.provider,
             context_length=self.context_engine.context_length,
             memory_blocks=self.memory.system_prompt_blocks() if self.memory is not None else [],
-            system_message=self.system_message, skip_context_files=self.skip_context_files, depth=self.depth,
+            system_message=self.system_message,
+            skip_context_files=self.skip_context_files,
+            depth=self.depth,
             profile_name=get_active_profile_name(),
         )
 
@@ -182,15 +201,22 @@ class AIAgent:
             self._session_ready = True
             if self.db is not None:
                 self.db.create_session(
-                    self.session_id, self.platform, model=self.route.model, provider=self.route.provider,
-                    system_prompt=self.system_prompt, cwd=self.cwd,
+                    self.session_id,
+                    self.platform,
+                    model=self.route.model,
+                    provider=self.route.provider,
+                    system_prompt=self.system_prompt,
+                    cwd=self.cwd,
                     parent_session_id=self.parent.session_id if self.parent is not None else None,
-                    profile_name=get_active_profile_name(), **self.session_meta,
+                    profile_name=get_active_profile_name(),
+                    **self.session_meta,
                 )
         if self.memory is not None:
             self.memory.initialize(self.session_id, platform=self.platform, home=str(get_home()))
         self.context_engine.on_session_start(self.session_id)
-        invoke_hook("on_session_start", session_id=self.session_id, platform=self.platform, model=self.route.model)
+        invoke_hook(
+            "on_session_start", session_id=self.session_id, platform=self.platform, model=self.route.model
+        )
 
     def close(self, reason: str = "closed") -> None:
         """End the session: stop children, flush memory, release the execution environment."""
@@ -208,8 +234,13 @@ class AIAgent:
             if self.memory is not None:
                 self.memory.on_session_end(self.messages)
             self.context_engine.on_session_end(self.session_id, self.messages)
-            invoke_hook("on_session_end", session_id=self.session_id, platform=self.platform, reason=reason,
-                        message_count=len(self.messages))
+            invoke_hook(
+                "on_session_end",
+                session_id=self.session_id,
+                platform=self.platform,
+                reason=reason,
+                message_count=len(self.messages),
+            )
             if self.db is not None and not self.db.closed:
                 self.db.end_session(self.session_id, reason)
         if self.memory is not None:
@@ -322,9 +353,13 @@ class AIAgent:
             target.reasoning_tokens += usage.reasoning_tokens
         if self.db is not None:
             self.db.add_usage(
-                self.session_id, input_tokens=usage.input_tokens, output_tokens=usage.output_tokens,
-                cache_read_tokens=usage.cache_read_tokens, cache_write_tokens=usage.cache_write_tokens,
-                reasoning_tokens=usage.reasoning_tokens, api_calls=1,
+                self.session_id,
+                input_tokens=usage.input_tokens,
+                output_tokens=usage.output_tokens,
+                cache_read_tokens=usage.cache_read_tokens,
+                cache_write_tokens=usage.cache_write_tokens,
+                reasoning_tokens=usage.reasoning_tokens,
+                api_calls=1,
             )
 
     # ── model and context ────────────────────────────────────────────────────────────────
@@ -364,7 +399,9 @@ class AIAgent:
             if self.db is not None:
                 self.db.update_session(self.session_id, model=route.model, provider=route.provider)
 
-    def compress_context(self, state: TurnState | None = None, *, focus: str | None = None, reason: str = "manual") -> bool:
+    def compress_context(
+        self, state: TurnState | None = None, *, focus: str | None = None, reason: str = "manual"
+    ) -> bool:
         """Shrink the transcript. True when it changed.
 
         This is the one operation allowed to rewrite history and rebuild the system prompt.
@@ -379,8 +416,14 @@ class AIAgent:
             self.memory.before_compress(before)
 
         def summarize(prompt: str) -> str:
-            return call_auxiliary("compression", [{"role": "user", "content": prompt}], main_route=self.route,
-                                  client=self.client, max_tokens=4000, config=self.config)
+            return call_auxiliary(
+                "compression",
+                [{"role": "user", "content": prompt}],
+                main_route=self.route,
+                client=self.client,
+                max_tokens=4000,
+                config=self.config,
+            )
 
         after = self.context_engine.compress(before, summarize=summarize, focus=focus)
         if after is before or after == before:
@@ -408,12 +451,18 @@ class AIAgent:
         if self.memory is not None:
             self.memory.reload()
         self.rebuild_system_prompt()
-        self.callbacks.emit("on_status", "compressed", f"context compressed: {len(before)} messages -> {len(cleaned)}")
+        self.callbacks.emit(
+            "on_status", "compressed", f"context compressed: {len(before)} messages -> {len(cleaned)}"
+        )
         return True
 
     def context_status(self) -> dict[str, Any]:
-        return {**self.context_engine.status(), "messages": len(self.messages), "model": self.route.model,
-                "provider": self.route.provider}
+        return {
+            **self.context_engine.status(),
+            "messages": len(self.messages),
+            "model": self.route.model,
+            "provider": self.route.provider,
+        }
 
     # ── helpers used by tools and phases ─────────────────────────────────────────────────
 

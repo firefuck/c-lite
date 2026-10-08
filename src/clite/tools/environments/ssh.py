@@ -69,8 +69,17 @@ class SSHEnvironment(BaseEnvironment):
 
     def _ssh_base(self) -> list[str]:
         ssh = shutil.which("ssh") or "ssh"
-        argv = [ssh, "-o", "BatchMode=yes", "-o", "ControlMaster=auto",
-                "-o", f"ControlPath={self._control_path}", "-o", "ControlPersist=600"]
+        argv = [
+            ssh,
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ControlMaster=auto",
+            "-o",
+            f"ControlPath={self._control_path}",
+            "-o",
+            "ControlPersist=600",
+        ]
         port = str(config_get("terminal.ssh.port", "") or "")
         if port and port != "22":
             argv += ["-p", port]
@@ -82,20 +91,28 @@ class SSHEnvironment(BaseEnvironment):
             argv += ["-o", f"UserKnownHostsFile={os.path.expanduser(known_hosts)}"]
         return argv
 
-    def _run_ssh(self, remote_command: str, *, timeout: int = 60, stdin_data: str | bytes | None = None) -> ExecResult:
+    def _run_ssh(
+        self, remote_command: str, *, timeout: int = 60, stdin_data: str | bytes | None = None
+    ) -> ExecResult:
         import subprocess
 
         argv = [*self._ssh_base(), "--", self._host, remote_command]
         data = stdin_data.encode("utf-8") if isinstance(stdin_data, str) else stdin_data
         try:
             completed = subprocess.run(  # noqa: S603 - reaching the configured host is this backend's job
-                argv, input=data, capture_output=True, timeout=timeout, check=False,
+                argv,
+                input=data,
+                capture_output=True,
+                timeout=timeout,
+                check=False,
             )
         except FileNotFoundError:
             return ExecResult("ssh is not installed or not on PATH", 127)
         except subprocess.TimeoutExpired:
             return ExecResult(f"ssh command timed out after {timeout}s", 124, timed_out=True)
-        output = completed.stdout.decode("utf-8", errors="replace") + completed.stderr.decode("utf-8", errors="replace")
+        output = completed.stdout.decode("utf-8", errors="replace") + completed.stderr.decode(
+            "utf-8", errors="replace"
+        )
         return ExecResult(output, completed.returncode)
 
     def _start(self) -> None:
@@ -143,7 +160,7 @@ class SSHEnvironment(BaseEnvironment):
         script = (
             f"mkdir -p {shlex.quote(parent)} && "
             f"tmp=$(mktemp {shlex.quote(parent)}/clite-write-XXXXXX) && "
-            f"base64 -d > \"$tmp\" && mv -f \"$tmp\" {shlex.quote(path)}"
+            f'base64 -d > "$tmp" && mv -f "$tmp" {shlex.quote(path)}'
         )
         result = self._run_ssh(script, timeout=120, stdin_data=encoded)
         if result.exit_code != 0:
@@ -152,9 +169,9 @@ class SSHEnvironment(BaseEnvironment):
     def list_dir(self, path: str) -> list[DirEntry]:
         script = (
             f"cd {shlex.quote(path)} && for f in * .[!.]*; do "
-            f"[ -e \"$f\" ] || continue; "
-            f"if [ -d \"$f\" ]; then printf '{_LIST_MARKER}\\td\\t%s\\t0\\n' \"$f\"; "
-            f"else printf '{_LIST_MARKER}\\tf\\t%s\\t%s\\n' \"$f\" \"$(wc -c < \"$f\" 2>/dev/null || echo 0)\"; fi; done"
+            f'[ -e "$f" ] || continue; '
+            f'if [ -d "$f" ]; then printf \'{_LIST_MARKER}\\td\\t%s\\t0\\n\' "$f"; '
+            f'else printf \'{_LIST_MARKER}\\tf\\t%s\\t%s\\n\' "$f" "$(wc -c < "$f" 2>/dev/null || echo 0)"; fi; done'
         )
         result = self.execute(script, timeout=60)
         if result.exit_code != 0:
@@ -176,7 +193,7 @@ class SSHEnvironment(BaseEnvironment):
         quoted = shlex.quote(path)
         script = (
             f"if [ -d {quoted} ]; then echo dir; "
-            f"elif [ -f {quoted} ]; then echo file; echo \"$(wc -c < {quoted} 2>/dev/null)\"; "
+            f'elif [ -f {quoted} ]; then echo file; echo "$(wc -c < {quoted} 2>/dev/null)"; '
             f"elif [ -e {quoted} ]; then echo other; else echo missing; fi"
         )
         result = self.execute(script, timeout=30)
@@ -215,8 +232,13 @@ class SSHEnvironment(BaseEnvironment):
             argv += ["-i", os.path.expanduser(key)]
         argv += ["--", self._host, remote]
         return subprocess.Popen(  # noqa: S603
-            argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, encoding="utf-8", errors="replace",
+            argv,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
         )
 
     def execute(
@@ -245,7 +267,10 @@ class SSHEnvironment(BaseEnvironment):
             process = subprocess.Popen(  # noqa: S603
                 [*self._ssh_base(), "--", self._host, remote],
                 stdin=subprocess.PIPE if stdin_data is not None else subprocess.DEVNULL,
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
                 errors="replace",
             )
         except OSError as exc:

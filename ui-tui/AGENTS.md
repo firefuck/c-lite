@@ -22,7 +22,11 @@ Tes dan pemeriksaan (dari direktori ini):
 5. **Pemformatan adalah fungsi murni di `render.ts`.** I/O hanya di `plain.ts` dan
    `backend.ts`.
 6. **Tanpa dependensi runtime baru** tanpa keputusan eksplisit: bundle harus tetap satu file
-   yang jalan hanya dengan Node.
+   yang jalan hanya dengan Node. **Pengecualian (F3-T3, disetujui pemilik proyek 8 Oktober 2026):**
+   `ink` dan `react` adalah `devDependencies` yang dibundel esbuild ke dalam satu `.mjs`;
+   pengguna tetap menjalankan `clite tui` tanpa `npm install`. File `.tsx` dibundel, bukan
+   dijalankan langsung Node; logika yang bisa diuji tanpa terminal (pemilih plain/Ink, reducer)
+   tetap di file `.ts` yang diuji `node --test`.
 
 ## Resep
 

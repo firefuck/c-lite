@@ -20,8 +20,15 @@ CLARIFY_SCHEMA = {
     "parameters": {
         "type": "object",
         "properties": {
-            "question": {"type": "string", "description": "The question, phrased so it can be answered briefly."},
-            "choices": {"type": "array", "items": {"type": "string"}, "description": "Up to 4 suggested answers."},
+            "question": {
+                "type": "string",
+                "description": "The question, phrased so it can be answered briefly.",
+            },
+            "choices": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Up to 4 suggested answers.",
+            },
         },
         "required": ["question"],
     },
@@ -44,7 +51,9 @@ def clarify_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
     except Exception as exc:  # noqa: BLE001
         return tool_error(f"could not ask the user: {exc}")
     if answer is None or not str(answer).strip():
-        return tool_result(question=question, answer="", note="The user did not answer. Use your best judgment.")
+        return tool_result(
+            question=question, answer="", note="The user did not answer. Use your best judgment."
+        )
     return tool_result(question=question, answer=str(answer).strip())
 
 

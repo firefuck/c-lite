@@ -115,13 +115,22 @@ def test_resume_by_title_or_prefix(make_session):
 
 
 def test_undo_and_retry(make_session):
-    session, client = make_session([text_response("one"), text_response("two"), text_response("two, second try"),
-                                    text_response("two, again")])
+    session, client = make_session(
+        [
+            text_response("one"),
+            text_response("two"),
+            text_response("two, second try"),
+            text_response("two, again"),
+        ]
+    )
     session.submit("first question")
     session.submit("second question")
     assert "second question" in session.run_slash("/undo").text
     assert [m["content"] for m in session.agent.messages] == ["first question", "one"]
-    assert [m["content"] for m in get_session_db().get_messages(session.session_id)] == ["first question", "one"]
+    assert [m["content"] for m in get_session_db().get_messages(session.session_id)] == [
+        "first question",
+        "one",
+    ]
 
     session.submit("second question")
     retried = session.handle_input("/retry")
@@ -132,8 +141,13 @@ def test_undo_and_retry(make_session):
 
 
 def test_undo_history_and_retry_look_past_messages_the_agent_wrote_itself(make_session):
-    session, client = make_session([text_response("The answer is ", finish_reason="length"), text_response("forty-two."),
-                                    text_response("forty-two, on a second try.")])
+    session, client = make_session(
+        [
+            text_response("The answer is ", finish_reason="length"),
+            text_response("forty-two."),
+            text_response("forty-two, on a second try."),
+        ]
+    )
     assert session.submit("what is the answer?").final_response == "The answer is forty-two."
     internal = [m for m in session.agent.messages if m.get("display_kind") == "internal"]
     assert len(internal) == 1 and "cut off" in internal[0]["content"]
@@ -144,7 +158,10 @@ def test_undo_history_and_retry_look_past_messages_the_agent_wrote_itself(make_s
     # /retry resends what the user said, not the agent's own "continue" request.
     retried = session.handle_input("/retry")
     assert retried.final_response == "forty-two, on a second try."
-    assert [m["content"] for m in session.agent.messages] == ["what is the answer?", "forty-two, on a second try."]
+    assert [m["content"] for m in session.agent.messages] == [
+        "what is the answer?",
+        "forty-two, on a second try.",
+    ]
 
 
 def test_model_switch_for_the_session_or_as_the_default(make_session, clite_home):
@@ -190,7 +207,9 @@ def test_reload_picks_up_config_and_keeps_the_conversation(make_session, clite_h
     session, client = make_session()
     session.submit("before reload")
     session_id = session.session_id
-    (clite_home / "config.yaml").write_text("model:\n  provider: mock\n  default: mock-reloaded\ntoolsets: [file]\n")
+    (clite_home / "config.yaml").write_text(
+        "model:\n  provider: mock\n  default: mock-reloaded\ntoolsets: [file]\n"
+    )
     assert "mock-reloaded" in session.run_slash("/reload").text
     assert session.session_id == session_id and len(session.agent.messages) == 2
     assert session.agent.tool_names == {"read_file", "write_file", "patch", "search_files"}
@@ -207,8 +226,14 @@ def test_compress_stop_and_steer_report_when_there_is_nothing_to_do(make_session
 
 
 def test_informational_commands(make_session, clite_home):
-    session, _ = make_session([tool_call_response(("memory", {"action": "add", "target": "memory", "content": "Staging is db-7"})),
-                               text_response("noted")])
+    session, _ = make_session(
+        [
+            tool_call_response(
+                ("memory", {"action": "add", "target": "memory", "content": "Staging is db-7"})
+            ),
+            text_response("noted"),
+        ]
+    )
     session.submit("remember staging is db-7")
     assert "Staging is db-7" in session.run_slash("/memory").text
     assert "Output tokens" in session.run_slash("/usage").text
@@ -218,7 +243,10 @@ def test_informational_commands(make_session, clite_home):
     assert "audit-log" in session.run_slash("/plugins").text
     assert "skill-authoring" in session.run_slash("/skills").text
     assert session.run_slash("/skills zzz-nothing").text == "No skills match."
-    assert "mock" in session.run_slash("/provider").text and "needs ANTHROPIC_API_KEY" in session.run_slash("/provider").text
+    assert (
+        "mock" in session.run_slash("/provider").text
+        and "needs ANTHROPIC_API_KEY" in session.run_slash("/provider").text
+    )
     assert "compression.threshold = 0.5" in session.run_slash("/config compression.threshold").text
     assert "is not set" in session.run_slash("/config no.such.key").text
     assert "Active profile: default" in session.run_slash("/profile").text
@@ -239,7 +267,9 @@ def test_cli_only_commands_are_refused_on_messaging_platforms(make_session):
 def test_skill_command_becomes_a_user_message(make_session, clite_home):
     skill = clite_home / "skills" / "release-notes"
     skill.mkdir(parents=True)
-    (skill / "SKILL.md").write_text("---\nname: release-notes\ndescription: Write release notes.\n---\n\nList merged PRs.\n")
+    (skill / "SKILL.md").write_text(
+        "---\nname: release-notes\ndescription: Write release notes.\n---\n\nList merged PRs.\n"
+    )
     session, client = make_session([text_response("Here are the notes.")])
     expanded = session.run_slash("/release-notes for v2.1")
     assert expanded.action == ACTION_SUBMIT and expanded.data == {"skill": "release-notes"}
@@ -279,13 +309,220 @@ def test_plugin_commands_and_their_failures(make_session, clite_home):
         "    ctx.register_command('crash', lambda args, session: 1 / 0)\n"
         "    ctx.register_command('status', lambda args, session: 'a plugin cannot shadow a built-in')\n"
     )
-    (clite_home / "config.yaml").write_text("model:\n  provider: mock\n  default: mock-1\nplugins:\n  enabled: [demo]\n")
+    (clite_home / "config.yaml").write_text(
+        "model:\n  provider: mock\n  default: mock-1\nplugins:\n  enabled: [demo]\n"
+    )
     session, _ = make_session()
     assert session.run_slash("/shout hello").text == "HELLO in cli"
     assert "ZeroDivisionError" in session.run_slash("/crash").text
     assert "mock-1 via mock" in session.run_slash("/status").text
     kinds = {entry["name"]: entry["kind"] for entry in command_catalog("cli")}
     assert kinds["shout"] == "plugin" and kinds["status"] == "builtin"
+
+
+# ── the F3-T4 slash commands ──────────────────────────────────────────────────────────────
+
+
+def test_branch_copies_the_conversation_without_provider_data_and_links_the_parent(make_session):
+    session, _ = make_session([text_response("first answer")])
+    session.submit("first question")
+    parent = session.session_id
+    session.run_slash("/title Blue door")
+    session.agent.messages[1]["provider_data"] = {"signed": "reasoning"}
+    original = list(session.agent.messages)
+
+    result = session.run_slash("/branch")
+    assert result.action == ACTION_NEW
+    branch = session.session_id
+    assert branch != parent
+    row = get_session_db().get_session(branch)
+    assert row["parent_session_id"] == parent
+    assert row["title"] == "Blue door (branch)"
+
+    # The active messages were copied, without provider_data. The branch has its own row
+    # ids (the parent's must not be written back); the parent's rows are untouched.
+    copied = session.agent.messages
+    assert [m["content"] for m in copied] == [m["content"] for m in original]
+    assert all("provider_data" not in m for m in copied)
+    stored = get_session_db().get_messages(branch)
+    assert all(row.get("provider_data") is None for row in stored)
+    assert len(stored) == len(copied)
+    assert [row["_row_id"] for row in stored] != [m.get("_row_id") for m in original]
+
+    # The parent is untouched.
+    assert get_session_db().get_session(parent)["end_reason"] == "branched"
+
+
+def test_branch_takes_a_title_and_reports_when_there_is_nothing_to_branch(make_session):
+    session, _ = make_session()
+    assert "Nothing to branch" in session.run_slash("/branch").text
+    session.submit("hello")
+    session.run_slash("/branch Explore option B")
+    assert get_session_db().get_session(session.session_id)["title"] == "Explore option B"
+
+
+def test_queue_notes_a_message_for_the_running_turn(make_session):
+    session, _ = make_session()
+    assert "Nothing is running" in session.run_slash("/queue hello").text
+    session.agent._turn_lock.acquire()  # pretend a turn is running
+    try:
+        assert "Queued" in session.run_slash("/queue do this next").text
+        assert session.agent.pending_notes() == ["do this next"]
+    finally:
+        session.agent._turn_lock.release()
+    assert "Usage: /queue" in session.run_slash("/queue").text
+
+
+def test_background_runs_a_turn_in_a_separate_session(make_session):
+    session, _ = make_session([text_response("separate answer")])
+    before = session.session_id
+    result = session.run_slash("/background summarise the news")
+    assert "separate answer" in result.text
+    assert result.data["session_id"] != before
+    assert session.session_id == before  # this conversation was not touched
+    assert session.agent.messages == []
+    assert "Usage: /background" in session.run_slash("/background").text
+
+
+def test_export_writes_the_transcript_as_markdown_or_json(make_session, tmp_path):
+    session, _ = make_session([text_response("the answer")])
+    session.submit("the question")
+    markdown = tmp_path / "transcript.md"
+    assert str(markdown) in session.run_slash(f"/export {markdown}").text
+    body = markdown.read_text()
+    assert body.startswith("# ") and "## User" in body and "the question" in body and "the answer" in body
+
+    data = tmp_path / "transcript.json"
+    session.run_slash(f"/export {data}")
+    import json
+
+    payload = json.loads(data.read_text())
+    assert payload["session_id"] == session.session_id
+    assert payload["messages"][0] == {"role": "user", "content": "the question"}
+
+    assert "Could not export" in session.run_slash(f"/export {tmp_path / 'notes.txt'}").text
+
+
+def test_export_without_a_path_writes_into_the_working_directory(make_session, tmp_path):
+    session, _ = make_session([text_response("hi")])
+    session.submit("hello")
+    result = session.run_slash("/export")
+    from pathlib import Path
+
+    written = Path(result.text.rsplit(" ", 1)[-1])
+    assert written.parent == Path(session.agent.cwd) and written.is_file()
+
+
+def test_context_breaks_the_window_into_prompt_tools_and_history(make_session):
+    session, _ = make_session([text_response("answer")])
+    session.submit("question")
+    text = session.run_slash("/context").text
+    assert "Context window:" in text
+    assert "System prompt:" in text and "Tool schemas:" in text and "History:" in text
+    assert "stable" in text and "volatile" in text  # the prompt tiers are named
+
+
+def test_tasks_shows_the_sessions_todo_list(make_session):
+    session, _ = make_session()
+    assert "No tasks" in session.run_slash("/tasks").text
+    session.agent.todos.write(
+        [
+            {"id": "1", "content": "wire the tests", "status": "in_progress"},
+            {"id": "2", "content": "shipping", "status": "completed"},
+        ]
+    )
+    text = session.run_slash("/tasks").text
+    assert "wire the tests" in text and "[>]" in text
+    assert "shipping" in text and "[x]" in text
+    assert session.run_slash("/tasks").data["total"] == 2
+
+
+def test_hooks_lists_registered_hooks_and_flags_pending_ones(make_session, clite_home):
+    (clite_home / "config.yaml").write_text(
+        "model:\n  provider: mock\n  default: mock-1\n"
+        "hooks:\n"
+        "  on_session_end:\n"
+        "    - command: 'notify-send done'\n"
+        "  pre_tool_call:\n"
+        "    - command: '~/.clite/hooks/guard.py'\n"
+    )
+    from clite.plugins.shell_hooks import ShellHook, approve_hooks, configured_hooks
+
+    approve_hooks([ShellHook("on_session_end", "notify-send done")])
+    session, _ = make_session()
+    text = session.run_slash("/hooks").text
+    assert "approved" in text and "notify-send done" in text
+    assert "PENDING" in text and "guard.py" in text
+    assert "clite hooks approve" in text
+    assert len(configured_hooks()) == 2
+
+
+def test_hooks_reports_when_none_are_configured(make_session):
+    session, _ = make_session()
+    assert "No shell hooks are configured" in session.run_slash("/hooks").text
+
+
+def test_pin_and_archive_mark_the_session(make_session):
+    session, _ = make_session()
+    assert "pinned" in session.run_slash("/pin").text
+    assert get_session_db().get_session(session.session_id)["pinned"] == 1
+    assert "archived" in session.run_slash("/archive").text
+    assert get_session_db().get_session(session.session_id)["archived"] == 1
+    assert session.session_id not in {row["id"] for row in get_session_db().list_sessions()}
+
+
+def test_verbose_sets_the_tool_progress_level_for_the_session(make_session, clite_home):
+    session, _ = make_session()
+    assert "all" in session.run_slash("/verbose").text
+    assert "off" in session.run_slash("/verbose off").text
+    assert session.tool_progress == "off"
+    assert load_config()["display"]["tool_progress"] == "off"
+    assert "Unknown level" in session.run_slash("/verbose loud").text
+    assert session.run_slash("/help").text  # the catalog still lists it
+
+
+def test_skin_shows_and_sets_the_theme(make_session, clite_home):
+    session, _ = make_session()
+    assert "default" in session.run_slash("/skin").text
+    result = session.run_slash("/skin mono")
+    assert result.data["skin"] == "mono" and session.skin == "mono"
+    assert load_config()["display"]["skin"] == "mono"
+
+
+def test_logs_shows_the_last_lines_of_the_agent_log(make_session, clite_home):
+    session, _ = make_session()
+    assert "No log yet" in session.run_slash("/logs").text
+    logs = clite_home / "logs"
+    logs.mkdir(parents=True, exist_ok=True)
+    (logs / "agent.log").write_text("\n".join(f"line {n}" for n in range(1, 11)) + "\n")
+    assert session.run_slash("/logs 3").text.splitlines() == ["line 8", "line 9", "line 10"]
+
+
+def test_copy_puts_the_last_answer_on_the_clipboard(make_session):
+    session, _ = make_session([text_response("copy me")])
+    assert "Nothing to copy" in session.run_slash("/copy").text
+    session.submit("say something")
+    result = session.run_slash("/copy")
+    assert result.action == "clipboard" and result.text == "copy me"
+
+
+def test_insights_slash_command(make_session):
+    session, _ = make_session()
+    result = session.run_slash("/insights")
+    assert "Usage Insights" in result.text
+    assert "Sessions:" in result.text
+
+    # With days argument
+    result_7 = session.run_slash("/insights 7")
+    assert "Past 7 Days" in result_7.text
+
+
+def test_the_new_commands_are_available_on_messaging_platforms_except_the_terminal_only_ones(make_session):
+    session, _ = make_session(platform="telegram")
+    assert "only available in the terminal" in session.run_slash("/skin").text
+    assert "only available in the terminal" in session.run_slash("/logs").text
+    assert "only available in the terminal" in session.run_slash("/copy").text
+    assert session.run_slash("/tasks").action is None  # a non-terminal command runs everywhere
 
 
 # ── image attachments (F2-T6) ─────────────────────────────────────────────────────────────
@@ -383,9 +620,11 @@ def _wait_until(predicate, timeout: float = 5.0) -> None:
 
 def _record(session: ChatSession, ran: list[str]):
     """A ``run`` callback that actually runs the turn, recording the text in order."""
+
     def run(turn: Turn) -> None:
         ran.append(turn.text)
         session.submit(turn.text)
+
     return run
 
 

@@ -24,7 +24,9 @@ def load_usage() -> dict[str, dict[str, Any]]:
 
 def _update(name: str, **fields: Any) -> None:
     usage = load_usage()
-    entry = usage.setdefault(name, {"use_count": 0, "created_by": "user", "created_at": time.time(), "last_used_at": None})
+    entry = usage.setdefault(
+        name, {"use_count": 0, "created_by": "user", "created_at": time.time(), "last_used_at": None}
+    )
     entry.update(fields)
     try:
         atomic_write_json(_path(), usage)

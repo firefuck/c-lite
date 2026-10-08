@@ -24,14 +24,32 @@ from clite.tools.patching import apply_replacement, apply_v4a_patch, find_tolera
 from clite.tools.registry import PARALLEL_PATH, PARALLEL_SAFE, registry, tool_error, tool_result
 
 DEFAULT_READ_LIMIT = 500
-REDACTION_NOTE = "Credentials in this text were replaced with [REDACTED]. Do not copy that marker into a patch or a file."
+REDACTION_NOTE = (
+    "Credentials in this text were replaced with [REDACTED]. Do not copy that marker into a patch or a file."
+)
 MAX_LINE_CHARS = 2000
 MAX_SEARCH_FILE_BYTES = 2_000_000
 # A file bigger than this is read from its first slice only: the tools page through large text,
 # and reading a multi-gigabyte file whole to show 500 lines would exhaust memory.
 MAX_READ_BYTES = 8_000_000
-SKIP_DIRS = frozenset({".git", "node_modules", "__pycache__", ".venv", "venv", ".mypy_cache", ".pytest_cache",
-                       ".ruff_cache", "dist", "build", ".tox", ".idea", ".next", "target"})
+SKIP_DIRS = frozenset(
+    {
+        ".git",
+        "node_modules",
+        "__pycache__",
+        ".venv",
+        "venv",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        "dist",
+        "build",
+        ".tox",
+        ".idea",
+        ".next",
+        "target",
+    }
+)
 
 
 def _env(ctx: ToolContext):
@@ -73,9 +91,15 @@ READ_FILE_SCHEMA = {
     "parameters": {
         "type": "object",
         "properties": {
-            "path": {"type": "string", "description": "File path, absolute or relative to the working directory."},
+            "path": {
+                "type": "string",
+                "description": "File path, absolute or relative to the working directory.",
+            },
             "offset": {"type": "integer", "description": "First line to return, 1-based (default 1)."},
-            "limit": {"type": "integer", "description": f"Maximum lines to return (default {DEFAULT_READ_LIMIT})."},
+            "limit": {
+                "type": "integer",
+                "description": f"Maximum lines to return (default {DEFAULT_READ_LIMIT}).",
+            },
         },
         "required": ["path"],
     },
@@ -144,7 +168,10 @@ def _similar_names(path: str, ctx: ToolContext) -> list[str]:
     except OSError:
         return []
     name = PurePosixPath(path).name
-    return [str(PurePosixPath(parent) / match) for match in difflib.get_close_matches(name, siblings, n=3, cutoff=0.6)]
+    return [
+        str(PurePosixPath(parent) / match)
+        for match in difflib.get_close_matches(name, siblings, n=3, cutoff=0.6)
+    ]
 
 
 # ── write_file ───────────────────────────────────────────────────────────────────────────
@@ -158,7 +185,10 @@ WRITE_FILE_SCHEMA = {
     "parameters": {
         "type": "object",
         "properties": {
-            "path": {"type": "string", "description": "File path, absolute or relative to the working directory."},
+            "path": {
+                "type": "string",
+                "description": "File path, absolute or relative to the working directory.",
+            },
             "content": {"type": "string", "description": "The complete new content of the file."},
         },
         "required": ["path", "content"],
@@ -187,8 +217,12 @@ def write_file_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str
     except OSError as exc:
         return tool_error(f"could not write {path}: {exc}")
     change = record_change(ctx.session_id, str(path), before=previous, existed=existed, turn=turn_id_for(ctx))
-    return tool_result(path=str(path), bytes_written=len(content.encode("utf-8")), created=not existed,
-                       checkpointed=change is not None and change.skipped_reason is None)
+    return tool_result(
+        path=str(path),
+        bytes_written=len(content.encode("utf-8")),
+        created=not existed,
+        checkpointed=change is not None and change.skipped_reason is None,
+    )
 
 
 # ── patch ────────────────────────────────────────────────────────────────────────────────
@@ -210,8 +244,14 @@ PATCH_SCHEMA = {
         "properties": {
             "path": {"type": "string", "description": "File to edit (replace mode)."},
             "old_string": {"type": "string", "description": "Exact text to find (replace mode)."},
-            "new_string": {"type": "string", "description": "Replacement text. Empty string deletes (replace mode)."},
-            "replace_all": {"type": "boolean", "description": "Replace every occurrence (default false, replace mode)."},
+            "new_string": {
+                "type": "string",
+                "description": "Replacement text. Empty string deletes (replace mode).",
+            },
+            "replace_all": {
+                "type": "boolean",
+                "description": "Replace every occurrence (default false, replace mode).",
+            },
             "mode": {
                 "type": "string",
                 "enum": ["replace", "patch"],
@@ -258,14 +298,20 @@ def _patch_mode(args: dict[str, Any], ctx: ToolContext) -> str:
         # before this patch, which is exactly what a checkpoint needs. A delete leaves the
         # path gone; a creation had no previous content.
         record_change(
-            ctx.session_id, str(entry.path), before=entry.before, existed=entry.before is not None,
-            turn=turn, deleted=not entry.path.exists(),
+            ctx.session_id,
+            str(entry.path),
+            before=entry.before,
+            existed=entry.before is not None,
+            turn=turn,
+            deleted=not entry.path.exists(),
         )
-        files.append({
-            "path": str(entry.path),
-            "created": entry.created,
-            "diff": redact(entry.diff[:8000]),
-        })
+        files.append(
+            {
+                "path": str(entry.path),
+                "created": entry.created,
+                "diff": redact(entry.diff[:8000]),
+            }
+        )
     return tool_result(files=files, count=len(files))
 
 
@@ -306,7 +352,8 @@ def patch_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
             return tool_error(
                 f"old_string matches {count} places. Add surrounding lines to make it unique, "
                 "or set replace_all=true.",
-                path=str(path), matches=count,
+                path=str(path),
+                matches=count,
             )
         updated, replaced, level = content.replace(old, new), count, "exact"
     else:
@@ -317,9 +364,9 @@ def patch_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
         if not match.found or match.span is None:
             reason = "was not found" if match.matches == 0 else f"matches {match.matches} places"
             return tool_error(
-                f"old_string {reason}. Read the file again and copy the text exactly, "
-                "including indentation.",
-                path=str(path), matches=match.matches,
+                f"old_string {reason}. Read the file again and copy the text exactly, including indentation.",
+                path=str(path),
+                matches=match.matches,
             )
         updated = apply_replacement(content, match.span, new)
         replaced, level = 1, match.level
@@ -330,8 +377,13 @@ def patch_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
         return tool_error(f"could not write {path}: {exc}")
     record_change(ctx.session_id, str(path), before=content, existed=True, turn=turn_id_for(ctx))
     diff = "".join(
-        difflib.unified_diff(content.splitlines(keepends=True), updated.splitlines(keepends=True),
-                             fromfile=f"a/{PurePosixPath(path).name}", tofile=f"b/{PurePosixPath(path).name}", n=2)
+        difflib.unified_diff(
+            content.splitlines(keepends=True),
+            updated.splitlines(keepends=True),
+            fromfile=f"a/{PurePosixPath(path).name}",
+            tofile=f"b/{PurePosixPath(path).name}",
+            n=2,
+        )
     )
     return tool_result(path=str(path), replacements=replaced, match_level=level, diff=redact(diff[:8000]))
 
@@ -350,8 +402,14 @@ SEARCH_FILES_SCHEMA = {
         "properties": {
             "pattern": {"type": "string", "description": "Regex for content search; glob for file search."},
             "target": {"type": "string", "enum": ["content", "files"], "description": "Default 'content'."},
-            "path": {"type": "string", "description": "Directory or file to search (default: working directory)."},
-            "file_glob": {"type": "string", "description": "Only search files whose name matches, e.g. '*.ts'."},
+            "path": {
+                "type": "string",
+                "description": "Directory or file to search (default: working directory).",
+            },
+            "file_glob": {
+                "type": "string",
+                "description": "Only search files whose name matches, e.g. '*.ts'.",
+            },
             "limit": {"type": "integer", "description": "Maximum results (default 50)."},
             "ignore_case": {"type": "boolean", "description": "Case-insensitive match (default false)."},
         },
@@ -425,7 +483,7 @@ def search_files_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> s
 
     def display(path: str) -> str:
         prefix = base.rstrip("/") + "/"
-        return path[len(prefix):] if path.startswith(prefix) else path
+        return path[len(prefix) :] if path.startswith(prefix) else path
 
     if target == "files":
         matches = []
@@ -467,13 +525,36 @@ def search_files_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> s
         files_with_matches += hit
         if len(results) >= limit:
             break
-    return tool_result(matches=results, count=len(results), files_with_matches=files_with_matches,
-                       truncated=len(results) >= limit, root=str(base))
+    return tool_result(
+        matches=results,
+        count=len(results),
+        files_with_matches=files_with_matches,
+        truncated=len(results) >= limit,
+        root=str(base),
+    )
 
 
-registry.register("read_file", "file", READ_FILE_SCHEMA, read_file_tool, emoji="📖",
-                  parallel=PARALLEL_PATH, path_args=("path",))
-registry.register("write_file", "file", WRITE_FILE_SCHEMA, write_file_tool, emoji="✍️",
-                  parallel=PARALLEL_PATH, path_args=("path",))
-registry.register("patch", "file", PATCH_SCHEMA, patch_tool, emoji="🔧", parallel=PARALLEL_PATH, path_args=("path",))
-registry.register("search_files", "file", SEARCH_FILES_SCHEMA, search_files_tool, emoji="🔎", parallel=PARALLEL_SAFE)
+registry.register(
+    "read_file",
+    "file",
+    READ_FILE_SCHEMA,
+    read_file_tool,
+    emoji="📖",
+    parallel=PARALLEL_PATH,
+    path_args=("path",),
+)
+registry.register(
+    "write_file",
+    "file",
+    WRITE_FILE_SCHEMA,
+    write_file_tool,
+    emoji="✍️",
+    parallel=PARALLEL_PATH,
+    path_args=("path",),
+)
+registry.register(
+    "patch", "file", PATCH_SCHEMA, patch_tool, emoji="🔧", parallel=PARALLEL_PATH, path_args=("path",)
+)
+registry.register(
+    "search_files", "file", SEARCH_FILES_SCHEMA, search_files_tool, emoji="🔎", parallel=PARALLEL_SAFE
+)

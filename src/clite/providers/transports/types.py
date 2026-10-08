@@ -17,7 +17,11 @@ class ToolCall:
     arguments: str  # the raw JSON text the model produced; parsed (and repaired) by the loop
 
     def to_message_dict(self) -> dict[str, Any]:
-        return {"id": self.id, "type": "function", "function": {"name": self.name, "arguments": self.arguments}}
+        return {
+            "id": self.id,
+            "type": "function",
+            "function": {"name": self.name, "arguments": self.arguments},
+        }
 
 
 @dataclass

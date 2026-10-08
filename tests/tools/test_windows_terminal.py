@@ -54,7 +54,9 @@ def test_both_shells_support_background_stdin_and_completion(windows_shell, tmp_
     script = tmp_path / "background io.py"
     script.write_text("import sys; print('got:' + sys.stdin.readline().strip())", encoding="utf-8")
     managed = process.process_registry.spawn(
-        f'"{Path(sys.executable).as_posix()}" "{script.as_posix()}"', cwd=str(tmp_path), task_id="win",
+        f'"{Path(sys.executable).as_posix()}" "{script.as_posix()}"',
+        cwd=str(tmp_path),
+        task_id="win",
     )
     managed.process.stdin.write("ping\n")
     managed.process.stdin.flush()
@@ -69,7 +71,8 @@ def test_both_shells_kill_the_child_tree(windows_shell, tmp_path, interrupt_comm
         "import subprocess, sys, time\n"
         "p = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
         "print(p.pid, flush=True)\n"
-        "time.sleep(60)\n", encoding="utf-8",
+        "time.sleep(60)\n",
+        encoding="utf-8",
     )
     interrupt = threading.Event()
     child_pid = []
@@ -81,11 +84,20 @@ def test_both_shells_kill_the_child_tree(windows_shell, tmp_path, interrupt_comm
                 interrupt.set()
 
     env = local.LocalEnvironment(str(tmp_path))
-    result = env.execute(f'"{Path(sys.executable).as_posix()}" "{script.as_posix()}"',
-                         timeout=3, interrupt=interrupt, on_output=output)
+    result = env.execute(
+        f'"{Path(sys.executable).as_posix()}" "{script.as_posix()}"',
+        timeout=3,
+        interrupt=interrupt,
+        on_output=output,
+    )
     assert result.exit_code == (130 if interrupt_command else 124)
     assert child_pid, result.output
     # Query the actual descendant, not just the shell return code.
-    check = subprocess.run(["tasklist", "/FI", f"PID eq {child_pid[0]}", "/FO", "CSV", "/NH"],
-                           capture_output=True, text=True, timeout=10, check=True)
+    check = subprocess.run(
+        ["tasklist", "/FI", f"PID eq {child_pid[0]}", "/FO", "CSV", "/NH"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=True,
+    )
     assert f'"{child_pid[0]}"' not in check.stdout

@@ -129,9 +129,7 @@ def test_set_unset_and_approval_never_overwrite_an_invalid_file(text):
     with pytest.raises(ConfigError):
         config.config_unset("terminal.timeout")
     # An existing session can still approve even when the on-disk config broke later.
-    ctx = ToolContext(
-        config={}, callbacks=SimpleNamespace(approve=lambda **kwargs: "always")
-    )
+    ctx = ToolContext(config={}, callbacks=SimpleNamespace(approve=lambda **kwargs: "always"))
     assert check_command("git reset --hard", ctx).approved
     assert target.read_bytes() == before
 
@@ -171,6 +169,8 @@ def test_migrations_run_up_to_the_current_version(monkeypatch):
     assert config.migrate_config_file() is False
 
 
-@pytest.mark.parametrize(("text", "expected"), [("true", True), ("3", 3), ("[a, b]", ["a", "b"]), ("plain", "plain")])
+@pytest.mark.parametrize(
+    ("text", "expected"), [("true", True), ("3", 3), ("[a, b]", ["a", "b"]), ("plain", "plain")]
+)
 def test_cli_values_are_typed(text, expected):
     assert config.parse_cli_value(text) == expected

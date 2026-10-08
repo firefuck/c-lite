@@ -11,8 +11,9 @@ _EFFORTS = {"minimal", "low", "medium", "high"}
 
 
 class OpenRouterProfile(ProviderProfile):
-    def build_extra_body(self, *, model: str, reasoning_effort: str = "", session_id: str = "",
-                         show_reasoning: bool = False) -> dict[str, Any]:
+    def build_extra_body(
+        self, *, model: str, reasoning_effort: str = "", session_id: str = "", show_reasoning: bool = False
+    ) -> dict[str, Any]:
         if reasoning_effort == "none":
             return {"reasoning": {"enabled": False}}
         if reasoning_effort in _EFFORTS:

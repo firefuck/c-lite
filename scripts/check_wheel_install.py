@@ -38,19 +38,32 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="clite-wheel-smoke-") as directory:
         smoke_home = Path(directory) / "profile"
         smoke_home.mkdir()
-        (smoke_home / "config.yaml").write_text("model:\n  provider: mock\n  default: mock-1\n", encoding="utf-8")
+        (smoke_home / "config.yaml").write_text(
+            "model:\n  provider: mock\n  default: mock-1\n", encoding="utf-8"
+        )
         # No inherited profile, Python import path, or service credential enters the smoke run.
-        env = {key: value for key, value in os.environ.items()
-               if not key.startswith(("CLITE_", "PYTHON"))
-               and not key.endswith(("_API_KEY", "_TOKEN", "_SECRET", "_PASSWORD"))}
+        env = {
+            key: value
+            for key, value in os.environ.items()
+            if not key.startswith(("CLITE_", "PYTHON"))
+            and not key.endswith(("_API_KEY", "_TOKEN", "_SECRET", "_PASSWORD"))
+        }
         env.update(CLITE_HOME=str(smoke_home), CLITE_PYTHON=sys.executable, NO_COLOR="1")
 
         def run(*args: str, input_text: str | None = None) -> str:
-            result = subprocess.run([str(command), *args], cwd=directory, env=env,
-                                    input=input_text, capture_output=True, text=True, timeout=30)
+            result = subprocess.run(
+                [str(command), *args],
+                cwd=directory,
+                env=env,
+                input=input_text,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
             if result.returncode:
-                raise RuntimeError(f"clite {' '.join(args)} failed ({result.returncode}):\n"
-                                   f"{result.stdout}\n{result.stderr}")
+                raise RuntimeError(
+                    f"clite {' '.join(args)} failed ({result.returncode}):\n{result.stdout}\n{result.stderr}"
+                )
             return result.stdout
 
         assert clite.__version__ in run("--version")

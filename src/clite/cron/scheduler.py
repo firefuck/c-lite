@@ -53,8 +53,13 @@ def build_job_prompt(job: dict[str, Any]) -> str:
     return "\n\n".join(parts)
 
 
-def run_job(job: dict[str, Any], *, store: JobStore | None = None, client: ModelClient | None = None,
-            deliver: Deliver | None = None) -> dict[str, Any]:
+def run_job(
+    job: dict[str, Any],
+    *,
+    store: JobStore | None = None,
+    client: ModelClient | None = None,
+    deliver: Deliver | None = None,
+) -> dict[str, Any]:
     """Run one job in a fresh session and record the outcome."""
     from clite.runtime.factory import build_agent
 
@@ -70,8 +75,13 @@ def run_job(job: dict[str, Any], *, store: JobStore | None = None, client: Model
     agent = None
     try:
         agent = build_agent(
-            platform="cron", model=job.get("model") or None, provider=job.get("provider") or None,
-            toolsets=job.get("toolsets") or None, callbacks=callbacks, client=client, auto_title=False,
+            platform="cron",
+            model=job.get("model") or None,
+            provider=job.get("provider") or None,
+            toolsets=job.get("toolsets") or None,
+            callbacks=callbacks,
+            client=client,
+            auto_title=False,
             session_meta={"display_name": job.get("name") or f"cron {job['id']}"},
         )
         done = threading.Event()
@@ -99,8 +109,13 @@ def run_job(job: dict[str, Any], *, store: JobStore | None = None, client: Model
             raise TimeoutError(f"no activity for {int(timeout)}s")
         text = (result.final_response or "").strip()
         output_path = store.save_output(job["id"], text or "(no output)")
-        outcome.update(status="ok" if result.completed else "failed", output_path=str(output_path), response=text,
-                       session_id=result.session_id, error=result.error)
+        outcome.update(
+            status="ok" if result.completed else "failed",
+            output_path=str(output_path),
+            response=text,
+            session_id=result.session_id,
+            error=result.error,
+        )
         silent = text.upper().startswith(SILENT_MARKER) or not text
         if result.completed and not silent and deliver is not None and job.get("deliver", "local") != "local":
             try:
@@ -109,7 +124,9 @@ def run_job(job: dict[str, Any], *, store: JobStore | None = None, client: Model
             except Exception as exc:  # noqa: BLE001 - the output is on disk either way
                 logger.warning("delivery for cron job %s failed: %s", job["id"], exc)
                 outcome["delivery_error"] = str(exc)
-        store.mark_finished(job["id"], status=outcome["status"], error=result.error, output_path=str(output_path))
+        store.mark_finished(
+            job["id"], status=outcome["status"], error=result.error, output_path=str(output_path)
+        )
     except Exception as exc:  # noqa: BLE001 - one job failing must not stop the tick
         logger.warning("cron job %s failed", job["id"], exc_info=True)
         outcome.update(status="failed", error=f"{type(exc).__name__}: {exc}")
@@ -161,7 +178,9 @@ class _TickLock:
                 os.close(fd)
 
 
-def tick(now: float | None = None, *, client: ModelClient | None = None, deliver: Deliver | None = None) -> list[dict[str, Any]]:
+def tick(
+    now: float | None = None, *, client: ModelClient | None = None, deliver: Deliver | None = None
+) -> list[dict[str, Any]]:
     """Run every due job once. Returns one outcome per job run (empty when another tick holds
     the lock or scheduling is disabled)."""
     if not config_get("cron.enabled", True):
@@ -188,8 +207,13 @@ def tick(now: float | None = None, *, client: ModelClient | None = None, deliver
 class Scheduler:
     """Background ticker for long-running processes (the gateway, ``clite cron daemon``)."""
 
-    def __init__(self, *, interval: float = TICK_SECONDS, deliver: Deliver | None = None,
-                 client: ModelClient | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        interval: float = TICK_SECONDS,
+        deliver: Deliver | None = None,
+        client: ModelClient | None = None,
+    ) -> None:
         self.interval = interval
         self.deliver = deliver
         self.client = client

@@ -23,12 +23,14 @@ _USER_AGENT = "clite (+web_search; tavily)"
 
 # Register the key so it is known as a credential: stripped from child environments and
 # redacted from tool results. This runs at import time, like provider profiles.
-register_secret(SecretSpec(
-    TAVILY_API_KEY_ENV,
-    "Tavily API key: web search results with snippets",
-    category="tool",
-    url="https://tavily.com",
-))
+register_secret(
+    SecretSpec(
+        TAVILY_API_KEY_ENV,
+        "Tavily API key: web search results with snippets",
+        category="tool",
+        url="https://tavily.com",
+    )
+)
 
 
 class TavilyProvider(WebSearchProvider):
@@ -45,11 +47,16 @@ class TavilyProvider(WebSearchProvider):
         key = self._api_key or get_secret(TAVILY_API_KEY_ENV) or ""
         if not key:
             return []
-        body = json.dumps({
-            "query": query, "max_results": max_results, "api_key": key,
-        }).encode()
+        body = json.dumps(
+            {
+                "query": query,
+                "max_results": max_results,
+                "api_key": key,
+            }
+        ).encode()
         request = urllib.request.Request(  # noqa: S310 - https is enforced
-            TAVILY_URL, data=body,
+            TAVILY_URL,
+            data=body,
             headers={"Content-Type": "application/json", "User-Agent": _USER_AGENT},
             method="POST",
         )
@@ -57,11 +64,13 @@ class TavilyProvider(WebSearchProvider):
             data = json.loads(response.read())
         results: list[dict[str, str]] = []
         for hit in data.get("results", []):
-            results.append({
-                "title": str(hit.get("title") or ""),
-                "url": str(hit.get("url") or ""),
-                "snippet": str(hit.get("content") or ""),
-            })
+            results.append(
+                {
+                    "title": str(hit.get("title") or ""),
+                    "url": str(hit.get("url") or ""),
+                    "snippet": str(hit.get("content") or ""),
+                }
+            )
         return results[:max_results]
 
 

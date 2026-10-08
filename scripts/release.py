@@ -43,7 +43,9 @@ class ReleaseError(Exception):
 def package_name(root: Path) -> str:
     found = sorted((root / "src").glob("*/core/brand.py"))
     if len(found) != 1:
-        raise ReleaseError(f"expected exactly one src/<package>/core/brand.py under {root}, found {len(found)}")
+        raise ReleaseError(
+            f"expected exactly one src/<package>/core/brand.py under {root}, found {len(found)}"
+        )
     return found[0].parent.parent.name
 
 
@@ -79,8 +81,8 @@ def changelog_section(root: Path, version: str) -> str:
     heading = re.search(rf"^## \[{re.escape(version)}\][^\n]*\n", text, re.MULTILINE)
     if not heading:
         raise ReleaseError(f"CHANGELOG.md has no '## [{version}]' section. Describe the release there first.")
-    following = re.search(r"^## ", text[heading.end():], re.MULTILINE)
-    body = text[heading.end(): heading.end() + following.start() if following else len(text)].strip()
+    following = re.search(r"^## ", text[heading.end() :], re.MULTILINE)
+    body = text[heading.end() : heading.end() + following.start() if following else len(text)].strip()
     if not body:
         raise ReleaseError(f"the CHANGELOG.md section for {version} is empty")
     return body
@@ -95,13 +97,15 @@ def check(root: Path, tag: str | None = None) -> list[str]:
     project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
     declared = project.get("project", {})
     if "version" in declared:
-        problems.append("pyproject.toml spells the version; it must read it: dynamic = [\"version\"]")
+        problems.append('pyproject.toml spells the version; it must read it: dynamic = ["version"]')
     if "version" not in declared.get("dynamic", []):
-        problems.append("pyproject.toml does not list \"version\" under [project] dynamic")
+        problems.append('pyproject.toml does not list "version" under [project] dynamic')
     attr = project.get("tool", {}).get("setuptools", {}).get("dynamic", {}).get("version", {}).get("attr")
     if attr != f"{package_name(root)}.__version__":
-        problems.append(f"[tool.setuptools.dynamic] version must be {{attr = \"{package_name(root)}.__version__\"}}, "
-                        f"found {attr!r}")
+        problems.append(
+            f'[tool.setuptools.dynamic] version must be {{attr = "{package_name(root)}.__version__"}}, '
+            f"found {attr!r}"
+        )
     try:
         changelog_section(root, version)
     except ReleaseError as exc:
@@ -130,8 +134,10 @@ def bump(root: Path, part: str) -> str:
         else:
             raise ReleaseError(f"unknown bump {part!r}: use major, minor, patch or X.Y.Z")
     path = version_file(root)
-    path.write_text(VERSION_LINE.sub(f'__version__ = "{new}"', path.read_text(encoding="utf-8"), count=1),
-                    encoding="utf-8")
+    path.write_text(
+        VERSION_LINE.sub(f'__version__ = "{new}"', path.read_text(encoding="utf-8"), count=1),
+        encoding="utf-8",
+    )
     return new
 
 
@@ -141,8 +147,12 @@ def expected_wheel_files(root: Path) -> set[str]:
     expected = set()
     for path in package.rglob("*"):
         relative = path.relative_to(root / "src")
-        if (not path.is_file() or "__pycache__" in relative.parts or path.suffix in (".pyc", ".pyo")
-                or path.name in NOT_SHIPPED):
+        if (
+            not path.is_file()
+            or "__pycache__" in relative.parts
+            or path.suffix in (".pyc", ".pyo")
+            or path.name in NOT_SHIPPED
+        ):
             continue
         expected.add(relative.as_posix())
     return expected
@@ -153,12 +163,17 @@ def inspect_wheel(wheel: Path, root: Path) -> list[str]:
     package = package_name(root)
     with zipfile.ZipFile(wheel) as archive:
         names = set(archive.namelist())
-        dist_info = sorted({name.split("/", 1)[0] for name in names if name.split("/", 1)[0].endswith(".dist-info")})
+        dist_info = sorted(
+            {name.split("/", 1)[0] for name in names if name.split("/", 1)[0].endswith(".dist-info")}
+        )
         if len(dist_info) != 1:
             return [f"expected one .dist-info directory in {wheel.name}, found {dist_info}"]
         metadata = archive.read(f"{dist_info[0]}/METADATA").decode("utf-8")
-        entry_points = (archive.read(f"{dist_info[0]}/entry_points.txt").decode("utf-8")
-                        if f"{dist_info[0]}/entry_points.txt" in names else "")
+        entry_points = (
+            archive.read(f"{dist_info[0]}/entry_points.txt").decode("utf-8")
+            if f"{dist_info[0]}/entry_points.txt" in names
+            else ""
+        )
     problems = [f"missing from the wheel: {name}" for name in sorted(expected_wheel_files(root) - names)]
     leaked = sorted(name for name in names if name.endswith((".pyc", "/AGENTS.md", "/CLAUDE.md")))
     problems += [f"should not be in the wheel: {name}" for name in leaked]
@@ -170,7 +185,9 @@ def inspect_wheel(wheel: Path, root: Path) -> list[str]:
         problems.append(f"METADATA does not carry version {version}")
     if not any(name.startswith(f"{dist_info[0]}/licenses/LICENSE") for name in names):
         problems.append("the LICENSE file is not in the wheel")
-    if not re.search(rf"^{re.escape(package)} = {re.escape(package)}\.cli\.main:main$", entry_points, re.MULTILINE):
+    if not re.search(
+        rf"^{re.escape(package)} = {re.escape(package)}\.cli\.main:main$", entry_points, re.MULTILINE
+    ):
         problems.append(f"the wheel does not install the {package!r} command")
     return problems
 
@@ -179,13 +196,18 @@ def build(root: Path) -> list[Path]:
     """Build wheel and sdist into a fresh ``dist/`` and check the wheel."""
     dist = root / "dist"
     shutil.rmtree(dist, ignore_errors=True)
-    result = subprocess.run([sys.executable, "-m", "build", "--sdist", "--wheel", "--outdir", str(dist), str(root)],
-                            cwd=root, timeout=900)
+    result = subprocess.run(
+        [sys.executable, "-m", "build", "--sdist", "--wheel", "--outdir", str(dist), str(root)],
+        cwd=root,
+        timeout=900,
+    )
     if result.returncode:
         raise ReleaseError("the build failed (needs the `build` package: pip install 'build>=1.2,<2')")
     wheels, sdists = sorted(dist.glob("*.whl")), sorted(dist.glob("*.tar.gz"))
     if len(wheels) != 1 or len(sdists) != 1:
-        raise ReleaseError(f"expected one wheel and one sdist in dist/, found {[path.name for path in dist.iterdir()]}")
+        raise ReleaseError(
+            f"expected one wheel and one sdist in dist/, found {[path.name for path in dist.iterdir()]}"
+        )
     problems = inspect_wheel(wheels[0], root)
     if problems:
         raise ReleaseError("the wheel is incomplete:\n  " + "\n  ".join(problems))
@@ -218,7 +240,9 @@ def tag(root: Path) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Prepare a release: version, build, wheel check, tag.")
-    parser.add_argument("--root", type=Path, default=REPO_ROOT, help="repository to work on (default: this one)")
+    parser.add_argument(
+        "--root", type=Path, default=REPO_ROOT, help="repository to work on (default: this one)"
+    )
     commands = parser.add_subparsers(dest="command", required=True)
     check_parser = commands.add_parser("check", help="versions, changelog and (optionally) a tag agree")
     check_parser.add_argument("--tag", help="the tag being released, e.g. v0.1.0")
@@ -236,8 +260,11 @@ def main(argv: list[str] | None = None) -> int:
             if problems:
                 print("\n".join(problems), file=sys.stderr)
                 return 1
-            print(f"{display_name(root)} {current_version(root)}: version, changelog"
-                  + (f" and tag {args.tag}" if args.tag else "") + " agree")
+            print(
+                f"{display_name(root)} {current_version(root)}: version, changelog"
+                + (f" and tag {args.tag}" if args.tag else "")
+                + " agree"
+            )
         elif args.command == "bump":
             new = bump(root, args.part)
             print(f"version is now {new}. Add a '## [{new}]' section to CHANGELOG.md, commit, then run tag.")

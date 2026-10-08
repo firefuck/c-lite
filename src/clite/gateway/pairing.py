@@ -52,20 +52,29 @@ class PairingStore:
         with self._lock:
             return user_id in self._load()["approved"].get(platform, {})
 
-    def request_code(self, platform: str, user_id: str, user_name: str = "", now: float | None = None) -> str | None:
+    def request_code(
+        self, platform: str, user_id: str, user_name: str = "", now: float | None = None
+    ) -> str | None:
         """A new code for this user, or ``None`` when the request is rate-limited."""
         current = time.time() if now is None else now
         with self._lock:
             data = self._load()
-            pending = {code: entry for code, entry in data["pending"].get(platform, {}).items()
-                       if entry["expires_at"] > current}
+            pending = {
+                code: entry
+                for code, entry in data["pending"].get(platform, {}).items()
+                if entry["expires_at"] > current
+            }
             last = data["requests"].get(f"{platform}:{user_id}", 0)
             if current - last < REQUEST_INTERVAL_SECONDS or len(pending) >= MAX_PENDING_PER_PLATFORM:
                 data["pending"][platform] = pending
                 self._save(data)
                 return None
             code = "".join(secrets.choice(ALPHABET) for _ in range(CODE_LENGTH))
-            pending[code] = {"user_id": user_id, "user_name": user_name, "expires_at": current + CODE_TTL_SECONDS}
+            pending[code] = {
+                "user_id": user_id,
+                "user_name": user_name,
+                "expires_at": current + CODE_TTL_SECONDS,
+            }
             data["pending"][platform] = pending
             data["requests"][f"{platform}:{user_id}"] = current
             self._save(data)
@@ -79,7 +88,9 @@ class PairingStore:
             data = self._load()
             failures = data["failures"].get(platform, {"count": 0, "locked_until": 0})
             if failures["locked_until"] > current:
-                raise PermissionError("too many wrong codes; approvals for this platform are locked for an hour")
+                raise PermissionError(
+                    "too many wrong codes; approvals for this platform are locked for an hour"
+                )
             entry = data["pending"].get(platform, {}).get(normalized)
             if entry is None or entry["expires_at"] <= current:
                 failures["count"] += 1
@@ -89,7 +100,10 @@ class PairingStore:
                 self._save(data)
                 return None
             del data["pending"][platform][normalized]
-            data["approved"].setdefault(platform, {})[entry["user_id"]] = {"user_name": entry["user_name"], "approved_at": current}
+            data["approved"].setdefault(platform, {})[entry["user_id"]] = {
+                "user_name": entry["user_name"],
+                "approved_at": current,
+            }
             data["failures"][platform] = {"count": 0, "locked_until": 0}
             self._save(data)
             return {"user_id": entry["user_id"], "user_name": entry["user_name"]}
@@ -106,6 +120,8 @@ class PairingStore:
         current = time.time() if now is None else now
         with self._lock:
             data = self._load()
-        pending = {platform: {code: entry for code, entry in codes.items() if entry["expires_at"] > current}
-                   for platform, codes in data["pending"].items()}
+        pending = {
+            platform: {code: entry for code, entry in codes.items() if entry["expires_at"] > current}
+            for platform, codes in data["pending"].items()
+        }
         return {"pending": pending, "approved": data["approved"]}

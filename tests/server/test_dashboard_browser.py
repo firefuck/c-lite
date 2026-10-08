@@ -38,8 +38,11 @@ def _start(config_text, clite_home):
         box.update(port=port, token=token, server=server)
         ready.set()
 
-    thread = threading.Thread(target=serve, kwargs={"out": io.StringIO(), "on_ready": on_ready, "token": "browser-token"},
-                              daemon=True)
+    thread = threading.Thread(
+        target=serve,
+        kwargs={"out": io.StringIO(), "on_ready": on_ready, "token": "browser-token"},
+        daemon=True,
+    )
     thread.start()
     assert ready.wait(10)
     return box, thread
@@ -53,7 +56,9 @@ def dashboard(clite_home, browser, tmp_path):
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.goto(f"http://127.0.0.1:{box['port']}/#token={box['token']}")
     page.wait_for_selector("#status-connection.online")
-    page.wait_for_function("document.querySelector('#status-model').textContent !== ''")  # the session is open
+    page.wait_for_function(
+        "document.querySelector('#status-model').textContent !== ''"
+    )  # the session is open
     yield page
     assert errors == [], f"JavaScript errors on the page: {errors}"
     page.close()
@@ -119,7 +124,7 @@ def test_slash_commands_and_script_injection_safety(dashboard):
     dashboard.wait_for_selector(".message.notice")
     assert "mock-1 via mock" in dashboard.inner_text(".message.notice")
 
-    _send(dashboard, "<img src=x onerror=\"window.__pwned = true\"> **not html**")
+    _send(dashboard, '<img src=x onerror="window.__pwned = true"> **not html**')
     dashboard.wait_for_selector(".message.assistant")
     assert dashboard.evaluate("window.__pwned") is None  # text is never interpreted as markup
     assert "<img src=x" in dashboard.inner_text(".message.assistant")
@@ -133,7 +138,9 @@ def test_sessions_can_be_started_and_reopened(dashboard):
     _send(dashboard, "second conversation")
     dashboard.wait_for_function("document.querySelectorAll('#sessions button').length === 2")
     dashboard.locator("#sessions button", has_text="first conversation").click()
-    dashboard.wait_for_function("document.querySelector('.message.user')?.textContent === 'first conversation'")
+    dashboard.wait_for_function(
+        "document.querySelector('.message.user')?.textContent === 'first conversation'"
+    )
     assert dashboard.inner_text(".message.assistant") == "You said: first conversation"
 
 

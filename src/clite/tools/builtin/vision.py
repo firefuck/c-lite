@@ -35,7 +35,10 @@ VISION_ANALYZE_SCHEMA = {
         "type": "object",
         "properties": {
             "path": {"type": "string", "description": "Path to an image file (PNG, JPEG, GIF, WebP or BMP)."},
-            "prompt": {"type": "string", "description": "What to ask about the image (default: describe it and transcribe any text)."},
+            "prompt": {
+                "type": "string",
+                "description": "What to ask about the image (default: describe it and transcribe any text).",
+            },
         },
         "required": ["path"],
     },
@@ -62,14 +65,15 @@ def vision_analyze_tool(args: dict[str, Any], ctx: ToolContext | None = None) ->
     main_route = getattr(ctx.agent, "route", None)
     if main_route is None:
         return tool_error(
-            "vision_analyze needs a running session to pick a model; it cannot be called "
-            "outside a turn")
+            "vision_analyze needs a running session to pick a model; it cannot be called outside a turn"
+        )
     route = resolve_auxiliary_route("vision", main_route, ctx.config)
     if not _route_sees_images(route):
         return tool_error(
             f"the auxiliary vision route uses {route.model} via {route.provider}, which does not "
             "accept images; set auxiliary.vision to a model that can see "
-            "(e.g. `auxiliary: {vision: {provider: openai, model: gpt-4o}}`)")
+            "(e.g. `auxiliary: {vision: {provider: openai, model: gpt-4o}}`)"
+        )
 
     try:
         from clite.agent.attachments import AttachmentError, load_image
@@ -81,8 +85,11 @@ def vision_analyze_tool(args: dict[str, Any], ctx: ToolContext | None = None) ->
     parts: list[dict[str, Any]] = [{"type": "text", "text": prompt}, part]
     try:
         answer = call_auxiliary(
-            "vision", [{"role": "user", "content": parts}],
-            main_route=main_route, client=getattr(ctx.agent, "client", None), config=ctx.config,
+            "vision",
+            [{"role": "user", "content": parts}],
+            main_route=main_route,
+            client=getattr(ctx.agent, "client", None),
+            config=ctx.config,
         )
     except Exception as exc:  # noqa: BLE001 - the model gets the error and can react
         return tool_error(f"could not analyse {Path(raw_path).name}: {type(exc).__name__}: {exc}")
@@ -94,6 +101,10 @@ def vision_analyze_tool(args: dict[str, Any], ctx: ToolContext | None = None) ->
 # Not gated on a provider: unlike ``web_search`` the backend is the model route the session
 # already has, resolved at call time.
 registry.register(
-    "vision_analyze", "vision", VISION_ANALYZE_SCHEMA, vision_analyze_tool,
-    emoji="👁", parallel="safe",
+    "vision_analyze",
+    "vision",
+    VISION_ANALYZE_SCHEMA,
+    vision_analyze_tool,
+    emoji="👁",
+    parallel="safe",
 )

@@ -41,12 +41,22 @@ TARGETS = [
     pytest.param("anthropic", _ANTHROPIC_LEGACY_MODEL, id="anthropic-4.5"),
     pytest.param("openai", _OPENAI_MODEL, id="openai-compatible"),
 ]
-MESSAGES = [{"role": "system", "content": "Answer in as few words as possible."},
-            {"role": "user", "content": "Say the word: pineapple"}]
-ADD_TOOL = {"type": "function", "function": {
-    "name": "add", "description": "Add two integers and return the sum.",
-    "parameters": {"type": "object", "properties": {"a": {"type": "integer"}, "b": {"type": "integer"}},
-                   "required": ["a", "b"]}}}
+MESSAGES = [
+    {"role": "system", "content": "Answer in as few words as possible."},
+    {"role": "user", "content": "Say the word: pineapple"},
+]
+ADD_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "add",
+        "description": "Add two integers and return the sum.",
+        "parameters": {
+            "type": "object",
+            "properties": {"a": {"type": "integer"}, "b": {"type": "integer"}},
+            "required": ["a", "b"],
+        },
+    },
+}
 
 
 def _key(provider: str) -> str:
@@ -74,11 +84,18 @@ def test_text_streams_in_pieces_and_reports_usage(provider, model):
 @pytest.mark.parametrize(("provider", "model"), TARGETS)
 def test_one_tool_round_and_a_parallel_round(provider, model):
     route = _route(provider, model)
-    single = LLMClient().complete(route, [*MESSAGES[:1], {"role": "user", "content": "Use the add tool for 2 + 3."}],
-                                  [ADD_TOOL])
+    single = LLMClient().complete(
+        route, [*MESSAGES[:1], {"role": "user", "content": "Use the add tool for 2 + 3."}], [ADD_TOOL]
+    )
     assert [call.name for call in single.tool_calls] == ["add"] and single.finish_reason == "tool_calls"
-    parallel = LLMClient().complete(route, [*MESSAGES[:1], {"role": "user", "content":
-                                    "Call the add tool twice in one response: 1 + 2 and 3 + 4."}], [ADD_TOOL])
+    parallel = LLMClient().complete(
+        route,
+        [
+            *MESSAGES[:1],
+            {"role": "user", "content": "Call the add tool twice in one response: 1 + 2 and 3 + 4."},
+        ],
+        [ADD_TOOL],
+    )
     assert len(parallel.tool_calls) >= 2
 
 
@@ -86,8 +103,13 @@ def test_one_tool_round_and_a_parallel_round(provider, model):
 def test_the_second_call_reads_the_prompt_cache(provider, model):
     # Anthropic caches only prefixes above a minimum size; repeat a long system prompt.
     system = "You are a terse assistant. " + "Reference text that never changes. " * 400
-    messages = [{"role": "system", "content": [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]},
-                {"role": "user", "content": "Reply with: ok"}]
+    messages = [
+        {
+            "role": "system",
+            "content": [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+        },
+        {"role": "user", "content": "Reply with: ok"},
+    ]
     route = _route(provider, model)
     LLMClient().complete(route, messages, stream=False)
     second = LLMClient().complete(route, messages, stream=False)
@@ -110,7 +132,9 @@ def test_a_stream_can_be_cancelled_midway(provider, model):
 
 
 @pytest.mark.parametrize(("provider", "model"), TARGETS[:1])
-def test_signed_thinking_survives_tool_rounds_a_second_turn_compress_and_model_switch(provider, model, clite_home):
+def test_signed_thinking_survives_tool_rounds_a_second_turn_compress_and_model_switch(
+    provider, model, clite_home
+):
     """Replay of signed reasoning: several tool rounds, a second turn, /compress, /model."""
     calls: list[dict] = []
 
@@ -123,11 +147,18 @@ def test_signed_thinking_survives_tool_rounds_a_second_turn_compress_and_model_s
     config["agent"]["reasoning_effort"] = "high"
     config["display"]["show_reasoning"] = True
     reasoning: list[str] = []
-    agent = build_agent(route=_route(provider, model), toolsets=["live-probe"], config=config, auto_title=False,
-                        callbacks=AgentCallbacks(on_reasoning=reasoning.append))
+    agent = build_agent(
+        route=_route(provider, model),
+        toolsets=["live-probe"],
+        config=config,
+        auto_title=False,
+        callbacks=AgentCallbacks(on_reasoning=reasoning.append),
+    )
     try:
-        first = agent.run_conversation("Use the add tool to compute 2+3, then add 10 to that result with the tool "
-                                       "again, then tell me the final number.")
+        first = agent.run_conversation(
+            "Use the add tool to compute 2+3, then add 10 to that result with the tool "
+            "again, then tell me the final number."
+        )
         assert first.completed and "15" in first.final_response and len(calls) >= 2
         assert any(m.get("provider_data") for m in agent.messages if m.get("role") == "assistant")
         assert reasoning, "show_reasoning should surface summarized thinking text"
@@ -159,10 +190,14 @@ def test_openai_responses_replays_reasoning_across_two_tool_rounds(stream, clite
     config["fallback_providers"] = []
     route = _route("openai", _OPENAI_RESPONSES_MODEL)
     assert route.api_mode == "responses"
-    agent = build_agent(route=route, toolsets=["live-responses"], config=config, auto_title=False, stream=stream)
+    agent = build_agent(
+        route=route, toolsets=["live-responses"], config=config, auto_title=False, stream=stream
+    )
     try:
-        result = agent.run_conversation("Use add for 2+3. After that result arrives, use add again to add 10. "
-                                        "Then reply with only the final number.")
+        result = agent.run_conversation(
+            "Use add for 2+3. After that result arrives, use add again to add 10. "
+            "Then reply with only the final number."
+        )
         assert result.completed and "15" in result.final_response and len(calls) >= 2
         assert any(m.get("provider_data") for m in agent.messages if m.get("role") == "assistant")
     finally:
@@ -180,8 +215,14 @@ def test_real_errors_are_classified(provider, model):
             return classify_api_error(exc)
         raise AssertionError("the call was expected to fail")
 
-    assert error_of(_route(provider, model, api_key="sk-wrong-key-for-a-live-test"), MESSAGES).reason is FailoverReason.AUTH
-    assert error_of(route.with_model("no-such-model-clite-live"), MESSAGES).reason is FailoverReason.MODEL_NOT_FOUND
+    assert (
+        error_of(_route(provider, model, api_key="sk-wrong-key-for-a-live-test"), MESSAGES).reason
+        is FailoverReason.AUTH
+    )
+    assert (
+        error_of(route.with_model("no-such-model-clite-live"), MESSAGES).reason
+        is FailoverReason.MODEL_NOT_FOUND
+    )
     huge = [MESSAGES[0], {"role": "user", "content": "word " * 1_200_000}]
     assert error_of(route, huge).reason in (FailoverReason.CONTEXT_OVERFLOW, FailoverReason.PAYLOAD_TOO_LARGE)
     assert error_of(route, MESSAGES, RequestParams(max_tokens=-1)).reason is FailoverReason.FORMAT_ERROR

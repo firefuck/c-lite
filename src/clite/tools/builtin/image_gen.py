@@ -37,9 +37,18 @@ IMAGE_GENERATE_SCHEMA = {
         "type": "object",
         "properties": {
             "prompt": {"type": "string", "description": "What the image should show."},
-            "size": {"type": "string", "description": "Requested size as WIDTHxHEIGHT (e.g. 1024x1024); omit for the provider's default."},
-            "count": {"type": "integer", "description": f"How many images to make (default 1, max {MAX_COUNT})."},
-            "output_name": {"type": "string", "description": "Base file name without extension; defaults to a slug of the prompt."},
+            "size": {
+                "type": "string",
+                "description": "Requested size as WIDTHxHEIGHT (e.g. 1024x1024); omit for the provider's default.",
+            },
+            "count": {
+                "type": "integer",
+                "description": f"How many images to make (default 1, max {MAX_COUNT}).",
+            },
+            "output_name": {
+                "type": "string",
+                "description": "Base file name without extension; defaults to a slug of the prompt.",
+            },
         },
         "required": ["prompt"],
     },
@@ -84,7 +93,8 @@ def image_generate_tool(args: dict[str, Any], ctx: ToolContext | None = None) ->
     if provider is None:
         return tool_error(
             "no image generation provider is configured; enable an image-generation plugin "
-            "(e.g. image-gen-openai) or set image.provider in config.yaml")
+            "(e.g. image-gen-openai) or set image.provider in config.yaml"
+        )
 
     if size and provider.supported_sizes and size not in provider.supported_sizes:
         allowed = ", ".join(provider.supported_sizes)
@@ -110,7 +120,11 @@ def image_generate_tool(args: dict[str, Any], ctx: ToolContext | None = None) ->
             target.write_bytes(image.data)
         except OSError as exc:
             return tool_error(f"could not write {target}: {exc}")
-        entry: dict[str, Any] = {"path": str(target), "media_type": image.media_type, "bytes": len(image.data)}
+        entry: dict[str, Any] = {
+            "path": str(target),
+            "media_type": image.media_type,
+            "bytes": len(image.data),
+        }
         if image.metadata.get("revised_prompt"):
             entry["revised_prompt"] = image.metadata["revised_prompt"]
         saved.append(entry)
@@ -123,6 +137,11 @@ def _image_generation_available() -> bool:
 
 
 registry.register(
-    "image_generate", "vision", IMAGE_GENERATE_SCHEMA, image_generate_tool,
-    emoji="🎨", parallel="never", check_fn=_image_generation_available,
+    "image_generate",
+    "vision",
+    IMAGE_GENERATE_SCHEMA,
+    image_generate_tool,
+    emoji="🎨",
+    parallel="never",
+    check_fn=_image_generation_available,
 )

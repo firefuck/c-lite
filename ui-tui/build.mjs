@@ -25,7 +25,7 @@ function sourceFiles(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = resolve(dir, entry.name);
     if (entry.isDirectory()) return sourceFiles(path);
-    return entry.name.endsWith(".ts") ? [path] : [];
+    return (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx")) ? [path] : [];
   });
 }
 
@@ -50,8 +50,18 @@ await build({
   platform: "node",
   format: "esm",
   target: "node22",
-  banner: { js: "#!/usr/bin/env node" },
+  banner: {
+    js: "#!/usr/bin/env node\nimport { createRequire as _cr } from 'node:module'; const require = _cr(import.meta.url);",
+  },
   legalComments: "none",
+  loader: { ".ts": "ts", ".tsx": "tsx" },
+  jsx: "automatic",
+  jsxImportSource: "react",
+  // `ink` and `react` are bundled into the single .mjs (they are devDependencies, so the
+  // user never needs `npm install`). `react-devtools-core` is ink's optional devtools hook;
+  // we never wire it up, so it is aliased to a local no-op stub instead of failing the build
+  // or resolving a package the user does not have at runtime.
+  alias: { "react-devtools-core": resolve(here, "src/devtools-stub.js") },
 });
 mkdirSync(packagedDir, { recursive: true });
 copyFileSync(outfile, resolve(packagedDir, "clite-tui.mjs"));

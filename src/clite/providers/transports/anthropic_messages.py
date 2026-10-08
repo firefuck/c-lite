@@ -25,8 +25,14 @@ if TYPE_CHECKING:
 ANTHROPIC_VERSION = "2023-06-01"
 DEFAULT_MAX_TOKENS = 8192
 REPLAY_KEY = "anthropic_blocks"
-_STOP_REASONS = {"end_turn": "stop", "stop_sequence": "stop", "tool_use": "tool_calls", "max_tokens": "length",
-                 "refusal": "content_filter", "pause_turn": "stop"}
+_STOP_REASONS = {
+    "end_turn": "stop",
+    "stop_sequence": "stop",
+    "tool_use": "tool_calls",
+    "max_tokens": "length",
+    "refusal": "content_filter",
+    "pause_turn": "stop",
+}
 _EMPTY_PLACEHOLDER = "(no content)"
 
 
@@ -120,8 +126,14 @@ def convert_messages(messages: list[dict[str, Any]]) -> tuple[list[dict[str, Any
                 blocks = _content_blocks(message.get("content"))
                 for call in message.get("tool_calls") or []:
                     function = call.get("function") or {}
-                    blocks.append({"type": "tool_use", "id": call.get("id"), "name": function.get("name"),
-                                   "input": _parse_arguments(function.get("arguments"))})
+                    blocks.append(
+                        {
+                            "type": "tool_use",
+                            "id": call.get("id"),
+                            "name": function.get("name"),
+                            "input": _parse_arguments(function.get("arguments")),
+                        }
+                    )
             _mark_last(blocks, marker)
             push("assistant", blocks)
         elif role == "tool":
@@ -143,11 +155,13 @@ def convert_tools(tools: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
     converted = []
     for tool in tools or []:
         function = tool.get("function", tool)
-        converted.append({
-            "name": function["name"],
-            "description": function.get("description", ""),
-            "input_schema": function.get("parameters") or {"type": "object", "properties": {}},
-        })
+        converted.append(
+            {
+                "name": function["name"],
+                "description": function.get("description", ""),
+                "input_schema": function.get("parameters") or {"type": "object", "properties": {}},
+            }
+        )
     return converted
 
 
@@ -166,11 +180,17 @@ def parse_usage(raw: dict[str, Any] | None) -> Usage | None:
     )
 
 
-def response_from_blocks(blocks: list[dict[str, Any]], stop_reason: str, usage: Usage | None, model: str) -> NormalizedResponse:
+def response_from_blocks(
+    blocks: list[dict[str, Any]], stop_reason: str, usage: Usage | None, model: str
+) -> NormalizedResponse:
     text = "".join(block.get("text", "") for block in blocks if block.get("type") == "text")
     thinking = "".join(block.get("thinking", "") for block in blocks if block.get("type") == "thinking")
     calls = [
-        ToolCall(id=str(block.get("id")), name=str(block.get("name")), arguments=json.dumps(block.get("input") or {}))
+        ToolCall(
+            id=str(block.get("id")),
+            name=str(block.get("name")),
+            arguments=json.dumps(block.get("input") or {}),
+        )
         for block in blocks
         if block.get("type") == "tool_use"
     ]
@@ -187,8 +207,9 @@ def response_from_blocks(blocks: list[dict[str, Any]], stop_reason: str, usage: 
 
 
 class AnthropicAccumulator(StreamAccumulator):
-    def __init__(self, on_delta: Callable[[str], None] | None = None,
-                 on_reasoning: Callable[[str], None] | None = None) -> None:
+    def __init__(
+        self, on_delta: Callable[[str], None] | None = None, on_reasoning: Callable[[str], None] | None = None
+    ) -> None:
         super().__init__(on_delta, on_reasoning)
         self.blocks: dict[int, dict[str, Any]] = {}
         self.partial_json: dict[int, str] = {}
@@ -232,14 +253,18 @@ class AnthropicAccumulator(StreamAccumulator):
                     self.blocks[index]["input"] = {}
         elif kind == "message_delta":
             self.stop_reason = (payload.get("delta") or {}).get("stop_reason") or self.stop_reason
-            self.usage.output_tokens = int((payload.get("usage") or {}).get("output_tokens") or self.usage.output_tokens)
+            self.usage.output_tokens = int(
+                (payload.get("usage") or {}).get("output_tokens") or self.usage.output_tokens
+            )
         elif kind == "message_stop":
             return False
         elif kind == "error":
             from clite.providers.http import ProviderHTTPError
 
             error = payload.get("error") or {}
-            status = {"overloaded_error": 529, "rate_limit_error": 429, "api_error": 500}.get(str(error.get("type")), 400)
+            status = {"overloaded_error": 529, "rate_limit_error": 429, "api_error": 500}.get(
+                str(error.get("type")), 400
+            )
             raise ProviderHTTPError(status, json.dumps(payload), {}, "")
         return True
 
@@ -251,43 +276,70 @@ class AnthropicAccumulator(StreamAccumulator):
 class AnthropicMessagesTransport(ProviderTransport):
     api_mode = API_MODE_ANTHROPIC
 
-    def build_request(self, route: RuntimeRoute, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None,
-                      params: RequestParams, *, stream: bool) -> HttpRequest:
+    def build_request(
+        self,
+        route: RuntimeRoute,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]] | None,
+        params: RequestParams,
+        *,
+        stream: bool,
+    ) -> HttpRequest:
         profile = route.profile
         prepared = profile.prepare_messages(list(messages)) if profile is not None else messages
         system, converted = convert_messages(prepared)
-        max_tokens = (params.max_tokens or route.max_tokens
-                      or (profile.get_max_tokens(route.model) if profile else None) or DEFAULT_MAX_TOKENS)
+        max_tokens = (
+            params.max_tokens
+            or route.max_tokens
+            or (profile.get_max_tokens(route.model) if profile else None)
+            or DEFAULT_MAX_TOKENS
+        )
         body: dict[str, Any] = {"model": route.model, "max_tokens": max_tokens, "messages": converted}
         if system:
             body["system"] = system
         wire_tools = convert_tools(tools)
         if wire_tools:
             body["tools"] = wire_tools
-        extras = profile.build_extra_body(model=route.model, reasoning_effort=params.reasoning_effort,
-                                          session_id=params.session_id,
-                                          show_reasoning=params.show_reasoning) if profile is not None else {}
+        extras = (
+            profile.build_extra_body(
+                model=route.model,
+                reasoning_effort=params.reasoning_effort,
+                session_id=params.session_id,
+                show_reasoning=params.show_reasoning,
+            )
+            if profile is not None
+            else {}
+        )
         # Thinking fixes the sampling temperature server-side; sending one is an error.
-        temperature = profile.resolve_temperature(route.model, params.temperature) if profile else params.temperature
+        temperature = (
+            profile.resolve_temperature(route.model, params.temperature) if profile else params.temperature
+        )
         if temperature is not None and "thinking" not in extras:
             body["temperature"] = temperature
         if stream:
             body["stream"] = True
         body.update(extras)
         body.update(params.extra_body)
-        headers = {"Content-Type": "application/json", "anthropic-version": ANTHROPIC_VERSION, **route.headers}
+        headers = {
+            "Content-Type": "application/json",
+            "anthropic-version": ANTHROPIC_VERSION,
+            **route.headers,
+        }
         base = route.base_url.rstrip("/")
         url = base + "/messages" if base.endswith("/v1") else base + "/v1/messages"
         return HttpRequest(url=url, headers=headers, body=body)
 
     def parse_response(self, payload: dict[str, Any]) -> NormalizedResponse:
         return response_from_blocks(
-            list(payload.get("content") or []), str(payload.get("stop_reason") or ""),
-            parse_usage(payload.get("usage")), str(payload.get("model") or ""),
+            list(payload.get("content") or []),
+            str(payload.get("stop_reason") or ""),
+            parse_usage(payload.get("usage")),
+            str(payload.get("model") or ""),
         )
 
-    def stream_accumulator(self, on_delta: Callable[[str], None] | None = None,
-                           on_reasoning: Callable[[str], None] | None = None) -> StreamAccumulator:
+    def stream_accumulator(
+        self, on_delta: Callable[[str], None] | None = None, on_reasoning: Callable[[str], None] | None = None
+    ) -> StreamAccumulator:
         return AnthropicAccumulator(on_delta, on_reasoning)
 
 

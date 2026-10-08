@@ -45,8 +45,15 @@ def system_info(server: RpcServer, params: Empty) -> schema.SystemInfoResult:
         model, provider, configured = route.model, route.provider, True
     except CliteError:
         configured = False
-    return schema.SystemInfoResult(version=__version__, protocol_version=PROTOCOL_VERSION, home=display_home(),
-                                   profile=get_active_profile_name(), configured=configured, model=model, provider=provider)
+    return schema.SystemInfoResult(
+        version=__version__,
+        protocol_version=PROTOCOL_VERSION,
+        home=display_home(),
+        profile=get_active_profile_name(),
+        configured=configured,
+        model=model,
+        provider=provider,
+    )
 
 
 # ── sessions ─────────────────────────────────────────────────────────────────────────────
@@ -66,14 +73,23 @@ def session_info(server: RpcServer, params: schema.SessionRef) -> schema.Session
 
 @rpc_method("session.list")
 def session_list(server: RpcServer, params: schema.SessionListParams) -> schema.SessionListResult:
-    rows = get_session_db().list_sessions(limit=max(1, min(params.limit, 200)),
-                                          sources=[params.source] if params.source else None)
-    return schema.SessionListResult(sessions=[
-        schema.StoredSession(id=row["id"], title=row.get("title") or "", source=row["source"], model=row.get("model") or "",
-                             message_count=row.get("message_count") or 0, started_at=row["started_at"],
-                             last_activity_at=row.get("last_activity_at"))
-        for row in rows
-    ])
+    rows = get_session_db().list_sessions(
+        limit=max(1, min(params.limit, 200)), sources=[params.source] if params.source else None
+    )
+    return schema.SessionListResult(
+        sessions=[
+            schema.StoredSession(
+                id=row["id"],
+                title=row.get("title") or "",
+                source=row["source"],
+                model=row.get("model") or "",
+                message_count=row.get("message_count") or 0,
+                started_at=row["started_at"],
+                last_activity_at=row.get("last_activity_at"),
+            )
+            for row in rows
+        ]
+    )
 
 
 @rpc_method("session.history")
@@ -136,9 +152,14 @@ def session_usage(server: RpcServer, params: schema.SessionRef) -> schema.Sessio
     agent = server.get_session(params.session_id).chat.agent
     usage = agent.total_usage
     return schema.SessionUsageResult(
-        usage=schema.UsageTotals(input_tokens=usage.input_tokens, output_tokens=usage.output_tokens,
-                                 cache_read_tokens=usage.cache_read_tokens, cache_write_tokens=usage.cache_write_tokens,
-                                 reasoning_tokens=usage.reasoning_tokens, prompt_tokens=usage.prompt_tokens),
+        usage=schema.UsageTotals(
+            input_tokens=usage.input_tokens,
+            output_tokens=usage.output_tokens,
+            cache_read_tokens=usage.cache_read_tokens,
+            cache_write_tokens=usage.cache_write_tokens,
+            reasoning_tokens=usage.reasoning_tokens,
+            prompt_tokens=usage.prompt_tokens,
+        ),
         context=schema.ContextStatus(**agent.context_status()),
     )
 
@@ -177,8 +198,11 @@ def commands_catalog(server: RpcServer, params: schema.CatalogParams) -> schema.
 @rpc_method("complete.slash")
 def complete_slash(server: RpcServer, params: schema.CompleteParams) -> schema.CompleteResult:
     prefix = params.prefix.lstrip("/").lower()
-    matches = [entry for entry in _catalog(server, params.session_id)
-               if entry.name.startswith(prefix) or any(alias.startswith(prefix) for alias in entry.aliases)]
+    matches = [
+        entry
+        for entry in _catalog(server, params.session_id)
+        if entry.name.startswith(prefix) or any(alias.startswith(prefix) for alias in entry.aliases)
+    ]
     return schema.CompleteResult(items=matches[:50])
 
 
@@ -211,8 +235,11 @@ def model_list(server: RpcServer, params: schema.ModelListParams) -> schema.Mode
         if not provider:
             raise
     models = list_models(provider, refresh=params.refresh)
-    return schema.ModelListResult(provider=provider, current=current,
-                                  models=[schema.ModelEntry(id=m.id, context_length=m.context_length) for m in models])
+    return schema.ModelListResult(
+        provider=provider,
+        current=current,
+        models=[schema.ModelEntry(id=m.id, context_length=m.context_length) for m in models],
+    )
 
 
 @rpc_method("model.set")
@@ -222,8 +249,12 @@ def model_set(server: RpcServer, params: schema.ModelSetParams) -> schema.ModelS
     if result.success:
         server.emit("session.info", session.id, session.info())
     route = result.route
-    return schema.ModelSetResult(success=result.success, message=result.message,
-                                 model=route.model if route else "", provider=route.provider if route else "")
+    return schema.ModelSetResult(
+        success=result.success,
+        message=result.message,
+        model=route.model if route else "",
+        provider=route.provider if route else "",
+    )
 
 
 @rpc_method("providers.list")
@@ -232,9 +263,15 @@ def providers_list(server: RpcServer, params: Empty) -> schema.ProvidersResult:
     return schema.ProvidersResult(
         current=str(get_path(config, "model.provider", "") or ""),
         providers=[
-            schema.ProviderEntry(name=p.name, display_name=p.display_name, description=p.description,
-                                 configured=p.is_configured(), env_vars=list(p.env_vars),
-                                 needs_base_url=not p.base_url and p.api_mode != "mock", signup_url=p.signup_url)
+            schema.ProviderEntry(
+                name=p.name,
+                display_name=p.display_name,
+                description=p.description,
+                configured=p.is_configured(),
+                env_vars=list(p.env_vars),
+                needs_base_url=not p.base_url and p.api_mode != "mock",
+                signup_url=p.signup_url,
+            )
             for p in list_providers(config)
         ],
     )
@@ -244,7 +281,9 @@ def providers_list(server: RpcServer, params: Empty) -> schema.ProvidersResult:
 def setup_apply(server: RpcServer, params: schema.SetupApplyParams) -> schema.SetupApplyResult:
     from clite.runtime.setup import apply_setup
 
-    result = apply_setup(params.provider, api_key=params.api_key, model=params.model, base_url=params.base_url)
+    result = apply_setup(
+        params.provider, api_key=params.api_key, model=params.model, base_url=params.base_url
+    )
     return schema.SetupApplyResult(provider=result["provider"], model=result["model"])
 
 
@@ -263,14 +302,22 @@ def tools_list(server: RpcServer, params: schema.CatalogParams) -> schema.ToolsL
     toolsets = []
     for name, spec in sorted(all_toolsets().items()):
         tools = resolve_toolset(name)
-        toolsets.append(schema.ToolsetEntry(name=name, description=spec.get("description", ""), tools=tools,
-                                            enabled_tools=[tool for tool in tools if tool in active]))
+        toolsets.append(
+            schema.ToolsetEntry(
+                name=name,
+                description=spec.get("description", ""),
+                tools=tools,
+                enabled_tools=[tool for tool in tools if tool in active],
+            )
+        )
     return schema.ToolsListResult(toolsets=toolsets)
 
 
 @rpc_method("skills.list")
 def skills_list(server: RpcServer, params: Empty) -> schema.SkillsListResult:
-    return schema.SkillsListResult(skills=[schema.SkillEntry(**skill.summary()) for skill in discover_skills()])
+    return schema.SkillsListResult(
+        skills=[schema.SkillEntry(**skill.summary()) for skill in discover_skills()]
+    )
 
 
 @rpc_method("skills.view")
@@ -311,14 +358,23 @@ def memory_get(server: RpcServer, params: Empty) -> schema.MemoryGetResult:
     from clite.agent.memory import MemoryStore
 
     config = load_config()
-    store = MemoryStore(int(get_path(config, "memory.memory_char_limit", 2200)), int(get_path(config, "memory.user_char_limit", 1375)))
-    return schema.MemoryGetResult(memory=store.entries("memory"), user=store.entries("user"),
-                                  memory_limit=store.limits["memory"], user_limit=store.limits["user"],
-                                  provider=str(get_path(config, "memory.provider", "") or ""))
+    store = MemoryStore(
+        int(get_path(config, "memory.memory_char_limit", 2200)),
+        int(get_path(config, "memory.user_char_limit", 1375)),
+    )
+    return schema.MemoryGetResult(
+        memory=store.entries("memory"),
+        user=store.entries("user"),
+        memory_limit=store.limits["memory"],
+        user_limit=store.limits["user"],
+        provider=str(get_path(config, "memory.provider", "") or ""),
+    )
 
 
 def _job(job: dict[str, Any]) -> schema.CronJob:
-    return schema.CronJob.model_validate({key: job.get(key) for key in schema.CronJob.model_fields if job.get(key) is not None})
+    return schema.CronJob.model_validate(
+        {key: job.get(key) for key in schema.CronJob.model_fields if job.get(key) is not None}
+    )
 
 
 @rpc_method("cron.list")
@@ -333,8 +389,11 @@ def cron_create(server: RpcServer, params: schema.CronCreateParams) -> schema.Cr
     from clite.cron.jobs import JobError, get_job_store
 
     try:
-        return _job(get_job_store().create(params.prompt, params.schedule, name=params.name, deliver=params.deliver,
-                                           repeat=params.repeat))
+        return _job(
+            get_job_store().create(
+                params.prompt, params.schedule, name=params.name, deliver=params.deliver, repeat=params.repeat
+            )
+        )
     except JobError as exc:
         raise RpcError(REQUEST_FAILED, str(exc)) from exc
 

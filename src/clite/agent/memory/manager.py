@@ -158,7 +158,9 @@ class MemoryManager:
         return [block for block in blocks if block]
 
     def prefetch(self, query: str, session_id: str) -> str:
-        recalled = self._guard("prefetch", "", lambda provider: provider.prefetch(query, session_id=session_id))
+        recalled = self._guard(
+            "prefetch", "", lambda provider: provider.prefetch(query, session_id=session_id)
+        )
         return wrap_memory_context(recalled) if recalled and recalled.strip() else ""
 
     def turn_nudge(self) -> str:
@@ -178,9 +180,16 @@ class MemoryManager:
         return MEMORY_NUDGE
 
     def after_turn(self, user_content: str, assistant_content: str, session_id: str) -> None:
-        self._guard("sync_turn", None,
-                    lambda provider: provider.sync_turn(user_content, assistant_content, session_id=session_id))
-        self._guard("queue_prefetch", None, lambda provider: provider.queue_prefetch(user_content, session_id=session_id))
+        self._guard(
+            "sync_turn",
+            None,
+            lambda provider: provider.sync_turn(user_content, assistant_content, session_id=session_id),
+        )
+        self._guard(
+            "queue_prefetch",
+            None,
+            lambda provider: provider.queue_prefetch(user_content, session_id=session_id),
+        )
 
     def before_compress(self, messages: list[dict[str, Any]]) -> str:
         return self._guard("on_pre_compress", "", lambda provider: provider.on_pre_compress(messages)) or ""
@@ -190,7 +199,9 @@ class MemoryManager:
 
     # ── the memory tool ──────────────────────────────────────────────────────────────────
 
-    def handle_memory_tool(self, action: str, target: str, content: str = "", old_text: str = "") -> dict[str, Any]:
+    def handle_memory_tool(
+        self, action: str, target: str, content: str = "", old_text: str = ""
+    ) -> dict[str, Any]:
         if self.store is None:
             return {"success": False, "error": "Memory is disabled for this session."}
         if target == "memory" and not self.memory_enabled or target == "user" and not self.user_enabled:
@@ -206,7 +217,9 @@ class MemoryManager:
         if result.get("success"):
             self._turns_since_write = 0
             self._save_nudge_count()
-            self._guard("on_memory_write", None, lambda provider: provider.on_memory_write(action, target, content))
+            self._guard(
+                "on_memory_write", None, lambda provider: provider.on_memory_write(action, target, content)
+            )
         return result
 
     # ── provider tools ───────────────────────────────────────────────────────────────────
@@ -218,5 +231,8 @@ class MemoryManager:
         """Result string when the external provider owns ``name``, else ``None``."""
         if not any(schema.get("name") == name for schema in self.provider_tool_schemas()):
             return None
-        return self._guard("handle_tool_call", '{"error": "memory provider failed"}',
-                           lambda provider: provider.handle_tool_call(name, args, **context))
+        return self._guard(
+            "handle_tool_call",
+            '{"error": "memory provider failed"}',
+            lambda provider: provider.handle_tool_call(name, args, **context),
+        )

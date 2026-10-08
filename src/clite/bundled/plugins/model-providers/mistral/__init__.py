@@ -15,10 +15,10 @@ register_provider(
         name="mistral",
         display_name="Mistral",
         description="Mistral API",
-        env_vars=('MISTRAL_API_KEY',),
+        env_vars=("MISTRAL_API_KEY",),
         base_url="https://api.mistral.ai/v1",
         base_url_env="MISTRAL_BASE_URL",
-        fallback_models=('mistral-small-2603',),
-        context_lengths={'mistral-small-2603': 256_000},
+        fallback_models=("mistral-small-2603",),
+        context_lengths={"mistral-small-2603": 256_000},
     )
 )

@@ -43,17 +43,39 @@ TEST_NAME = re.compile(r"test_[a-z0-9_]+")
 HERMES_WORD = re.compile(r"\bHermes\b")
 LOCAL_WORD = re.compile(rf"(?<!\w){re.escape(DISPLAY)}(?!\w)")
 
-SKIP_DIRS = frozenset({
-    ".git", "node_modules", "build", "dist", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
-    ".venv", "venv",
-})
+SKIP_DIRS = frozenset(
+    {
+        ".git",
+        "node_modules",
+        "build",
+        "dist",
+        "__pycache__",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".venv",
+        "venv",
+    }
+)
 # Shipped content (skills, plugin READMEs) is not project documentation.
 SKIP_DOC_DIRS = SKIP_DIRS | {"bundled"}
 ROOT_PREFIXES = ("src/", "tests/", "scripts/", "docs/", "apps/", "ui-tui/", ".github/")
 # Produced by a build step and ignored by git: a document may name them, a checkout lacks them.
 BUILD_OUTPUT = ("ui-tui/dist/", "apps/desktop/dist/", "apps/shared/dist/")
 CODE_SUFFIXES = (".py", ".ts", ".tsx", ".mjs", ".cjs", ".js", ".sh")
-FILE_SUFFIXES = (*CODE_SUFFIXES, ".md", ".json", ".yaml", ".yml", ".toml", ".txt", ".lock", ".ps1", ".nix", ".example")
+FILE_SUFFIXES = (
+    *CODE_SUFFIXES,
+    ".md",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".txt",
+    ".lock",
+    ".ps1",
+    ".nix",
+    ".example",
+)
 ALWAYS_LOCAL = (f"src/{PACKAGE}/", "docs/")
 
 _FENCE = re.compile(r"^\s*(```|~~~)")
@@ -138,7 +160,10 @@ def _cells(row: str) -> list[str]:
 
 def _column_kinds(header: str) -> list[bool | None]:
     """Per column of a table: True (Hermes), False (local) or None (the header does not say)."""
-    return [True if HERMES_WORD.search(cell) else False if LOCAL_WORD.search(cell) else None for cell in _cells(header)]
+    return [
+        True if HERMES_WORD.search(cell) else False if LOCAL_WORD.search(cell) else None
+        for cell in _cells(header)
+    ]
 
 
 def _classified(path: Path, root: Path) -> list[tuple[str, int, bool]]:
@@ -158,11 +183,17 @@ def _classified(path: Path, root: Path) -> list[tuple[str, int, bool]]:
             for index, cell in enumerate(_cells(line)):
                 kind = columns[index] if index < len(columns) else None
                 hermes = row_default if kind is None else kind
-                found.extend((token, number, hermes and not token.startswith(ALWAYS_LOCAL)) for token in TOKEN.findall(cell))
+                found.extend(
+                    (token, number, hermes and not token.startswith(ALWAYS_LOCAL))
+                    for token in TOKEN.findall(cell)
+                )
             continue
         hermes_block = in_hermes_docs or any(HERMES_WORD.search(text) for _, text in block)
         for number, line in block:
-            found.extend((token, number, hermes_block and not token.startswith(ALWAYS_LOCAL)) for token in TOKEN.findall(line))
+            found.extend(
+                (token, number, hermes_block and not token.startswith(ALWAYS_LOCAL))
+                for token in TOKEN.findall(line)
+            )
     return found
 
 
@@ -182,7 +213,11 @@ def normalize(token: str) -> str | None:
     text = token.strip().strip("()").rstrip(".,:")
     text = text.split("::", 1)[0]
     text = _LINE_SUFFIX.sub("", text)
-    if not text or _NOT_A_PATH.search(text) or text.startswith(("~", "/", "http", "./", "../", "-", "@", "#")):
+    if (
+        not text
+        or _NOT_A_PATH.search(text)
+        or text.startswith(("~", "/", "http", "./", "../", "-", "@", "#"))
+    ):
         return None
     return text
 
@@ -208,7 +243,9 @@ def check_local_path(token: str, files: set[str], root: Path) -> str | None:
         return None
     if path.startswith(BUILD_OUTPUT) or path.startswith("dist/") or "/dist/" in path:
         return None
-    if path.startswith(ROOT_PREFIXES) and not (path.startswith("src/") and not path.startswith(f"src/{PACKAGE}")):
+    if path.startswith(ROOT_PREFIXES) and not (
+        path.startswith("src/") and not path.startswith(f"src/{PACKAGE}")
+    ):
         return None if path.rstrip("/") in files else "not in the repository"
     if path.startswith("src/"):
         return None if _ends_with(path.rstrip("/"), files) else "no package has this path"

@@ -57,13 +57,24 @@ def can_run_in_parallel(calls: list[tuple[ToolCall, dict[str, Any] | None]], res
 
 def _context_for(agent: AIAgent, state: TurnState, call: ToolCall) -> ToolContext:
     return ToolContext(
-        session_id=agent.session_id, task_id=state.task_id, tool_call_id=call.id, platform=agent.platform,
-        cwd=agent.cwd, agent=agent, callbacks=agent.callbacks, config=agent.config, interrupt=agent.interrupt_event,
-        approval_mode=agent.approval_mode, enabled_tools=agent.tool_names, depth=agent.depth,
+        session_id=agent.session_id,
+        task_id=state.task_id,
+        tool_call_id=call.id,
+        platform=agent.platform,
+        cwd=agent.cwd,
+        agent=agent,
+        callbacks=agent.callbacks,
+        config=agent.config,
+        interrupt=agent.interrupt_event,
+        approval_mode=agent.approval_mode,
+        enabled_tools=agent.tool_names,
+        depth=agent.depth,
     )
 
 
-def _run_one(agent: AIAgent, state: TurnState, call: ToolCall, args: dict[str, Any] | None, error: str | None) -> str:
+def _run_one(
+    agent: AIAgent, state: TurnState, call: ToolCall, args: dict[str, Any] | None, error: str | None
+) -> str:
     if error is not None:
         return tool_error(error)
     if agent.interrupt_event.is_set():
@@ -112,7 +123,12 @@ def run_tool_round(agent: AIAgent, state: TurnState, tool_calls: list[ToolCall])
     if messages and notes:
         messages[-1]["content"] += "\n\n" + " ".join(notes)
     remaining = agent.budget.remaining
-    if messages and remaining is not None and agent.budget.limit and remaining <= max(1, agent.budget.limit // 10):
+    if (
+        messages
+        and remaining is not None
+        and agent.budget.limit
+        and remaining <= max(1, agent.budget.limit // 10)
+    ):
         # Tell the model while it can still act on it, on the newest tool result (never in
         # the system prompt, which must stay byte-stable).
         messages[-1]["content"] += (

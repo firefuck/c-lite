@@ -20,7 +20,7 @@ import type { Readable, Writable } from "node:stream";
 import type { EventEnvelope, SessionCreateParams, SessionInfo } from "../../apps/shared/src/contracts.generated.ts";
 import type { GatewayClient } from "../../apps/shared/src/gateway-client.ts";
 import { RpcError } from "../../apps/shared/src/json-rpc-channel.ts";
-import { formatBanner, formatToolLine, paint, parseApproval, parseChoice } from "./render.ts";
+import { formatBanner, formatToolLine, markdownStyle, MarkdownStream, paint, parseApproval, parseChoice, renderDiff, renderMarkdown } from "./render.ts";
 
 export interface PlainTuiOptions {
   client: GatewayClient;
@@ -47,6 +47,10 @@ export class PlainTui {
   private busy = false;
   private midLine = false;
   private streamed = false;
+  private markdown: MarkdownStream | null = null;
+  private markdownPrinted = "";
+  /** A diff longer than this is cut, so a huge patch cannot flood the transcript. */
+  private readonly diffLines = 200;
   private question: Question | null = null;
   private readonly toolPreviews = new Map<string, { name: string; preview: string }>();
   private finish: (code: number) => void = () => {};
@@ -111,6 +115,23 @@ export class PlainTui {
     this.midLine = false;
   }
 
+  /** Write whatever of the answer's current appearance is not on screen yet. The stream's
+   *  view includes the unfinished line, so an answer shows while it is being typed. A
+   *  finished line replaces its own raw text; a terminal can rewrite it, a pipe cannot, so
+   *  there only the settled part is shown and the line is never printed twice. */
+  private flushMarkdown(): void {
+    if (!this.markdown) return;
+    const view = this.markdown.view();
+    const printed = this.markdownPrinted;
+    if (view === printed) return;
+    let common = 0;
+    const limit = Math.min(view.length, printed.length);
+    while (common < limit && view[common] === printed[common]) common += 1;
+    if (this.color && common < printed.length) this.write(`\r\u001b[K${view.slice(common)}`);
+    else this.write(view.slice(common));
+    this.markdownPrinted = view;
+  }
+
   private prompt(): void {
     if (!this.closing && !this.busy && !this.question) this.write(paint("❯ ", "green", this.color));
   }
@@ -126,10 +147,22 @@ export class PlainTui {
         break;
       case "message.delta":
         this.streamed = true;
-        this.write(event.payload.text);
+        if (!this.markdown) {
+          this.markdown = new MarkdownStream({ style: markdownStyle(this.color) });
+          this.markdownPrinted = "";
+        }
+        this.markdown.feed(event.payload.text);
+        this.flushMarkdown();
         break;
       case "message.complete":
-        if (!this.streamed && event.payload.text) this.line(event.payload.text);
+        if (this.markdown) {
+          this.markdown.close();
+          this.flushMarkdown();
+          this.markdown = null;
+          this.markdownPrinted = "";
+          this.streamed = true;
+        }
+        if (!this.streamed && event.payload.text) this.write(renderMarkdown(event.payload.text, { style: markdownStyle(this.color) }));
         else if (this.midLine) this.line();
         this.streamed = false;
         break;
@@ -148,6 +181,7 @@ export class PlainTui {
             this.color,
           ),
         );
+        if (event.payload.diff) this.write(renderDiff(event.payload.diff, { style: markdownStyle(this.color), maxLines: this.diffLines }));
         break;
       }
       case "status.update":

@@ -32,7 +32,9 @@ def content_text(content: Any) -> str:
     if isinstance(content, str):
         return content
     if isinstance(content, list):
-        return "".join(part.get("text", "") for part in content if isinstance(part, dict) and part.get("type") == "text")
+        return "".join(
+            part.get("text", "") for part in content if isinstance(part, dict) and part.get("type") == "text"
+        )
     return ""
 
 
@@ -71,8 +73,11 @@ def sanitize_for_api(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
             continue
         # Bookkeeping keys never leave the process; `provider_data` and `reasoning` stay,
         # because a transport may need them to replay the turn to the same provider.
-        wire = {key: value for key, value in message.items()
-                if not key.startswith("_") and key not in ("timestamp", "turn_context")}
+        wire = {
+            key: value
+            for key, value in message.items()
+            if not key.startswith("_") and key not in ("timestamp", "turn_context")
+        }
         if message.get("turn_context"):
             wire["content"] = append_to_content(message.get("content"), str(message["turn_context"]))
         cleaned.append(wire)
@@ -82,8 +87,12 @@ def sanitize_for_api(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 # Results for the calls that did run follow later in the list; stubs for the
                 # rest are inserted after them by the pass below.
                 cleaned[-1]["_missing_results"] = [
-                    {"role": "tool", "tool_call_id": call.get("id"), "name": (call.get("function") or {}).get("name"),
-                     "content": INTERRUPTED_RESULT}
+                    {
+                        "role": "tool",
+                        "tool_call_id": call.get("id"),
+                        "name": (call.get("function") or {}).get("name"),
+                        "content": INTERRUPTED_RESULT,
+                    }
                     for call in missing
                 ]
     result: list[dict[str, Any]] = []

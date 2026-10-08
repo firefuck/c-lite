@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from clite.state import SessionDB, get_session_db
@@ -41,13 +43,23 @@ def test_new_session_ids_are_unique_and_sortable():
 
 def test_messages_round_trip_in_internal_shape(db):
     sid = _seed(db)
-    tool_call = {"id": "call_1", "type": "function", "function": {"name": "terminal", "arguments": '{"command": "ls"}'}}
+    tool_call = {
+        "id": "call_1",
+        "type": "function",
+        "function": {"name": "terminal", "arguments": '{"command": "ls"}'},
+    }
     db.append_messages(
         sid,
         [
             {"role": "user", "content": "list files"},
-            {"role": "assistant", "content": None, "tool_calls": [tool_call], "reasoning": "need ls",
-             "provider_data": {"signature": "abc"}, "finish_reason": "tool_calls"},
+            {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [tool_call],
+                "reasoning": "need ls",
+                "provider_data": {"signature": "abc"},
+                "finish_reason": "tool_calls",
+            },
             {"role": "tool", "tool_call_id": "call_1", "name": "terminal", "content": '{"output": "a.txt"}'},
             {"role": "assistant", "content": "One file: a.txt"},
         ],
@@ -72,7 +84,9 @@ def test_structured_content_round_trips(db):
 
 def test_counters_follow_appends(db):
     sid = _seed(db)
-    db.append_messages(sid, [{"role": "user", "content": "a"}, {"role": "tool", "content": "{}", "tool_call_id": "c"}])
+    db.append_messages(
+        sid, [{"role": "user", "content": "a"}, {"role": "tool", "content": "{}", "tool_call_id": "c"}]
+    )
     session = db.get_session(sid)
     assert session["message_count"] == 2
     assert session["tool_call_count"] == 1
@@ -80,8 +94,12 @@ def test_counters_follow_appends(db):
 
 def test_compaction_keeps_session_id_and_archives_old_rows(db):
     sid = _seed(db)
-    db.append_messages(sid, [{"role": "user", "content": "the zebra question"}, {"role": "assistant", "content": "answer"}])
-    db.replace_active_messages(sid, [{"role": "user", "content": "summary of earlier work", "is_summary": True}])
+    db.append_messages(
+        sid, [{"role": "user", "content": "the zebra question"}, {"role": "assistant", "content": "answer"}]
+    )
+    db.replace_active_messages(
+        sid, [{"role": "user", "content": "summary of earlier work", "is_summary": True}]
+    )
 
     active = db.get_messages(sid)
     assert [m["content"] for m in active] == ["summary of earlier work"]
@@ -127,10 +145,13 @@ def test_search_falls_back_to_like_without_fts(db):
 
 
 def _image_message(caption: str, payload: str = "QUJDREVG") -> dict:
-    return {"role": "user", "content": [
-        {"type": "text", "text": caption},
-        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{payload}"}},
-    ]}
+    return {
+        "role": "user",
+        "content": [
+            {"type": "text", "text": caption},
+            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{payload}"}},
+        ],
+    }
 
 
 def test_an_image_message_round_trips_with_its_parts_intact(db):
@@ -192,7 +213,9 @@ def test_a_legacy_database_gains_the_search_text_column_and_stays_searchable(cli
     )
     connection.execute("INSERT INTO schema_version(version) VALUES (1)")
     connection.execute("INSERT INTO sessions(id, source, started_at) VALUES ('old', 'cli', 1)")
-    connection.execute("INSERT INTO messages(session_id, role, content, timestamp) VALUES ('old', 'user', 'an old zebra note', 1)")
+    connection.execute(
+        "INSERT INTO messages(session_id, role, content, timestamp) VALUES ('old', 'user', 'an old zebra note', 1)"
+    )
     connection.commit()
     connection.close()
 
@@ -214,8 +237,10 @@ def test_a_legacy_database_that_already_has_search_text_is_not_broken(clite_home
     connection.executescript(SCHEMA_SQL)
     connection.execute("INSERT INTO schema_version(version) VALUES (1)")
     connection.execute("INSERT INTO sessions(id, source, started_at) VALUES ('h', 'cli', 1)")
-    connection.execute("INSERT INTO messages(session_id, role, content, search_text, timestamp) "
-                       "VALUES ('h', 'user', 'kept', 'kept', 1)")
+    connection.execute(
+        "INSERT INTO messages(session_id, role, content, search_text, timestamp) "
+        "VALUES ('h', 'user', 'kept', 'kept', 1)"
+    )
     connection.commit()
     connection.close()
 
@@ -233,8 +258,10 @@ def test_a_legacy_database_with_structured_content_backfills_its_text(clite_home
     import sqlite3
 
     path = clite_home / "structured.db"
-    structured = [{"type": "text", "text": "an old zebra note"},
-                  {"type": "image_url", "image_url": {"url": "data:image/png;base64," + "B" * 5000}}]
+    structured = [
+        {"type": "text", "text": "an old zebra note"},
+        {"type": "image_url", "image_url": {"url": "data:image/png;base64," + "B" * 5000}},
+    ]
     connection = sqlite3.connect(path)
     connection.executescript(
         """
@@ -256,8 +283,10 @@ def test_a_legacy_database_with_structured_content_backfills_its_text(clite_home
     )
     connection.execute("INSERT INTO schema_version(version) VALUES (1)")
     connection.execute("INSERT INTO sessions(id, source, started_at) VALUES ('s', 'cli', 1)")
-    connection.execute("INSERT INTO messages(session_id, role, content, content_is_json, timestamp) VALUES (?, 'user', ?, 1, 1)",
-                       ("s", jsonlib.dumps(structured)))
+    connection.execute(
+        "INSERT INTO messages(session_id, role, content, content_is_json, timestamp) VALUES (?, 'user', ?, 1, 1)",
+        ("s", jsonlib.dumps(structured)),
+    )
     connection.commit()
     connection.close()
 
@@ -265,7 +294,9 @@ def test_a_legacy_database_with_structured_content_backfills_its_text(clite_home
     try:
         assert upgraded.search_messages("zebra")[0]["session_id"] == "s"
         with upgraded._lock:
-            text = upgraded._conn.execute("SELECT search_text FROM messages WHERE session_id = 's'").fetchone()["search_text"]
+            text = upgraded._conn.execute(
+                "SELECT search_text FROM messages WHERE session_id = 's'"
+            ).fetchone()["search_text"]
         assert text == "an old zebra note" and "B" * 50 not in text
     finally:
         upgraded.close()
@@ -321,10 +352,21 @@ def test_usage_accumulates(db):
 
 def test_turn_context_is_stored_beside_the_message_not_in_it(db):
     sid = _seed(db)
-    db.append_messages(sid, [{"role": "user", "content": "deploy status?", "turn_context": "[recalled: deploys happen on Friday]"},
-                             {"role": "assistant", "content": "On Friday."}])
+    db.append_messages(
+        sid,
+        [
+            {
+                "role": "user",
+                "content": "deploy status?",
+                "turn_context": "[recalled: deploys happen on Friday]",
+            },
+            {"role": "assistant", "content": "On Friday."},
+        ],
+    )
     user, assistant = db.get_messages(sid)
-    assert user["content"] == "deploy status?" and user["turn_context"] == "[recalled: deploys happen on Friday]"
+    assert (
+        user["content"] == "deploy status?" and user["turn_context"] == "[recalled: deploys happen on Friday]"
+    )
     assert "turn_context" not in assistant
     assert db.search_messages("Friday")[0]["role"] == "assistant"  # recalled text is not searchable
 
@@ -333,11 +375,19 @@ def test_replay_data_can_be_cleared_without_touching_the_transcript(db):
     sid = _seed(db)
     other = _seed(db, "s2")
     for session in (sid, other):
-        db.append_messages(session, [{"role": "user", "content": "hi"},
-                                     {"role": "assistant", "content": "hello", "provider_data": {"signature": "abc"}}])
+        db.append_messages(
+            session,
+            [
+                {"role": "user", "content": "hi"},
+                {"role": "assistant", "content": "hello", "provider_data": {"signature": "abc"}},
+            ],
+        )
     assert db.clear_provider_data(sid) == 1
     assert db.clear_provider_data(sid) == 0
-    assert [(m["content"], "provider_data" in m) for m in db.get_messages(sid)] == [("hi", False), ("hello", False)]
+    assert [(m["content"], "provider_data" in m) for m in db.get_messages(sid)] == [
+        ("hi", False),
+        ("hello", False),
+    ]
     assert "provider_data" in db.get_messages(other)[1]  # another session keeps its own
 
 
@@ -351,7 +401,9 @@ def test_a_database_from_before_a_column_existed_gains_it_on_open(clite_home):
     connection.executescript(SCHEMA_SQL.replace("    turn_context TEXT,\n", ""))
     connection.execute("INSERT INTO schema_version(version) VALUES (1)")
     connection.execute("INSERT INTO sessions(id, source, started_at) VALUES ('old', 'cli', 1)")
-    connection.execute("INSERT INTO messages(session_id, role, content, timestamp) VALUES ('old', 'user', 'kept', 1)")
+    connection.execute(
+        "INSERT INTO messages(session_id, role, content, timestamp) VALUES ('old', 'user', 'kept', 1)"
+    )
     connection.commit()
     connection.close()
 
@@ -406,18 +458,109 @@ def test_prune_deletes_only_old_unpinned_sessions(db):
     ages = {"fresh": 1, "old": 100, "old-pinned": 100, "old-kept": 100, "old-child": 200}
     for sid in ages:
         db.create_session(sid, "cli", parent_session_id="old" if sid == "old-child" else None)
-    db.append_message("old", {"role": "user", "content": "forgettable"})  # (this counts as activity, so age afterwards)
+    db.append_message(
+        "old", {"role": "user", "content": "forgettable"}
+    )  # (this counts as activity, so age afterwards)
     for sid, age_days in ages.items():
-        db._conn.execute("UPDATE sessions SET started_at = ?, last_activity_at = ? WHERE id = ?",
-                         (now - age_days * day, now - age_days * day, sid))
+        db._conn.execute(
+            "UPDATE sessions SET started_at = ?, last_activity_at = ? WHERE id = ?",
+            (now - age_days * day, now - age_days * day, sid),
+        )
     # A session that never recorded activity is judged by when it started.
     db.create_session("never-active", "cli")
-    db._conn.execute("UPDATE sessions SET started_at = ?, last_activity_at = NULL WHERE id = 'never-active'", (now - 95 * day,))
+    db._conn.execute(
+        "UPDATE sessions SET started_at = ?, last_activity_at = NULL WHERE id = 'never-active'",
+        (now - 95 * day,),
+    )
     db.update_session("old-pinned", pinned=1)
 
     assert db.prune_sessions(90, keep=["old-kept"], dry_run=True, now=now) == 3
     assert db.get_session("old") is not None  # a dry run deletes nothing
     assert db.prune_sessions(90, keep=["old-kept"], now=now) == 3
-    assert {row["id"] for row in db.list_sessions(include_children=True)} == {"fresh", "old-pinned", "old-kept"}
+    assert {row["id"] for row in db.list_sessions(include_children=True)} == {
+        "fresh",
+        "old-pinned",
+        "old-kept",
+    }
     assert db.search_messages("forgettable") == []
     assert db.prune_sessions(90, keep=["old-kept"], now=now) == 0
+
+
+def test_get_insights_aggregates_and_subagent_attribution(db):
+    day = 86400.0
+    now = time.time()
+
+    # Session 1: Root, cli, claude-3-5, cost 0.05
+    db.create_session("s1", "cli", model="claude-3-5", provider="anthropic")
+    db.add_usage("s1", input_tokens=1000, output_tokens=500, api_calls=1)
+    db._conn.execute(
+        "UPDATE sessions SET estimated_cost_usd = 0.05, started_at = ? WHERE id = 's1'", (now - 1 * day,)
+    )
+
+    # Session 2: Root, telegram, gpt-4o, cost 0.03
+    db.create_session("s2", "telegram", model="gpt-4o", provider="openai")
+    db.add_usage("s2", input_tokens=2000, output_tokens=1000, api_calls=1)
+    db._conn.execute(
+        "UPDATE sessions SET estimated_cost_usd = 0.03, started_at = ? WHERE id = 's2'", (now - 2 * day,)
+    )
+
+    # Session 3: Child/subagent of s1, cli, claude-3-5, cost 0.02
+    db.create_session("s3", "cli", model="claude-3-5", provider="anthropic", parent_session_id="s1")
+    db.add_usage("s3", input_tokens=500, output_tokens=200, api_calls=1)
+    db._conn.execute(
+        "UPDATE sessions SET estimated_cost_usd = 0.02, started_at = ? WHERE id = 's3'", (now - 1 * day,)
+    )
+
+    # Session 4: Root, cli, custom-local, unpriced (estimated_cost_usd is NULL)
+    db.create_session("s4", "cli", model="custom-local", provider="custom")
+    db.add_usage("s4", input_tokens=300, output_tokens=100, api_calls=1)
+    db._conn.execute(
+        "UPDATE sessions SET estimated_cost_usd = NULL, started_at = ? WHERE id = 's4'", (now - 1 * day,)
+    )
+
+    # Add tool calls to messages
+    for _ in range(3):
+        db.append_message("s1", {"role": "tool", "name": "read_file", "tool_call_id": "c1", "content": "ok"})
+    for _ in range(2):
+        db.append_message("s2", {"role": "tool", "name": "terminal", "tool_call_id": "c2", "content": "ok"})
+
+    # Query insights for past 7 days
+    insights = db.get_insights(days=7)
+
+    # Invariants verification:
+    # 1. Subagent s3 is attributed to parent s1: total_sessions counts root sessions only (3), not 4.
+    assert insights["total_sessions"] == 3
+    assert insights["total_subagents"] == 1
+    # 2. Platforms only count root sessions (cli: 2, telegram: 1)
+    assert insights["platforms"] == {"cli": 2, "telegram": 1}
+
+    # 3. Token totals match hand calculation:
+    # input = 1000 + 2000 + 500 + 300 = 3800
+    # output = 500 + 1000 + 200 + 100 = 1800
+    assert insights["tokens"]["input"] == 3800
+    assert insights["tokens"]["output"] == 1800
+    assert insights["tokens"]["total"] == 5600
+
+    # 4. Costs match hand calculation:
+    # total_cost = 0.05 + 0.03 + 0.02 = 0.10
+    # unpriced sessions = 1 (s4)
+    assert abs(insights["cost"]["total_usd"] - 0.10) < 1e-5
+    assert insights["cost"]["unpriced_sessions"] == 1
+    assert insights["cost"]["has_unpriced"] is True
+
+    # 5. Model breakdown matches hand calculation:
+    models = {m["model"]: m for m in insights["models"]}
+    assert models["claude-3-5"]["input_tokens"] == 1500
+    assert models["claude-3-5"]["output_tokens"] == 700
+    assert abs(models["claude-3-5"]["cost_usd"] - 0.07) < 1e-5
+
+    assert models["gpt-4o"]["input_tokens"] == 2000
+    assert models["gpt-4o"]["output_tokens"] == 1000
+    assert abs(models["gpt-4o"]["cost_usd"] - 0.03) < 1e-5
+
+    assert models["custom-local"]["unpriced_sessions"] == 1
+
+    # 6. Tools counts match: read_file: 3, terminal: 2
+    tools = {t["name"]: t["count"] for t in insights["tools"]}
+    assert tools["read_file"] == 3
+    assert tools["terminal"] == 2

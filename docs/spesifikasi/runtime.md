@@ -59,6 +59,25 @@ membutuhkan kode yang sama, kode itu tinggal di sini, bukan di salah satu surfac
   langsung, bukan saat giliran dikirim.
 - `/reload` memuat ulang config dan plugin, mempertahankan percakapan, dan membangun ulang
   system prompt (satu kali cache miss).
+- `/branch [judul]` menyalin pesan aktif ke sesi baru tanpa `provider_data` (awalan percakapan
+  berubah bagi sesi baru, jadi blok penalaran bertanda tangan induk tidak berlaku lagi),
+  mencatat `parent_session_id`, dan berpindah ke sesi baru itu. Judul default mengikuti judul
+  induk dengan akhiran `(branch)`.
+- `/queue <teks>` menitipkan pesan ke giliran yang sedang berjalan lewat catatan agent; ia
+  menempel pada hasil tool berikutnya atau menjadi pesan internal, tidak pernah menyisip ke
+  pesan yang sudah terkirim. `/background <teks>` menjalankan satu giliran di sesi baru
+  (`_build` sendiri) dan melaporkan hasilnya tanpa menyentuh percakapan ini.
+- `/export [path]` menulis transkrip yang terlihat (tanpa pesan `internal`) sebagai Markdown
+  atau JSON menurut ekstensi; tanpa path, ke direktori kerja dengan nama sesi.
+- `/context` memecah jendela: token terpakai, peringkat prompt, skema tool, dan riwayat.
+  `/tasks` menampilkan daftar `todo` sesi (`agent.todos.read()` dan `summary()`).
+- `/hooks` menampilkan shell hook dari `plugins.shell_hooks.configured_hooks` dan mana yang
+  menunggu persetujuan (`is_approved`).
+- `/pin` dan `/archive` menandai baris sesi lewat `SessionDB.update_session(pinned=/archived=)`.
+- `/verbose [off|new|all|verbose]` menetapkan `display.tool_progress` untuk sesi ini (dan
+  menyimpannya ke config). `/skin`, `/logs`, dan `/copy` hanya untuk terminal lokal
+  (`cli_only`): handler mengembalikan teks atau `action="clipboard"`, dan surface CLI yang
+  menulis ke clipboard dan mengganti tema.
 - Quick command bertipe `exec` berjalan tanpa model dan tanpa gerbang persetujuan: pengguna
   sendiri yang menulisnya ke config.
 - Perintah `cli_only` ditolak di platform pesan.
@@ -88,14 +107,14 @@ membutuhkan kode yang sama, kode itu tinggal di sini, bukan di salah satu surfac
 |---|---|---|
 | `build_agent`, toolset per platform | ✅ | |
 | `ChatSession` | ✅ | |
-| 31 slash command | ✅ | Hermes punya 102. Tambahan: F3-T4 |
+| 44 slash command | ✅ | Hermes punya 102. Tambahan: F3-T4 |
 | Quick command (`exec`, `alias`) | ✅ | |
 | Skill dan perintah plugin sebagai slash command | ✅ | |
 | Auto-prune sesi | ✅ | |
 | Kurator skill terjadwal | ✅ | `run_curator_maintenance` mengarsipkan skill buatan agent yang basi paling banyak sekali per `curator.interval_hours`; kegagalannya tidak menghalangi sesi. Dijaga `tests/agent/test_review.py`. F2-T12 |
 | Checkpoint file: `/rollback`, `/checkpoints` | ✅ | `ChatSession.rollback_files` dan `list_file_checkpoints` memanggil `tools/checkpoints.py`; perintah tersedia di semua surface. Perubahan lewat perintah `terminal` tidak tercatat (lihat spesifikasi agent dan tools). Dijaga `tests/tools/test_checkpoints.py`. F2-T8 |
-| Percabangan sesi (`/branch`), `/background`, `/queue` | ⬜ | F3-T4 |
-| `/insights` | ⬜ | F3-T8 |
+| Percabangan sesi (`/branch`), `/queue`, `/background`, `/export`, `/context`, `/tasks`, `/hooks`, `/pin`, `/archive`, `/verbose`, `/skin`, `/logs`, `/copy` | ✅ | F3-T4: dua belas perintah baru; `/branch` menyalin pesan aktif tanpa `provider_data` dan mencatat `parent_session_id`. Dijaga `tests/runtime/test_session_and_slash.py` |
+| `/insights` | ✅ | Menampilkan analitik pemakaian: token dan biaya per model/hari, tool populer, dan sesi per platform; subagent diatribusikan ke induknya. Juga tersedia lewat `clite insights` (`--json`). Dijaga `tests/state/test_db.py` dan `tests/runtime/test_session_and_slash.py`: F3-T8 |
 | Antrean giliran bersama (`TurnQueue`) untuk masukan saat sibuk | ✅ | F3-T1: dipakai REPL klasik, `RpcSession`, dan gateway; dijaga `tests/runtime/test_session_and_slash.py` |
 
 ## Yang sengaja berbeda dari Hermes

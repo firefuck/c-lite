@@ -48,18 +48,47 @@ class ClassifiedError:
 
 
 _CONTEXT_PHRASES = (
-    "context length", "context_length", "maximum context", "context window", "too many tokens",
-    "prompt is too long", "reduce the length", "exceeds the model", "input is too long", "token limit",
-    "max_tokens_exceeded", "maximum number of tokens",
+    "context length",
+    "context_length",
+    "maximum context",
+    "context window",
+    "too many tokens",
+    "prompt is too long",
+    "reduce the length",
+    "exceeds the model",
+    "input is too long",
+    "token limit",
+    "max_tokens_exceeded",
+    "maximum number of tokens",
 )
-_BILLING_PHRASES = ("insufficient credit", "insufficient_quota", "billing", "payment required", "out of credits",
-                    "credit balance", "quota exceeded", "exceeded your current quota")
-_MODEL_PHRASES = ("model not found", "model_not_found", "does not exist", "no such model", "unknown model",
-                  "is not a valid model", "not_found_error")
+_BILLING_PHRASES = (
+    "insufficient credit",
+    "insufficient_quota",
+    "billing",
+    "payment required",
+    "out of credits",
+    "credit balance",
+    "quota exceeded",
+    "exceeded your current quota",
+)
+_MODEL_PHRASES = (
+    "model not found",
+    "model_not_found",
+    "does not exist",
+    "no such model",
+    "unknown model",
+    "is not a valid model",
+    "not_found_error",
+)
 _OVERLOAD_PHRASES = ("overloaded", "over capacity", "temporarily unavailable")
 # A signed reasoning block no longer matches the conversation before it (the history was
 # edited, compressed, or produced by another model). Aggregators relay the same wording.
-_THINKING_REPLAY_PHRASES = ("signature", "cannot be modified", "must remain as they were", "bound to a different")
+_THINKING_REPLAY_PHRASES = (
+    "signature",
+    "cannot be modified",
+    "must remain as they were",
+    "bound to a different",
+)
 
 
 def _has(text: str, phrases: tuple[str, ...]) -> bool:
@@ -84,9 +113,13 @@ def classify_api_error(exc: BaseException) -> ClassifiedError:
     if isinstance(exc, ProviderHTTPError):
         return _classify_http(exc)
     if isinstance(exc, (TimeoutError, socket.timeout)):
-        return ClassifiedError(FailoverReason.TIMEOUT, f"timed out: {exc}", retryable=True, should_fallback=True)
+        return ClassifiedError(
+            FailoverReason.TIMEOUT, f"timed out: {exc}", retryable=True, should_fallback=True
+        )
     if isinstance(exc, (ConnectionError, http.client.HTTPException, OSError)):
-        return ClassifiedError(FailoverReason.TIMEOUT, f"connection failed: {exc}", retryable=True, should_fallback=True)
+        return ClassifiedError(
+            FailoverReason.TIMEOUT, f"connection failed: {exc}", retryable=True, should_fallback=True
+        )
     return ClassifiedError(FailoverReason.UNKNOWN, f"{type(exc).__name__}: {exc}")
 
 
@@ -107,7 +140,9 @@ def _classify_http(error: ProviderHTTPError) -> ClassifiedError:
     if code in ("invalid_api_key", "authentication_error"):
         return result(FailoverReason.AUTH, should_rotate_credential=True, should_fallback=True)
     if code in ("rate_limit_exceeded", "rate_limit_error"):
-        return result(FailoverReason.RATE_LIMIT, retryable=True, should_rotate_credential=True, should_fallback=True)
+        return result(
+            FailoverReason.RATE_LIMIT, retryable=True, should_rotate_credential=True, should_fallback=True
+        )
     if code == "server_error":
         return result(FailoverReason.SERVER_ERROR, retryable=True, should_fallback=True)
 
@@ -125,7 +160,9 @@ def _classify_http(error: ProviderHTTPError) -> ClassifiedError:
     if status == 404 or (status == 400 and _has(text, _MODEL_PHRASES)):
         return result(FailoverReason.MODEL_NOT_FOUND, should_fallback=True)
     if status == 429:
-        return result(FailoverReason.RATE_LIMIT, retryable=True, should_rotate_credential=True, should_fallback=True)
+        return result(
+            FailoverReason.RATE_LIMIT, retryable=True, should_rotate_credential=True, should_fallback=True
+        )
     if status == 529 or _has(text, _OVERLOAD_PHRASES):
         return result(FailoverReason.OVERLOADED, retryable=True, should_fallback=True)
     if status >= 500:

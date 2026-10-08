@@ -33,9 +33,7 @@ def _run(code, ctx=None, **args):
 
 
 def test_stdout_stderr_and_exit_code_come_back_separately():
-    result = _run(
-        "import sys\nprint('to stdout')\nprint('to stderr', file=sys.stderr)\nsys.exit(0)"
-    )
+    result = _run("import sys\nprint('to stdout')\nprint('to stderr', file=sys.stderr)\nsys.exit(0)")
     assert result["stdout"] == "to stdout\n"
     assert result["stderr"] == "to stderr\n"
     assert result["exit_code"] == 0
@@ -158,7 +156,8 @@ def test_an_approved_dangerous_program_runs(tmp_path):
     target = tmp_path / "gone"
     target.mkdir()
     ctx = ToolContext(
-        task_id="gate-approve", cwd=str(tmp_path),
+        task_id="gate-approve",
+        cwd=str(tmp_path),
         callbacks=SimpleNamespace(approve=lambda **kwargs: "once"),
     )
     result = _run(f"import os; os.system('rm -rf {target}')", ctx)
@@ -178,7 +177,9 @@ def test_a_hardline_program_is_refused_in_every_mode(tmp_path):
 def test_a_missing_approver_means_deny_not_run(tmp_path):
     target = tmp_path / "kept"
     target.mkdir()
-    result = _run(f"import shutil; shutil.rmtree({str(target)!r})", ToolContext(task_id="ask", platform="cron"))
+    result = _run(
+        f"import shutil; shutil.rmtree({str(target)!r})", ToolContext(task_id="ask", platform="cron")
+    )
     assert result["status"] == "blocked"
     assert target.exists()
 
@@ -266,7 +267,9 @@ def test_code_runs_on_the_registered_backend_not_on_the_host(tmp_path, clite_hom
         def cleanup(self):
             pass
 
-    register_environment_backend("fake-sandbox", lambda *, cwd="", timeout=180: FakeSandbox(cwd=cwd, timeout=timeout))
+    register_environment_backend(
+        "fake-sandbox", lambda *, cwd="", timeout=180: FakeSandbox(cwd=cwd, timeout=timeout)
+    )
     (clite_home / "config.yaml").write_text("terminal:\n  backend: fake-sandbox\n")
     config.reset_config_cache()
     cleanup_environment("sandbox")

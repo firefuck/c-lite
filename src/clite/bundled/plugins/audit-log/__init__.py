@@ -53,9 +53,12 @@ def register(ctx) -> None:
     def on_tool_call(tool_name, args, result, duration, session_id):
         # A hook names only the keyword arguments it needs; core may pass more.
         entry = {
-            "time": time.time(), "session_id": session_id, "tool": tool_name,
+            "time": time.time(),
+            "session_id": session_id,
+            "tool": tool_name,
             "args": redact(json.dumps(args, ensure_ascii=False, default=str))[:500],
-            "result": redact(str(result))[:max_chars], "duration_ms": round(duration * 1000),
+            "result": redact(str(result))[:max_chars],
+            "duration_ms": round(duration * 1000),
         }
         ensure_dir(get_logs_dir())
         with open(_log_path(), "a", encoding="utf-8") as handle:
@@ -71,5 +74,9 @@ def register(ctx) -> None:
 
     ctx.register_hook("post_tool_call", on_tool_call)
     ctx.register_command("audit", audit_command, description="Show recent tool calls", args_hint="[count]")
-    ctx.register_cli_command("audit", "Show recent tool calls recorded by the audit-log plugin", audit_cli,
-                             setup=lambda parser: parser.add_argument("--limit", type=int, default=20))
+    ctx.register_cli_command(
+        "audit",
+        "Show recent tool calls recorded by the audit-log plugin",
+        audit_cli,
+        setup=lambda parser: parser.add_argument("--limit", type=int, default=20),
+    )

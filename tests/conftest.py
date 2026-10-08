@@ -87,6 +87,7 @@ def clite_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 @pytest.fixture
 def assert_private_file():
     """Check the native security model, not Windows' synthetic POSIX mode bits."""
+
     def check(path):
         if os.name != "nt":
             assert path.stat().st_mode & 0o777 == 0o600
@@ -107,12 +108,16 @@ def assert_private_file():
         child_env["CLITE_TEST_ACL_PATH"] = str(path)
         result = subprocess.run(
             ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
-            env=child_env, capture_output=True, text=True, timeout=20,
+            env=child_env,
+            capture_output=True,
+            text=True,
+            timeout=20,
             check=True,
         )
         acl = json.loads(result.stdout)
         assert acl["protected"] is True
         assert acl["rules"] == [{"sid": "S-1-3-4", "rights": 2032127, "inherited": False, "type": 0}]
+
     return check
 
 
@@ -123,7 +128,9 @@ def _docker_available() -> bool:
     if shutil.which("docker") is None:
         return False
     try:
-        return subprocess.run(["docker", "info"], capture_output=True, timeout=15, check=False).returncode == 0
+        return (
+            subprocess.run(["docker", "info"], capture_output=True, timeout=15, check=False).returncode == 0
+        )
     except (OSError, subprocess.SubprocessError):
         return False
 

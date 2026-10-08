@@ -31,7 +31,9 @@ def _describe(hook: ShellHook) -> str:
 def run_list(args: argparse.Namespace) -> int:
     hooks = configured_hooks()
     if not hooks:
-        print("No shell hooks are configured. Add them under `hooks:` in config.yaml (see `clite config path`).")
+        print(
+            "No shell hooks are configured. Add them under `hooks:` in config.yaml (see `clite config path`)."
+        )
         return 0
     for hook in hooks:
         print(f"{'approved' if is_approved(hook) else 'PENDING ':<9} {_describe(hook)}")
@@ -55,7 +57,9 @@ def run_approve(args: argparse.Namespace) -> int:
         if input(f"\nApprove {len(pending)} hook(s)? [y/N] ").strip().lower() not in ("y", "yes"):
             print("Nothing was approved.")
             return 1
-    print(f"\nApproved {approve_hooks(pending)} hook(s). They take effect in new sessions (or after /reload).")
+    print(
+        f"\nApproved {approve_hooks(pending)} hook(s). They take effect in new sessions (or after /reload)."
+    )
     return 0
 
 
@@ -88,7 +92,9 @@ def run_test(args: argparse.Namespace) -> int:
             for label, text in (("stdout", run.stdout), ("stderr", run.stderr)):
                 if text.strip():
                     print(f"  {label}: {text.strip()[:500]}")
-        print(f"  result: {json.dumps(evaluate(hook, run)) if evaluate(hook, run) is not None else 'no effect'}")
+        print(
+            f"  result: {json.dumps(evaluate(hook, run)) if evaluate(hook, run) is not None else 'no effect'}"
+        )
     return 0
 
 
@@ -96,16 +102,22 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     parser = subparsers.add_parser("hooks", help="review, approve or test shell hooks from config.yaml")
     parser.set_defaults(handler=run_list)
     actions = parser.add_subparsers(dest="hooks_action")
-    actions.add_parser("list", help="show configured hooks and whether each is approved").set_defaults(handler=run_list)
+    actions.add_parser("list", help="show configured hooks and whether each is approved").set_defaults(
+        handler=run_list
+    )
     approve = actions.add_parser("approve", help="approve the pending hooks so they run")
     approve.add_argument("--yes", action="store_true", help="do not ask for confirmation")
     approve.set_defaults(handler=run_approve)
     revoke = actions.add_parser("revoke", help="withdraw approval")
-    revoke.add_argument("hook_command", nargs="?", metavar="COMMAND", help="the hook command, exactly as configured")
+    revoke.add_argument(
+        "hook_command", nargs="?", metavar="COMMAND", help="the hook command, exactly as configured"
+    )
     revoke.add_argument("--all", action="store_true")
     revoke.set_defaults(handler=run_revoke)
     test = actions.add_parser("test", help="run the hooks for an event with a sample payload")
     test.add_argument("event")
-    test.add_argument("--tool", default="terminal", help="tool name in the sample payload (default: terminal)")
+    test.add_argument(
+        "--tool", default="terminal", help="tool name in the sample payload (default: terminal)"
+    )
     test.add_argument("--input", default=json.dumps(SAMPLE_TOOL_INPUT), help="tool arguments as JSON")
     test.set_defaults(handler=run_test)

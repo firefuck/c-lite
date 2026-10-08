@@ -35,7 +35,9 @@ class BasePlatformAdapter(ABC):
         """Stop receiving and release connections."""
 
     @abstractmethod
-    def send(self, chat_id: str, text: str, *, reply_to: str | None = None, thread_id: str | None = None) -> SendResult:
+    def send(
+        self, chat_id: str, text: str, *, reply_to: str | None = None, thread_id: str | None = None
+    ) -> SendResult:
         """Send one message of at most ``max_message_length`` characters."""
 
     def send_typing(self, chat_id: str, *, thread_id: str | None = None) -> None:

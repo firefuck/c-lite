@@ -100,13 +100,20 @@ def origin_allowed(connection: HTTPConnection) -> bool:
     return origin_host == host or {origin_host, host} <= _LOOPBACK_HOSTS
 
 
-def create_app(token: str, *, client_factory: Callable[[], Any] | None = None, platform: str = "desktop",
-               bind_host: str = "127.0.0.1") -> Starlette:
+def create_app(
+    token: str,
+    *,
+    client_factory: Callable[[], Any] | None = None,
+    platform: str = "desktop",
+    bind_host: str = "127.0.0.1",
+) -> Starlette:
     if not token:
         raise ValueError("the server needs a session token")
 
     def authorized(connection: HTTPConnection) -> bool:
-        return host_allowed(connection, bind_host) and hmac.compare_digest(presented_token(connection).encode(), token.encode())
+        return host_allowed(connection, bind_host) and hmac.compare_digest(
+            presented_token(connection).encode(), token.encode()
+        )
 
     def guarded(handler: Callable[[Request], Any]) -> Callable[[Request], Any]:
         async def wrapper(request: Request) -> Response:
@@ -139,9 +146,15 @@ def create_app(token: str, *, client_factory: Callable[[], Any] | None = None, p
         if row is None:
             return JSONResponse({"error": "no such session"}, status_code=404)
         messages = [
-            {"role": m["role"], "text": content_text(m.get("content")), "tool_name": m.get("name") or "",
-             "tool_calls": [call["function"]["name"] for call in m.get("tool_calls") or []], "timestamp": m.get("timestamp")}
-            for m in db.get_messages(row["id"]) if not is_internal(m)
+            {
+                "role": m["role"],
+                "text": content_text(m.get("content")),
+                "tool_name": m.get("name") or "",
+                "tool_calls": [call["function"]["name"] for call in m.get("tool_calls") or []],
+                "timestamp": m.get("timestamp"),
+            }
+            for m in db.get_messages(row["id"])
+            if not is_internal(m)
         ]
         return JSONResponse({"session_id": row["id"], "title": row.get("title") or "", "messages": messages})
 
@@ -151,7 +164,9 @@ def create_app(token: str, *, client_factory: Callable[[], Any] | None = None, p
             return
         await websocket.accept()
         loop = asyncio.get_running_loop()
-        server = RpcServer(WebSocketTransport(websocket, loop), platform=platform, client_factory=client_factory)
+        server = RpcServer(
+            WebSocketTransport(websocket, loop), platform=platform, client_factory=client_factory
+        )
         server.announce()
         try:
             while True:
@@ -165,12 +180,14 @@ def create_app(token: str, *, client_factory: Callable[[], Any] | None = None, p
     async def index(request: Request) -> Response:
         return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-store"})
 
-    return Starlette(routes=[
-        Route("/api/health", health),
-        Route("/api/status", guarded(status)),
-        Route("/api/sessions", guarded(sessions)),
-        Route("/api/sessions/{session_id}/messages", guarded(session_messages)),
-        WebSocketRoute("/api/ws", websocket_endpoint),
-        Route("/", index),
-        Mount("/static", StaticFiles(directory=STATIC_DIR), name="static"),
-    ])
+    return Starlette(
+        routes=[
+            Route("/api/health", health),
+            Route("/api/status", guarded(status)),
+            Route("/api/sessions", guarded(sessions)),
+            Route("/api/sessions/{session_id}/messages", guarded(session_messages)),
+            WebSocketRoute("/api/ws", websocket_endpoint),
+            Route("/", index),
+            Mount("/static", StaticFiles(directory=STATIC_DIR), name="static"),
+        ]
+    )

@@ -8,16 +8,24 @@ import pytest
 
 
 @pytest.mark.parametrize("module_path_key", ["PSModulePath", "PSMODULEPATH"])
-def test_acl_probe_isolates_module_search_and_stops_on_errors(monkeypatch, tmp_path, assert_private_file, module_path_key):
+def test_acl_probe_isolates_module_search_and_stops_on_errors(
+    monkeypatch, tmp_path, assert_private_file, module_path_key
+):
     environment = {module_path_key: r"C:\Program Files\PowerShell\7\Modules", "SystemRoot": r"C:\Windows"}
     calls = []
 
     def run(argv, **kwargs):
         calls.append((argv, kwargs))
-        return subprocess.CompletedProcess(argv, 0, json.dumps({
-            "protected": True,
-            "rules": [{"sid": "S-1-3-4", "rights": 2032127, "inherited": False, "type": 0}],
-        }))
+        return subprocess.CompletedProcess(
+            argv,
+            0,
+            json.dumps(
+                {
+                    "protected": True,
+                    "rules": [{"sid": "S-1-3-4", "rights": 2032127, "inherited": False, "type": 0}],
+                }
+            ),
+        )
 
     # Replace only the fixture module's OS view, not pathlib/pytest's host platform.
     with monkeypatch.context() as patch:

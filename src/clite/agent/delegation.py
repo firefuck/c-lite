@@ -72,8 +72,11 @@ def _child_toolsets(parent: AIAgent, requested: list[str] | None) -> tuple[list[
     wanted = requested or DEFAULT_CHILD_TOOLSETS
     allowed = [name for name in wanted if set(resolve_toolsets([name])) & parent.tool_names]
     # A middle child needs a toolset that offers delegate_task; the default set does not.
-    if (may_delegate(parent) and "delegation" not in allowed
-            and set(resolve_toolsets(["delegation"])) & parent.tool_names):
+    if (
+        may_delegate(parent)
+        and "delegation" not in allowed
+        and set(resolve_toolsets(["delegation"])) & parent.tool_names
+    ):
         allowed.append("delegation")
     blocked_toolsets = [*parent.disabled_toolsets, "clarify", "memory", "cronjob"]
     return allowed, blocked_toolsets
@@ -126,11 +129,19 @@ def _build_child(parent: AIAgent, task: dict[str, Any], progress: _Progress) -> 
     route = _child_route(parent, task.get("model"))
     child = AIAgent(
         route,
-        platform=parent.platform, cwd=parent.cwd, config=parent.config, session_db=parent.db,
-        persist=parent.db is not None, client=parent.client, parent=parent,
-        enabled_toolsets=enabled, disabled_toolsets=disabled,
+        platform=parent.platform,
+        cwd=parent.cwd,
+        config=parent.config,
+        session_db=parent.db,
+        persist=parent.db is not None,
+        client=parent.client,
+        parent=parent,
+        enabled_toolsets=enabled,
+        disabled_toolsets=disabled,
         max_turns=int(get_path(parent.config, "delegation.max_iterations", 50) or 50),
-        skip_memory=True, approval_mode=parent.approval_mode, stream=False,
+        skip_memory=True,
+        approval_mode=parent.approval_mode,
+        stream=False,
         callbacks=AgentCallbacks(
             on_step=progress.step,
             on_tool_start=progress.tool_start,
@@ -161,9 +172,16 @@ class _Progress:
 
     def _emit(self, event: str, **payload: Any) -> None:
         self._parent.callbacks.emit(
-            "on_subagent", event,
-            {"index": self._index, "goal": self._goal[:120], "iteration": self.iteration,
-             "model": self.model, "spawn_id": self.spawn_id, **payload},
+            "on_subagent",
+            event,
+            {
+                "index": self._index,
+                "goal": self._goal[:120],
+                "iteration": self.iteration,
+                "model": self.model,
+                "spawn_id": self.spawn_id,
+                **payload,
+            },
         )
 
     def step(self, iteration: int) -> None:
@@ -208,13 +226,23 @@ def _run_child(parent: AIAgent, index: int, task: dict[str, Any], spawn_id: str 
             report["error"] = result.error
     except Exception as exc:  # noqa: BLE001 - one failed child must not fail its siblings
         logger.warning("subagent %d crashed", index, exc_info=True)
-        report = {"index": index, "goal": goal, "status": "failed", "summary": "", "error": f"{type(exc).__name__}: {exc}"}
+        report = {
+            "index": index,
+            "goal": goal,
+            "status": "failed",
+            "summary": "",
+            "error": f"{type(exc).__name__}: {exc}",
+        }
     finally:
         parent.unregister_child(child)
         child.close("subagent_done")
     progress._emit("complete", status=report["status"])
-    invoke_hook("subagent_stop", parent_session_id=parent.session_id, session_id=child.session_id,
-                status=report["status"])
+    invoke_hook(
+        "subagent_stop",
+        parent_session_id=parent.session_id,
+        session_id=child.session_id,
+        status=report["status"],
+    )
     return report
 
 
@@ -238,12 +266,18 @@ def _run_background(parent: AIAgent, tasks: list[dict[str, Any]]) -> dict[str, A
         def work(index: int = index, task: dict[str, Any] = task, spawn_id: str = spawn_id) -> None:
             report = _run_child(parent, index, task, spawn_id=spawn_id)
             parent.queue_note("[Background delegation finished] " + _note_report(report))
-            invoke_hook("subagent_result", parent_session_id=parent.session_id, spawn_id=spawn_id, report=report)
+            invoke_hook(
+                "subagent_result", parent_session_id=parent.session_id, spawn_id=spawn_id, report=report
+            )
 
         thread = start_thread(work, name=f"clite-subagent-{spawn_id}")
         parent.register_background_thread(thread)
-    return {"background": True, "tasks": ids, "total": len(ids),
-            "note": "Results arrive as a note on your next tool result. Keep working."}
+    return {
+        "background": True,
+        "tasks": ids,
+        "total": len(ids),
+        "note": "Results arrive as a note on your next tool result. Keep working.",
+    }
 
 
 def delegate(parent: AIAgent, tasks: list[dict[str, Any]], *, background: bool = False) -> dict[str, Any]:
@@ -262,13 +296,20 @@ def delegate(parent: AIAgent, tasks: list[dict[str, Any]], *, background: bool =
         return {"error": f"At most {MAX_TASKS_PER_CALL} tasks per call; split the work into several calls."}
     if background:
         return _run_background(parent, tasks)
-    workers = max(1, min(len(tasks), int(get_path(parent.config, "delegation.max_concurrent_children", 3) or 3)))
+    workers = max(
+        1, min(len(tasks), int(get_path(parent.config, "delegation.max_concurrent_children", 3) or 3))
+    )
     if len(tasks) == 1:
         reports = [_run_child(parent, 0, tasks[0])]
     else:
         with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="clite-subagent") as pool:
-            futures = [pool.submit(contextvars.copy_context().run, _run_child, parent, index, task)
-                       for index, task in enumerate(tasks)]
+            futures = [
+                pool.submit(contextvars.copy_context().run, _run_child, parent, index, task)
+                for index, task in enumerate(tasks)
+            ]
             reports = [future.result() for future in futures]
-    return {"results": reports, "completed": sum(1 for report in reports if report["status"] == "completed"),
-            "total": len(reports)}
+    return {
+        "results": reports,
+        "completed": sum(1 for report in reports if report["status"] == "completed"),
+        "total": len(reports),
+    }

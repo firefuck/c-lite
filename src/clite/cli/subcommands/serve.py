@@ -11,8 +11,10 @@ import argparse
 from clite.core.brand import SESSION_TOKEN_ENV
 from clite.core.config import config_get
 
-TOKEN_NOTE = (f"The session token is read from {SESSION_TOKEN_ENV}. Without it a new one is generated "
-              "and the dashboard URL that carries it is printed.")
+TOKEN_NOTE = (
+    f"The session token is read from {SESSION_TOKEN_ENV}. Without it a new one is generated "
+    "and the dashboard URL that carries it is printed."
+)
 
 
 def run_serve(args: argparse.Namespace) -> int:
@@ -24,14 +26,19 @@ def run_serve(args: argparse.Namespace) -> int:
 
 
 def register(subparsers: argparse._SubParsersAction) -> None:
-    serve = subparsers.add_parser("serve", help="run the headless backend (for the desktop app or a remote client)",
-                                  epilog=TOKEN_NOTE)
+    serve = subparsers.add_parser(
+        "serve", help="run the headless backend (for the desktop app or a remote client)", epilog=TOKEN_NOTE
+    )
     serve.add_argument("--host", help="address to bind (default 127.0.0.1)")
     serve.add_argument("--port", type=int, help="port to bind; 0 picks a free one and reports it on stdout")
     serve.set_defaults(handler=run_serve, open_browser=False)
 
-    dashboard = subparsers.add_parser("dashboard", help="run the backend and open the web dashboard", epilog=TOKEN_NOTE)
+    dashboard = subparsers.add_parser(
+        "dashboard", help="run the backend and open the web dashboard", epilog=TOKEN_NOTE
+    )
     dashboard.add_argument("--host")
     dashboard.add_argument("--port", type=int)
-    dashboard.add_argument("--no-open", dest="open_browser", action="store_false", help="do not open a browser")
+    dashboard.add_argument(
+        "--no-open", dest="open_browser", action="store_false", help="do not open a browser"
+    )
     dashboard.set_defaults(handler=run_serve, open_browser=True)

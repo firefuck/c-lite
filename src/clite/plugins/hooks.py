@@ -83,7 +83,9 @@ def _describe(callback: Callable[..., Any]) -> tuple[bool, frozenset[str]]:
         return True, frozenset()
     var_kwargs = any(p.kind is p.VAR_KEYWORD for p in signature.parameters.values())
     names = frozenset(
-        name for name, p in signature.parameters.items() if p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)
+        name
+        for name, p in signature.parameters.items()
+        if p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)
     )
     return var_kwargs, names
 
@@ -158,9 +160,11 @@ class HookBus:
         results: list[Any] = []
         fail_closed = name in FAIL_CLOSED_HOOKS
         for registration in registrations:
-            payload = kwargs if registration.accepts_var_kwargs else {
-                key: value for key, value in kwargs.items() if key in registration.params
-            }
+            payload = (
+                kwargs
+                if registration.accepts_var_kwargs
+                else {key: value for key, value in kwargs.items() if key in registration.params}
+            )
             try:
                 outcome = self._call(registration, payload)
             except TimeoutError:
@@ -169,11 +173,16 @@ class HookBus:
                     results.append({"action": "block", "message": TIMEOUT_BLOCK_MESSAGE})
                 continue
             except Exception as exc:  # noqa: BLE001 - a plugin must never take the agent down
-                logger.warning("hook %s from plugin %r failed: %s", name, registration.plugin, exc, exc_info=True)
+                logger.warning(
+                    "hook %s from plugin %r failed: %s", name, registration.plugin, exc, exc_info=True
+                )
                 if fail_closed:
                     label = registration.plugin or getattr(registration.callback, "__name__", "callback")
                     results.append(
-                        {"action": "block", "message": f"pre_tool_call guard {label!r} failed: {type(exc).__name__}"}
+                        {
+                            "action": "block",
+                            "message": f"pre_tool_call guard {label!r} failed: {type(exc).__name__}",
+                        }
                     )
                 continue
             if outcome is not None:

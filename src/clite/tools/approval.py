@@ -53,15 +53,27 @@ DANGEROUS_PATTERNS: list[tuple[str, str, str]] = [
     (r"\brm\s+--(recursive|force)\b", "rm_recursive_or_force", "recursive or forced delete"),
     (r"\bfind\b.*\s-delete\b", "find_delete", "find with -delete"),
     (r"\bfind\b.*-exec\s+rm\b", "find_delete", "find executing rm"),
-    (r"\bchmod\s+(-[a-zA-Z]+\s+)*(777|666|a\+w|o\+w)\b", "chmod_world_writable", "world-writable permissions"),
-    (r"\bchown\s+(-[a-zA-Z]+\s+)*-R\b|\bchown\s+-[a-zA-Z]*R", "chown_recursive", "recursive ownership change"),
+    (
+        r"\bchmod\s+(-[a-zA-Z]+\s+)*(777|666|a\+w|o\+w)\b",
+        "chmod_world_writable",
+        "world-writable permissions",
+    ),
+    (
+        r"\bchown\s+(-[a-zA-Z]+\s+)*-R\b|\bchown\s+-[a-zA-Z]*R",
+        "chown_recursive",
+        "recursive ownership change",
+    ),
     (r"\bmkfs(\.\w+)?\b", "mkfs", "format a filesystem"),
     (r"\bdd\b.*\bof=", "dd_write", "dd writing to a target"),
     (r">\s*/dev/(sd|nvme|hd|vd|disk)", "write_block_device", "write to a block device"),
     (r">\s*/etc/", "write_etc", "overwrite a system config file"),
     (r"\b(sudo|doas)\b", "privilege_escalation", "run with elevated privileges"),
     (r"\b(shutdown|reboot|halt|poweroff)\b", "power_control", "shut down or reboot the machine"),
-    (r"\b(systemctl|service)\s+(stop|disable|mask|restart)\b", "service_control", "stop or disable a service"),
+    (
+        r"\b(systemctl|service)\s+(stop|disable|mask|restart)\b",
+        "service_control",
+        "stop or disable a service",
+    ),
     (r"\bkill(all)?\s+(-9|-KILL|-SIGKILL)\b|\bpkill\s+-9\b", "force_kill", "force-kill processes"),
     (r"\b(curl|wget)\b[^|;&]*\|\s*(sudo\s+)?(ba|z|da)?sh\b", "pipe_to_shell", "pipe a download into a shell"),
     (r"\b(ba|z)?sh\s+-c\s+[\"']?\$\((curl|wget)", "pipe_to_shell", "execute downloaded code"),
@@ -72,27 +84,57 @@ DANGEROUS_PATTERNS: list[tuple[str, str, str]] = [
     (r"\bdrop\s+(table|database|schema)\b", "sql_drop", "SQL DROP"),
     (r"\bdelete\s+from\s+\w+\s*(;|$|\")", "sql_delete_all", "SQL DELETE without WHERE"),
     (r"\btruncate\s+table\b", "sql_truncate", "SQL TRUNCATE"),
-    (r"\b(docker|podman)\s+(system\s+prune|volume\s+(rm|prune)|rm\s+-f)", "container_destroy", "destroy containers or volumes"),
+    (
+        r"\b(docker|podman)\s+(system\s+prune|volume\s+(rm|prune)|rm\s+-f)",
+        "container_destroy",
+        "destroy containers or volumes",
+    ),
     (r"\bkubectl\s+delete\b", "kubectl_delete", "delete cluster resources"),
-    (r"\bterraform\s+(destroy|apply\b.*-auto-approve)", "terraform_destroy", "destroy or auto-apply infrastructure"),
+    (
+        r"\bterraform\s+(destroy|apply\b.*-auto-approve)",
+        "terraform_destroy",
+        "destroy or auto-apply infrastructure",
+    ),
     (r"\bcrontab\s+-r\b", "crontab_remove", "remove the crontab"),
     # Deletes spelled directly in code, which is what `execute_code` runs: a call that removes
     # a tree or a file is the destructive command it wraps, whatever syntax spells it. This is
     # why the code-execution tool sends its text through this gate. The same call inside
     # ``python -c``/``node -e``/``perl -e``/``ruby -e`` is caught when that payload is re-read.
-    (r"\brmtree\s*\(|\bos\.(remove|unlink|rmdir|removedirs)\s*\(|\bshutil\.rmtree\s*\(", "script_delete", "script that deletes files"),
-    (r"\b(unlinkSync|rmSync|rmdirSync|deleteSync)\s*\(|\bFile\.(delete|unlink)\s*\(|\bunlink\s*[\"']", "script_delete", "script that deletes files"),
+    (
+        r"\brmtree\s*\(|\bos\.(remove|unlink|rmdir|removedirs)\s*\(|\bshutil\.rmtree\s*\(",
+        "script_delete",
+        "script that deletes files",
+    ),
+    (
+        r"\b(unlinkSync|rmSync|rmdirSync|deleteSync)\s*\(|\bFile\.(delete|unlink)\s*\(|\bunlink\s*[\"']",
+        "script_delete",
+        "script that deletes files",
+    ),
     (r"\b(os|shutil)\.(unlink|rmdir|remove|rmtree)\s*\(", "script_delete", "script that deletes files"),
-    (r"\bsubprocess\.\w+\s*\(\s*[\[\(]?\s*[\"']rm[\"']\s*,\s*[\"']-", "script_delete", "script that deletes files"),
+    (
+        r"\bsubprocess\.\w+\s*\(\s*[\[\(]?\s*[\"']rm[\"']\s*,\s*[\"']-",
+        "script_delete",
+        "script that deletes files",
+    ),
     (r"\b(mv|cp)\b.*\s(~/)?\.(ssh|aws|gnupg)/", "credential_dir_write", "write into a credential directory"),
-    (r">\s*~?/?\S*\.(bashrc|zshrc|profile|bash_profile)\b", "shell_rc_overwrite", "overwrite a shell startup file"),
+    (
+        r">\s*~?/?\S*\.(bashrc|zshrc|profile|bash_profile)\b",
+        "shell_rc_overwrite",
+        "overwrite a shell startup file",
+    ),
 ]
 
 # Refused in every mode: there is no legitimate reason for an agent to run these.
 HARDLINE_PATTERNS: list[tuple[str, str]] = [
-    (r"\brm\s+(-[a-zA-Z]+\s+)*-[a-zA-Z]*[rR][a-zA-Z]*\s+(-[a-zA-Z]+\s+)*(--no-preserve-root\s+)?/(\s|$|\*)", "delete the root filesystem"),
+    (
+        r"\brm\s+(-[a-zA-Z]+\s+)*-[a-zA-Z]*[rR][a-zA-Z]*\s+(-[a-zA-Z]+\s+)*(--no-preserve-root\s+)?/(\s|$|\*)",
+        "delete the root filesystem",
+    ),
     (r"\brm\s+.*--no-preserve-root", "delete the root filesystem"),
-    (r"\brm\s+(-[a-zA-Z]+\s+)*-[a-zA-Z]*[rR][a-zA-Z]*\s+(-[a-zA-Z]+\s+)*(~|\$HOME)/?(\s|$)", "delete the home directory"),
+    (
+        r"\brm\s+(-[a-zA-Z]+\s+)*-[a-zA-Z]*[rR][a-zA-Z]*\s+(-[a-zA-Z]+\s+)*(~|\$HOME)/?(\s|$)",
+        "delete the home directory",
+    ),
     (r":\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:", "fork bomb"),
     (r"\bmkfs(\.\w+)?\s+(-\S+\s+)*/dev/(sd|nvme|hd|vd)", "format a disk"),
     (r"\bdd\b.*\bof=/dev/(sd|nvme|hd|vd|disk)", "overwrite a disk"),
@@ -100,17 +142,25 @@ HARDLINE_PATTERNS: list[tuple[str, str]] = [
     # Absolute prohibitions carried over from Hermes: a signal the machine cannot refuse to
     # obey, or a power state no agent should change. Only at a command position, so a message
     # that merely *mentions* them stays data.
-    (r"(?:^|[;&|()`]\s*|\b(?:sudo|doas|env|exec|nohup|setsid|nice|timeout|stdbuf)\b\s+\S*\s*)kill\s+(-[a-zA-Z]*1\b|-[a-zA-Z]*HUP\b|-[a-zA-Z]*SIGHUP\b)",
-     "send a hangup signal to a process"),
-    (r"(?:^|[;&|()`]\s*|\b(?:sudo|doas|env|exec|nohup|setsid|nice|timeout|stdbuf)\b\s+\S*\s*)(shutdown|reboot|halt|poweroff)\b",
-     "shut down, reboot, or change the machine's run level"),
-    (r"(?:^|[;&|()`]\s*|\b(?:sudo|doas|env|exec|nohup|setsid|nice|timeout|stdbuf)\b\s+\S*\s*)init\s+[06]\b",
-     "shut down, reboot, or change the machine's run level"),
+    (
+        r"(?:^|[;&|()`]\s*|\b(?:sudo|doas|env|exec|nohup|setsid|nice|timeout|stdbuf)\b\s+\S*\s*)kill\s+(-[a-zA-Z]*1\b|-[a-zA-Z]*HUP\b|-[a-zA-Z]*SIGHUP\b)",
+        "send a hangup signal to a process",
+    ),
+    (
+        r"(?:^|[;&|()`]\s*|\b(?:sudo|doas|env|exec|nohup|setsid|nice|timeout|stdbuf)\b\s+\S*\s*)(shutdown|reboot|halt|poweroff)\b",
+        "shut down, reboot, or change the machine's run level",
+    ),
+    (
+        r"(?:^|[;&|()`]\s*|\b(?:sudo|doas|env|exec|nohup|setsid|nice|timeout|stdbuf)\b\s+\S*\s*)init\s+[06]\b",
+        "shut down, reboot, or change the machine's run level",
+    ),
     (r"(?:^|[;&|()`]\s*)(?:sudo\s+)?(\w*/)?mkfs(\.\w+)?\b", "format a disk"),
 ]
 
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
-_COMPILED_DANGEROUS = [(re.compile(p, re.IGNORECASE | re.DOTALL), key, desc) for p, key, desc in DANGEROUS_PATTERNS]
+_COMPILED_DANGEROUS = [
+    (re.compile(p, re.IGNORECASE | re.DOTALL), key, desc) for p, key, desc in DANGEROUS_PATTERNS
+]
 _COMPILED_HARDLINE = [(re.compile(p, re.IGNORECASE | re.DOTALL), desc) for p, desc in HARDLINE_PATTERNS]
 
 CHOICES = ("once", "session", "always", "deny")
@@ -163,14 +213,56 @@ _COMMAND_BREAK_NO_PARENS = re.compile(r"&&|\|\||[;&|\n]")
 _ASSIGNMENT = re.compile(r"[A-Za-z_]\w*=")
 _SEPARATOR = frozenset(";&|\n")
 # Words that run the command named after them.
-_WRAPPERS = frozenset({"sudo", "doas", "env", "exec", "nohup", "setsid", "time", "command", "builtin", "nice", "timeout",
-                       "stdbuf", "xargs", "uv", "uvx", "pipx", "poetry"})
+_WRAPPERS = frozenset(
+    {
+        "sudo",
+        "doas",
+        "env",
+        "exec",
+        "nohup",
+        "setsid",
+        "time",
+        "command",
+        "builtin",
+        "nice",
+        "timeout",
+        "stdbuf",
+        "xargs",
+        "uv",
+        "uvx",
+        "pipx",
+        "poetry",
+    }
+)
 
 # Commands whose whole point is to run the text handed to them: their ``-c``/``-e`` argument
 # is code, and a shell (or interpreter) inside it runs whatever that text says.
-_CODE_COMMANDS = frozenset({"sh", "bash", "zsh", "dash", "ksh", "ash", "eval", "source",
-                            "python", "python2", "python3", "pypy", "py", "node", "nodejs",
-                            "perl", "ruby", "php", "lua", "deno", "bun", "osascript"})
+_CODE_COMMANDS = frozenset(
+    {
+        "sh",
+        "bash",
+        "zsh",
+        "dash",
+        "ksh",
+        "ash",
+        "eval",
+        "source",
+        "python",
+        "python2",
+        "python3",
+        "pypy",
+        "py",
+        "node",
+        "nodejs",
+        "perl",
+        "ruby",
+        "php",
+        "lua",
+        "deno",
+        "bun",
+        "osascript",
+    }
+)
 # Options that introduce a code payload for any command (``psql -c``, ``redis-cli -e``, ...).
 _CODE_OPTIONS = frozenset({"-c", "-e", "--command", "--eval", "--execute"})
 
@@ -193,7 +285,7 @@ def _nesting_depth(command: str) -> int:
     depth = deepest = 0
     index, length = 0, len(command)
     while index < length:
-        pair = command[index:index + 2]
+        pair = command[index : index + 2]
         if pair == "$(" or command[index] == "`":
             depth += 1
             deepest = max(deepest, depth)
@@ -369,7 +461,7 @@ def _contained(span: tuple[int, int], text: str, data_spans: list[tuple[int, int
 
     Whitespace at the edges of the match is not part of the mention: ``rm -rf / `` matched
     inside ``echo "rm -rf /"`` reaches one space past the closing quote."""
-    body = text[span[0]:span[1]]
+    body = text[span[0] : span[1]]
     start = span[0] + (len(body) - len(body.lstrip()))
     end = span[1] - (len(body) - len(body.rstrip()))
     return any(start >= low and end <= high for low, high in data_spans)
@@ -397,14 +489,18 @@ def _expand_variables(text: str, values: dict[str, str]) -> str:
     return _VARIABLE_USE.sub(lambda match: values.get(match.group(1) or match.group(2), match.group(0)), text)
 
 
-_SHELL_CALL = re.compile(r"\b(?:os\.(?:system|popen)|subprocess\.(?:run|call|check_call|check_output|Popen)|commands\.getoutput)\s*\(\s*[\"']([^\"']+)[\"']")
+_SHELL_CALL = re.compile(
+    r"\b(?:os\.(?:system|popen)|subprocess\.(?:run|call|check_call|check_output|Popen)|commands\.getoutput)\s*\(\s*[\"']([^\"']+)[\"']"
+)
 
 
 def _code_payloads(command: str) -> list[str]:
     """The text handed to a code executor: the argument of ``sh -c``, an interpreter, or an
     ``os.system``/``subprocess`` call, all of which run whatever the text says."""
     plain, spans = _shell_read(command)
-    payloads = [plain[start:end] for span in spans if _owns_code(plain, span) for start, end in [(span[0], span[1])]]
+    payloads = [
+        plain[start:end] for span in spans if _owns_code(plain, span) for start, end in [(span[0], span[1])]
+    ]
     payloads.extend(match.group(1) for match in _SHELL_CALL.finditer(normalize_command(command)))
     return payloads
 
@@ -466,15 +562,30 @@ def _arguments_of(words: list[str], names: frozenset[str]) -> list[str] | None:
     if first in _WRAPPERS:
         for index, word in enumerate(words[1:], 1):
             if posixpath.basename(word).lower() in names:
-                return words[index + 1:]
+                return words[index + 1 :]
     return None
 
 
 # ── deletes with no way back ─────────────────────────────────────────────────────────────
 
 # Besides the root and the home directory (and whatever holds the home directory).
-SYSTEM_DIRECTORIES = frozenset({"/home", "/root", "/etc", "/usr", "/var", "/bin", "/sbin", "/boot", "/lib", "/lib64",
-                                "/Users", "/System", "/Library"})
+SYSTEM_DIRECTORIES = frozenset(
+    {
+        "/home",
+        "/root",
+        "/etc",
+        "/usr",
+        "/var",
+        "/bin",
+        "/sbin",
+        "/boot",
+        "/lib",
+        "/lib64",
+        "/Users",
+        "/System",
+        "/Library",
+    }
+)
 _RM = frozenset({"rm"})
 _TRAILING_GLOB = re.compile(r"(?:^|(?<=/))\.?\*+$")  # `dir/*` and `dir/.*` empty `dir`
 _HOME_WORD = re.compile(r"^(?:~|\$HOME)(?=/|$)")
@@ -544,10 +655,14 @@ def _recursive_delete_victim(text: str, cwd: str = "") -> str | None:
             continue
         options_end = arguments.index("--") if "--" in arguments else len(arguments)
         flags = [word for word in arguments[:options_end] if word.startswith("-")]
-        targets = [word for word in arguments[:options_end] if not word.startswith("-")] + arguments[options_end + 1:]
+        targets = [word for word in arguments[:options_end] if not word.startswith("-")] + arguments[
+            options_end + 1 :
+        ]
         if "--no-preserve-root" in flags:
             return "delete the root filesystem"
-        if not any(flag == "--recursive" or (not flag.startswith("--") and "r" in flag.lower()) for flag in flags):
+        if not any(
+            flag == "--recursive" or (not flag.startswith("--") and "r" in flag.lower()) for flag in flags
+        ):
             continue
         for target in targets:
             path = _absolute(_TRAILING_GLOB.sub("", target) or ".", where)
@@ -565,12 +680,29 @@ SELF_ACCESS = DangerMatch("agent_settings_access", "reaches for this agent's own
 NEVER_REMEMBERED = frozenset({SELF_ACCESS.key})
 
 _PROTECTED_NAME = re.compile(
-    r"(?<![\w.\-])(?:" + "|".join(re.escape(posixpath.basename(name)) for name in PROTECTED_PATHS) + r")(?![\w.\-])",
+    r"(?<![\w.\-])(?:"
+    + "|".join(re.escape(posixpath.basename(name)) for name in PROTECTED_PATHS)
+    + r")(?![\w.\-])",
     re.IGNORECASE,
 )
 # Subcommands of the agent's own command line that change what it is allowed to do or what
 # it stores. Read-only uses are caught as well; the model has tools and slash commands for those.
-OWN_CLI_SUBCOMMANDS = ("config", "hooks", "plugins", "setup", "gateway", "profile", "tools", "model", "skills", "cron", "sessions")
+OWN_CLI_SUBCOMMANDS = (
+    "config",
+    "hooks",
+    "plugins",
+    "setup",
+    "gateway",
+    "profile",
+    "tools",
+    "model",
+    "skills",
+    "cron",
+    "sessions",
+    "backup",
+    "update",
+    "uninstall",
+)
 
 
 def own_command_names() -> set[str]:
@@ -580,8 +712,11 @@ def own_command_names() -> set[str]:
     try:
         from importlib.metadata import entry_points
 
-        names.update(entry.name for entry in entry_points(group="console_scripts")
-                     if entry.value.split(":")[0].startswith(f"{APP_NAME}."))
+        names.update(
+            entry.name
+            for entry in entry_points(group="console_scripts")
+            if entry.value.split(":")[0].startswith(f"{APP_NAME}.")
+        )
     except Exception:  # noqa: BLE001 - metadata of some other package may be broken
         logger.debug("could not list console scripts", exc_info=True)
     return names
@@ -614,14 +749,24 @@ def _runs_own_cli(text: str) -> bool:
     def named(match: re.Match[str]) -> str:
         inner = (match.group(1) or match.group(2) or "").split()
         # The command is whatever the substitution prints: read it as the name it looks up.
-        return f" {APP_NAME} " if any(posixpath.basename(word).lower() in names for word in inner) else match.group(0)
+        return (
+            f" {APP_NAME} "
+            if any(posixpath.basename(word).lower() in names for word in inner)
+            else match.group(0)
+        )
 
     for words in _simple_commands(_SUBSTITUTION.sub(named, text)):
         arguments = _arguments_of(words, names)
         if arguments is None and any(_PYTHON.match(posixpath.basename(word).lower()) for word in words):
-            module = next((index for index, word in enumerate(words[:-1]) if word == "-m"
-                           and words[index + 1].lower().split(".")[0] == APP_NAME), None)
-            arguments = words[module + 2:] if module is not None else None
+            module = next(
+                (
+                    index
+                    for index, word in enumerate(words[:-1])
+                    if word == "-m" and words[index + 1].lower().split(".")[0] == APP_NAME
+                ),
+                None,
+            )
+            arguments = words[module + 2 :] if module is not None else None
         if arguments is None:
             continue
         index = 0
@@ -634,11 +779,18 @@ def _runs_own_cli(text: str) -> bool:
 
 def _home_spellings() -> list[str]:
     """The ways a command can spell one of this agent's home directories."""
-    spellings = {f"~/{HOME_DIRNAME}", f"$HOME/{HOME_DIRNAME}", f"${{HOME}}/{HOME_DIRNAME}", f"${HOME_ENV}", f"${{{HOME_ENV}}}"}
+    spellings = {
+        f"~/{HOME_DIRNAME}",
+        f"$HOME/{HOME_DIRNAME}",
+        f"${{HOME}}/{HOME_DIRNAME}",
+        f"${HOME_ENV}",
+        f"${{{HOME_ENV}}}",
+    }
     for home in (get_home(), get_default_root()):
         spellings.update({str(home), str(home.resolve(strict=False))})
-    spellings.update({f"%{HOME_ENV}%", f"%LOCALAPPDATA%/{HOME_DIRNAME.lstrip('.')}",
-                      f"%USERPROFILE%/{HOME_DIRNAME}"})
+    spellings.update(
+        {f"%{HOME_ENV}%", f"%LOCALAPPDATA%/{HOME_DIRNAME.lstrip('.')}", f"%USERPROFILE%/{HOME_DIRNAME}"}
+    )
     return sorted({spelling.replace("\\", "/") for spelling in spellings})
 
 
@@ -673,7 +825,11 @@ def _names_protected(parts: list[str]) -> bool:
     is a directory that holds one. No parts at all is the home itself."""
     candidates = [name.split("/") for name in PROTECTED_PATHS]
     for depth, part in enumerate(parts):
-        candidates = [candidate for candidate in candidates if len(candidate) > depth and _could_name(part, candidate[depth])]
+        candidates = [
+            candidate
+            for candidate in candidates
+            if len(candidate) > depth and _could_name(part, candidate[depth])
+        ]
         if not candidates:
             return False
     return True
@@ -685,7 +841,11 @@ def _reaches_protected(tail: str) -> bool:
     parts = [part for part in tail.split("/") if part not in ("", ".")]
     if ".." in parts:
         return True
-    if parts and _could_name(parts[0], get_profiles_root().name) and (len(parts) <= 2 or _names_protected(parts[2:])):
+    if (
+        parts
+        and _could_name(parts[0], get_profiles_root().name)
+        and (len(parts) <= 2 or _names_protected(parts[2:]))
+    ):
         return True
     return _names_protected(parts)
 
@@ -707,11 +867,15 @@ def _reaches_into_agent_home(text: str, cwd: str) -> bool:
     if _HOME_MARK in marked:
         # A protected name next to any mention of the home (`cd <home> && sed -i ... config.yaml`),
         # or a path into the home that is, or could expand to, a protected file.
-        return bool(_PROTECTED_NAME.search(text)) or any(_reaches_protected(tail) for tail in _MARKED_PATH.findall(marked))
+        return bool(_PROTECTED_NAME.search(text)) or any(
+            _reaches_protected(tail) for tail in _MARKED_PATH.findall(marked)
+        )
     # Working in the home itself (or in a directory that holds a protected file) every relative
     # name can be one of them. Deeper inside, only a path that climbs back out can.
     tails = _tails_inside_agent_homes(cwd)
-    return any(_reaches_protected(tail) for tail in tails) or (bool(tails) and _PARENT_REFERENCE.search(text) is not None)
+    return any(_reaches_protected(tail) for tail in tails) or (
+        bool(tails) and _PARENT_REFERENCE.search(text) is not None
+    )
 
 
 def detect_self_access(command: str, cwd: str = "") -> DangerMatch | None:
@@ -730,11 +894,19 @@ def _detect_self_access(command: str, cwd: str, depth: int) -> DangerMatch | Non
     # Windows backslashes are separators, not POSIX escapes. Keep both readings.
     plain = shell_plain(command)
     values = _variable_values(plain)
-    readings = [normalize_command(command), plain, normalize_command(command).replace("\\", "/").translate(_QUOTES)]
+    readings = [
+        normalize_command(command),
+        plain,
+        normalize_command(command).replace("\\", "/").translate(_QUOTES),
+    ]
     for text in readings:
         # A name assembled from a variable on the same line is the name it runs as.
         for expanded in (text, _expand_variables(text, values)):
-            if _own_cli().search(expanded) or _runs_own_cli(expanded) or _reaches_into_agent_home(expanded, cwd):
+            if (
+                _own_cli().search(expanded)
+                or _runs_own_cli(expanded)
+                or _reaches_into_agent_home(expanded, cwd)
+            ):
                 return SELF_ACCESS
     for payload in _code_payloads(command):
         if _detect_self_access(payload, cwd, depth + 1) is not None:
@@ -833,7 +1005,6 @@ def _detect_hardline(command: str, cwd: str, depth: int) -> str | None:
     return None
 
 
-
 def _non_interactive_policy(ctx: ToolContext) -> str:
     if ctx.platform == "cron":
         return str(ctx.setting("approvals.cron_mode", "deny"))
@@ -852,10 +1023,9 @@ def smart_verdict(command: str, description: str, ctx: ToolContext) -> str:
         return "escalate"
     prompt = SMART_APPROVAL_PROMPT.format(description=description, command=normalize_command(command)[:4000])
     try:
-        answer = call_auxiliary(
-            "approval", [{"role": "user", "content": prompt}], main_route=route,
-            client=getattr(ctx.agent, "client", None), max_tokens=64, temperature=0, timeout=30.0, config=ctx.config,
-        )
+        # fmt: off
+        answer = call_auxiliary("approval", [{"role": "user", "content": prompt}], main_route=route, client=getattr(ctx.agent, "client", None), max_tokens=64, temperature=0, timeout=30.0, config=ctx.config)
+        # fmt: on
     except Exception as exc:  # noqa: BLE001 - an unavailable reviewer is not an approval
         logger.warning("smart approval could not reach its model (%s); asking the user instead", exc)
         return "escalate"
@@ -882,7 +1052,9 @@ def check_command(command: str, ctx: ToolContext | None = None, *, cwd: str = ""
         )
     hardline = detect_hardline(command, cwd)
     if hardline:
-        return ApprovalDecision(False, f"Refused: this command would {hardline}. No setting allows it.", "hardline")
+        return ApprovalDecision(
+            False, f"Refused: this command would {hardline}. No setting allows it.", "hardline"
+        )
 
     readings = _readings(command)
     for glob in ctx.setting("approvals.deny", []) or []:
@@ -934,8 +1106,14 @@ def check_command(command: str, ctx: ToolContext | None = None, *, cwd: str = ""
             matches,
         )
 
-    invoke_hook("pre_approval_request", command=command, description=description,
-                pattern_keys=sorted(keys), session_key=session_key, surface=ctx.platform)
+    invoke_hook(
+        "pre_approval_request",
+        command=command,
+        description=description,
+        pattern_keys=sorted(keys),
+        session_key=session_key,
+        surface=ctx.platform,
+    )
     try:
         choice = str(approve(command=command, description=description, pattern_keys=sorted(keys)) or "deny")
     except Exception:  # noqa: BLE001 - a broken prompt must fail closed
@@ -943,11 +1121,20 @@ def check_command(command: str, ctx: ToolContext | None = None, *, cwd: str = ""
         choice = "deny"
     if choice not in CHOICES:
         choice = "deny"
-    invoke_hook("post_approval_response", command=command, description=description,
-                pattern_keys=sorted(keys), session_key=session_key, surface=ctx.platform, choice=choice)
+    invoke_hook(
+        "post_approval_response",
+        command=command,
+        description=description,
+        pattern_keys=sorted(keys),
+        session_key=session_key,
+        surface=ctx.platform,
+        choice=choice,
+    )
 
     if choice == "deny":
-        return ApprovalDecision(False, "The user denied this command. Do not retry it; ask what they prefer.", "deny", matches)
+        return ApprovalDecision(
+            False, "The user denied this command. Do not retry it; ask what they prefer.", "deny", matches
+        )
     remembered = keys - NEVER_REMEMBERED
     if choice in ("session", "always"):
         with _LOCK:

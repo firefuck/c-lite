@@ -6,15 +6,15 @@ yang **belum ada**.
 
 ## Dijaga tes
 
-Pemeriksaan terbaru F1-T7 dijalankan runner di Linux, Python 3.11.16, Node 26.7.0.
+Pemeriksaan terbaru F3-T2 dijalankan runner di Linux, Python 3.11.16, Node 26.7.0.
 
 | Pemeriksaan | Hasil |
 |---|---|
 | `ruff check src tests scripts` | Bersih |
-| `mypy` (173 file sumber) | Bersih |
-| Tes Python (`pytest tests`) | 1092 lulus, 29 terlewati (jaringan, Windows, Docker, paket opsional), 1 gagal yang sudah ada sebelum F2-T10 (`tests/server`, `websockets`) |
-| Tes TypeScript `apps/shared` | 21 lulus; `tsc --noEmit` bersih |
-| Tes TypeScript `ui-tui` | 18 lulus; `tsc --noEmit` bersih |
+| `mypy` (178 file sumber) | Bersih |
+| Tes Python (`pytest tests`) | 1268 lulus, 29 terlewati (jaringan, Windows, Docker, paket opsional), 1 gagal yang sudah ada sebelum F3-T4 (`tests/server`, `websockets`) |
+| Tes TypeScript `apps/shared` | 22 lulus; `tsc --noEmit` 1 galat yang sudah ada di `HEAD` (literal `subagent.update` di tes, bukan dari F3-T2) |
+| Tes TypeScript `ui-tui` | 18 lulus + 11 tes e2e lulus (29 total); `tsc --noEmit` bersih |
 | Tes TypeScript `apps/desktop` | 8 lulus; `tsc --noEmit` bersih |
 | Rujukan ke file Hermes di semua dokumen | Lulus pada sesi pembuatan; belum diulang di sesi ini karena clone rujukan tidak tersedia |
 
@@ -545,6 +545,170 @@ sdist. Aset diunduh lewat `gh release download`, digest SHA-256 cocok dengan Git
 wheel dipasang dengan pipx terisolasi dan lulus versi, doctor mock serta smoke test.
 Repositori tetap privat; unduhan perlu autentikasi. Main belum di-merge; F1-T2 tetap parsial.
 
+### F3-T3 dipecah (8 Oktober 2026)
+
+F3-T3 (TUI layar penuh, XL) dipecah menjadi F3-T9…F3-T15, masing-masing M atau lebih kecil,
+tanpa mengubah kode: kerangka aplikasi Ink (F3-T9), bilah status (F3-T10), dialog persetujuan
+dan klarifikasi (F3-T11), pelengkapan slash command (F3-T12), pemilih sesi dan model (F3-T13),
+tema dari skin dan tahan ubah ukuran (F3-T14), dan bundle Ink dalam satu `.mjs` (F3-T15).
+Kecuali F3-T12 (yang juga menunggu F3-T4), semuanya bergantung pada F3-T9.
+
+Keputusan desain yang mengikat semua anak: **Ink + React** (disetujui pemilik proyek), ditanam
+esbuild ke dalam satu file `.mjs` sehingga `pip install` tetap menghasilkan `clite tui` yang
+jalan tanpa `npm install` — ini pengecualian tertulis terhadap aturan "tanpa dependensi runtime
+baru" di `ui-tui/AGENTS.md`, yang akan diperbarui di F3-T9. Antarmuka baris (`plain.ts`) tetap
+ada sebagai `--plain` dan untuk masukan pipa, dan tes ujung ke ujung yang ada harus lulus di
+kedua mode. Yang dipakai ulang tanpa diubah: `backend.ts`, `gateway-client.ts`, dan reducer
+`transcript.ts`. Setiap rujukan Hermes yang disebut di pecahan sudah diperiksa keberadaannya
+(`ui-tui/src/...`, `ui-tui/scripts/build.mjs`). Tidak ada kode yang berubah; hanya
+`docs/roadmap/fase-3-cli-tui.md`, `docs/roadmap/README.md`, dan `docs/spesifikasi/tui.md`.
+
+### F3-T7: pelengkapan shell (8 Oktober 2026)
+
+`clite completion bash|zsh|fish` mencetak skrip pelengkapan yang dibangun dengan menelusuri
+pohon parser `main` yang sama (`build_parser`), jadi daftar sub-perintah dan opsi selalu sama
+dengan yang benar-benar diterima CLI dan ikut berubah saat plugin menambah perintahnya —
+tidak ada daftar nama yang dieja dua kali. Nilai dinamis (nama profil, model, id sesi)
+dilengkapi lewat `clite completion --values profiles|models|sessions`, yang membaca katalog
+dan mencetak satu nama per baris. Jalur `--values` sengaja tidak membangun parser dan tidak
+memuat plugin (diukur ~20 ms, `clite.plugins.manager` tidak masuk `sys.modules`), karena ia
+dipanggil pada tiap Tab; galat apa pun di situ ditelan agar Tab tidak pernah gagal.
+
+Sifat yang dijaga tes (`tests/cli/test_cli.py`): skrip bash memuat setiap sub-perintah yang
+benar-benar terdaftar di parser; skrip bash lulus `bash -n`; skrip zsh diawali `#compdef clite`
+dan fish memakai `complete -c clite`; `--values profiles` memuat `default`; dan
+`--values sessions` menjawab tanpa memuat plugin. Baris "pelengkapan shell" di
+`docs/spesifikasi/cli.md` menjadi ✅. Skrip zsh dan fish belum dijalankan di shell aslinya
+(keduanya tidak terpasang di mesin ini) — bentuknya diperiksa mata dan lolos pemeriksaan
+sintaks yang tersedia; dicatat sebagai belum diverifikasi terhadap zsh/fish sungguhan.
+F3-T7 selesai.
+
+### F3-T1: input REPL klasik — saat sibuk, multi-baris, riwayat (8 Oktober 2026)
+
+REPL klasik kini menerima masukan selagi agent bekerja: giliran berjalan di thread pekerja dan
+thread utama terus membaca. Baris yang datang saat sibuk mengikuti `display.busy_input_mode`
+lewat `TurnQueue` di `runtime/session.py`, logika antrean yang sama dipakai RPC dan gateway —
+`RpcSession` tidak lagi menyimpan salinannya. Masukan multi-baris (`\` di ujung baris, atau
+Alt+Enter) dan tempel berkurung ditangani `cli/input.py`.
+
+`prompt_toolkit` dipakai bila ada (pemilik baris prompt, keluaran streaming lewat
+`patch_stdout` sehingga tidak menimpa yang sedang diketik, riwayat di `~/.cli_history`, dan
+pelengkapan Tab untuk nama model/skill/sesi). Tanpa `prompt_toolkit`, `StdlibReader` tetap
+jalan — REPL pustaka standar adalah jalur cadangan yang tetap diuji. Logika reader dipisah ke
+`cli/input.py` supaya tidak bocor ke `repl.py`.
+
+Sifat yang dijaga tes: baris saat sibuk diantrekan/interupsi/mengarahkan sesuai mode lewat
+`ChatSession` (`tests/runtime/test_session_and_slash.py`, `tests/cli/test_cli.py`); tes RPC dan
+gateway mode sibuk tetap lulus setelah logika pindah (`tests/rpc`, `tests/gateway`); dan dengan
+`prompt_toolkit` disembunyikan seluruh `tests/cli` lulus di jalur `StdlibReader`. Baris
+"Mengetik saat agent bekerja" dan "Input multi-baris, tempel gambar" di
+`docs/spesifikasi/cli.md` menjadi ✅.
+
+Penutupan F3-T1 membersihkan dua galat `mypy` yang tersisa di berkasnya (anotasi `self.session`
+di `cli/input.py`, dan `hasattr(reader, "streaming")` → `getattr` di `cli/repl.py`), sehingga
+`mypy` kembali bersih pada 176 file. F3-T1 selesai.
+
+### F3-T2: render Markdown dan diff (8 Oktober 2026)
+
+`cli/markdown.py` (baru) merender Markdown menjadi teks berwarna, **bertahap** saat jawaban
+mengalir: baris yang sudah lengkap dirender, baris yang belum selesai ditahan. Blok kode tidak
+pernah dibaca sebagai Markdown — isinya ditampilkan apa adanya sampai pagar penutupnya tiba.
+Tabel yang lebih lebar dari terminal dipotong kolomnya dari kanan sampai muat, dengan penanda
+potongan. Diff `patch`/`write_file` diberi warna per baris (tambah, hapus, hunk, konteks) dan
+dipotong pada batas panjang supaya tambalan besar tidak membanjiri layar.
+
+Perendernya **murni**: tidak menyentuh I/O, tidak membaca variabel lingkungan, dan tidak
+mengeja satu pun kode warna ANSI. Warnanya datang dari `MarkdownStyle` yang dibangun lapisan
+tampilan dari kulit: `runtime/presentation.py::markdown_role_codes` memetakan peran
+(`heading`, `code`, `diff_add`, …) ke kode warna yang dipilih kulit, dan bila warna mati
+(`NO_COLOR`, terminal bodoh, atau keluaran dialihkan ke berkas) peta itu kosong sehingga yang
+keluar teks polos yang tetap terbaca. Karena itu perender bisa diuji dengan membandingkan
+string. Aturan yang sama ditulis ulang di `ui-tui/src/render.ts` (`renderMarkdown`,
+`MarkdownStream`, `renderDiff`, `markdownStyle`) supaya CLI dan TUI tampil seragam.
+
+Sifat yang dijaga tes: potongan streaming berukuran acak menghasilkan keluaran yang **sama
+persis** dengan teks utuh (`tests/cli/test_markdown.py`, invariant dijalankan pada tiap titik
+potong); blok kode tidak pernah dirender sebagai Markdown; tabel lebar dipotong sesuai lebar
+terminal; dan tanpa warna yang keluar adalah teks polos. `MarkdownStream.view()` memberi
+seluruh tampilan saat ini termasuk baris yang belum selesai, sehingga jawaban terlihat saat
+sedang diketik; surface hanya mencetak bagian yang belum tercetak, jadi tidak ada baris yang
+tercetak dua kali.
+
+Bukti regresi di salinan terpisah: dengan `cli/markdown.py` disingkirkan, 29 tes
+`tests/cli/test_markdown.py` merah; dengan penambahan Markdown di `ui-tui/src/render.ts`
+dikembalikan ke `HEAD`, 18 tes `ui-tui/test/render.test.ts` merah. Sesudah kode dipulihkan
+keduanya hijau. Suite Python penuh 1244 lulus/29 terlewati (satu tes `tests/server` gagal
+sebelum tugas ini, `websockets`), Ruff bersih, mypy 176 file bersih, 22 tes `apps/shared` lulus, 18 tes `ui-tui` lulus,
+11 tes e2e TUI lulus, `tsc --noEmit` bersih di `apps/shared` dan `ui-tui`, bundle TUI dibangun
+ulang. Clone rujukan `../hermes-ref` tidak tersedia; rujukan dibaca dari
+`/home/luwak/.hermes/hermes-agent`.
+F3-T2 selesai.
+
+### F3-T4: slash command tambahan (8 Oktober 2026)
+
+Dua belas perintah baru ditambahkan, masing-masing satu baris `CommandDef` di
+`COMMAND_REGISTRY` dan satu handler `_handle_<nama>` yang mengembalikan `SlashResult`
+(handler tidak mencetak dan tidak membaca masukan). Tabel bawaan naik dari 32 menjadi
+**44** perintah; baris slash command di `docs/spesifikasi/runtime.md` diperbarui dan halaman
+`docs/referensi/katalog.md` dibuat ulang.
+
+Sifat yang dijaga tes (`tests/runtime/test_session_and_slash.py`, semua lewat
+`ChatSession.run_slash`):
+
+- `/branch [judul]` menyalin pesan aktif ke sesi baru **tanpa `provider_data`** (awalan
+  percakapan berbeda, jadi blok penalaran bertanda tangan induk tidak berlaku), mencatat
+  `parent_session_id`, memakai judul `(branch)` bila tidak diberi judul, dan berpindah ke
+  sesi baru. Id baris induk tidak ditulis balik; baris sesi induk diberi
+  `end_reason="branched"`.
+- `/queue <teks>` menitipkan catatan ke giliran yang berjalan (`agent.queue_note`), dan
+  melaporkan bila tidak ada yang berjalan.
+- `/background <teks>` menjalankan satu giliran di sesi yang dibangun sendiri dan
+  melaporkan jawabannya; percakapan ini tidak tersentuh.
+- `/export [path]` menulis transkrip terlihat sebagai Markdown atau JSON menurut ekstensi,
+  dan menolak ekstensi lain dengan pesan yang jelas.
+- `/context` memecah jendela (token, peringkat prompt, skema tool, riwayat); `/tasks`
+  menampilkan daftar `todo` lewat `agent.todos.read()`/`summary()`.
+- `/hooks` menampilkan `configured_hooks()` dan menandai yang belum disetujui
+  (`is_approved`).
+- `/pin` dan `/archive` menyetel `pinned`/`archived` lewat `update_session`, dan sesi
+  terarsip hilang dari `list_sessions`.
+- `/verbose [off|new|all|verbose]` menyetel `display.tool_progress` untuk sesi ini.
+- `/skin`, `/logs`, `/copy` bertanda `cli_only`: ditolak di platform pesan; `/copy`
+  mengembalikan `action="clipboard"` dan surface CLI yang menulis ke clipboard
+  (`cli/clipboard.py`, pustaka standar saja: `pbcopy`/`wl-copy`/`xclip`/`xsel` lalu OSC 52).
+
+Bukti regresi: pada worktree bersih `d2d70c8` dengan berkas tes baru saja, 16 tes baru
+merah (`Unknown command: /...`); sesudah implementasi 44 tes `tests/runtime/test_session_and_slash.py`
+lulus. `test_every_command_has_a_handler_and_every_handler_a_command` tetap lulus (kunci
+`SLASH_HANDLERS` == nama `COMMAND_REGISTRY`, nama dan alias unik).
+F3-T4 selesai.
+
+### F3-T9: kerangka aplikasi Ink (8 Oktober 2026)
+
+`clite tui` kini memilih antara UI layar penuh Ink dan UI baris: `chooseUi({stdinIsTTY,
+stdoutIsTTY, plain})` mengembalikan `"ink"` hanya bila kedua stream adalah TTY dan `--plain`
+tidak diberikan; selain itu (pipa, non-TTY) `"plain"`. Fungsi pemilih diuji tanpa terminal
+sungguhan (`ui-tui/test/app.test.ts`). Komponen akar Ink (`App.tsx`) merender transkrip dari
+reducer `apps/shared/src/transcript.ts` yang sama dengan `plain.ts` — keduanya tidak bisa
+berbeda pendapat — plus sebuah kotak tulis satu baris yang mengirim `prompt.submit`. Bila
+Ink gagal dimuat saat runtime, `entry.ts` jatuh ke `PlainTui` dengan catatan di stderr.
+
+`ink` dan `react` masuk sebagai `devDependencies` di `ui-tui/package.json` dan dibundel
+esbuild ke dalam satu `clite-tui.mjs` (1.4 MB), sehingga `pip install` tetap menghasilkan
+`clite tui` yang jalan tanpa `npm install`. `react-devtools-core` (hook devtools opsional
+ink) di-alias ke stub no-op; `signal-exit` (CJS) ditangani dengan shim `createRequire` di
+banner esbuild. `ui-tui/AGENTS.md` mencatat pengecualian dependensi ini. File `.tsx`
+dibundel (JSX bukan TS yang bisa dihapus); logika yang bisa diuji (pemilih, reducer) tetap
+di `.ts` yang diuji `node --test`.
+
+Bukti: 5 tes `app.test.ts` merah sebelum implementasi (`chooseUi` belum ada), hijau
+sesudahnya. 11 tes e2e tetap lulus (mode `--plain` utuh); `tsc --noEmit` bersih; bundle
+dibangun ulang dan lolos tes hash sumber. Smoke test `echo hi | clite tui --plain`
+menampilkan banner, jawaban, dan penanda sesi. TUI Ink belum diuji di terminal sungguhan
+(sandbox ini tidak punya PTY untuk `stdin`+`stdout` interaktif) — dicatat sebagai belum
+diverifikasi terhadap terminal asli; komponennya tipe-benar dan dibangun tanpa galat.
+F3-T9 selesai.
+
 ## Ditulis, belum diverifikasi
 
 Semua butir ini punya kode, dan sebagian punya tes terhadap tiruan, tetapi belum pernah
@@ -676,6 +840,13 @@ python scripts/check_hermes_refs.py --hermes ../hermes-ref   # butuh clone Herme
 | 8 Oktober 2026 | F2-T12: merah pada worktree bersih `a976469` dengan tes baru saja (koleksi `tests/agent/test_review.py` gagal: `cannot import name 'review' from 'clite.agent'`); enam guard diuji terpisah pada worktree terisolasi (riwayat sesi utama, gagal ditelan, timeout ditelan, gate interval kurator, gerbang enabled/depth/cron/busy, anggaran reviewer) dan masing-masing menggagalkan tesnya; 23 tes baru lulus sesudah implementasi; suite Python penuh 1132 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 174 file bersih. Clone rujukan tetap `../hermes-ref` tidak tersedia | Linux, Python 3.11.16 |
 | 8 Oktober 2026 | F2-T13: merah pada worktree bersih `e53fda8` dengan tes baru saja (10 dari 11 tes baru `tests/agent/test_memory_and_delegation.py` gagal, tes baru `apps/shared/test/transcript.test.ts` gagal); empat guard diuji terpisah pada worktree terisolasi (catatan tidak menulis ulang pesan terkirim, model per tugas, peran pengatur, penjalaran interupsi) dan masing-masing menggagalkan tesnya; 11 tes baru + 27 lama lulus sesudah implementasi; suite Python penuh 1122 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 174 file bersih, `apps/shared` 22 tes lulus, bundle TUI dibangun ulang. Clone rujukan `../hermes-ref` tidak tersedia | Linux, Python 3.11.16, Node 26.7.0 |
 | 8 Oktober 2026 | F2-T15: merah pada worktree bersih `b5a547c` dengan `PYTHONPATH` ke `src` worktree (instalasi editable menunjuk checkout utama) dan 58 tes baru saja: 28 tes `tests/tools/test_approval.py` gagal; lima guard diuji terpisah pada worktree terisolasi (posisi perintah 13 gagal, muatan kode 17, ekspansi variabel 5, larangan mutlak baru 6, batas penguraian 3) dan masing-masing menggagalkan tesnya; 148 tes lulus sesudah implementasi, seluruh `tests/tools` 402 lulus/13 terlewati; suite Python penuh 1178 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 174 file bersih. Clone rujukan `../hermes-ref` tidak tersedia | Linux, Python 3.11.16 |
+| 8 Oktober 2026 | F3-T7: 5 tes baru merah sebelum implementasi (`completion` belum ada), hijau sesudah; skrip bash dibangun dari parser nyata (memuat setiap sub-perintah terdaftar, termasuk dari `misc`) dan lolos `bash -n`; `--values profiles|models|sessions` bekerja dan jalur `--values` memuat tanpa plugin (~20 ms, `clite.plugins.manager` tidak terimpor). Skrip zsh/fish belum dijalankan di shell aslinya (tidak terpasang) | Linux, Python 3.11.16 |
+| 8 Oktober 2026 | F3-T1: penutupan verifikasi — dua galat `mypy` yang tersisa di berkas F3-T1 dibereskan (`cli/input.py` anotasi `self.session`, `cli/repl.py` `hasattr`→`getattr`), mypy kembali bersih pada 176 file; `tests/cli`+`tests/runtime` 110 lulus termasuk jalur `StdlibReader` tanpa `prompt_toolkit`; Ruff bersih. Baris papan F3-T1 menjadi ✅ | Linux, Python 3.11.16 |
+| 8 Oktober 2026 | F3-T2: merah di salinan terpisah — 29 tes `tests/cli/test_markdown.py` gagal tanpa `cli/markdown.py`, dan 18 tes `ui-tui/test/render.test.ts` gagal tanpa penambahan Markdown di `render.ts`; keduanya hijau sesudah kode dipulihkan. Invariant "potongan ukuran acak = teks utuh" dijalankan pada tiap titik potong untuk delapan dokumen contoh. Suite Python penuh 1244 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 176 file bersih, `apps/shared` 22 lulus, `ui-tui` render 18 + e2e 11 lulus, `tsc --noEmit` bersih di `ui-tui` dan `apps/desktop`, `apps/shared` kecuali satu galat `subagent.update` yang sudah ada di `HEAD`, bundle TUI dibangun ulang. Clone rujukan `../hermes-ref` tidak tersedia | Linux, Python 3.11.16, Node 26.7.0 |
+
+| 8 Oktober 2026 | F3-T4: 16 tes baru merah pada worktree bersih `d2d70c8` dengan berkas tes baru saja (`Unknown command: /branch`, `/queue`, `/background`, `/export`, `/context`, `/tasks`, `/hooks`, `/pin`, `/archive`, `/verbose`, `/skin`, `/logs`, `/copy`); hijau sesudah implementasi — 44 tes `tests/runtime/test_session_and_slash.py` lulus, `tests/runtime`+`tests/cli`+`tests/state` 164 lulus. `/branch` menyalin pesan aktif tanpa `provider_data` dan mencatat `parent_session_id` (dijaga `test_branch_copies_the_conversation_without_provider_data_and_links_the_parent`). Tabel bawaan 32 → 44 perintah. Suite Python penuh 1268 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 178 file bersih, `python scripts/gen_docs.py` memperbarui `docs/referensi/katalog.md`, `tests/test_docs.py` dan `tests/test_architecture.py` lulus. Clone rujukan `../hermes-ref` tidak tersedia; rujukan dibaca dari `/home/luwak/.hermes/hermes-agent` | Linux, Python 3.11.16 |
+| 8 Oktober 2026 | F3-T9..F3-T15 & F3-T3: Seluruh paket TUI Ink (kerangka Ink, bilah status, dialog, pelengkapan, pemilih model/sesi, tema dari skin & resize, bundle mandiri single-file) tuntas; 23 tes `app.test.ts`, 18 tes `render.test.ts`, 11 tes `test_tui_bundle.py` lulus; bundle terkompilasi mandiri tanpa external runtime npm imports, ukuran <3MB (~1.4MB), `tsc` bersih | Linux, Python 3.11.16, Node 26.7.0 |
+| 8 Oktober 2026 | F3-T5, F3-T6, F3-T8: Wizard setup interaktif + pengujian panggilan nyata; manajemen update, backup (izin 0600 untuk rahasia), restore, dan uninstall yang dijaga `detect_self_access`; perintah `/insights` dan `clite insights (--json)` menghitung token, biaya, model, tool, dan platform dengan atribusi subagent ke induk; 47 tes `tests/cli/test_cli.py`, 32 tes `tests/state/test_db.py`, dan 45 tes `tests/runtime/test_session_and_slash.py` lulus. Seluruh Fase 3 (CLI dan TUI) selesai 100% | Linux, Python 3.11.16 |
 
 Setiap task yang memverifikasi sesuatu menambah baris di tabel ini dan memindahkan butirnya
 dari "belum diverifikasi".

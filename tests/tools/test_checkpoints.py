@@ -73,7 +73,9 @@ def test_a_write_a_patch_and_a_creation_in_one_turn_are_all_undone_by_one_rollba
     (workspace / "patched.txt").write_text("value = 1\n")
 
     assert _call("write_file", {"path": "edited.txt", "content": "changed\n"}, ctx)["created"] is False
-    patched = _call("patch", {"path": "patched.txt", "old_string": "value = 1", "new_string": "value = 2"}, ctx)
+    patched = _call(
+        "patch", {"path": "patched.txt", "old_string": "value = 1", "new_string": "value = 2"}, ctx
+    )
     assert patched["replacements"] == 1
     assert _call("write_file", {"path": "created.txt", "content": "brand new\n"}, ctx)["created"] is True
 
@@ -89,13 +91,7 @@ def test_a_write_a_patch_and_a_creation_in_one_turn_are_all_undone_by_one_rollba
 def test_a_delete_from_a_multi_file_patch_is_restored_by_rollback(ctx, workspace):
     victim = workspace / "gone.txt"
     victim.write_text("bring me back\n")
-    patch = (
-        "*** Update File: kept.txt\n"
-        "@@ @@\n"
-        "-old\n"
-        "+new\n"
-        "*** Delete File: gone.txt\n"
-    )
+    patch = "*** Update File: kept.txt\n@@ @@\n-old\n+new\n*** Delete File: gone.txt\n"
     (workspace / "kept.txt").write_text("old\n")
     applied = _call("patch", {"mode": "patch", "patch": patch}, ctx)
     assert applied["count"] == 2 and not victim.exists()
@@ -173,7 +169,11 @@ def test_a_checkpoint_never_stores_a_file_the_read_tools_refuse(ctx, clite_home,
     assert record_change("session-1", str(secret), before=secret.read_text(), existed=True, turn=1) is None
 
     store = session_dir("session-1")
-    leaked = [path for path in store.rglob("*") if "correct-horse" in path.read_text(errors="ignore")] if store.is_dir() else []
+    leaked = (
+        [path for path in store.rglob("*") if "correct-horse" in path.read_text(errors="ignore")]
+        if store.is_dir()
+        else []
+    )
     assert leaked == []
     assert list_checkpoints("session-1") == []
 
@@ -284,15 +284,18 @@ def test_the_rollback_command_takes_a_turn_count_and_rejects_junk(workspace, mak
 def test_the_checkpoints_command_lists_the_stored_groups(workspace, make_session):
     session = make_session(workspace)
     session.submit("go")  # one real turn, so the file change is grouped under turn 1
-    ctx = ToolContext(session_id=session.session_id, task_id=session.session_id, cwd=str(workspace),
-                      agent=session.agent)
+    ctx = ToolContext(
+        session_id=session.session_id, task_id=session.session_id, cwd=str(workspace), agent=session.agent
+    )
     _call("write_file", {"path": "made.txt", "content": "hello\n"}, ctx)
 
     text = session.handle_input("/checkpoints").text
     assert "turn 1" in text and "created" in text and "made.txt" in text
 
 
-def test_the_commands_explain_the_terminal_boundary_when_there_is_nothing_to_roll_back(workspace, make_session):
+def test_the_commands_explain_the_terminal_boundary_when_there_is_nothing_to_roll_back(
+    workspace, make_session
+):
     session = make_session(workspace)
     text = session.handle_input("/rollback").text
     assert "No file checkpoints" in text and "terminal command" in text
@@ -302,10 +305,12 @@ def test_a_committed_turn_through_the_loop_is_rolled_back(workspace, make_sessio
     """End to end: the model calls write_file, and /rollback put the file back."""
     (clite_home / "config.yaml").write_text("model:\n  provider: mock\n  default: mock-1\n")
     (workspace / "app.py").write_text("print('original')\n")
-    client = ScriptedClient([
-        tool_call_response(("write_file", {"path": "app.py", "content": "print('edited')\n"})),
-        text_response("done"),
-    ])
+    client = ScriptedClient(
+        [
+            tool_call_response(("write_file", {"path": "app.py", "content": "print('edited')\n"})),
+            text_response("done"),
+        ]
+    )
     session = ChatSession(client=client, cwd=str(workspace))
     try:
         session.submit("rewrite app.py")

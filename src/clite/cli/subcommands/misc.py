@@ -40,8 +40,11 @@ def run_status(args: argparse.Namespace) -> int:
     print(f"Toolsets:  {', '.join(config.get('toolsets') or [])}")
     plugins = [info.name for info in ensure_plugins_loaded().list() if info.status == "loaded"]
     print(f"Plugins:   {', '.join(plugins) or 'none loaded'}")
-    platforms = [name for name, settings in (get_path(config, 'gateway.platforms', {}) or {}).items()
-                 if isinstance(settings, dict) and settings.get("enabled", True)]
+    platforms = [
+        name
+        for name, settings in (get_path(config, "gateway.platforms", {}) or {}).items()
+        if isinstance(settings, dict) and settings.get("enabled", True)
+    ]
     print(f"Gateway:   {', '.join(platforms) or 'no platform configured'}")
     jobs = get_job_store().list()
     print(f"Cron:      {sum(1 for job in jobs if job.get('enabled', True))} active job(s)")
@@ -84,7 +87,12 @@ def run_doctor(args: argparse.Namespace) -> int:
         connection.close()
         check("SQLite full-text search (FTS5)", True)
     except sqlite3.OperationalError:
-        check("SQLite full-text search (FTS5)", False, "session search falls back to slower LIKE matching", required=False)
+        check(
+            "SQLite full-text search (FTS5)",
+            False,
+            "session search falls back to slower LIKE matching",
+            required=False,
+        )
 
     from clite.providers.runtime import resolve_runtime_provider
 
@@ -95,7 +103,11 @@ def run_doctor(args: argparse.Namespace) -> int:
             from clite.providers.models import fetch_models
 
             models = fetch_models(route.profile, api_key=route.api_key, base_url=route.base_url)
-            check("Provider answers", models is not None, f"{len(models or [])} models listed" if models else "the model list could not be fetched")
+            check(
+                "Provider answers",
+                models is not None,
+                f"{len(models or [])} models listed" if models else "the model list could not be fetched",
+            )
     except CliteError as exc:
         check("Model provider is configured", False, str(exc))
 
@@ -117,8 +129,12 @@ def run_doctor(args: argparse.Namespace) -> int:
         check("Enabled plugins load", False, f"not checked: {exc}", required=False)
 
     node = shutil.which("node")
-    check("Node.js for the TUI and desktop app", node is not None,
-          node or "not found; the classic CLI and the dashboard work without it", required=False)
+    check(
+        "Node.js for the TUI and desktop app",
+        node is not None,
+        node or "not found; the classic CLI and the dashboard work without it",
+        required=False,
+    )
     print("\nEverything needed is in place." if not problems else f"\n{problems} problem(s) need attention.")
     return 1 if problems else 0
 
@@ -130,7 +146,7 @@ def run_logs(args: argparse.Namespace) -> int:
         return 0
     with open(path, encoding="utf-8", errors="replace") as handle:
         lines = handle.readlines()
-        sys.stdout.writelines(lines[-args.lines:])
+        sys.stdout.writelines(lines[-args.lines :])
         if args.follow:
             try:
                 while True:
@@ -149,7 +165,10 @@ def run_memory(args: argparse.Namespace) -> int:
     from clite.agent.memory import MemoryStore
 
     config = load_config()
-    store = MemoryStore(int(get_path(config, "memory.memory_char_limit", 2200)), int(get_path(config, "memory.user_char_limit", 1375)))
+    store = MemoryStore(
+        int(get_path(config, "memory.memory_char_limit", 2200)),
+        int(get_path(config, "memory.user_char_limit", 1375)),
+    )
     for target, label in (("memory", "MEMORY.md (agent notes)"), ("user", "USER.md (user profile)")):
         entries = store.entries(target)
         print(f"{label}: {len(entries)} entries")
@@ -159,9 +178,25 @@ def run_memory(args: argparse.Namespace) -> int:
 
 
 def run_acp(args: argparse.Namespace) -> int:
-    print("The ACP (editor integration) server is not implemented yet. See docs/roadmap/fase-6-ekosistem.md, task F6-T4.",
-          file=sys.stderr)
+    print(
+        "The ACP (editor integration) server is not implemented yet. See docs/roadmap/fase-6-ekosistem.md, task F6-T4.",
+        file=sys.stderr,
+    )
     return 2
+
+
+def run_insights(args: argparse.Namespace) -> int:
+    import json
+
+    from clite.state.db import format_insights, get_session_db
+
+    db = get_session_db()
+    data = db.get_insights(days=args.days)
+    if args.json:
+        print(json.dumps(data, indent=2))
+    else:
+        print(format_insights(data))
+    return 0
 
 
 def register(subparsers: argparse._SubParsersAction) -> None:
@@ -176,4 +211,10 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     logs.add_argument("-f", "--follow", action="store_true")
     logs.set_defaults(handler=run_logs)
     subparsers.add_parser("memory", help="show persistent memory").set_defaults(handler=run_memory)
-    subparsers.add_parser("acp", help="editor integration server (not implemented yet)").set_defaults(handler=run_acp)
+    subparsers.add_parser("acp", help="editor integration server (not implemented yet)").set_defaults(
+        handler=run_acp
+    )
+    insights = subparsers.add_parser("insights", help="show usage analytics, tokens and costs")
+    insights.add_argument("--days", type=int, default=30, help="number of days to analyze (default: 30)")
+    insights.add_argument("--json", action="store_true", help="output raw JSON data")
+    insights.set_defaults(handler=run_insights)

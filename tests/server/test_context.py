@@ -21,12 +21,24 @@ async def http_get(app, path):
     async def send(message):
         messages.append(message)
 
-    await app({"type": "http", "asgi": {"version": "3.0", "spec_version": "2.4"},
-               "http_version": "1.1", "method": "GET", "scheme": "http",
-               "path": path, "raw_path": path.encode(), "query_string": b"",
-               "root_path": "", "server": ("localhost", 80), "client": ("127.0.0.1", 1),
-               "headers": [(b"host", b"localhost"),
-                           (b"authorization", b"Bearer context-test-token")]}, receive, send)
+    await app(
+        {
+            "type": "http",
+            "asgi": {"version": "3.0", "spec_version": "2.4"},
+            "http_version": "1.1",
+            "method": "GET",
+            "scheme": "http",
+            "path": path,
+            "raw_path": path.encode(),
+            "query_string": b"",
+            "root_path": "",
+            "server": ("localhost", 80),
+            "client": ("127.0.0.1", 1),
+            "headers": [(b"host", b"localhost"), (b"authorization", b"Bearer context-test-token")],
+        },
+        receive,
+        send,
+    )
     return messages[0]["status"], json.loads(b"".join(m.get("body", b"") for m in messages[1:]))
 
 
@@ -113,10 +125,19 @@ def test_websocket_cleanup_keeps_the_connections_scope_off_the_event_loop(tmp_pa
             async def send(message):
                 outgoing.append(message)
 
-            await app({"type": "websocket", "asgi": {"version": "3.0"}, "scheme": "ws",
-                       "path": "/api/ws", "query_string": b"", "subprotocols": [],
-                       "headers": [(b"host", b"localhost"),
-                                   (b"authorization", b"Bearer context-test-token")]}, receive, send)
+            await app(
+                {
+                    "type": "websocket",
+                    "asgi": {"version": "3.0"},
+                    "scheme": "ws",
+                    "path": "/api/ws",
+                    "query_string": b"",
+                    "subprotocols": [],
+                    "headers": [(b"host", b"localhost"), (b"authorization", b"Bearer context-test-token")],
+                },
+                receive,
+                send,
+            )
             assert outgoing[0]["type"] == "websocket.accept"
             secret, thread_id = observed[expected_home]
             assert secret == f"secret-{index}"

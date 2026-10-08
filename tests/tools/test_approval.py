@@ -57,7 +57,11 @@ def test_dangerous_commands_are_detected(command):
 @pytest.mark.parametrize(
     "command",
     [
-        "ls -la", "git status", "rm notes.txt", "python -m pytest", "grep -r force .",
+        "ls -la",
+        "git status",
+        "rm notes.txt",
+        "python -m pytest",
+        "grep -r force .",
         # Ordinary Python: a move, a list method, and a word that merely mentions removing.
         "import shutil; shutil.move('a.txt', 'b.txt')",
         "rows = [1, 2]; rows.remove(1)",
@@ -70,7 +74,15 @@ def test_ordinary_commands_are_not_flagged(command):
 
 @pytest.mark.parametrize(
     "command",
-    ["rm -rf /", "rm -rf /*", "rm -fr ~", "rm -rf $HOME", ":(){ :|:& };:", "mkfs.ext4 /dev/sda1", "dd if=/dev/zero of=/dev/sda"],
+    [
+        "rm -rf /",
+        "rm -rf /*",
+        "rm -fr ~",
+        "rm -rf $HOME",
+        ":(){ :|:& };:",
+        "mkfs.ext4 /dev/sda1",
+        "dd if=/dev/zero of=/dev/sda",
+    ],
 )
 def test_hardline_commands_are_refused_in_every_mode(command):
     assert detect_hardline(command)
@@ -79,18 +91,42 @@ def test_hardline_commands_are_refused_in_every_mode(command):
 
 
 def test_hardline_does_not_catch_ordinary_deletes():
-    for command in ("rm -rf /tmp/build", "rm -rf ./node_modules", "rm -rf ~/project/dist", "rm -rf $HOME/.cache/pip",
-                    "rm -rf $BUILD_DIR", "rm -f /etc/hosts.bak", "git rm -r --cached .", "cd build && rm -rf *"):
+    for command in (
+        "rm -rf /tmp/build",
+        "rm -rf ./node_modules",
+        "rm -rf ~/project/dist",
+        "rm -rf $HOME/.cache/pip",
+        "rm -rf $BUILD_DIR",
+        "rm -f /etc/hosts.bak",
+        "git rm -r --cached .",
+        "cd build && rm -rf *",
+    ):
         assert detect_hardline(command) is None, command
 
 
 @pytest.mark.parametrize(
     "command",
     [
-        'rm -rf "/"', "rm -rf '/'", "rm -rf /.", 'rm -rf "$HOME"', "rm -rf ${HOME}", "rm --recursive --force /",
-        "r\\m -rf /", "rm -rf \\\n/", "rm${IFS}-rf${IFS}/", "rm -rf ~/*", "rm -rf /../..", "rm -rf ~/..", "rm -rf -- /",
-        "/bin/rm -rf /", "sudo -u root rm -rf /usr/*", "env X=1 rm -rf ~", "rm -rf /etc", 'bash -c "rm -rf /"',
-        "cd / && rm -rf *", "cd ~; rm -rf .",
+        'rm -rf "/"',
+        "rm -rf '/'",
+        "rm -rf /.",
+        'rm -rf "$HOME"',
+        "rm -rf ${HOME}",
+        "rm --recursive --force /",
+        "r\\m -rf /",
+        "rm -rf \\\n/",
+        "rm${IFS}-rf${IFS}/",
+        "rm -rf ~/*",
+        "rm -rf /../..",
+        "rm -rf ~/..",
+        "rm -rf -- /",
+        "/bin/rm -rf /",
+        "sudo -u root rm -rf /usr/*",
+        "env X=1 rm -rf ~",
+        "rm -rf /etc",
+        'bash -c "rm -rf /"',
+        "cd / && rm -rf *",
+        "cd ~; rm -rf .",
     ],
 )
 def test_shell_spellings_do_not_hide_a_hardline_delete(command):
@@ -209,7 +245,10 @@ def test_unexpected_answer_or_crashing_prompt_fails_closed():
     def explode(**kwargs):
         raise RuntimeError("terminal went away")
 
-    assert check_command("rm -rf build", ToolContext(callbacks=SimpleNamespace(approve=explode))).approved is False
+    assert (
+        check_command("rm -rf build", ToolContext(callbacks=SimpleNamespace(approve=explode))).approved
+        is False
+    )
 
 
 def test_approval_hooks_observe_the_exchange():
@@ -237,6 +276,9 @@ def test_commands_that_reach_for_the_agents_own_settings_are_flagged(clite_home)
         f"{DISPLAY_NAME.lower()} hooks approve --yes",
         "cd /tmp && python3 -m clite plugins enable something",
         "clite -p work gateway pair approve telegram ABCD2345",
+        "clite backup create /tmp/backup.tar.gz",
+        "clite update",
+        "clite uninstall --purge",
     ):
         assert detect_self_access(command) is not None, command
 
@@ -247,7 +289,10 @@ def test_every_installed_console_script_counts_as_the_agents_own_command(monkeyp
 
     from clite.tools import approval
 
-    scripts = [SimpleNamespace(name="helper", value="clite.cli.main:main"), SimpleNamespace(name="other", value="otherpkg.cli:main")]
+    scripts = [
+        SimpleNamespace(name="helper", value="clite.cli.main:main"),
+        SimpleNamespace(name="other", value="otherpkg.cli:main"),
+    ]
     monkeypatch.setattr("importlib.metadata.entry_points", lambda **_kwargs: scripts)
     approval.reset_approval_state()
     assert detect_self_access("helper config set approvals.mode off") is not None
@@ -256,19 +301,19 @@ def test_every_installed_console_script_counts_as_the_agents_own_command(monkeyp
 
 def test_ordinary_use_of_similar_names_is_not_flagged(clite_home):
     for command in (
-        "cat config.yaml",                      # some project's own file, outside the agent's home
+        "cat config.yaml",  # some project's own file, outside the agent's home
         "cp .env.example .env",
-        "ls ~/.clite/skills",                   # the home, but none of the protected files
+        "ls ~/.clite/skills",  # the home, but none of the protected files
         "cat ~/.clite/config.yaml.bak",
         "grep -r clite docs/",
         "pip install clite",
         "clite --version",
         "command -v clite",
-        "ls ~/.clite/skills/*.md",              # a glob that cannot leave the skills directory
+        "ls ~/.clite/skills/*.md",  # a glob that cannot leave the skills directory
         "tail -n 50 ~/.clite/logs/agent.log",
         "python ~/.clite/skills/demo/scripts/run.py",
-        "cat ~/.clitex/.env",                   # another directory whose name starts the same way
-        "ls src/clite tools",                   # the package directory as an argument, not the command
+        "cat ~/.clitex/.env",  # another directory whose name starts the same way
+        "ls src/clite tools",  # the package directory as an argument, not the command
         "cd src/clite && git config user.name someone",
     ):
         assert detect_self_access(command) is None, command
@@ -276,19 +321,19 @@ def test_ordinary_use_of_similar_names_is_not_flagged(clite_home):
 
 def test_shell_spellings_do_not_hide_a_reach_for_the_agents_settings(clite_home):
     for command in (
-        "cat ~/.clite/.e*",                     # a glob the shell expands to the protected name
+        "cat ~/.clite/.e*",  # a glob the shell expands to the protected name
         "echo x >> ~/.clite/config.yam?",
         "cat ~/.clite/*",
-        "cat ~//.clite/.env",                   # repeated slashes
+        "cat ~//.clite/.env",  # repeated slashes
         'cat ~/.cl""ite/.env',
         "cat ~/.cl\\ite/.env",
         'cat "$HOME"/.clite/.env',
-        "cat ~/.clite/$name",                   # only the shell knows what these two name
+        "cat ~/.clite/$name",  # only the shell knows what these two name
         "cat ~/.clite/{.env,notes}",
         "cat ~/.clite/skills/../.env",
-        "cat ~/.CLITE/CONFIG.YAML",             # the same file where names ignore case
+        "cat ~/.CLITE/CONFIG.YAML",  # the same file where names ignore case
         "cd ~ && cat .clite/.env",
-        "cp -r ~/.clite /tmp/copy",             # the whole home, credentials included
+        "cp -r ~/.clite /tmp/copy",  # the whole home, credentials included
         "tar czf /tmp/home.tgz ~/.clite",
         "/usr/local/bin/clite config set approvals.mode off",
         "$(command -v clite) config set approvals.mode off",
@@ -363,6 +408,7 @@ def test_the_terminal_tells_the_gate_where_the_command_runs(clite_home):
 
 # ── smart mode: an auxiliary model reviews flagged commands ──────────────────────────────
 
+
 def _smart_config() -> dict:
     return {"approvals": {"mode": "smart"}}
 
@@ -370,8 +416,12 @@ def _smart_config() -> dict:
 def _smart_ctx(*replies, answer="deny", **kwargs):
     """A smart-mode context: the reviewer model gives ``replies`` in order, and the user
     (when asked) gives ``answer``."""
-    reviewer = ScriptedClient([text_response(reply) if isinstance(reply, str) else reply for reply in replies])
-    ctx, asked = _ctx(answer, agent=SimpleNamespace(route=mock_route(), client=reviewer), config=_smart_config(), **kwargs)
+    reviewer = ScriptedClient(
+        [text_response(reply) if isinstance(reply, str) else reply for reply in replies]
+    )
+    ctx, asked = _ctx(
+        answer, agent=SimpleNamespace(route=mock_route(), client=reviewer), config=_smart_config(), **kwargs
+    )
     return ctx, asked, reviewer
 
 
@@ -398,7 +448,9 @@ def test_smart_mode_refuses_what_the_reviewer_calls_dangerous():
     assert "judged this command dangerous" in decision.reason
 
 
-@pytest.mark.parametrize("reply", ["ESCALATE", "", "I think this is probably fine.", "approved!", RuntimeError("model down")])
+@pytest.mark.parametrize(
+    "reply", ["ESCALATE", "", "I think this is probably fine.", "approved!", RuntimeError("model down")]
+)
 def test_smart_mode_asks_the_user_whenever_the_reviewer_is_not_clear(reply):
     ctx, asked, _ = _smart_ctx(reply, answer="once")
     decision = check_command("rm -rf ./build", ctx)
@@ -424,7 +476,9 @@ def test_smart_mode_only_reviews_flagged_commands_and_cannot_unlock_the_hard_lim
 
 def test_smart_mode_with_no_one_to_ask_falls_back_to_the_policy():
     reviewer = ScriptedClient([text_response("ESCALATE"), text_response("APPROVE")])
-    ctx = ToolContext(platform="cron", agent=SimpleNamespace(route=mock_route(), client=reviewer), config=_smart_config())
+    ctx = ToolContext(
+        platform="cron", agent=SimpleNamespace(route=mock_route(), client=reviewer), config=_smart_config()
+    )
     assert check_command("rm -rf ./build", ctx).choice == "policy"  # unsure + nobody to ask = deny
     assert check_command("rm -rf ./build", ctx).approved is True  # cleared by the reviewer
 
@@ -479,7 +533,7 @@ def test_a_quoted_mention_is_approved_without_asking(command):
         "bash -c 'rm -rf $HOME'",
         'bash -c "rm -rf /" && echo done',
         'sudo bash -c "rm -rf /"',
-        'bash -c "bash -c \'rm -rf /\'"',  # nested payload
+        "bash -c \"bash -c 'rm -rf /'\"",  # nested payload
     ],
 )
 def test_code_passed_to_a_shell_is_still_judged(command):
@@ -491,12 +545,12 @@ def test_code_passed_to_a_shell_is_still_judged(command):
 @pytest.mark.parametrize(
     "command",
     [
-        'python -c "import shutil; shutil.rmtree(\'/tmp/build\')"',
-        'python3 -c "import os; os.remove(\'build/notes.txt\')"',
+        "python -c \"import shutil; shutil.rmtree('/tmp/build')\"",
+        "python3 -c \"import os; os.remove('build/notes.txt')\"",
         "python -c 'import os; os.unlink(\"build/notes.txt\")'",
-        'node -e "require(\'fs\').unlinkSync(\'build/notes.txt\')"',
+        "node -e \"require('fs').unlinkSync('build/notes.txt')\"",
         "perl -e 'unlink \"build/notes.txt\"'",
-        'ruby -e "File.delete(\'build/notes.txt\')"',
+        "ruby -e \"File.delete('build/notes.txt')\"",
         'bash -c "rm -rf build"',
     ],
 )
@@ -524,7 +578,7 @@ def test_an_interpreter_payload_that_reaches_the_agents_settings_is_flagged(comm
 def test_a_payload_that_only_mentions_a_forbidden_command_is_still_data():
     """A quoted mention nested inside an interpreter string is data for that interpreter too."""
     for command in (
-        'python -c "print(\'rm -rf /\')"',
+        "python -c \"print('rm -rf /')\"",
         "python -c 'print(\"the fix removes rm -rf / from the script\")'",
         'echo "a script that deletes with shutil.rmtree is dangerous"',
     ):
@@ -547,7 +601,11 @@ def test_a_payload_that_only_mentions_a_forbidden_command_is_still_data():
 def test_a_name_assembled_from_a_variable_is_judged_as_what_it_runs(command, clite_home):
     """The second hole: ``c=clite; $c config set ...`` and ``d=/; rm -rf $d``."""
     decision = check_command(command, ToolContext(approval_mode="off"))
-    caught = decision.approved is False or detect_dangerous_command(command) or detect_self_access(command) is not None
+    caught = (
+        decision.approved is False
+        or detect_dangerous_command(command)
+        or detect_self_access(command) is not None
+    )
     assert caught, command
 
 
@@ -563,8 +621,9 @@ def test_the_examples_in_the_security_document_are_caught():
     recursive delete the user is asked about, the other two by the new detectors."""
     assert detect_dangerous_command("rm -rf $(echo /)"), "the substitution is still a recursive delete"
     assert detect_self_access("c=clite; $c config set approvals.mode off") is not None
-    assert detect_dangerous_command("python -c \"import shutil; shutil.rmtree(chr(47))\""), \
+    assert detect_dangerous_command('python -c "import shutil; shutil.rmtree(chr(47))"'), (
         "a delete spelled in an interpreter payload"
+    )
 
 
 def test_a_variable_that_names_the_agents_cli_is_never_remembered():
@@ -578,7 +637,15 @@ def test_a_variable_that_names_the_agents_cli_is_never_remembered():
 
 @pytest.mark.parametrize(
     "command",
-    ["kill -1 1", "kill -HUP 1", "shutdown -h now", "shutdown now", "reboot", "init 0", "mkfs.ext4 /dev/sda1"],
+    [
+        "kill -1 1",
+        "kill -HUP 1",
+        "shutdown -h now",
+        "shutdown now",
+        "reboot",
+        "init 0",
+        "mkfs.ext4 /dev/sda1",
+    ],
 )
 def test_the_added_absolute_prohibitions_are_refused_in_every_mode(command):
     assert detect_hardline(command), command

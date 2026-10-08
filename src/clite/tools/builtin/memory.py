@@ -24,7 +24,10 @@ MEMORY_SCHEMA = {
             "action": {"type": "string", "enum": ["add", "replace", "remove"]},
             "target": {"type": "string", "enum": ["memory", "user"]},
             "content": {"type": "string", "description": "The entry text, for add and replace."},
-            "old_text": {"type": "string", "description": "A short unique substring of the entry, for replace and remove."},
+            "old_text": {
+                "type": "string",
+                "description": "A short unique substring of the entry, for replace and remove.",
+            },
         },
         "required": ["action", "target"],
     },
@@ -37,7 +40,9 @@ def memory_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
     if manager is None:
         return tool_error("Memory is not available in this session.")
     result = manager.handle_memory_tool(
-        str(args.get("action") or ""), str(args.get("target") or ""), str(args.get("content") or ""),
+        str(args.get("action") or ""),
+        str(args.get("target") or ""),
+        str(args.get("content") or ""),
         str(args.get("old_text") or ""),
     )
     return tool_result(result)

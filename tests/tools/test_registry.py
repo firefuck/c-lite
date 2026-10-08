@@ -9,12 +9,16 @@ import pytest
 from clite.tools import registry as registry_module
 from clite.tools.registry import discover_builtin_tools, registry, tool_error, tool_result
 
-SCHEMA = {"description": "test tool", "parameters": {"type": "object", "properties": {"x": {"type": "integer"}}}}
+SCHEMA = {
+    "description": "test tool",
+    "parameters": {"type": "object", "properties": {"x": {"type": "integer"}}},
+}
 
 
 def _register(name="t_echo", handler=None, **kwargs):
-    return registry.register(name, "test-set", dict(SCHEMA), handler or (lambda args: tool_result(args)),
-                             origin="test", **kwargs)
+    return registry.register(
+        name, "test-set", dict(SCHEMA), handler or (lambda args: tool_result(args)), origin="test", **kwargs
+    )
 
 
 def test_register_fills_in_the_schema_name():
@@ -33,7 +37,9 @@ def test_another_origin_cannot_replace_a_tool_silently():
     _register()
     with pytest.raises(ValueError):
         registry.register("t_echo", "x", dict(SCHEMA), lambda args: "{}", origin="plugin:other")
-    registry.register("t_echo", "x", dict(SCHEMA), lambda args: '{"v": 2}', origin="plugin:other", override=True)
+    registry.register(
+        "t_echo", "x", dict(SCHEMA), lambda args: '{"v": 2}', origin="plugin:other", override=True
+    )
     try:
         assert json.loads(registry.dispatch("t_echo", {})) == {"v": 2}
     finally:
@@ -150,4 +156,6 @@ def test_result_helpers():
 
 def test_builtin_discovery_registers_the_core_tools():
     discover_builtin_tools()
-    assert {"terminal", "process", "read_file", "write_file", "patch", "search_files", "web_fetch"} <= set(registry.names())
+    assert {"terminal", "process", "read_file", "write_file", "patch", "search_files", "web_fetch"} <= set(
+        registry.names()
+    )

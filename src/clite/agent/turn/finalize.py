@@ -23,10 +23,14 @@ def close_open_tool_calls(agent: AIAgent) -> None:
     for message in list(agent.messages):
         for call in message.get("tool_calls") or []:
             if call.get("id") not in answered:
-                agent.append_message({
-                    "role": "tool", "tool_call_id": call.get("id"),
-                    "name": (call.get("function") or {}).get("name"), "content": INTERRUPTED_RESULT,
-                })
+                agent.append_message(
+                    {
+                        "role": "tool",
+                        "tool_call_id": call.get("id"),
+                        "name": (call.get("function") or {}).get("name"),
+                        "content": INTERRUPTED_RESULT,
+                    }
+                )
                 answered.add(call.get("id"))
 
 
@@ -43,9 +47,15 @@ def finalize_turn(agent: AIAgent, state: TurnState) -> TurnResult:
         agent.memory.after_turn(user_text, state.final_response, agent.session_id)
     if has_hook("post_llm_call"):
         invoke_hook(
-            "post_llm_call", session_id=agent.session_id, user_message=user_text,
-            assistant_response=state.final_response, platform=agent.platform, model=state.route.model,
-            completed=state.completed, interrupted=state.interrupted, api_calls=state.api_calls,
+            "post_llm_call",
+            session_id=agent.session_id,
+            user_message=user_text,
+            assistant_response=state.final_response,
+            platform=agent.platform,
+            model=state.route.model,
+            completed=state.completed,
+            interrupted=state.interrupted,
+            api_calls=state.api_calls,
         )
     if state.completed:
         agent.maybe_generate_title(user_text)
@@ -72,5 +82,5 @@ def finalize_turn(agent: AIAgent, state: TurnState) -> TurnResult:
         model=state.route.model,
         provider=state.route.provider,
         duration=time.monotonic() - state.started_at,
-        messages=list(agent.messages[state.first_message_index:]),
+        messages=list(agent.messages[state.first_message_index :]),
     )

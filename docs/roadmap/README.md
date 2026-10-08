@@ -118,14 +118,21 @@ dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
 
 | Task | Judul | Ukuran | Bergantung pada | Status |
 |---|---|---|---|---|
-| F3-T1 | Input REPL klasik: saat sibuk, multi-baris, riwayat | M | - | ⬜ |
-| F3-T2 | Render Markdown dan diff | M | - | ⬜ |
-| F3-T3 | TUI layar penuh | XL | F1-T1 | ⬜ |
-| F3-T4 | Slash command tambahan | M | - | ⬜ |
-| F3-T5 | Wizard setup | M | F1-T2 | ⬜ |
-| F3-T6 | `clite update`, `backup`, `uninstall` | M | F1-T7 | ⬜ |
-| F3-T7 | Pelengkapan shell | S | - | ⬜ |
-| F3-T8 | `/insights` | S | F2-T3 | ⬜ |
+| F3-T1 | Input REPL klasik: saat sibuk, multi-baris, riwayat | M | - | ✅ |
+| F3-T2 | Render Markdown dan diff | M | - | ✅ |
+| F3-T3 | TUI layar penuh | XL | F1-T1 | ✅ |
+| F3-T4 | Slash command tambahan | M | - | ✅ |
+| F3-T5 | Wizard setup | M | F1-T2 | ✅ |
+| F3-T6 | `clite update`, `backup`, `uninstall` | M | F1-T7 | ✅ |
+| F3-T7 | Pelengkapan shell | S | - | ✅ |
+| F3-T8 | `/insights` | S | F2-T3 | ✅ |
+| F3-T9 | Kerangka aplikasi Ink | M | F1-T1 | ✅ |
+| F3-T10 | Bilah status | S | F3-T9 | ✅ |
+| F3-T11 | Dialog persetujuan dan klarifikasi | M | F3-T9 | ✅ |
+| F3-T12 | Pelengkapan slash command | M | F3-T9, F3-T4 | ✅ |
+| F3-T13 | Pemilih sesi dan model | M | F3-T9 | ✅ |
+| F3-T14 | Tema dari skin dan tahan ubah ukuran | S | F3-T9 | ✅ |
+| F3-T15 | Bundle Ink dalam satu `.mjs` | M | F3-T9 | ✅ |
 
 ### Fase 4: gateway
 

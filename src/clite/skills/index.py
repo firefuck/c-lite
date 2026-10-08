@@ -15,7 +15,9 @@ MAX_INDEX_CHARS = 12_000
 MAX_DESCRIPTION_CHARS = 200
 
 
-def visible_skills(skills: Iterable[Skill], *, enabled_tools: Iterable[str] = (), enabled_toolsets: Iterable[str] = ()) -> list[Skill]:
+def visible_skills(
+    skills: Iterable[Skill], *, enabled_tools: Iterable[str] = (), enabled_toolsets: Iterable[str] = ()
+) -> list[Skill]:
     """Apply conditional activation.
 
     ``requires_*``: show only when those tools or toolsets are available (the skill is useless

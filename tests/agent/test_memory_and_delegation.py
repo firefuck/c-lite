@@ -24,11 +24,16 @@ def test_entries_are_stored_delimited_and_bounded(clite_home):
     store = MemoryStore(memory_char_limit=60)
     assert store.add("memory", "Project uses pnpm")["success"] is True
     assert store.add("memory", "CI runs on push to main")["success"] is True
-    assert (clite_home / "memories" / "MEMORY.md").read_text(encoding="utf-8") == "Project uses pnpm\n§\nCI runs on push to main\n"
+    assert (clite_home / "memories" / "MEMORY.md").read_text(
+        encoding="utf-8"
+    ) == "Project uses pnpm\n§\nCI runs on push to main\n"
 
     full = store.add("memory", "A third fact that does not fit in the remaining space")
     assert full["success"] is False and "Replace or remove" in full["error"]
-    assert full["entries"] == ["Project uses pnpm", "CI runs on push to main"]  # shown so the model can consolidate
+    assert full["entries"] == [
+        "Project uses pnpm",
+        "CI runs on push to main",
+    ]  # shown so the model can consolidate
 
 
 def test_replace_and_remove_match_by_unique_substring():
@@ -37,7 +42,10 @@ def test_replace_and_remove_match_by_unique_substring():
     store.add("user", "Prefers concise answers")
     ambiguous = store.replace("user", "Prefers", "x")
     assert ambiguous["success"] is False and len(ambiguous["matches"]) == 2
-    assert store.replace("user", "dark mode", "Prefers light mode")["entries"] == ["Prefers light mode", "Prefers concise answers"]
+    assert store.replace("user", "dark mode", "Prefers light mode")["entries"] == [
+        "Prefers light mode",
+        "Prefers concise answers",
+    ]
     assert store.remove("user", "concise")["entries"] == ["Prefers light mode"]
     assert store.remove("user", "not there")["success"] is False
     assert store.replace("user", "", "x")["success"] is False
@@ -110,7 +118,13 @@ class RecordingProvider(MemoryProvider):
         self.events.append(("sync", user_content, assistant_content))
 
     def get_tool_schemas(self):
-        return [{"name": "recall", "description": "Search long-term memory.", "parameters": {"type": "object", "properties": {"q": {"type": "string"}}}}]
+        return [
+            {
+                "name": "recall",
+                "description": "Search long-term memory.",
+                "parameters": {"type": "object", "properties": {"q": {"type": "string"}}},
+            }
+        ]
 
     def handle_tool_call(self, tool_name, args, **context):
         return json.dumps({"hits": [f"memory about {args['q']}"]})
@@ -132,8 +146,13 @@ def provider(clite_home):
 
 def test_external_provider_takes_part_in_the_whole_turn(make_agent, provider):
     agent, client = make_agent(
-        [tool_call_response(("recall", {"q": "tea"}), ("memory", {"action": "add", "target": "user", "content": "Drinks tea"})),
-         text_response("You like tea.")],
+        [
+            tool_call_response(
+                ("recall", {"q": "tea"}),
+                ("memory", {"action": "add", "target": "user", "content": "Drinks tea"}),
+            ),
+            text_response("You like tea."),
+        ],
         enabled_toolsets=["memory"],
     )
     assert "recall" in agent.tool_names
@@ -145,8 +164,10 @@ def test_external_provider_takes_part_in_the_whole_turn(make_agent, provider):
     assert json.loads(agent.messages[2]["content"]) == {"hits": ["memory about tea"]}
     agent.close()
     assert provider.events == [
-        ("initialize", "cli"), ("mirror", "add", "user", "Drinks tea"),
-        ("sync", "what do I like to drink? tea", "You like tea."), ("end", 5),
+        ("initialize", "cli"),
+        ("mirror", "add", "user", "Drinks tea"),
+        ("sync", "what do I like to drink? tea", "You like tea."),
+        ("end", 5),
     ]
 
 
@@ -188,7 +209,9 @@ def _user_texts(client):
 
 def test_the_memory_nudge_rides_one_user_message_and_stays_out_of_its_text(make_agent, clite_home):
     (clite_home / "config.yaml").write_text("memory:\n  nudge_interval: 3\n")
-    agent, client = make_agent([text_response(f"answer {n}") for n in range(1, 8)], enabled_toolsets=["memory"])
+    agent, client = make_agent(
+        [text_response(f"answer {n}") for n in range(1, 8)], enabled_toolsets=["memory"]
+    )
     for n in range(1, 8):
         agent.run_conversation(f"question {n}")
     sent = _user_texts(client)
@@ -201,8 +224,14 @@ def test_the_memory_nudge_rides_one_user_message_and_stays_out_of_its_text(make_
 def test_a_memory_write_restarts_the_nudge_count(make_agent, clite_home):
     (clite_home / "config.yaml").write_text("memory:\n  nudge_interval: 2\n")
     agent, client = make_agent(
-        [tool_call_response(("memory", {"action": "add", "target": "memory", "content": "Uses fish shell"})),
-         text_response("saved"), text_response("two"), text_response("three")],
+        [
+            tool_call_response(
+                ("memory", {"action": "add", "target": "memory", "content": "Uses fish shell"})
+            ),
+            text_response("saved"),
+            text_response("two"),
+            text_response("three"),
+        ],
         enabled_toolsets=["memory"],
     )
     for text in ("remember my shell", "second", "third"):
@@ -236,20 +265,32 @@ def _delegating_agent(make_agent, responses=None, **kwargs):
 
 def test_child_runs_in_isolation_and_only_its_report_returns(make_agent):
     events = []
-    agent, client = _delegating_agent(make_agent, [
-        text_response("parent small talk"),
-        tool_call_response(("delegate_task", {"goal": "Count the TODO comments in src/", "context": "The repo is at /work"})),
-        tool_call_response(("search_files", {"pattern": "TODO"})),  # the child's own tool call
-        text_response("Found 3 TODO comments."),  # the child's report
-        text_response("There are 3 TODOs."),
-    ], callbacks=AgentCallbacks(on_subagent=lambda event, payload: events.append(event)))
+    agent, client = _delegating_agent(
+        make_agent,
+        [
+            text_response("parent small talk"),
+            tool_call_response(
+                (
+                    "delegate_task",
+                    {"goal": "Count the TODO comments in src/", "context": "The repo is at /work"},
+                )
+            ),
+            tool_call_response(("search_files", {"pattern": "TODO"})),  # the child's own tool call
+            text_response("Found 3 TODO comments."),  # the child's report
+            text_response("There are 3 TODOs."),
+        ],
+        callbacks=AgentCallbacks(on_subagent=lambda event, payload: events.append(event)),
+    )
     agent.run_conversation("secret parent context: launch code 1234")
     result = agent.run_conversation("how many TODOs?")
     assert result.final_response == "There are 3 TODOs."
 
     child_request = client.calls[2]["messages"]
     assert "delegated worker" in child_request[0]["content"]
-    assert child_request[1]["content"] == "# Task\n\nCount the TODO comments in src/\n\n# Context\n\nThe repo is at /work"
+    assert (
+        child_request[1]["content"]
+        == "# Task\n\nCount the TODO comments in src/\n\n# Context\n\nThe repo is at /work"
+    )
     assert "launch code" not in json.dumps(child_request)  # nothing of the parent's conversation
 
     child_tools = {tool["function"]["name"] for tool in client.calls[2]["tools"]}
@@ -258,12 +299,16 @@ def test_child_runs_in_isolation_and_only_its_report_returns(make_agent):
 
     report = json.loads(agent.messages[-2]["content"])
     assert report["completed"] == 1 and report["results"][0]["summary"] == "Found 3 TODO comments."
-    assert "TODO" not in [m.get("name") for m in agent.messages]  # the child's tool output never reached the parent
+    assert "TODO" not in [
+        m.get("name") for m in agent.messages
+    ]  # the child's tool output never reached the parent
     assert events == ["start", "tool", "complete"]
 
     child_row = get_session_db().get_session(report["results"][0]["session_id"])
     assert child_row["parent_session_id"] == agent.session_id
-    assert [s["id"] for s in get_session_db().list_sessions()] == [agent.session_id]  # children are not listed
+    assert [s["id"] for s in get_session_db().list_sessions()] == [
+        agent.session_id
+    ]  # children are not listed
 
 
 def test_parallel_tasks_each_get_a_report(make_agent):
@@ -271,15 +316,25 @@ def test_parallel_tasks_each_get_a_report(make_agent):
         goal = messages[1]["content"].splitlines()[2]
         return text_response(f"report for {goal}")
 
-    client = ScriptedClient([
-        tool_call_response(("delegate_task", {"tasks": [{"goal": "alpha"}, {"goal": "beta"}, {"goal": "gamma"}]})),
-        child_answer, child_answer, child_answer, text_response("all three done"),
-    ])
+    client = ScriptedClient(
+        [
+            tool_call_response(
+                ("delegate_task", {"tasks": [{"goal": "alpha"}, {"goal": "beta"}, {"goal": "gamma"}]})
+            ),
+            child_answer,
+            child_answer,
+            child_answer,
+            text_response("all three done"),
+        ]
+    )
     agent, _ = _delegating_agent(make_agent, client=client)
     assert agent.run_conversation("fan out").final_response == "all three done"
     report = json.loads(agent.messages[2]["content"])
     assert [(r["goal"], r["summary"]) for r in report["results"]] == [
-        ("alpha", "report for alpha"), ("beta", "report for beta"), ("gamma", "report for gamma")]
+        ("alpha", "report for alpha"),
+        ("beta", "report for beta"),
+        ("gamma", "report for gamma"),
+    ]
 
 
 def test_children_cannot_delegate_further(make_agent):
@@ -294,10 +349,14 @@ def test_children_cannot_delegate_further(make_agent):
 
 
 def test_child_toolsets_are_limited_to_what_the_parent_has(make_agent):
-    agent, client = make_agent([
-        tool_call_response(("delegate_task", {"goal": "g", "toolsets": ["terminal", "file", "web"]})),
-        text_response("report"), text_response("done"),
-    ], enabled_toolsets=["file", "delegation"])
+    agent, client = make_agent(
+        [
+            tool_call_response(("delegate_task", {"goal": "g", "toolsets": ["terminal", "file", "web"]})),
+            text_response("report"),
+            text_response("done"),
+        ],
+        enabled_toolsets=["file", "delegation"],
+    )
     agent.run_conversation("go")
     child_tools = {tool["function"]["name"] for tool in client.calls[1]["tools"]}
     assert child_tools == {"read_file", "write_file", "patch", "search_files"}  # no terminal, no web
@@ -308,11 +367,15 @@ def test_child_cannot_gain_write_tools_from_a_partially_allowed_toolset(make_age
     from clite.tools.toolsets import TOOLSETS
 
     monkeypatch.setitem(TOOLSETS, "read-only", {"tools": ["read_file", "delegate_task"]})
-    agent, client = make_agent([
-        tool_call_response(("delegate_task", {"goal": "inspect", "toolsets": requested})),
-        tool_call_response(("write_file", {"path": "forbidden.txt", "content": "escaped"})),
-        text_response("cannot write"), text_response("done"),
-    ], enabled_toolsets=["read-only"])
+    agent, client = make_agent(
+        [
+            tool_call_response(("delegate_task", {"goal": "inspect", "toolsets": requested})),
+            tool_call_response(("write_file", {"path": "forbidden.txt", "content": "escaped"})),
+            text_response("cannot write"),
+            text_response("done"),
+        ],
+        enabled_toolsets=["read-only"],
+    )
     assert agent.run_conversation("go").completed
     child_tools = {tool["function"]["name"] for tool in client.calls[1]["tools"]}
     assert child_tools == {"read_file"}
@@ -325,14 +388,24 @@ def test_child_inherits_disabled_tools_and_cannot_expand_a_partial_mcp_toolset(m
     from clite.tools.toolsets import TOOLSETS
 
     for name in ("mcp_probe_read", "mcp_probe_write"):
-        registry.register(name, "mcp-probe", {"parameters": {"type": "object", "properties": {}}},
-                          lambda args, ctx=None: tool_result(ok=True), origin="test")
+        registry.register(
+            name,
+            "mcp-probe",
+            {"parameters": {"type": "object", "properties": {}}},
+            lambda args, ctx=None: tool_result(ok=True),
+            origin="test",
+        )
     monkeypatch.setitem(TOOLSETS, "mcp-read-only", {"tools": ["mcp_probe_read", "delegate_task"]})
     monkeypatch.setitem(TOOLSETS, "deny-read", {"tools": ["read_file"]})
-    agent, client = make_agent([
-        tool_call_response(("delegate_task", {"goal": "inspect", "toolsets": ["all", "mcp-probe"]})),
-        text_response("report"), text_response("done"),
-    ], enabled_toolsets=["mcp-read-only", "file"], disabled_toolsets=["deny-read"])
+    agent, client = make_agent(
+        [
+            tool_call_response(("delegate_task", {"goal": "inspect", "toolsets": ["all", "mcp-probe"]})),
+            text_response("report"),
+            text_response("done"),
+        ],
+        enabled_toolsets=["mcp-read-only", "file"],
+        disabled_toolsets=["deny-read"],
+    )
     assert agent.run_conversation("go").completed
     child_tools = {tool["function"]["name"] for tool in client.calls[1]["tools"]}
     assert child_tools == agent.tool_names - {"delegate_task"}
@@ -343,11 +416,14 @@ def test_child_inherits_disabled_tools_and_cannot_expand_a_partial_mcp_toolset(m
 def test_a_failing_child_reports_failure_without_failing_the_parent(make_agent):
     from clite.providers.http import ProviderHTTPError
 
-    agent, _ = _delegating_agent(make_agent, [
-        tool_call_response(("delegate_task", {"goal": "g"})),
-        ProviderHTTPError(400, '{"error": {"message": "bad request"}}', {}, "u"),
-        text_response("the subagent failed, doing it myself"),
-    ])
+    agent, _ = _delegating_agent(
+        make_agent,
+        [
+            tool_call_response(("delegate_task", {"goal": "g"})),
+            ProviderHTTPError(400, '{"error": {"message": "bad request"}}', {}, "u"),
+            text_response("the subagent failed, doing it myself"),
+        ],
+    )
     result = agent.run_conversation("go")
     report = json.loads(agent.messages[2]["content"])
     assert report["results"][0]["status"] == "failed" and "bad request" in report["results"][0]["error"]
@@ -360,12 +436,15 @@ def test_delegation_hooks_and_iteration_limit(make_agent, clite_home):
     bus = get_hook_bus()
     bus.register("subagent_start", lambda goal: seen.append(("start", goal)))
     bus.register("subagent_stop", lambda status: seen.append(("stop", status)))
-    agent, _ = _delegating_agent(make_agent, [
-        tool_call_response(("delegate_task", {"goal": "loop"})),
-        tool_call_response(("search_files", {"pattern": "x"})),  # uses the child's single iteration
-        text_response("ran out of budget, partial findings"),  # the child's wrap-up
-        text_response("ok"),
-    ])
+    agent, _ = _delegating_agent(
+        make_agent,
+        [
+            tool_call_response(("delegate_task", {"goal": "loop"})),
+            tool_call_response(("search_files", {"pattern": "x"})),  # uses the child's single iteration
+            text_response("ran out of budget, partial findings"),  # the child's wrap-up
+            text_response("ok"),
+        ],
+    )
     agent.run_conversation("go")
     report = json.loads(agent.messages[2]["content"])["results"][0]
     assert report["status"] == "failed" and report["summary"] == "ran out of budget, partial findings"
@@ -376,10 +455,14 @@ def test_delegation_hooks_and_iteration_limit(make_agent, clite_home):
 
 
 def test_a_task_with_a_model_runs_on_that_route(make_agent):
-    agent, client = _delegating_agent(make_agent, [
-        tool_call_response(("delegate_task", {"goal": "cheap job", "model": "mock-2"})),
-        text_response("child on mock-2"), text_response("done"),
-    ])
+    agent, client = _delegating_agent(
+        make_agent,
+        [
+            tool_call_response(("delegate_task", {"goal": "cheap job", "model": "mock-2"})),
+            text_response("child on mock-2"),
+            text_response("done"),
+        ],
+    )
     agent.run_conversation("go")
     report = json.loads(agent.messages[2]["content"])["results"][0]
     assert report["status"] == "completed" and report["model"] == "mock-2"
@@ -387,10 +470,14 @@ def test_a_task_with_a_model_runs_on_that_route(make_agent):
 
 
 def test_a_task_with_a_provider_qualified_model_switches_provider(make_agent):
-    agent, client = _delegating_agent(make_agent, [
-        tool_call_response(("delegate_task", {"goal": "job", "model": "mock:mock-3"})),
-        text_response("child on mock"), text_response("done"),
-    ])
+    agent, client = _delegating_agent(
+        make_agent,
+        [
+            tool_call_response(("delegate_task", {"goal": "job", "model": "mock:mock-3"})),
+            text_response("child on mock"),
+            text_response("done"),
+        ],
+    )
     agent.run_conversation("go")
     assert client.calls[1]["route"].model == "mock-3"
     assert client.calls[1]["route"].provider == "mock"
@@ -402,10 +489,13 @@ def test_an_unconfigured_model_fails_only_that_task(make_agent):
     from clite.agent.delegation import delegate
 
     # ``openai`` is a known provider but has no key here, so its route cannot be resolved.
-    report = delegate(agent, [
-        {"goal": "bad", "model": "openai:gpt-4o"},
-        {"goal": "good"},
-    ])
+    report = delegate(
+        agent,
+        [
+            {"goal": "bad", "model": "openai:gpt-4o"},
+            {"goal": "good"},
+        ],
+    )
     by_goal = {r["goal"]: r for r in report["results"]}
     assert by_goal["bad"]["status"] == "failed" and "OPENAI_API_KEY" in by_goal["bad"]["error"]
     # The good sibling still ran: an unusable model is not fatal to the batch.
@@ -414,10 +504,14 @@ def test_an_unconfigured_model_fails_only_that_task(make_agent):
 
 
 def test_an_unknown_model_name_is_kept_as_the_parents_provider(make_agent):
-    agent, client = _delegating_agent(make_agent, [
-        tool_call_response(("delegate_task", {"goal": "job", "model": "vendor/thing:free"})),
-        text_response("child report"), text_response("done"),
-    ])
+    agent, client = _delegating_agent(
+        make_agent,
+        [
+            tool_call_response(("delegate_task", {"goal": "job", "model": "vendor/thing:free"})),
+            text_response("child report"),
+            text_response("done"),
+        ],
+    )
     agent.run_conversation("go")
     # A colon-bearing model id is not a provider prefix, so the parent's provider is kept.
     assert client.calls[1]["route"].model == "vendor/thing:free"
@@ -429,11 +523,16 @@ def test_an_unknown_model_name_is_kept_as_the_parents_provider(make_agent):
 
 def test_progress_events_carry_the_tool_arguments_and_iteration(make_agent):
     seen = []
-    agent, _ = _delegating_agent(make_agent, [
-        tool_call_response(("delegate_task", {"goal": "look around"})),
-        tool_call_response(("search_files", {"pattern": "secret", "path": "."})),
-        text_response("child report"), text_response("done"),
-    ], callbacks=AgentCallbacks(on_subagent=lambda event, payload: seen.append((event, payload))))
+    agent, _ = _delegating_agent(
+        make_agent,
+        [
+            tool_call_response(("delegate_task", {"goal": "look around"})),
+            tool_call_response(("search_files", {"pattern": "secret", "path": "."})),
+            text_response("child report"),
+            text_response("done"),
+        ],
+        callbacks=AgentCallbacks(on_subagent=lambda event, payload: seen.append((event, payload))),
+    )
     agent.run_conversation("go")
     tool_event = next(payload for event, payload in seen if event == "tool")
     assert tool_event["tool"] == "search_files"
@@ -488,8 +587,13 @@ def test_a_background_report_reaches_the_parent_as_a_note_without_rewriting_sent
             time.sleep(0.01)
         return tool_result(ok=True)
 
-    registry.register("wait_for_note", "file", {"parameters": {"type": "object", "properties": {}}},
-                      wait_for_note, origin="test")
+    registry.register(
+        "wait_for_note",
+        "file",
+        {"parameters": {"type": "object", "properties": {}}},
+        wait_for_note,
+        origin="test",
+    )
 
     def respond(messages, tools=None, cancel=None, route=None):
         if route.model == "child-model":
@@ -497,7 +601,9 @@ def test_a_background_report_reaches_the_parent_as_a_note_without_rewriting_sent
             return text_response("the background child's report")
         parent_calls["n"] += 1
         if parent_calls["n"] == 1:
-            return tool_call_response(("delegate_task", {"goal": "bg", "model": "child-model", "background": True}))
+            return tool_call_response(
+                ("delegate_task", {"goal": "bg", "model": "child-model", "background": True})
+            )
         if parent_calls["n"] == 2:
             return tool_call_response(("wait_for_note", {}))
         return text_response("final answer")
@@ -535,7 +641,9 @@ def test_parent_interrupt_stops_a_background_subagent(make_agent):
             from clite.providers.transports.types import NormalizedResponse
 
             return NormalizedResponse(content="", tool_calls=[], finish_reason="stop")
-        return tool_call_response(("delegate_task", {"goal": "bg", "model": "child-model", "background": True}))
+        return tool_call_response(
+            ("delegate_task", {"goal": "bg", "model": "child-model", "background": True})
+        )
 
     client = ScriptedClient([respond, respond])
     agent, _ = _delegating_agent(make_agent, client=client)
@@ -555,14 +663,17 @@ def test_parent_interrupt_stops_a_background_subagent(make_agent):
 def test_a_middle_child_may_delegate_again_and_a_grandchild_may_not(make_agent, clite_home):
     (clite_home / "config.yaml").write_text("delegation:\n  max_spawn_depth: 2\n")
     reset_config_cache()
-    agent, client = _delegating_agent(make_agent, [
-        tool_call_response(("delegate_task", {"goal": "middle work"})),
-        # the middle child delegates once more
-        tool_call_response(("delegate_task", {"goal": "grandchild work"})),
-        text_response("grandchild report"),  # the grandchild's answer
-        text_response("middle report"),  # the middle child's answer
-        text_response("top done"),
-    ])
+    agent, client = _delegating_agent(
+        make_agent,
+        [
+            tool_call_response(("delegate_task", {"goal": "middle work"})),
+            # the middle child delegates once more
+            tool_call_response(("delegate_task", {"goal": "grandchild work"})),
+            text_response("grandchild report"),  # the grandchild's answer
+            text_response("middle report"),  # the middle child's answer
+            text_response("top done"),
+        ],
+    )
     assert agent.run_conversation("go").final_response == "top done"
 
     middle_tools = {tool["function"]["name"] for tool in client.calls[1]["tools"]}
@@ -576,11 +687,14 @@ def test_a_middle_child_may_delegate_again_and_a_grandchild_may_not(make_agent, 
 def test_a_flat_budget_still_blocks_the_first_child_from_delegating(make_agent, clite_home):
     (clite_home / "config.yaml").write_text("delegation:\n  max_spawn_depth: 1\n")
     reset_config_cache()
-    agent, client = _delegating_agent(make_agent, [
-        tool_call_response(("delegate_task", {"goal": "child work"})),
-        text_response("child report"), text_response("done"),
-    ])
+    agent, client = _delegating_agent(
+        make_agent,
+        [
+            tool_call_response(("delegate_task", {"goal": "child work"})),
+            text_response("child report"),
+            text_response("done"),
+        ],
+    )
     agent.run_conversation("go")
     child_tools = {tool["function"]["name"] for tool in client.calls[1]["tools"]}
     assert "delegate_task" not in child_tools
-

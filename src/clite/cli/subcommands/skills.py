@@ -60,7 +60,9 @@ def run_curate(args: argparse.Namespace) -> int:
         print(f"No agent-created skill has been unused for {args.days} days.")
         return 0
     for entry in report["stale"]:
-        print(f"{'archived' if args.apply else 'stale   '} {entry['name']}  (used {entry['use_count']} times)")
+        print(
+            f"{'archived' if args.apply else 'stale   '} {entry['name']}  (used {entry['use_count']} times)"
+        )
     if not args.apply:
         print("\nNothing was changed. Run with --apply to archive these (they can be restored).")
     return 0
@@ -74,11 +76,15 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     view = actions.add_parser("view", help="print a skill")
     view.add_argument("name")
     view.set_defaults(handler=run_view)
-    install = actions.add_parser("install", help="install from a directory or owner/repo/path[@ref] on GitHub")
+    install = actions.add_parser(
+        "install", help="install from a directory or owner/repo/path[@ref] on GitHub"
+    )
     install.add_argument("source")
     install.add_argument("--source-type", choices=["local", "github"])
     install.add_argument("--category")
-    install.add_argument("--force", action="store_true", help="replace an existing skill / accept scan warnings")
+    install.add_argument(
+        "--force", action="store_true", help="replace an existing skill / accept scan warnings"
+    )
     install.set_defaults(handler=run_install)
     remove = actions.add_parser("remove", help="delete a local skill")
     remove.add_argument("name")

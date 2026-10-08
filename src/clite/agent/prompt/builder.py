@@ -75,7 +75,9 @@ def _stable(inputs: PromptInputs) -> list[str]:
     if "skill_view" in tools:
         parts.append(identity.SKILLS_GUIDANCE)
     for name in get_path(inputs.config, "skills.auto_load", []) or []:
-        skill = next((s for s in discover_skills(cwd=inputs.cwd or None, config=inputs.config) if s.name == name), None)
+        skill = next(
+            (s for s in discover_skills(cwd=inputs.cwd or None, config=inputs.config) if s.name == name), None
+        )
         if skill is None:
             logger.warning("skills.auto_load names an unknown skill: %s", name)
             continue
@@ -129,7 +131,8 @@ def _volatile(inputs: PromptInputs) -> list[str]:
     if "skill_view" in inputs.tool_names:
         skills = visible_skills(
             discover_skills(cwd=inputs.cwd or None, config=inputs.config),
-            enabled_tools=inputs.tool_names, enabled_toolsets=inputs.toolsets,
+            enabled_tools=inputs.tool_names,
+            enabled_toolsets=inputs.toolsets,
         )
         index = build_skills_index(skills)
         if index:
@@ -140,7 +143,9 @@ def _volatile(inputs: PromptInputs) -> list[str]:
         parts.append(f"Active profile: {inputs.profile_name}")
     parts.append(f"Conversation started: {_today(inputs)}")
     if inputs.model:
-        parts.append(f"Model: {inputs.model}" + (f" (provider: {inputs.provider})" if inputs.provider else ""))
+        parts.append(
+            f"Model: {inputs.model}" + (f" (provider: {inputs.provider})" if inputs.provider else "")
+        )
     return parts
 
 
@@ -151,4 +156,9 @@ def build_prompt_tiers(inputs: PromptInputs) -> dict[str, list[str]]:
 
 def build_system_prompt(inputs: PromptInputs) -> str:
     tiers = build_prompt_tiers(inputs)
-    return "\n\n".join(part.strip() for tier in ("stable", "context", "volatile") for part in tiers[tier] if part and part.strip())
+    return "\n\n".join(
+        part.strip()
+        for tier in ("stable", "context", "volatile")
+        for part in tiers[tier]
+        if part and part.strip()
+    )

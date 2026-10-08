@@ -20,9 +20,15 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 KIND_ONCE, KIND_INTERVAL, KIND_CRON = "once", "interval", "cron"
 _UNITS = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}
-_DURATION = re.compile(r"^(\d+)\s*(s|sec|secs|m|min|mins|h|hr|hrs|hour|hours|d|day|days|w|week|weeks)$", re.IGNORECASE)
-_MONTHS = {name: index for index, name in enumerate(
-    ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"), start=1)}
+_DURATION = re.compile(
+    r"^(\d+)\s*(s|sec|secs|m|min|mins|h|hr|hrs|hour|hours|d|day|days|w|week|weeks)$", re.IGNORECASE
+)
+_MONTHS = {
+    name: index
+    for index, name in enumerate(
+        ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"), start=1
+    )
+}
 _WEEKDAYS = {"sun": 0, "mon": 1, "tue": 2, "wed": 3, "thu": 4, "fri": 5, "sat": 6}
 MIN_INTERVAL_SECONDS = 60
 _SEARCH_LIMIT_DAYS = 366 * 5
@@ -41,13 +47,23 @@ class Schedule:
     expr: str | None = None  # cron
 
     def to_dict(self) -> dict:
-        return {"kind": self.kind, "display": self.display, "run_at": self.run_at,
-                "interval_seconds": self.interval_seconds, "expr": self.expr}
+        return {
+            "kind": self.kind,
+            "display": self.display,
+            "run_at": self.run_at,
+            "interval_seconds": self.interval_seconds,
+            "expr": self.expr,
+        }
 
     @classmethod
     def from_dict(cls, data: dict) -> Schedule:
-        return cls(kind=data["kind"], display=data.get("display", ""), run_at=data.get("run_at"),
-                   interval_seconds=data.get("interval_seconds"), expr=data.get("expr"))
+        return cls(
+            kind=data["kind"],
+            display=data.get("display", ""),
+            run_at=data.get("run_at"),
+            interval_seconds=data.get("interval_seconds"),
+            expr=data.get("expr"),
+        )
 
 
 def get_timezone(name: str = "") -> tzinfo:
@@ -119,7 +135,9 @@ class CronExpression:
     def parse(cls, expression: str) -> CronExpression:
         fields = expression.split()
         if len(fields) != 5:
-            raise ScheduleError("a cron expression has five fields: minute hour day-of-month month day-of-week")
+            raise ScheduleError(
+                "a cron expression has five fields: minute hour day-of-month month day-of-week"
+            )
         return cls(
             minutes=_parse_field(fields[0], 0, 59),
             hours=_parse_field(fields[1], 0, 23),
@@ -144,7 +162,11 @@ class CronExpression:
         limit = candidate + timedelta(days=_SEARCH_LIMIT_DAYS)
         while candidate < limit:
             if candidate.month not in self.months:
-                year, month = (candidate.year + 1, 1) if candidate.month == 12 else (candidate.year, candidate.month + 1)
+                year, month = (
+                    (candidate.year + 1, 1)
+                    if candidate.month == 12
+                    else (candidate.year, candidate.month + 1)
+                )
                 candidate = candidate.replace(year=year, month=month, day=1, hour=0, minute=0)
             elif not self._day_matches(candidate):
                 candidate = (candidate + timedelta(days=1)).replace(hour=0, minute=0)
@@ -181,7 +203,9 @@ def parse_schedule(text: str, *, now: float | None = None, timezone: str = "") -
         return Schedule(KIND_ONCE, f"once in {lowered}", run_at=current + seconds)
 
     if len(raw.split()) == 5 and not re.match(r"^\d{4}-\d{2}-\d{2}", raw):
-        CronExpression.parse(raw).next_after(datetime.fromtimestamp(current, get_timezone(timezone)))  # validates
+        CronExpression.parse(raw).next_after(
+            datetime.fromtimestamp(current, get_timezone(timezone))
+        )  # validates
         return Schedule(KIND_CRON, raw, expr=raw)
 
     try:

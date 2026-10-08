@@ -33,8 +33,13 @@ def _wrap_up(agent: AIAgent, state: TurnState, reason: str) -> Verdict:
     agent.append_message(internal_user_message(WRAP_UP_REQUEST.format(reason=reason)))
     try:
         response = agent.client.complete(
-            state.route, assemble_api_messages(agent, state), None, stream=agent.stream, on_delta=agent.callbacks.on_delta,
-            cancel=agent.interrupt_event, params=RequestParams(session_id=agent.session_id),
+            state.route,
+            assemble_api_messages(agent, state),
+            None,
+            stream=agent.stream,
+            on_delta=agent.callbacks.on_delta,
+            cancel=agent.interrupt_event,
+            params=RequestParams(session_id=agent.session_id),
         )
         text = (response.content or "").strip() or WRAP_UP_FALLBACK.format(reason=reason)
         agent.record_usage(state, response.usage)
@@ -110,7 +115,9 @@ def prepare_iteration(agent: AIAgent, state: TurnState) -> Verdict:
         return PROCEED
     engine = agent.context_engine
     # Anchor to the provider's last real prompt size; estimate only the messages appended since.
-    estimate = engine.anchored_prompt_tokens(agent.messages, system_prompt=agent.system_prompt or "", tools=agent.tools)
+    estimate = engine.anchored_prompt_tokens(
+        agent.messages, system_prompt=agent.system_prompt or "", tools=agent.tools
+    )
     if engine.should_compress(estimate):
         agent.compress_context(state, reason="threshold")
     return PROCEED

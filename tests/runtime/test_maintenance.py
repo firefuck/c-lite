@@ -17,7 +17,9 @@ def _age(session_id: str, days: float) -> None:
     db = get_session_db()
     db.create_session(session_id, "cli")
     moment = time.time() - days * DAY
-    db._conn.execute("UPDATE sessions SET started_at = ?, last_activity_at = ? WHERE id = ?", (moment, moment, session_id))
+    db._conn.execute(
+        "UPDATE sessions SET started_at = ?, last_activity_at = ? WHERE id = ?", (moment, moment, session_id)
+    )
     db._conn.commit()
 
 
@@ -33,7 +35,9 @@ def test_auto_prune_runs_at_most_once_a_day(clite_home):
     _age("recent", 5)
     now = time.time()
     assert maintenance.auto_prune_sessions(config, now=now) == 1
-    assert get_session_db().get_session("ancient") is None and get_session_db().get_session("recent") is not None
+    assert (
+        get_session_db().get_session("ancient") is None and get_session_db().get_session("recent") is not None
+    )
     _age("ancient-2", 31)
     assert maintenance.auto_prune_sessions(config, now=now + 3600) is None  # too soon
     assert get_session_db().get_session("ancient-2") is not None

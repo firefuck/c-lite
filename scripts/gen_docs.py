@@ -61,7 +61,9 @@ def first_sentence(text: str | None) -> str:
 def public_symbols(tree: ast.Module) -> list[str]:
     names = []
     for node in tree.body:
-        if isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef) and not node.name.startswith("_"):
+        if isinstance(
+            node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef
+        ) and not node.name.startswith("_"):
             names.append(node.name + ("()" if not isinstance(node, ast.ClassDef) else ""))
     return names
 
@@ -89,7 +91,9 @@ def module_map() -> str:
         for path in packages[package]:
             tree = ast.parse(path.read_text(encoding="utf-8"))
             symbols = public_symbols(tree)
-            shown = ", ".join(f"`{name}`" for name in symbols[:10]) + (f", … (+{len(symbols) - 10})" if len(symbols) > 10 else "")
+            shown = ", ".join(f"`{name}`" for name in symbols[:10]) + (
+                f", … (+{len(symbols) - 10})" if len(symbols) > 10 else ""
+            )
             lines.append(f"| `{path.name}` | {cell(first_sentence(ast.get_docstring(tree)))} | {shown} |")
         lines.append("")
     lines += [f"Jumlah: {sum(len(files) for files in packages.values())} modul.", ""]
@@ -111,7 +115,12 @@ def model_fields(model: Any) -> str:
     Names only: the types live in ``rpc/contracts/schema.py`` and in the generated TypeScript,
     and printing them here would make this page depend on the Python version that built it.
     """
-    return ", ".join(f"`{name}{'' if field.is_required() else '?'}`" for name, field in model.model_fields.items()) or "(kosong)"
+    return (
+        ", ".join(
+            f"`{name}{'' if field.is_required() else '?'}`" for name, field in model.model_fields.items()
+        )
+        or "(kosong)"
+    )
 
 
 def leaf_keys(node: dict[str, Any], prefix: str = "") -> list[tuple[str, Any]]:
@@ -152,23 +161,40 @@ def catalog() -> str:
     lines += ["## Tool", ""]
     lines += table(
         ["Tool", "Toolset", "Paralel", "Deskripsi"],
-        [[f"`{entry.name}`", f"`{entry.toolset}`", entry.parallel, first_sentence(entry.description)]
-         for entry in sorted(registry.entries(), key=lambda item: (item.toolset, item.name))],
+        [
+            [f"`{entry.name}`", f"`{entry.toolset}`", entry.parallel, first_sentence(entry.description)]
+            for entry in sorted(registry.entries(), key=lambda item: (item.toolset, item.name))
+        ],
     )
 
     lines += ["## Toolset", ""]
     lines += table(
         ["Toolset", "Deskripsi", "Berisi (setelah `includes` diurai)"],
-        [[f"`{name}`", spec.get("description", ""), ", ".join(f"`{tool}`" for tool in resolve_toolset(name))]
-         for name, spec in TOOLSETS.items()],
+        [
+            [
+                f"`{name}`",
+                spec.get("description", ""),
+                ", ".join(f"`{tool}`" for tool in resolve_toolset(name)),
+            ]
+            for name, spec in TOOLSETS.items()
+        ],
     )
 
     lines += ["## Slash command", ""]
     lines += table(
         ["Perintah", "Alias", "Kategori", "Argumen", "Saat sibuk", "Hanya CLI", "Deskripsi"],
-        [[f"`/{command.name}`", ", ".join(f"`/{alias}`" for alias in command.aliases), command.category,
-          f"`{command.args_hint}`" if command.args_hint else "", command.busy_policy, "ya" if command.cli_only else "",
-          command.description] for command in COMMAND_REGISTRY],
+        [
+            [
+                f"`/{command.name}`",
+                ", ".join(f"`/{alias}`" for alias in command.aliases),
+                command.category,
+                f"`{command.args_hint}`" if command.args_hint else "",
+                command.busy_policy,
+                "ya" if command.cli_only else "",
+                command.description,
+            ]
+            for command in COMMAND_REGISTRY
+        ],
     )
 
     parser = build_parser()
@@ -177,36 +203,66 @@ def catalog() -> str:
     lines += ["## Perintah CLI", ""]
     rows = []
     for name, sub in subparsers.choices.items():
-        nested = next((action for action in sub._actions if isinstance(action, argparse._SubParsersAction)), None)
-        rows.append([f"`clite {name}`", helps.get(name, ""), ", ".join(f"`{child}`" for child in nested.choices) if nested else ""])
+        nested = next(
+            (action for action in sub._actions if isinstance(action, argparse._SubParsersAction)), None
+        )
+        rows.append(
+            [
+                f"`clite {name}`",
+                helps.get(name, ""),
+                ", ".join(f"`{child}`" for child in nested.choices) if nested else "",
+            ]
+        )
     lines += table(["Perintah", "Fungsi", "Sub-perintah"], rows)
 
     lines += [f"## Protokol JSON-RPC (versi {PROTOCOL_VERSION})", "", "### Method", ""]
     lines += table(
         ["Method", "Parameter", "Hasil", "Keterangan"],
-        [[f"`{name}`", model_fields(spec.params), model_fields(spec.result), spec.description] for name, spec in METHODS.items()],
+        [
+            [f"`{name}`", model_fields(spec.params), model_fields(spec.result), spec.description]
+            for name, spec in METHODS.items()
+        ],
     )
     lines += ["### Event", ""]
-    lines += table(["Event", "Payload"], [[f"`{name}`", model_fields(model)] for name, model in EVENTS.items()])
+    lines += table(
+        ["Event", "Payload"], [[f"`{name}`", model_fields(model)] for name, model in EVENTS.items()]
+    )
     lines += ["### Permintaan dari server ke klien", ""]
     lines += table(
         ["Permintaan", "Parameter", "Jawaban", "Keterangan"],
-        [[f"`{name}`", model_fields(spec.params), model_fields(spec.result), spec.description] for name, spec in SERVER_REQUESTS.items()],
+        [
+            [f"`{name}`", model_fields(spec.params), model_fields(spec.result), spec.description]
+            for name, spec in SERVER_REQUESTS.items()
+        ],
     )
 
     lines += ["## Hook", ""]
     lines += table(
         ["Hook", "Bisa dari shell hook", "Gagal = blokir"],
-        [[f"`{name}`", "ya" if name in SHELL_HOOK_EVENTS else "", "ya" if name in FAIL_CLOSED_HOOKS else ""]
-         for name in sorted(VALID_HOOKS)],
+        [
+            [
+                f"`{name}`",
+                "ya" if name in SHELL_HOOK_EVENTS else "",
+                "ya" if name in FAIL_CLOSED_HOOKS else "",
+            ]
+            for name in sorted(VALID_HOOKS)
+        ],
     )
 
     lines += ["## Provider bawaan", ""]
     lines += table(
         ["Provider", "Alias", "`api_mode`", "Variabel kunci", "Base URL", "Model default"],
-        [[f"`{profile.name}`", ", ".join(f"`{alias}`" for alias in profile.aliases), f"`{profile.api_mode}`",
-          ", ".join(f"`{variable}`" for variable in profile.env_vars), profile.base_url, profile.default_model]
-         for profile in list_providers()],
+        [
+            [
+                f"`{profile.name}`",
+                ", ".join(f"`{alias}`" for alias in profile.aliases),
+                f"`{profile.api_mode}`",
+                ", ".join(f"`{variable}`" for variable in profile.env_vars),
+                profile.base_url,
+                profile.default_model,
+            ]
+            for profile in list_providers()
+        ],
     )
 
     lines += ["## Platform gateway", ""]
@@ -217,19 +273,34 @@ def catalog() -> str:
     lines += ["## Plugin bawaan", ""]
     lines += table(
         ["Plugin", "Jenis", "Deskripsi"],
-        [[f"`{info.name}`", info.manifest.kind, info.manifest.description] for info in manager.list() if info.source == "bundled"],
+        [
+            [f"`{info.name}`", info.manifest.kind, info.manifest.description]
+            for info in manager.list()
+            if info.source == "bundled"
+        ],
     )
 
     lines += ["## Skill bawaan", ""]
     lines += table(
         ["Skill", "Kategori", "Deskripsi"],
-        [[f"`{skill.name}`", skill.category, skill.description] for skill in discover_skills(cwd=os.environ["CLITE_HOME"])],
+        [
+            [f"`{skill.name}`", skill.category, skill.description]
+            for skill in discover_skills(cwd=os.environ["CLITE_HOME"])
+        ],
     )
 
-    lines += ["## Kunci konfigurasi", "", "Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di file itu.", ""]
+    lines += [
+        "## Kunci konfigurasi",
+        "",
+        "Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di file itu.",
+        "",
+    ]
     lines += table(
         ["Kunci", "Default"],
-        [[f"`{key}`", f"`{json.dumps(value, ensure_ascii=False)}`"] for key, value in leaf_keys(DEFAULT_CONFIG)],
+        [
+            [f"`{key}`", f"`{json.dumps(value, ensure_ascii=False)}`"]
+            for key, value in leaf_keys(DEFAULT_CONFIG)
+        ],
     )
     return "\n".join(lines)
 

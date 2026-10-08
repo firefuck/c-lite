@@ -112,7 +112,10 @@ def _runner_source(code: str, limit: int) -> tuple[str, str, str, str]:
     report_marker = f"\x00clite-report:{nonce}\x00"
     source = _RUNNER.format(
         code_b64=base64.b64encode(code.encode("utf-8")).decode("ascii"),
-        limit=limit, stdout_tag=stdout_tag, stderr_tag=stderr_tag, report_marker=report_marker,
+        limit=limit,
+        stdout_tag=stdout_tag,
+        stderr_tag=stderr_tag,
+        report_marker=report_marker,
     )
     return source, stdout_tag, stderr_tag, report_marker
 
@@ -140,7 +143,7 @@ def _report(merged: str, marker: str) -> dict[str, Any] | None:
     if index < 0:
         return None
     try:
-        payload = json.loads(base64.b64decode(merged[index + len(marker):].strip()))
+        payload = json.loads(base64.b64decode(merged[index + len(marker) :].strip()))
     except (ValueError, TypeError):
         return None
     return payload if isinstance(payload, dict) else None
@@ -169,7 +172,10 @@ EXECUTE_CODE_SCHEMA = {
         "type": "object",
         "properties": {
             "code": {"type": "string", "description": "The Python program to run."},
-            "timeout": {"type": "integer", "description": "Seconds before it is killed (default from config)."},
+            "timeout": {
+                "type": "integer",
+                "description": "Seconds before it is killed (default from config).",
+            },
         },
         "required": ["code"],
     },

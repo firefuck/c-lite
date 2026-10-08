@@ -79,14 +79,18 @@ class PluginContext:
 
     # ── tools ────────────────────────────────────────────────────────────────────────────
 
-    def register_tool(self, name: str, toolset: str, schema: dict[str, Any], handler: Callable[..., Any], **options: Any) -> None:
+    def register_tool(
+        self, name: str, toolset: str, schema: dict[str, Any], handler: Callable[..., Any], **options: Any
+    ) -> None:
         """Add a tool the model can call. Replacing a built-in tool needs the user's explicit
         ``plugins.entries.<id>.allow_tool_override: true``."""
         from clite.tools.registry import registry
 
         override = bool(self._entry("allow_tool_override", False))
         displaced = registry.get(name)
-        registry.register(name, toolset, schema, handler, origin=f"plugin:{self.plugin_id}", override=override, **options)
+        registry.register(
+            name, toolset, schema, handler, origin=f"plugin:{self.plugin_id}", override=override, **options
+        )
 
         def undo() -> None:
             registry.deregister(name)
@@ -95,8 +99,9 @@ class PluginContext:
 
         self._record("tool", name, undo)
 
-    def register_toolset(self, name: str, description: str, tools: list[str] | None = None,
-                         includes: list[str] | None = None) -> None:
+    def register_toolset(
+        self, name: str, description: str, tools: list[str] | None = None, includes: list[str] | None = None
+    ) -> None:
         from clite.tools import toolsets
 
         previous = toolsets.TOOLSETS.get(name)
@@ -133,14 +138,21 @@ class PluginContext:
 
     # ── commands ─────────────────────────────────────────────────────────────────────────
 
-    def register_command(self, name: str, handler: Callable[..., Any], description: str = "", args_hint: str = "") -> None:
+    def register_command(
+        self, name: str, handler: Callable[..., Any], description: str = "", args_hint: str = ""
+    ) -> None:
         """Add a slash command, available on every surface."""
         command = PluginCommand(name.lstrip("/").lower(), handler, description, args_hint, self.plugin_id)
         self._manager.commands[command.name] = command
         self._record("command", command.name, lambda: self._manager.commands.pop(command.name, None))
 
-    def register_cli_command(self, name: str, help: str, handler: Callable[[Any], int | None],  # noqa: A002
-                             setup: Callable[[Any], None] | None = None) -> None:
+    def register_cli_command(
+        self,
+        name: str,
+        help: str,
+        handler: Callable[[Any], int | None],  # noqa: A002
+        setup: Callable[[Any], None] | None = None,
+    ) -> None:
         """Add a ``clite <name>`` subcommand."""
         command = PluginCliCommand(name, help, setup, handler, self.plugin_id)
         self._manager.cli_commands[name] = command

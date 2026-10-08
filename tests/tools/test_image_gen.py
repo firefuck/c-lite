@@ -93,8 +93,9 @@ def test_image_generate_writes_the_provider_bytes_to_a_file(tmp_path, clite_home
 
 def test_image_generate_asks_for_the_requested_size_and_count(tmp_path, clite_home, provider):
     ctx = ToolContext(cwd=str(tmp_path))
-    result = json.loads(handle_function_call(
-        "image_generate", {"prompt": "three cats", "size": "512x512", "count": 3}, ctx))
+    result = json.loads(
+        handle_function_call("image_generate", {"prompt": "three cats", "size": "512x512", "count": 3}, ctx)
+    )
     assert len(result["images"]) == 3
     assert provider.calls == [("three cats", "512x512", 3)]
     assert len({image["path"] for image in result["images"]}) == 3  # distinct file names
@@ -114,18 +115,22 @@ def test_image_generate_reports_a_missing_prompt(tmp_path, clite_home, provider)
 
 def test_image_generate_without_a_provider_tells_the_model_what_to_do(tmp_path, clite_home):
     reset_image_providers()
-    result = json.loads(handle_function_call(
-        "image_generate", {"prompt": "x"}, ToolContext(cwd=str(tmp_path))))
+    result = json.loads(
+        handle_function_call("image_generate", {"prompt": "x"}, ToolContext(cwd=str(tmp_path)))
+    )
     assert "no image generation provider" in result["error"]
 
 
-def test_image_generate_consults_the_file_safety_guard_before_writing(tmp_path, clite_home, provider, monkeypatch):
+def test_image_generate_consults_the_file_safety_guard_before_writing(
+    tmp_path, clite_home, provider, monkeypatch
+):
     """A generated image is a file write like any other: the safety list is consulted first."""
     import clite.tools.builtin.image_gen as module
 
     monkeypatch.setattr(module, "write_denied_reason", lambda path: "it holds this agent's own settings")
-    result = json.loads(handle_function_call(
-        "image_generate", {"prompt": "x"}, ToolContext(cwd=str(tmp_path))))
+    result = json.loads(
+        handle_function_call("image_generate", {"prompt": "x"}, ToolContext(cwd=str(tmp_path)))
+    )
     assert "Refused to write" in result["error"]
     assert not list(tmp_path.glob("generated-images/*")), "nothing may be written when refused"
 
@@ -172,12 +177,16 @@ def test_the_openai_provider_posts_the_documented_images_request(clite_home, mon
 
         def do_POST(self):  # noqa: N802 - http.server API
             length = int(self.headers.get("Content-Length") or 0)
-            recorded.append({
-                "path": self.path,
-                "auth": self.headers.get("Authorization"),
-                "body": json.loads(self.rfile.read(length)) if length else {},
-            })
-            reply = {"data": [{"b64_json": base64.b64encode(png).decode(), "revised_prompt": "a tidy version"}]}
+            recorded.append(
+                {
+                    "path": self.path,
+                    "auth": self.headers.get("Authorization"),
+                    "body": json.loads(self.rfile.read(length)) if length else {},
+                }
+            )
+            reply = {
+                "data": [{"b64_json": base64.b64encode(png).decode(), "revised_prompt": "a tidy version"}]
+            }
             payload = json.dumps(reply).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")

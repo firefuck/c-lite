@@ -28,9 +28,15 @@ TERMINAL_SCHEMA = {
         "type": "object",
         "properties": {
             "command": {"type": "string", "description": "The command line to run."},
-            "timeout": {"type": "integer", "description": "Seconds before the command is killed (default from config)."},
+            "timeout": {
+                "type": "integer",
+                "description": "Seconds before the command is killed (default from config).",
+            },
             "workdir": {"type": "string", "description": "Run in this directory instead of the current one."},
-            "background": {"type": "boolean", "description": "Start and return immediately with a process_id."},
+            "background": {
+                "type": "boolean",
+                "description": "Start and return immediately with a process_id.",
+            },
         },
         "required": ["command"],
     },
@@ -63,7 +69,9 @@ def terminal_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
 
     # The gate sees where the command will run: inside the agent's own home, a bare
     # `config.yaml` is the agent's policy file.
-    decision = check_command(command, ctx, cwd=environment.resolve_path(workdir) if workdir else environment.cwd)
+    decision = check_command(
+        command, ctx, cwd=environment.resolve_path(workdir) if workdir else environment.cwd
+    )
     if not decision.approved:
         return tool_error(decision.reason, status="blocked")
 
@@ -72,8 +80,9 @@ def terminal_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
 
         cwd = environment.resolve_path(workdir) if workdir else environment.cwd
         try:
-            managed = process_registry.spawn(command, cwd=cwd, task_id=ctx.task_id or ctx.session_id,
-                                             environment=environment)
+            managed = process_registry.spawn(
+                command, cwd=cwd, task_id=ctx.task_id or ctx.session_id, environment=environment
+            )
         except NotImplementedError:
             return tool_error(
                 f"the {environment.name} backend cannot keep a background process; "
@@ -81,7 +90,9 @@ def terminal_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
             )
         except (OSError, RuntimeError) as exc:
             return tool_error(f"could not start background process: {exc}")
-        return tool_result(process_id=managed.id, status="running", hint="Use the process tool to poll, wait or kill it.")
+        return tool_result(
+            process_id=managed.id, status="running", hint="Use the process tool to poll, wait or kill it."
+        )
 
     try:
         timeout = min(int(args.get("timeout") or environment.default_timeout), MAX_TIMEOUT_SECONDS)
@@ -89,14 +100,22 @@ def terminal_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
         return tool_error("timeout must be an integer number of seconds")
 
     result = environment.execute(
-        command, cwd=workdir, timeout=timeout, interrupt=ctx.interrupt,
+        command,
+        cwd=workdir,
+        timeout=timeout,
+        interrupt=ctx.interrupt,
         max_output_chars=ctx.setting("tool_output.max_chars", 50_000),
     )
     output = clip_lines(_ANSI.sub("", result.output), ctx.setting("tool_output.max_lines", 2000))
     if has_hook("transform_terminal_output"):
         replacement = first_result(
-            invoke_hook("transform_terminal_output", command=command, output=output, exit_code=result.exit_code,
-                        session_id=ctx.session_id)
+            invoke_hook(
+                "transform_terminal_output",
+                command=command,
+                output=output,
+                exit_code=result.exit_code,
+                session_id=ctx.session_id,
+            )
         )
         if replacement is not None:
             output = replacement

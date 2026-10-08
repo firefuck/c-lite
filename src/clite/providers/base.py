@@ -89,8 +89,9 @@ class ProviderProfile:
         """Snapshot non-API-key credentials without network access."""
         return explicit
 
-    def authenticate_request(self, route: RuntimeRoute, request: HttpRequest,
-                             http: Any, *, timeout: float, cancel: Any) -> HttpRequest:
+    def authenticate_request(
+        self, route: RuntimeRoute, request: HttpRequest, http: Any, *, timeout: float, cancel: Any
+    ) -> HttpRequest:
         """Authenticate the final, origin-validated request immediately before sending."""
         return request
 
@@ -112,8 +113,9 @@ class ProviderProfile:
         """Last-chance rewrite of the outgoing messages (already a copy). Default: unchanged."""
         return messages
 
-    def build_extra_body(self, *, model: str, reasoning_effort: str = "", session_id: str = "",
-                         show_reasoning: bool = False) -> dict[str, Any]:
+    def build_extra_body(
+        self, *, model: str, reasoning_effort: str = "", session_id: str = "", show_reasoning: bool = False
+    ) -> dict[str, Any]:
         """Extra top-level request fields (reasoning config, routing preferences).
 
         ``show_reasoning`` is true when the user will see reasoning text; a provider that

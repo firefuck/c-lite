@@ -81,9 +81,11 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | The command-line surface: ``clite <subcommand>`` and the classic interactive REPL. |  |
+| `clipboard.py` | Copy text to the local clipboard, best effort and standard library only. | `write_clipboard_text()`, `write_osc52()`, `copy_to_clipboard()` |
 | `display.py` | Terminal output for the classic CLI: colours, tool progress lines, the banner. | `load_skin()`, `Display` |
 | `input.py` | Line input for the classic REPL: multi-line, bracketed paste, completion. | `split_paste()`, `continuation_text()`, `needs_continuation()`, `join_lines()`, `read_message()`, `StdlibReader`, `PromptToolkitReader`, `prompt_toolkit_available()`, `make_reader()`, `Suggestion`, … (+2) |
 | `main.py` | ``clite``: the command-line entry point. | `build_parser()`, `main()` |
+| `markdown.py` | Render an assistant answer written in Markdown, and a unified diff, to terminal text. | `MarkdownStyle`, `render_markdown()`, `MarkdownStream`, `render_diff()` |
 | `repl.py` | The classic interactive CLI: a read-eval-print loop over a ``ChatSession``. | `Repl`, `run_single_query()` |
 
 ## `clite/cli/subcommands/`
@@ -91,22 +93,26 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | One module per subcommand group. |  |
+| `backup.py` | ``clite backup``: archive and restore the agent's home directory. | `create_backup()`, `restore_backup()`, `run_backup()`, `register()` |
 | `chat.py` | ``clite chat``: the interactive REPL, or one query with ``-q``. | `add_chat_arguments()`, `session_options()`, `wants_tui()`, `run_chat()`, `register()` |
+| `completion.py` | ``clite completion bash\|zsh\|fish``: shell completion built from the real parser. | `run_completion()`, `register()` |
 | `config.py` | ``clite config``: read and write config.yaml. | `run_show()`, `run_get()`, `run_set()`, `run_unset()`, `run_path()`, `run_env()`, `run_edit()`, `run_migrate()`, `register()` |
 | `cron.py` | ``clite cron``: scheduled agent tasks. | `run_list()`, `run_add()`, `run_tick()`, `run_daemon()`, `register()` |
 | `gateway.py` | ``clite gateway``: run the messaging gateway and manage who may talk to it. | `run_gateway()`, `run_status()`, `run_pair_list()`, `run_pair_approve()`, `run_pair_revoke()`, `register()` |
 | `hooks.py` | ``clite hooks``: review, approve, revoke and try the shell hooks from ``config.yaml``. | `run_list()`, `run_approve()`, `run_revoke()`, `run_test()`, `register()` |
 | `mcp.py` | ``clite mcp``: add, list, remove and test MCP servers without editing YAML. | `run_add()`, `run_list()`, `run_remove()`, `run_test()`, `register()` |
-| `misc.py` | Small commands: version, status, doctor, logs, memory, acp. | `run_version()`, `run_status()`, `run_doctor()`, `run_logs()`, `run_memory()`, `run_acp()`, `register()` |
+| `misc.py` | Small commands: version, status, doctor, logs, memory, acp. | `run_version()`, `run_status()`, `run_doctor()`, `run_logs()`, `run_memory()`, `run_acp()`, `run_insights()`, `register()` |
 | `model.py` | ``clite model``: show, list and choose models. | `run_show()`, `run_list()`, `run_set()`, `run_providers()`, `register()` |
 | `plugins.py` | ``clite plugins``: list, enable, disable, install, remove. | `run_list()`, `run_install()`, `run_remove()`, `register()` |
 | `profile.py` | ``clite profile``: separate homes with their own config, keys, memory and sessions. | `run_list()`, `run_show()`, `run_create()`, `run_use()`, `run_delete()`, `register()` |
 | `serve.py` | ``clite serve`` and ``clite dashboard``: the HTTP + WebSocket backend. | `run_serve()`, `register()` |
 | `sessions.py` | ``clite sessions``: browse, search, export and prune stored conversations. | `run_list()`, `run_show()`, `run_rename()`, `run_delete()`, `run_export()`, `run_search()`, `run_prune()`, `register()` |
-| `setup.py` | ``clite setup``: choose a provider, store its key, pick a model. | `run_setup()`, `register()` |
+| `setup.py` | ``clite setup``: interactive wizard and non-interactive provider configuration. | `run_setup()`, `register()` |
 | `skills.py` | ``clite skills``: browse, install and curate skills. | `run_list()`, `run_view()`, `run_install()`, `run_remove()`, `run_curate()`, `register()` |
 | `tools.py` | ``clite tools``: see and switch toolsets. | `run_list()`, `register()` |
 | `tui.py` | ``clite tui``: the Node terminal interface, which talks to this package over JSON-RPC. | `find_tui_bundle()`, `tui_arguments()`, `launch_tui()`, `run_tui()`, `register()` |
+| `uninstall.py` | ``clite uninstall``: remove the package and optionally purge the home directory. | `run_uninstall()`, `register()` |
+| `update.py` | ``clite update``: check for updates and upgrade the installation. | `detect_install_method()`, `check_latest_version()`, `run_update()`, `register()` |
 
 ## `clite/core/`
 
@@ -222,9 +228,9 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `commands.py` | The slash command registry: one table every surface reads. | `CommandDef`, `resolve_command()`, `commands_for()`, `split_command()`, `command_catalog()` |
 | `factory.py` | ``build_agent``: the one place a surface turns "what the user asked for" into an ``AIAgent``. | `default_toolsets()`, `build_agent()` |
 | `maintenance.py` | Housekeeping a surface runs when it starts. | `reset_maintenance_state()`, `auto_prune_sessions()`, `run_startup_maintenance()`, `run_curator_maintenance()`, `prune_checkpoints()` |
-| `presentation.py` | Small presentation helpers shared by every surface (terminal, RPC clients, gateway). | `tool_preview()`, `result_failed()` |
+| `presentation.py` | Small presentation helpers shared by every surface (terminal, RPC clients, gateway). | `tool_preview()`, `result_failed()`, `tool_diffs()`, `markdown_role_codes()` |
 | `session.py` | ``ChatSession``: one conversation as a surface sees it. | `Turn`, `TurnQueue`, `busy_input_mode()`, `SlashResult`, `ChatSession` |
-| `setup.py` | Applying a provider choice: shared by ``clite setup`` and the setup screens of the UIs. | `apply_setup()` |
+| `setup.py` | Applying a provider choice: shared by ``clite setup`` and the setup screens of the UIs. | `verify_provider_key()`, `apply_setup()` |
 | `slash.py` | Slash command handlers. | `run_mcp_prompt()` |
 
 ## `clite/server/`
@@ -254,7 +260,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | Session storage: one SQLite file per profile with FTS5 search. |  |
-| `db.py` | ``SessionDB``: durable sessions and messages in ``<home>/state.db``. | `new_session_id()`, `get_session_db()`, `close_all_session_dbs()`, `SessionDB` |
+| `db.py` | ``SessionDB``: durable sessions and messages in ``<home>/state.db``. | `new_session_id()`, `get_session_db()`, `close_all_session_dbs()`, `SessionDB`, `format_insights()` |
 | `schema.py` | SQLite schema for sessions and messages. |  |
 
 ## `clite/tools/`
@@ -311,4 +317,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 175 modul.
+Jumlah: 181 modul.

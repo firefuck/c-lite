@@ -51,7 +51,9 @@ def parse_manifest(data: Any, *, fallback_name: str = "") -> PluginManifest:
         raise ManifestError("plugin.yaml must be a mapping")
     name = str(data.get("name") or fallback_name).strip()
     if not _NAME_RE.match(name):
-        raise ManifestError(f"invalid plugin name {name!r}: use lowercase letters, digits, hyphens and underscores")
+        raise ManifestError(
+            f"invalid plugin name {name!r}: use lowercase letters, digits, hyphens and underscores"
+        )
     kind = str(data.get("kind") or KIND_STANDALONE)
     if kind not in KINDS:
         raise ManifestError(f"unknown plugin kind {kind!r}; valid kinds: {', '.join(KINDS)}")

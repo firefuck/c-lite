@@ -52,9 +52,21 @@ def probe_tools():
 
         return run
 
-    schema = {"description": "probe", "parameters": {"type": "object", "properties": {"path": {"type": "string"}}}}
-    registry.register("probe_read", "probe", dict(schema), handler("probe_read"), origin="test", parallel="safe")
-    registry.register("probe_write", "probe", dict(schema), handler("probe_write"), origin="test", parallel="path",
-                      path_args=("path",))
+    schema = {
+        "description": "probe",
+        "parameters": {"type": "object", "properties": {"path": {"type": "string"}}},
+    }
+    registry.register(
+        "probe_read", "probe", dict(schema), handler("probe_read"), origin="test", parallel="safe"
+    )
+    registry.register(
+        "probe_write",
+        "probe",
+        dict(schema),
+        handler("probe_write"),
+        origin="test",
+        parallel="path",
+        path_args=("path",),
+    )
     registry.register("probe_act", "probe", dict(schema), handler("probe_act"), origin="test")
     return calls

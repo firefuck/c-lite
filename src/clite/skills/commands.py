@@ -35,7 +35,10 @@ def build_skill_message(skill: Skill, instruction: str = "") -> str:
     ]
     files = linked_files(skill)
     if files:
-        parts += ["", "[This skill has supporting files; load one with skill_view(name, file_path) when you need it:]"]
+        parts += [
+            "",
+            "[This skill has supporting files; load one with skill_view(name, file_path) when you need it:]",
+        ]
         parts += [f"- {path}" for paths in files.values() for path in paths]
     parts += ["", f"[Skill directory: {skill.directory}]"]
     if instruction.strip():

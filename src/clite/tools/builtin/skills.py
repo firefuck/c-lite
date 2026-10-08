@@ -31,7 +31,10 @@ SKILL_VIEW_SCHEMA = {
         "type": "object",
         "properties": {
             "name": {"type": "string", "description": "Skill name from the index."},
-            "file_path": {"type": "string", "description": "Supporting file to load instead of SKILL.md, e.g. references/api.md."},
+            "file_path": {
+                "type": "string",
+                "description": "Supporting file to load instead of SKILL.md, e.g. references/api.md.",
+            },
         },
         "required": ["name"],
     },
@@ -49,14 +52,26 @@ SKILL_MANAGE_SCHEMA = {
     "parameters": {
         "type": "object",
         "properties": {
-            "action": {"type": "string", "enum": ["create", "patch", "edit", "delete", "write_file", "remove_file"]},
-            "name": {"type": "string", "description": "Skill name: lowercase letters, digits, dots, hyphens, underscores."},
-            "content": {"type": "string", "description": "Full SKILL.md text, starting with the --- frontmatter (name, description)."},
+            "action": {
+                "type": "string",
+                "enum": ["create", "patch", "edit", "delete", "write_file", "remove_file"],
+            },
+            "name": {
+                "type": "string",
+                "description": "Skill name: lowercase letters, digits, dots, hyphens, underscores.",
+            },
+            "content": {
+                "type": "string",
+                "description": "Full SKILL.md text, starting with the --- frontmatter (name, description).",
+            },
             "category": {"type": "string", "description": "For create: optional category directory."},
             "old_string": {"type": "string", "description": "For patch: exact text to replace."},
             "new_string": {"type": "string", "description": "For patch: replacement text."},
             "replace_all": {"type": "boolean", "description": "For patch: replace every occurrence."},
-            "file_path": {"type": "string", "description": "Supporting file path under references/, templates/, scripts/ or assets/."},
+            "file_path": {
+                "type": "string",
+                "description": "Supporting file path under references/, templates/, scripts/ or assets/.",
+            },
             "file_content": {"type": "string", "description": "For write_file: the file's content."},
         },
         "required": ["action", "name"],
@@ -90,40 +105,63 @@ def skill_view_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str
     record_use(skill.name)
     if file_path:
         return tool_result(name=skill.name, file_path=file_path, content=content)
-    return tool_result(name=skill.name, description=skill.description, content=content,
-                       skill_dir=str(skill.directory), linked_files=linked_files(skill), tier=skill.tier)
+    return tool_result(
+        name=skill.name,
+        description=skill.description,
+        content=content,
+        skill_dir=str(skill.directory),
+        linked_files=linked_files(skill),
+        tier=skill.tier,
+    )
 
 
 def skill_manage_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
     action, name = args.get("action"), str(args.get("name") or "")
     try:
         if action == "create":
-            result = manager.create_skill(name, str(args.get("content") or ""), category=args.get("category") or None,
-                                          write_guard=write_denied_reason)
+            result = manager.create_skill(
+                name,
+                str(args.get("content") or ""),
+                category=args.get("category") or None,
+                write_guard=write_denied_reason,
+            )
         elif action == "edit":
             result = manager.edit_skill(name, str(args.get("content") or ""), write_guard=write_denied_reason)
         elif action == "patch":
             result = manager.patch_skill(
-                name, str(args.get("old_string") or ""), str(args.get("new_string") or ""),
-                file_path=args.get("file_path") or None, replace_all=bool(args.get("replace_all")),
+                name,
+                str(args.get("old_string") or ""),
+                str(args.get("new_string") or ""),
+                file_path=args.get("file_path") or None,
+                replace_all=bool(args.get("replace_all")),
                 write_guard=write_denied_reason,
             )
         elif action == "delete":
             result = manager.delete_skill(name, write_guard=write_denied_reason)
         elif action == "write_file":
-            result = manager.write_skill_file(name, str(args.get("file_path") or ""),
-                                              str(args.get("file_content") or ""),
-                                              write_guard=write_denied_reason)
+            result = manager.write_skill_file(
+                name,
+                str(args.get("file_path") or ""),
+                str(args.get("file_content") or ""),
+                write_guard=write_denied_reason,
+            )
         elif action == "remove_file":
-            result = manager.remove_skill_file(name, str(args.get("file_path") or ""),
-                                               write_guard=write_denied_reason)
+            result = manager.remove_skill_file(
+                name, str(args.get("file_path") or ""), write_guard=write_denied_reason
+            )
         else:
-            return tool_error(f"Unknown action {action!r}. Use create, patch, edit, delete, write_file or remove_file.")
+            return tool_error(
+                f"Unknown action {action!r}. Use create, patch, edit, delete, write_file or remove_file."
+            )
     except SkillError as exc:
         return tool_error(str(exc))
     return tool_result(result, success=True)
 
 
-registry.register("skills_list", "skills", SKILLS_LIST_SCHEMA, skills_list_tool, emoji="📚", parallel=PARALLEL_SAFE)
-registry.register("skill_view", "skills", SKILL_VIEW_SCHEMA, skill_view_tool, emoji="📖", parallel=PARALLEL_SAFE)
+registry.register(
+    "skills_list", "skills", SKILLS_LIST_SCHEMA, skills_list_tool, emoji="📚", parallel=PARALLEL_SAFE
+)
+registry.register(
+    "skill_view", "skills", SKILL_VIEW_SCHEMA, skill_view_tool, emoji="📖", parallel=PARALLEL_SAFE
+)
 registry.register("skill_manage", "skills", SKILL_MANAGE_SCHEMA, skill_manage_tool, emoji="🧩")

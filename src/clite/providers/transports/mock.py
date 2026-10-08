@@ -47,15 +47,23 @@ class MockTransport(ProviderTransport):
     api_mode = API_MODE_MOCK
     local = True
 
-    def build_request(self, route: RuntimeRoute, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None,
-                      params: RequestParams, *, stream: bool) -> HttpRequest:
+    def build_request(
+        self,
+        route: RuntimeRoute,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]] | None,
+        params: RequestParams,
+        *,
+        stream: bool,
+    ) -> HttpRequest:
         raise NotImplementedError("the mock transport answers locally")
 
     def parse_response(self, payload: dict[str, Any]) -> NormalizedResponse:
         raise NotImplementedError("the mock transport answers locally")
 
-    def stream_accumulator(self, on_delta: Callable[[str], None] | None = None,
-                           on_reasoning: Callable[[str], None] | None = None) -> StreamAccumulator:
+    def stream_accumulator(
+        self, on_delta: Callable[[str], None] | None = None, on_reasoning: Callable[[str], None] | None = None
+    ) -> StreamAccumulator:
         raise NotImplementedError("the mock transport answers locally")
 
     def run(
@@ -85,7 +93,9 @@ class MockTransport(ProviderTransport):
                 from clite.providers.http import ProviderHTTPError
 
                 status = int(rest) if rest.isdigit() else 500
-                raise ProviderHTTPError(status, json.dumps({"error": {"message": f"mock error {status}"}}), {}, "mock://")
+                raise ProviderHTTPError(
+                    status, json.dumps({"error": {"message": f"mock error {status}"}}), {}, "mock://"
+                )
             if name == "sleep":
                 delay = float(rest or 1)
                 prompt = "sleeping " + " ".join(["z"] * 20)
@@ -100,7 +110,9 @@ class MockTransport(ProviderTransport):
                 return NormalizedResponse(
                     content=None,
                     tool_calls=[ToolCall(id="call_" + uuid.uuid4().hex[:12], name=name, arguments=arguments)],
-                    finish_reason="tool_calls", usage=usage, model=route.model,
+                    finish_reason="tool_calls",
+                    usage=usage,
+                    model=route.model,
                 )
             else:
                 prompt = f"(mock) unknown directive or tool {name!r}; offered tools: {sorted(offered)}"
@@ -108,8 +120,14 @@ class MockTransport(ProviderTransport):
         return self._speak(text, usage, route, on_delta, cancel, delay)
 
     @staticmethod
-    def _speak(text: str, usage: Usage, route: RuntimeRoute, on_delta: Callable[[str], None] | None,
-               cancel: threading.Event | None, delay: float = 0.0) -> NormalizedResponse:
+    def _speak(
+        text: str,
+        usage: Usage,
+        route: RuntimeRoute,
+        on_delta: Callable[[str], None] | None,
+        cancel: threading.Event | None,
+        delay: float = 0.0,
+    ) -> NormalizedResponse:
         words = re.findall(r"\S+\s*", text) or [text]
         pause = delay / max(len(words), 1)
         for word in words:

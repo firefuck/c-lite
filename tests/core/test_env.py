@@ -50,7 +50,9 @@ def test_mask_never_shows_a_short_secret():
 def test_secret_names_cover_env_file_registered_and_numbered_variables(monkeypatch):
     get_env_path().write_text("FROM_DOTENV=1\n")
     env.load_env()
-    monkeypatch.setitem(env.SECRET_REGISTRY, "EXAMPLE_SERVICE_KEY", env.SecretSpec("EXAMPLE_SERVICE_KEY", "An example"))
+    monkeypatch.setitem(
+        env.SECRET_REGISTRY, "EXAMPLE_SERVICE_KEY", env.SecretSpec("EXAMPLE_SERVICE_KEY", "An example")
+    )
     monkeypatch.setenv("EXAMPLE_SERVICE_KEY_3", "third key of a pool")
     names = env.secret_names()
     assert {"FROM_DOTENV", "EXAMPLE_SERVICE_KEY", "EXAMPLE_SERVICE_KEY_3"} <= names
@@ -63,17 +65,29 @@ def test_redaction_masks_scoped_secrets_and_known_process_values(monkeypatch):
     monkeypatch.setitem(env.SECRET_REGISTRY, "EXAMPLE_KEY", env.SecretSpec("EXAMPLE_KEY", "Example"))
     monkeypatch.setenv("EXAMPLE_KEY", "launch-profile-secret")
     for value in ("first-profile-secret", "second-profile-secret"):
-        with env.secret_scope({"EXAMPLE_KEY": value, "LOCAL_ONLY": "local-only-secret",
-                               "EXAMPLE_KEY_2": "numbered-scope-secret"}):
-            assert redact(f"{value} launch-profile-secret local-only-secret numbered-scope-secret") == " ".join([REDACTED] * 4)
+        with env.secret_scope(
+            {
+                "EXAMPLE_KEY": value,
+                "LOCAL_ONLY": "local-only-secret",
+                "EXAMPLE_KEY_2": "numbered-scope-secret",
+            }
+        ):
+            assert redact(
+                f"{value} launch-profile-secret local-only-secret numbered-scope-secret"
+            ) == " ".join([REDACTED] * 4)
             assert env.get_secret("EXAMPLE_KEY") == value
-    assert redact("first-profile-secret second-profile-secret") == "first-profile-secret second-profile-secret"
+    assert (
+        redact("first-profile-secret second-profile-secret") == "first-profile-secret second-profile-secret"
+    )
 
 
-@pytest.mark.parametrize("scoped,process", [
-    ("shared-secret", "shared-secret-extended"),
-    ("shared-secret-extended", "shared-secret"),
-])
+@pytest.mark.parametrize(
+    "scoped,process",
+    [
+        ("shared-secret", "shared-secret-extended"),
+        ("shared-secret-extended", "shared-secret"),
+    ],
+)
 def test_redaction_masks_overlapping_scoped_and_process_secrets_completely(monkeypatch, scoped, process):
     from clite.core.redact import REDACTED, redact
 

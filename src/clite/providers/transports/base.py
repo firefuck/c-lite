@@ -17,16 +17,26 @@ if TYPE_CHECKING:
 
 # Keys that exist on stored messages but must never go on the wire.
 INTERNAL_MESSAGE_KEYS = frozenset(
-    {"_row_id", "timestamp", "reasoning", "provider_data", "turn_context", "finish_reason", "is_summary", "display_kind",
-     "token_count"}
+    {
+        "_row_id",
+        "timestamp",
+        "reasoning",
+        "provider_data",
+        "turn_context",
+        "finish_reason",
+        "is_summary",
+        "display_kind",
+        "token_count",
+    }
 )
 
 
 class StreamAccumulator(ABC):
     """Fed server-sent events one at a time; yields the final response at the end."""
 
-    def __init__(self, on_delta: Callable[[str], None] | None = None,
-                 on_reasoning: Callable[[str], None] | None = None) -> None:
+    def __init__(
+        self, on_delta: Callable[[str], None] | None = None, on_reasoning: Callable[[str], None] | None = None
+    ) -> None:
         self.on_delta = on_delta
         self.on_reasoning = on_reasoning
 
@@ -35,8 +45,7 @@ class StreamAccumulator(ABC):
         """Consume one SSE event. Return False when the stream is finished."""
 
     @abstractmethod
-    def finish(self) -> NormalizedResponse:
-        ...
+    def finish(self) -> NormalizedResponse: ...
 
     def _emit(self, text: str) -> None:
         if text and self.on_delta is not None:
@@ -61,17 +70,15 @@ class ProviderTransport(ABC):
         params: RequestParams,
         *,
         stream: bool,
-    ) -> HttpRequest:
-        ...
+    ) -> HttpRequest: ...
 
     @abstractmethod
-    def parse_response(self, payload: dict[str, Any]) -> NormalizedResponse:
-        ...
+    def parse_response(self, payload: dict[str, Any]) -> NormalizedResponse: ...
 
     @abstractmethod
-    def stream_accumulator(self, on_delta: Callable[[str], None] | None = None,
-                           on_reasoning: Callable[[str], None] | None = None) -> StreamAccumulator:
-        ...
+    def stream_accumulator(
+        self, on_delta: Callable[[str], None] | None = None, on_reasoning: Callable[[str], None] | None = None
+    ) -> StreamAccumulator: ...
 
 
 _TRANSPORTS: dict[str, ProviderTransport] = {}

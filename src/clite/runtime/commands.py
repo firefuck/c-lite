@@ -30,41 +30,81 @@ class CommandDef:
 COMMAND_REGISTRY: list[CommandDef] = [
     # ── Session ──────────────────────────────────────────────────────────────────────────
     CommandDef("new", "Start a fresh session", aliases=("reset",)),
-    CommandDef("image", "Attach an image file to your next message", args_hint="<path>",
-               aliases=("attach",)),
+    CommandDef("image", "Attach an image file to your next message", args_hint="<path>", aliases=("attach",)),
     CommandDef("retry", "Remove the last exchange and send your last message again"),
     CommandDef("undo", "Remove the last exchange"),
     CommandDef("history", "Show the conversation so far", args_hint="[count]"),
     CommandDef("title", "Show or set the session title", args_hint="[title]"),
     CommandDef("sessions", "List recent sessions", args_hint="[count]"),
     CommandDef("resume", "Switch to an earlier session", args_hint="<id | title>"),
+    CommandDef("branch", "Copy this conversation into a new session", args_hint="[title]"),
+    CommandDef(
+        "queue", "Queue a message to run after the running turn", args_hint="<text>", busy_policy=BUSY_ALLOW
+    ),
+    CommandDef(
+        "background",
+        "Run one turn in a separate session and report the result",
+        args_hint="<text>",
+        aliases=("bg",),
+        busy_policy=BUSY_ALLOW,
+    ),
+    CommandDef("export", "Save the transcript as Markdown or JSON", args_hint="[path]"),
+    CommandDef("pin", "Mark this session so it is never pruned"),
+    CommandDef("archive", "Hide this session from the session list"),
     CommandDef("compress", "Summarise older turns to free context", args_hint="[focus]"),
     CommandDef("rollback", "Undo the files the agent changed in the last turn(s)", args_hint="[turns]"),
     CommandDef("checkpoints", "List the file checkpoints kept for this session"),
     CommandDef("stop", "Interrupt the running turn", busy_policy=BUSY_ALLOW),
-    CommandDef("steer", "Guide the running turn without interrupting it", args_hint="<text>", busy_policy=BUSY_ALLOW),
+    CommandDef(
+        "steer", "Guide the running turn without interrupting it", args_hint="<text>", busy_policy=BUSY_ALLOW
+    ),
     CommandDef("quit", "Exit", aliases=("exit", "q"), cli_only=True, busy_policy=BUSY_ALLOW),
     # ── Configuration ────────────────────────────────────────────────────────────────────
     CommandDef("model", "Show or switch the model", "Configuration", args_hint="[provider:model] [--global]"),
     CommandDef("provider", "List model providers and whether they are configured", "Configuration"),
-    CommandDef("tools", "List toolsets, or enable/disable one", "Configuration", args_hint="[enable|disable <toolset>]",
-               subcommands=("enable", "disable")),
-    CommandDef("reasoning", "Show or set the reasoning effort", "Configuration",
-               args_hint="[none|minimal|low|medium|high|xhigh|max]"),
+    CommandDef(
+        "tools",
+        "List toolsets, or enable/disable one",
+        "Configuration",
+        args_hint="[enable|disable <toolset>]",
+        subcommands=("enable", "disable"),
+    ),
+    CommandDef(
+        "reasoning",
+        "Show or set the reasoning effort",
+        "Configuration",
+        args_hint="[none|minimal|low|medium|high|xhigh|max]",
+    ),
     CommandDef("yolo", "Toggle command approval for this session", "Configuration"),
     CommandDef("config", "Show a setting or the config file path", "Configuration", args_hint="[key]"),
     CommandDef("reload", "Reload config and plugins", "Configuration"),
     CommandDef("profile", "Show the active profile and list the others", "Configuration"),
+    CommandDef(
+        "verbose",
+        "Set how much tool progress is shown",
+        "Configuration",
+        args_hint="[off|new|all|verbose]",
+        subcommands=("off", "new", "all", "verbose"),
+    ),
+    CommandDef(
+        "skin", "Show or change the display skin/theme", "Configuration", args_hint="[name]", cli_only=True
+    ),
     # ── Tools and skills ─────────────────────────────────────────────────────────────────
     CommandDef("skills", "List skills", "Tools & Skills", args_hint="[filter]"),
     CommandDef("plugins", "List plugins and their status", "Tools & Skills"),
+    CommandDef("hooks", "List shell hooks and which await approval", "Tools & Skills"),
     CommandDef("mcp", "Show the status of the MCP servers", "Tools & Skills", args_hint="[name]"),
     CommandDef("memory", "Show what is in persistent memory", "Tools & Skills"),
     CommandDef("cron", "List scheduled jobs", "Tools & Skills"),
     # ── Info ─────────────────────────────────────────────────────────────────────────────
     CommandDef("help", "List commands", "Info", aliases=("?",), busy_policy=BUSY_ALLOW),
     CommandDef("status", "Show model, session and context usage", "Info", busy_policy=BUSY_ALLOW),
+    CommandDef("context", "Break down the context window: prompt tiers, tools, history", "Info"),
     CommandDef("usage", "Show token usage for this session", "Info", busy_policy=BUSY_ALLOW),
+    CommandDef("tasks", "Show this session's todo list", "Info"),
+    CommandDef("logs", "Show the last lines of the agent log", "Info", args_hint="[count]", cli_only=True),
+    CommandDef("copy", "Copy the last answer to the clipboard", "Info", cli_only=True),
+    CommandDef("insights", "Show usage insights, tokens and costs", "Info", args_hint="[days]"),
     CommandDef("debug", "Show prompt and context internals", "Info"),
 ]
 
@@ -109,27 +149,60 @@ def command_catalog(surface: str = "cli", *, cwd: str | None = None) -> list[dic
     from clite.skills.commands import skill_commands
 
     catalog: list[dict[str, Any]] = [
-        {"name": command.name, "description": command.description, "category": command.category,
-         "aliases": list(command.aliases), "args_hint": command.args_hint, "subcommands": list(command.subcommands),
-         "kind": "builtin"}
+        {
+            "name": command.name,
+            "description": command.description,
+            "category": command.category,
+            "aliases": list(command.aliases),
+            "args_hint": command.args_hint,
+            "subcommands": list(command.subcommands),
+            "kind": "builtin",
+        }
         for command in commands_for(surface)
     ]
     taken = set(_index())
     for name, command in sorted(get_plugin_manager().commands.items()):
         if name not in taken:
-            catalog.append({"name": name, "description": command.description, "category": "Plugins", "aliases": [],
-                            "args_hint": command.args_hint, "subcommands": [], "kind": "plugin"})
+            catalog.append(
+                {
+                    "name": name,
+                    "description": command.description,
+                    "category": "Plugins",
+                    "aliases": [],
+                    "args_hint": command.args_hint,
+                    "subcommands": [],
+                    "kind": "plugin",
+                }
+            )
             taken.add(name)
     for name, spec in sorted((load_config().get("quick_commands") or {}).items()):
         if name not in taken and isinstance(spec, dict):
             what = spec.get("command") or spec.get("target") or ""
-            catalog.append({"name": name, "description": f"Quick command: {what}"[:80], "category": "Quick commands",
-                            "aliases": [], "args_hint": "", "subcommands": [], "kind": "quick"})
+            catalog.append(
+                {
+                    "name": name,
+                    "description": f"Quick command: {what}"[:80],
+                    "category": "Quick commands",
+                    "aliases": [],
+                    "args_hint": "",
+                    "subcommands": [],
+                    "kind": "quick",
+                }
+            )
             taken.add(name)
     for name, skill in sorted(skill_commands(cwd=cwd).items()):
         if name not in taken:
-            catalog.append({"name": name, "description": skill.description[:80], "category": "Skills", "aliases": [],
-                            "args_hint": "[instruction]", "subcommands": [], "kind": "skill"})
+            catalog.append(
+                {
+                    "name": name,
+                    "description": skill.description[:80],
+                    "category": "Skills",
+                    "aliases": [],
+                    "args_hint": "[instruction]",
+                    "subcommands": [],
+                    "kind": "skill",
+                }
+            )
             taken.add(name)
     from clite.tools.mcp import mcp_prompt_catalog
 

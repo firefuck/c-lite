@@ -70,9 +70,14 @@ def configure(clite_home):
 @pytest.fixture
 def probe():
     """A tool that reports the arguments it was called with."""
-    schema = {"description": "probe", "parameters": {"type": "object", "properties": {"path": {"type": "string"}}}}
+    schema = {
+        "description": "probe",
+        "parameters": {"type": "object", "properties": {"path": {"type": "string"}}},
+    }
     registry.register("probe", "probe", schema, lambda args: tool_result(ran=True, args=args), origin="test")
-    registry.register("other", "probe", dict(schema), lambda args: tool_result(ran=True, args=args), origin="test")
+    registry.register(
+        "other", "probe", dict(schema), lambda args: tool_result(ran=True, args=args), origin="test"
+    )
 
     def call(name="probe", **args):
         return json.loads(handle_function_call(name, args, ToolContext(session_id="s1", cwd="/tmp")))
@@ -127,7 +132,9 @@ def test_a_hook_receives_the_event_as_json_on_stdin(configure, hook_script, prob
     probe(path="notes.txt")
     seen = json.loads((tmp_path / "seen.json").read_text())
     assert seen["hook_event_name"] == "post_tool_call" and seen["tool_name"] == "probe"
-    assert seen["tool_input"] == {"path": "notes.txt"} and seen["session_id"] == "s1" and seen["cwd"] == "/tmp"
+    assert (
+        seen["tool_input"] == {"path": "notes.txt"} and seen["session_id"] == "s1" and seen["cwd"] == "/tmp"
+    )
     assert json.loads(seen["extra"]["result"])["ran"] is True and "duration" in seen["extra"]
 
 
@@ -137,12 +144,22 @@ def test_exit_code_2_blocks_and_stderr_is_the_reason(configure, hook_script, pro
 
 
 def test_both_block_dialects_and_modify_are_understood(configure, hook_script, probe):
-    configure({"pre_tool_call": [hook_script("a", 'print(json.dumps({"action": "block", "message": "native"}))')]})
+    configure(
+        {"pre_tool_call": [hook_script("a", 'print(json.dumps({"action": "block", "message": "native"}))')]}
+    )
     assert probe()["error"] == "native"
     configure({"pre_tool_call": [hook_script("b", 'print(json.dumps({"decision": "block"}))')]})
     assert probe()["error"] == "Blocked by a shell hook."
-    configure({"pre_tool_call": [hook_script(
-        "c", 'print(json.dumps({"decision": "modify", "tool_input": {"path": event["tool_input"]["path"] + ".bak"}}))')]})
+    configure(
+        {
+            "pre_tool_call": [
+                hook_script(
+                    "c",
+                    'print(json.dumps({"decision": "modify", "tool_input": {"path": event["tool_input"]["path"] + ".bak"}}))',
+                )
+            ]
+        }
+    )
     assert probe(path="notes.txt")["args"] == {"path": "notes.txt.bak"}
 
 
@@ -157,7 +174,9 @@ def test_the_matcher_limits_a_hook_to_matching_tools(configure, hook_script, pro
 
 
 def test_pre_llm_call_context_rides_the_user_message(configure, hook_script):
-    configure({"pre_llm_call": [hook_script("ctx", 'print(json.dumps({"context": "Today is deploy day."}))')]})
+    configure(
+        {"pre_llm_call": [hook_script("ctx", 'print(json.dumps({"context": "Today is deploy day."}))')]}
+    )
     client = ScriptedClient([text_response("noted")])
     agent = build_agent(client=client)
     try:
@@ -171,7 +190,9 @@ def test_pre_llm_call_context_rides_the_user_message(configure, hook_script):
 
 
 def test_observer_events_run_the_command(configure, hook_script, tmp_path):
-    configure({"on_session_end": [hook_script("bye", '(here / "ended").write_text(event["extra"]["reason"])')]})
+    configure(
+        {"on_session_end": [hook_script("bye", '(here / "ended").write_text(event["extra"]["reason"])')]}
+    )
     agent = build_agent(client=ScriptedClient([text_response("hi")]))
     agent.run_conversation("hello")
     agent.close("user_quit")
@@ -182,7 +203,8 @@ def test_observer_events_run_the_command(configure, hook_script, tmp_path):
 
 
 @pytest.mark.parametrize(
-    "body", ["sys.exit(1)", "raise SystemExit(3)", 'print("Traceback: oops")', "import time; time.sleep(30)"],
+    "body",
+    ["sys.exit(1)", "raise SystemExit(3)", 'print("Traceback: oops")', "import time; time.sleep(30)"],
     ids=["exit-1", "exit-3", "garbage-output", "timeout"],
 )
 def test_a_broken_hook_fails_open_by_default_and_closed_on_request(configure, hook_script, probe, body):
@@ -198,7 +220,10 @@ def test_a_command_that_does_not_exist_is_reported_not_raised(configure, probe):
     configure({"pre_tool_call": ["/no/such/hook-binary --flag"]})
     assert probe()["ran"] is True
     run = run_hook(ShellHook("pre_tool_call", "/no/such/hook-binary"), {})
-    assert "could not start" in run.error and evaluate(ShellHook("pre_tool_call", "x", fail_closed=True), run)["action"] == "block"
+    assert (
+        "could not start" in run.error
+        and evaluate(ShellHook("pre_tool_call", "x", fail_closed=True), run)["action"] == "block"
+    )
     assert "cannot be parsed" in run_hook(ShellHook("pre_tool_call", "unbalanced 'quote"), {}).error
 
 
@@ -209,8 +234,10 @@ def test_fail_closed_applies_only_to_events_that_can_block(configure, hook_scrip
 
 
 def test_the_hook_timeout_stays_below_the_bus_timeout(configure, hook_script):
-    configure({"pre_tool_call": [{"command": hook_script("slow", ""), "timeout": 120}]},
-              plugins={"hook_callback_timeout": 5})
+    configure(
+        {"pre_tool_call": [{"command": hook_script("slow", ""), "timeout": 120}]},
+        plugins={"hook_callback_timeout": 5},
+    )
     registered, _ = register_shell_hooks()
     assert registered[0].timeout == 4.0  # the hook's own failure policy decides, not the bus timeout
 
@@ -220,11 +247,13 @@ def test_the_hook_timeout_stays_below_the_bus_timeout(configure, hook_script):
 
 def test_malformed_entries_are_skipped_and_the_rest_still_load(configure, hook_script, caplog):
     good = hook_script("good", "")
-    configure({
-        "pre_tool_call": [good, {"matcher": "x"}, {"command": good, "matcher": "("}, 42],
-        "transform_tool_result": [good],  # needs a return value a shell command cannot give
-        "no_such_event": [good],
-    })
+    configure(
+        {
+            "pre_tool_call": [good, {"matcher": "x"}, {"command": good, "matcher": "("}, 42],
+            "transform_tool_result": [good],  # needs a return value a shell command cannot give
+            "no_such_event": [good],
+        }
+    )
     assert [(hook.event, hook.command) for hook in configured_hooks()] == [("pre_tool_call", good)]
     assert "not an event a shell hook can handle" in caplog.text
 
@@ -244,15 +273,24 @@ def test_reloading_replaces_registrations_instead_of_stacking_them(configure, ho
 
 
 def test_hooks_cli_lists_approves_tests_and_revokes(configure, hook_script, capsys, clite_home):
-    command = hook_script("guard", 'print(json.dumps({"decision": "block", "reason": "blocked: " + event["tool_name"]}))')
-    configure({"pre_tool_call": [{"command": command, "matcher": "terminal", "fail_closed": True}]}, approve=False)
+    command = hook_script(
+        "guard", 'print(json.dumps({"decision": "block", "reason": "blocked: " + event["tool_name"]}))'
+    )
+    configure(
+        {"pre_tool_call": [{"command": command, "matcher": "terminal", "fail_closed": True}]}, approve=False
+    )
 
     def cli(*argv, expect=0):
         assert main(list(argv)) == expect
         return capsys.readouterr().out
 
     listing = cli("hooks")
-    assert "PENDING" in listing and command in listing and "tools matching /terminal/" in listing and "fail closed" in listing
+    assert (
+        "PENDING" in listing
+        and command in listing
+        and "tools matching /terminal/" in listing
+        and "fail closed" in listing
+    )
     assert "1 configured hook(s) will not run until you approve them" in cli("doctor", expect=0)
     assert "re-run with --yes" in cli("hooks", "approve", expect=1)  # no terminal to confirm on
     assert "Approved 1 hook(s)" in cli("hooks", "approve", "--yes")

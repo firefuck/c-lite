@@ -21,14 +21,17 @@ def estimate_text_tokens(text: str) -> int:
 
 def estimate_message_tokens(message: dict[str, Any]) -> int:
     content = message.get("content")
-    size = len(content) if isinstance(content, str) else len(json.dumps(content, default=str)) if content else 0
+    size = (
+        len(content) if isinstance(content, str) else len(json.dumps(content, default=str)) if content else 0
+    )
     if message.get("tool_calls"):
         size += len(json.dumps(message["tool_calls"], default=str))
     return size // CHARS_PER_TOKEN + _PER_MESSAGE_OVERHEAD
 
 
-def estimate_messages_tokens(messages: list[dict[str, Any]], *, system_prompt: str = "",
-                             tools: list[dict[str, Any]] | None = None) -> int:
+def estimate_messages_tokens(
+    messages: list[dict[str, Any]], *, system_prompt: str = "", tools: list[dict[str, Any]] | None = None
+) -> int:
     total = sum(estimate_message_tokens(message) for message in messages)
     total += estimate_text_tokens(system_prompt)
     if tools:
@@ -36,9 +39,14 @@ def estimate_messages_tokens(messages: list[dict[str, Any]], *, system_prompt: s
     return total
 
 
-def estimate_prompt_tokens(messages: list[dict[str, Any]], *, system_prompt: str = "",
-                           tools: list[dict[str, Any]] | None = None,
-                           anchor_tokens: int = 0, anchor_message_count: int = 0) -> int:
+def estimate_prompt_tokens(
+    messages: list[dict[str, Any]],
+    *,
+    system_prompt: str = "",
+    tools: list[dict[str, Any]] | None = None,
+    anchor_tokens: int = 0,
+    anchor_message_count: int = 0,
+) -> int:
     """The prompt size, reusing the provider's last number where it still applies.
 
     ``anchor_tokens`` is the last ``prompt_tokens`` the provider reported and

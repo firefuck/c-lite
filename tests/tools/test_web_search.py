@@ -38,10 +38,16 @@ class _FakeAPIHandler(BaseHTTPRequestHandler):
             results: list[dict[str, Any]] = []
         else:
             results = [
-                {"title": f"Result 1 for {query}", "url": "https://example.com/1",
-                 "snippet": f"First snippet about {query}."},
-                {"title": f"Result 2 for {query}", "url": "https://example.com/2",
-                 "snippet": f"Second snippet about {query}. <script>alert(1)</script>"},
+                {
+                    "title": f"Result 1 for {query}",
+                    "url": "https://example.com/1",
+                    "snippet": f"First snippet about {query}.",
+                },
+                {
+                    "title": f"Result 2 for {query}",
+                    "url": "https://example.com/2",
+                    "snippet": f"Second snippet about {query}. <script>alert(1)</script>",
+                },
             ]
         doc = json.dumps({"results": results}).encode()
         self.send_response(200)
@@ -56,10 +62,17 @@ class _FakeAPIHandler(BaseHTTPRequestHandler):
 
         params = parse_qs(urlparse(self.path).query)
         query = params.get("q", [""])[0]
-        results = [
-            {"title": f"GET result for {query}", "url": "https://example.com/get",
-             "snippet": f"Snippet via GET for {query}."},
-        ] if query else []
+        results = (
+            [
+                {
+                    "title": f"GET result for {query}",
+                    "url": "https://example.com/get",
+                    "snippet": f"Snippet via GET for {query}.",
+                },
+            ]
+            if query
+            else []
+        )
         doc = json.dumps({"results": results}).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
@@ -95,8 +108,10 @@ class _PostProvider(WebSearchProvider):
 
         body = json.dumps({"query": query, "max_results": max_results}).encode()
         req = urllib.request.Request(
-            f"{self._base_url}/search", data=body,
-            headers={"Content-Type": "application/json"}, method="POST",
+            f"{self._base_url}/search",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
         )
         with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310 - test server
             data = json.loads(resp.read())
@@ -138,7 +153,8 @@ class _KeyedProvider(WebSearchProvider):
 
         body = json.dumps({"query": query, "api_key": self._api_key}).encode()
         req = urllib.request.Request(
-            f"{self._base_url}/search", data=body,
+            f"{self._base_url}/search",
+            data=body,
             headers={"Content-Type": "application/json", "Authorization": f"Bearer {self._api_key}"},
             method="POST",
         )
@@ -185,7 +201,9 @@ def test_search_returns_title_url_and_snippet_for_each_result(search_server, cli
     register_web_search_provider("fake-post", lambda: _PostProvider(search_server))
     try:
         result = handle_function_call(
-            "web_search", {"query": "python testing", "max_results": 5}, ToolContext(),
+            "web_search",
+            {"query": "python testing", "max_results": 5},
+            ToolContext(),
         )
         payload = json.loads(result)
         assert "results" in payload
@@ -202,7 +220,9 @@ def test_search_with_a_get_provider_works(search_server, clite_home):
     register_web_search_provider("fake-get", lambda: _GetProvider(search_server))
     try:
         result = handle_function_call(
-            "web_search", {"query": "django"}, ToolContext(),
+            "web_search",
+            {"query": "django"},
+            ToolContext(),
         )
         payload = json.loads(result)
         assert len(payload["results"]) == 1
@@ -213,11 +233,12 @@ def test_search_with_a_get_provider_works(search_server, clite_home):
 
 def test_search_with_a_keyed_provider_sends_the_api_key(search_server, clite_home, monkeypatch):
     monkeypatch.setenv("FAKE_SEARCH_API_KEY", "test-secret-key")
-    register_web_search_provider(
-        "fake-keyed", lambda: _KeyedProvider("test-secret-key", search_server))
+    register_web_search_provider("fake-keyed", lambda: _KeyedProvider("test-secret-key", search_server))
     try:
         result = handle_function_call(
-            "web_search", {"query": "secrets"}, ToolContext(),
+            "web_search",
+            {"query": "secrets"},
+            ToolContext(),
         )
         payload = json.loads(result)
         assert len(payload["results"]) == 2
@@ -240,6 +261,7 @@ def test_search_reports_an_error_when_the_provider_fails(search_server, clite_ho
     class _BrokenProvider(WebSearchProvider):
         name = "broken"
         requires_api_key = False
+
         def search(self, query, *, max_results=5):
             raise RuntimeError("the search backend is down")
 
@@ -269,7 +291,9 @@ def test_snippet_html_is_treated_as_untrusted_text(search_server, clite_home):
     register_web_search_provider("fake-post", lambda: _PostProvider(search_server))
     try:
         result = handle_function_call(
-            "web_search", {"query": "injection"}, ToolContext(),
+            "web_search",
+            {"query": "injection"},
+            ToolContext(),
         )
         payload = json.loads(result)
         second = payload["results"][1]

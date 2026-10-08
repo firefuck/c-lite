@@ -70,8 +70,11 @@ class ManagedProcess:
 
     def summary(self) -> dict[str, Any]:
         return {
-            "process_id": self.id, "command": self.command, "status": self.status,
-            "exit_code": self.exit_code, "uptime_seconds": round(time.time() - self.started_at, 1),
+            "process_id": self.id,
+            "command": self.command,
+            "status": self.status,
+            "exit_code": self.exit_code,
+            "uptime_seconds": round(time.time() - self.started_at, 1),
         }
 
 
@@ -88,7 +91,9 @@ class ProcessRegistry:
         if environment is None:
             environment = get_environment(task_id, cwd=cwd)
         process = environment.spawn_background(command, cwd=cwd)
-        managed = ManagedProcess(id="proc_" + uuid.uuid4().hex[:8], command=command, cwd=cwd, task_id=task_id, process=process)
+        managed = ManagedProcess(
+            id="proc_" + uuid.uuid4().hex[:8], command=command, cwd=cwd, task_id=task_id, process=process
+        )
 
         def pump() -> None:
             assert process.stdout is not None
@@ -159,7 +164,10 @@ PROCESS_SCHEMA = {
             "action": {"type": "string", "enum": ["list", "poll", "log", "wait", "kill", "write"]},
             "process_id": {"type": "string", "description": "Id returned by terminal(background=true)."},
             "timeout": {"type": "integer", "description": "Seconds to block for 'wait' (default 60)."},
-            "data": {"type": "string", "description": "Text for 'write'. Add a trailing newline to submit a line."},
+            "data": {
+                "type": "string",
+                "description": "Text for 'write'. Add a trailing newline to submit a line.",
+            },
             "lines": {"type": "integer", "description": "For 'poll': how many trailing lines (default 40)."},
         },
         "required": ["action"],
@@ -171,7 +179,13 @@ def process_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
     ctx = ctx or ToolContext()
     action = args.get("action")
     if action == "list":
-        return tool_result(processes=[p.summary() for p in process_registry.list(ctx.task_id or ctx.session_id) if p.profile == home_key()])
+        return tool_result(
+            processes=[
+                p.summary()
+                for p in process_registry.list(ctx.task_id or ctx.session_id)
+                if p.profile == home_key()
+            ]
+        )
     managed = process_registry.get(str(args.get("process_id") or ""))
     if managed is None or managed.profile != home_key() or managed.task_id != (ctx.task_id or ctx.session_id):
         return tool_error("Unknown process_id. Use action='list' to see running processes.")

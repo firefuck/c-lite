@@ -97,10 +97,21 @@ class ToolRegistry:
             raise ValueError(f"schema name {normalized['name']!r} does not match tool name {name!r}")
         var_kwargs, params = _describe_handler(handler)
         entry = ToolEntry(
-            name=name, toolset=toolset, schema=normalized, handler=handler, check_fn=check_fn,
-            requires_env=tuple(requires_env), emoji=emoji, parallel=parallel, path_args=tuple(path_args),
-            max_result_chars=max_result_chars, origin=origin, dynamic_schema=dynamic_schema,
-            is_async=inspect.iscoroutinefunction(handler), _accepts_var_kwargs=var_kwargs, _params=params,
+            name=name,
+            toolset=toolset,
+            schema=normalized,
+            handler=handler,
+            check_fn=check_fn,
+            requires_env=tuple(requires_env),
+            emoji=emoji,
+            parallel=parallel,
+            path_args=tuple(path_args),
+            max_result_chars=max_result_chars,
+            origin=origin,
+            dynamic_schema=dynamic_schema,
+            is_async=inspect.iscoroutinefunction(handler),
+            _accepts_var_kwargs=var_kwargs,
+            _params=params,
         )
         with self._lock:
             existing = self._tools.get(name)
@@ -194,9 +205,11 @@ class ToolRegistry:
         entry = self.get(name)
         if entry is None:
             return tool_error(f"Unknown tool: {name}")
-        kwargs = context if entry._accepts_var_kwargs else {
-            key: value for key, value in context.items() if key in entry._params
-        }
+        kwargs = (
+            context
+            if entry._accepts_var_kwargs
+            else {key: value for key, value in context.items() if key in entry._params}
+        )
         try:
             result = entry.handler(args or {}, **kwargs)
             if inspect.isawaitable(result):

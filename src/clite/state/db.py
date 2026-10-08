@@ -121,8 +121,9 @@ class SessionDB:
                 parsed = json.loads(raw)
             except (TypeError, ValueError):
                 parsed = raw
-            self._conn.execute("UPDATE messages SET search_text = ? WHERE id = ?",
-                               (_search_text_of(parsed), row["id"]))
+            self._conn.execute(
+                "UPDATE messages SET search_text = ? WHERE id = ?", (_search_text_of(parsed), row["id"])
+            )
 
     def _run_migrations(self) -> bool:
         """Run pending migrations. Returns True when the schema was transformed."""
@@ -180,10 +181,25 @@ class SessionDB:
                     started_at, last_activity_at, cwd, profile_name, hidden)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
-                    session_id, source, session_key, user_id, chat_id, chat_type, thread_id,
-                    display_name, json.dumps(origin) if origin else None, model, provider,
-                    json.dumps(model_config) if model_config else None, system_prompt,
-                    parent_session_id, now, now, cwd, profile_name, int(hidden),
+                    session_id,
+                    source,
+                    session_key,
+                    user_id,
+                    chat_id,
+                    chat_type,
+                    thread_id,
+                    display_name,
+                    json.dumps(origin) if origin else None,
+                    model,
+                    provider,
+                    json.dumps(model_config) if model_config else None,
+                    system_prompt,
+                    parent_session_id,
+                    now,
+                    now,
+                    cwd,
+                    profile_name,
+                    int(hidden),
                 ),
             )
             self._conn.commit()
@@ -256,8 +272,17 @@ class SessionDB:
                      estimated_cost_usd = COALESCE(estimated_cost_usd, 0) + ?,
                      last_activity_at = ?
                    WHERE id = ?""",
-                (input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
-                 reasoning_tokens, api_calls, cost_usd, time.time(), session_id),
+                (
+                    input_tokens,
+                    output_tokens,
+                    cache_read_tokens,
+                    cache_write_tokens,
+                    reasoning_tokens,
+                    api_calls,
+                    cost_usd,
+                    time.time(),
+                    session_id,
+                ),
             )
             self._conn.commit()
 
@@ -314,8 +339,9 @@ class SessionDB:
 
     def delete_session(self, session_id: str) -> bool:
         with self._lock:
-            self._conn.execute("UPDATE sessions SET parent_session_id = NULL WHERE parent_session_id = ?",
-                               (session_id,))
+            self._conn.execute(
+                "UPDATE sessions SET parent_session_id = NULL WHERE parent_session_id = ?", (session_id,)
+            )
             cursor = self._conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
             self._conn.commit()
             return cursor.rowcount > 0
@@ -344,8 +370,9 @@ class SessionDB:
             if dry_run or not victims:
                 return len(victims)
             for session_id in victims:
-                self._conn.execute("UPDATE sessions SET parent_session_id = NULL WHERE parent_session_id = ?",
-                                   (session_id,))
+                self._conn.execute(
+                    "UPDATE sessions SET parent_session_id = NULL WHERE parent_session_id = ?", (session_id,)
+                )
                 self._conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
             self._conn.commit()
         return len(victims)
@@ -381,14 +408,22 @@ class SessionDB:
                 turn_context, display_kind, is_summary)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                session_id, message["role"], content, content_is_json, search_text,
+                session_id,
+                message["role"],
+                content,
+                content_is_json,
+                search_text,
                 message.get("tool_call_id"),
                 json.dumps(tool_calls, ensure_ascii=False) if tool_calls else None,
-                message.get("name"), float(message.get("timestamp") or time.time()),
-                message.get("token_count"), message.get("finish_reason"), message.get("reasoning"),
+                message.get("name"),
+                float(message.get("timestamp") or time.time()),
+                message.get("token_count"),
+                message.get("finish_reason"),
+                message.get("reasoning"),
                 json.dumps(provider_data, ensure_ascii=False) if provider_data else None,
                 message.get("turn_context") or None,
-                message.get("display_kind"), int(bool(message.get("is_summary"))),
+                message.get("display_kind"),
+                int(bool(message.get("is_summary"))),
             ),
         )
         return int(cursor.lastrowid or 0)
@@ -485,8 +520,10 @@ class SessionDB:
             filters.append(f"m.session_id NOT IN ({','.join('?' * len(exclude_session_ids))})")
             params.extend(exclude_session_ids)
         extra = (" AND " + " AND ".join(filters)) if filters else ""
-        columns = ("m.id AS message_id, m.session_id, m.role, m.timestamp, m.tool_name, "
-                   "s.title AS session_title, s.source AS session_source")
+        columns = (
+            "m.id AS message_id, m.session_id, m.role, m.timestamp, m.tool_name, "
+            "s.title AS session_title, s.source AS session_source"
+        )
         with self._lock:
             if self.fts_enabled:
                 try:
@@ -538,6 +575,199 @@ class SessionDB:
             )
             self._conn.commit()
 
+    def get_insights(self, days: int = 30) -> dict[str, Any]:
+        """Aggregate usage analytics across sessions and messages.
+
+        Rules:
+        - Subagents (parent_session_id IS NOT NULL) are attributed to their parent session
+          when counting sessions and platform distributions, never double-counted.
+        - Token usage and costs are aggregated per model and per day.
+        - Sessions without cost estimation are counted in `unpriced_sessions`, not zeroed out.
+        """
+        with self._lock:
+            cutoff = time.time() - (days * 86400) if days > 0 else 0.0
+
+            # 1. Total sessions and platform breakdown (ROOT sessions only, subagents excluded)
+            cur = self._conn.execute(
+                "SELECT source, COUNT(*) FROM sessions WHERE started_at >= ? AND parent_session_id IS NULL GROUP BY source",
+                (cutoff,),
+            )
+            platforms = {row[0]: row[1] for row in cur.fetchall()}
+            total_sessions = sum(platforms.values())
+
+            # Count subagents
+            cur = self._conn.execute(
+                "SELECT COUNT(*) FROM sessions WHERE started_at >= ? AND parent_session_id IS NOT NULL",
+                (cutoff,),
+            )
+            subagents_count = cur.fetchone()[0]
+
+            # 2. Token & cost totals across all sessions in the period
+            cur = self._conn.execute(
+                """
+                SELECT
+                    COALESCE(SUM(input_tokens), 0),
+                    COALESCE(SUM(output_tokens), 0),
+                    COALESCE(SUM(cache_read_tokens), 0),
+                    COALESCE(SUM(cache_write_tokens), 0),
+                    COALESCE(SUM(reasoning_tokens), 0),
+                    COALESCE(SUM(message_count), 0),
+                    COALESCE(SUM(CASE WHEN estimated_cost_usd IS NOT NULL THEN estimated_cost_usd ELSE 0.0 END), 0.0),
+                    COUNT(CASE WHEN estimated_cost_usd IS NULL THEN 1 END),
+                    COUNT(CASE WHEN estimated_cost_usd IS NOT NULL THEN 1 END)
+                FROM sessions
+                WHERE started_at >= ?
+                """,
+                (cutoff,),
+            )
+            row = cur.fetchone()
+            in_tok, out_tok, cr_tok, cw_tok, reas_tok, total_msgs, total_cost, unpriced_cnt, priced_cnt = row
+
+            # 3. Model breakdown
+            cur = self._conn.execute(
+                """
+                SELECT
+                    model,
+                    COALESCE(SUM(input_tokens), 0),
+                    COALESCE(SUM(output_tokens), 0),
+                    COALESCE(SUM(CASE WHEN estimated_cost_usd IS NOT NULL THEN estimated_cost_usd ELSE 0.0 END), 0.0),
+                    COUNT(CASE WHEN estimated_cost_usd IS NULL THEN 1 END)
+                FROM sessions
+                WHERE started_at >= ?
+                GROUP BY model
+                ORDER BY (SUM(input_tokens) + SUM(output_tokens)) DESC
+                """,
+                (cutoff,),
+            )
+            models = []
+            for m_row in cur.fetchall():
+                mod_name, m_in, m_out, m_cost, m_unpriced = m_row
+                models.append(
+                    {
+                        "model": mod_name or "unknown",
+                        "input_tokens": m_in,
+                        "output_tokens": m_out,
+                        "total_tokens": m_in + m_out,
+                        "cost_usd": round(m_cost, 6),
+                        "unpriced_sessions": m_unpriced,
+                    }
+                )
+
+            # 4. Tool calls breakdown (from messages)
+            cur = self._conn.execute(
+                """
+                SELECT tool_name, COUNT(*) as cnt
+                FROM messages
+                WHERE role = 'tool' AND tool_name IS NOT NULL AND timestamp >= ?
+                GROUP BY tool_name
+                ORDER BY cnt DESC
+                LIMIT 20
+                """,
+                (cutoff,),
+            )
+            tools = [{"name": row[0], "count": row[1]} for row in cur.fetchall()]
+
+            # 5. Daily activity breakdown
+            cur = self._conn.execute(
+                """
+                SELECT
+                    date(started_at, 'unixepoch') as day,
+                    COUNT(CASE WHEN parent_session_id IS NULL THEN 1 END) as sess_count,
+                    COALESCE(SUM(input_tokens + output_tokens), 0) as tok_count,
+                    COALESCE(SUM(CASE WHEN estimated_cost_usd IS NOT NULL THEN estimated_cost_usd ELSE 0.0 END), 0.0) as day_cost
+                FROM sessions
+                WHERE started_at >= ?
+                GROUP BY day
+                ORDER BY day DESC
+                LIMIT 30
+                """,
+                (cutoff,),
+            )
+            daily = []
+            for d_row in cur.fetchall():
+                day_str, d_sess, d_tok, d_cost = d_row
+                if day_str:
+                    daily.append(
+                        {
+                            "date": day_str,
+                            "sessions": d_sess,
+                            "tokens": d_tok,
+                            "cost_usd": round(d_cost, 6),
+                        }
+                    )
+
+            return {
+                "days": days,
+                "total_sessions": total_sessions,
+                "total_subagents": subagents_count,
+                "total_messages": total_msgs,
+                "tokens": {
+                    "input": in_tok,
+                    "output": out_tok,
+                    "cache_read": cr_tok,
+                    "cache_write": cw_tok,
+                    "reasoning": reas_tok,
+                    "total": in_tok + out_tok,
+                },
+                "cost": {
+                    "total_usd": round(total_cost, 6),
+                    "unpriced_sessions": unpriced_cnt,
+                    "priced_sessions": priced_cnt,
+                    "has_unpriced": bool(unpriced_cnt > 0),
+                },
+                "models": models,
+                "platforms": platforms,
+                "tools": tools,
+                "daily": daily,
+            }
+
+
+def format_insights(data: dict[str, Any]) -> str:
+    """Format aggregate insights dictionary into clean terminal output."""
+    lines = [
+        f"C-lite Usage Insights (Past {data['days']} Days)",
+        "─" * 58,
+    ]
+    plat_str = ", ".join(f"{k}: {v}" for k, v in data["platforms"].items()) or "none"
+    lines.append(f"Sessions:     {data['total_sessions']} ({plat_str})")
+    if data["total_subagents"]:
+        lines.append(f"Subagents:    {data['total_subagents']}")
+    lines.append(f"Messages:     {data['total_messages']:,}")
+    tok = data["tokens"]
+    lines.append(f"Total Tokens: {tok['total']:,} (in: {tok['input']:,}, out: {tok['output']:,})")
+
+    cost = data["cost"]
+    cost_str = f"${cost['total_usd']:.4f}"
+    if cost["unpriced_sessions"]:
+        cost_str += (
+            f" ({cost['unpriced_sessions']} unpriced session{'s' if cost['unpriced_sessions'] > 1 else ''})"
+        )
+    lines.append(f"Cost:         {cost_str}")
+
+    if data["models"]:
+        lines.append("\nTop Models:")
+        for m in data["models"][:5]:
+            c = (
+                f"${m['cost_usd']:.4f}"
+                if m["cost_usd"] > 0
+                else ("(unpriced)" if m["unpriced_sessions"] else "$0.00")
+            )
+            lines.append(f"  • {m['model']:<20} {m['total_tokens']:,} tokens ({c})")
+
+    if data["tools"]:
+        lines.append("\nTop Tools:")
+        for t in data["tools"][:5]:
+            lines.append(f"  • {t['name']:<20} {t['count']:,} calls")
+
+    if data["daily"]:
+        lines.append("\nDaily Activity:")
+        for d in data["daily"][:7]:
+            lines.append(
+                f"  • {d['date']}: {d['sessions']} sessions, {d['tokens']:,} tokens, ${d['cost_usd']:.4f}"
+            )
+
+    return "\n".join(lines)
+
 
 def _search_text_of(content: Any) -> str | None:
     """The plain text of a message's content, for the search index.
@@ -551,8 +781,14 @@ def _search_text_of(content: Any) -> str | None:
     if isinstance(content, str):
         return content
     if isinstance(content, list):
-        return "".join(part.get("text", "") for part in content
-                       if isinstance(part, dict) and part.get("type") == "text") or None
+        return (
+            "".join(
+                part.get("text", "")
+                for part in content
+                if isinstance(part, dict) and part.get("type") == "text"
+            )
+            or None
+        )
     return None
 
 

@@ -82,14 +82,20 @@ def _internal_imports(path: Path) -> list[tuple[str, bool, int]]:
 
     def visit(node: ast.AST, lazy: bool) -> None:
         for child in ast.iter_child_nodes(node):
-            if isinstance(child, ast.If) and isinstance(child.test, ast.Name) and child.test.id == "TYPE_CHECKING":
+            if (
+                isinstance(child, ast.If)
+                and isinstance(child.test, ast.Name)
+                and child.test.id == "TYPE_CHECKING"
+            ):
                 continue
             names: list[str] = []
             if isinstance(child, ast.Import):
                 names = [alias.name for alias in child.names]
             elif isinstance(child, ast.ImportFrom) and child.module and child.level == 0:
                 names = [child.module]
-            found.extend((name, lazy, child.lineno) for name in names if name == "clite" or name.startswith("clite."))
+            found.extend(
+                (name, lazy, child.lineno) for name in names if name == "clite" or name.startswith("clite.")
+            )
             visit(child, lazy or isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef))
 
     visit(ast.parse(path.read_text(encoding="utf-8")), False)
@@ -119,7 +125,9 @@ def test_imports_point_down_the_layers():
                 used_exceptions.add((module, target))
                 continue
             kind = "inside a function" if lazy else "at module level"
-            violations.append(f"{path.relative_to(REPO_ROOT)}:{line}: {source} imports {imported} ({target}) {kind}")
+            violations.append(
+                f"{path.relative_to(REPO_ROOT)}:{line}: {source} imports {imported} ({target}) {kind}"
+            )
     assert not violations, (
         "imports must point down the layers (see LAYER_RANK in this file):\n  " + "\n  ".join(violations)
     )
@@ -137,8 +145,15 @@ def test_bundled_plugins_use_only_the_plugin_api():
     """A bundled plugin is the example third-party authors copy. It may import what any plugin
     may: ``core``, the provider profile API and the hook bus. Everything else reaches a plugin
     through the ``ctx`` it is handed, never through an import of the agent's internals."""
-    allowed = ("clite.core.", "clite.providers.base", "clite.providers.registry", "clite.providers.transports",
-               "clite.plugins.hooks", "clite.tools.web_search", "clite.tools.image_gen")
+    allowed = (
+        "clite.core.",
+        "clite.providers.base",
+        "clite.providers.registry",
+        "clite.providers.transports",
+        "clite.plugins.hooks",
+        "clite.tools.web_search",
+        "clite.tools.image_gen",
+    )
     for path in sorted((PACKAGE / "bundled").rglob("*.py")):
         for name, _, line in _internal_imports(path):
             assert name.startswith(allowed), f"{path.relative_to(REPO_ROOT)}:{line} imports {name}"
@@ -182,7 +197,8 @@ def _leaf_keys(node: dict, prefix: str = "") -> list[str]:
 def test_every_config_key_has_a_reader():
     sources = {
         path: path.read_text(encoding="utf-8")
-        for path in sorted(PACKAGE.rglob("*.py")) if path.name != "config_defaults.py"
+        for path in sorted(PACKAGE.rglob("*.py"))
+        if path.name != "config_defaults.py"
     }
     everything = "\n".join(sources.values())
     unread = []
@@ -220,10 +236,17 @@ def _string_literals(tree: ast.AST) -> list[tuple[str, int]]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef) and node.body:
             first = node.body[0]
-            if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) and isinstance(first.value.value, str):
+            if (
+                isinstance(first, ast.Expr)
+                and isinstance(first.value, ast.Constant)
+                and isinstance(first.value.value, str)
+            ):
                 docstrings.add(id(first.value))
-    return [(node.value, node.lineno) for node in ast.walk(tree)
-            if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in docstrings]
+    return [
+        (node.value, node.lineno)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in docstrings
+    ]
 
 
 def _parsed_sources() -> list[tuple[Path, ast.AST]]:
@@ -237,10 +260,17 @@ def test_vendors_are_named_only_in_their_provider_profiles():
     and the bring-your-own-endpoint provider."""
     from clite.providers.registry import list_providers
 
-    vendors = {name.lower() for profile in list_providers() for name in (profile.name, *profile.aliases)} - {"mock", "custom"}
+    vendors = {name.lower() for profile in list_providers() for name in (profile.name, *profile.aliases)} - {
+        "mock",
+        "custom",
+    }
     assert vendors, "no bundled providers were discovered"
-    named = [f"{path.relative_to(REPO_ROOT)}:{line}: {value!r}"
-             for path, tree in _parsed_sources() for value, line in _string_literals(tree) if value.lower() in vendors]
+    named = [
+        f"{path.relative_to(REPO_ROOT)}:{line}: {value!r}"
+        for path, tree in _parsed_sources()
+        for value, line in _string_literals(tree)
+        if value.lower() in vendors
+    ]
     assert not named, (
         "a provider is named outside its profile; put the difference behind a ProviderProfile method "
         "(src/clite/providers/base.py) and override it in the profile:\n  " + "\n  ".join(named)
@@ -252,10 +282,16 @@ def test_the_home_directory_name_is_spelled_only_in_brand():
     profiles, and the project can be renamed), and messages use ``display_home()``."""
     from clite.core import brand
 
-    spelled = [f"{path.relative_to(REPO_ROOT)}:{line}: {value!r}"
-               for path, tree in _parsed_sources() if _relative(path) != "core/brand.py"
-               for value, line in _string_literals(tree) if brand.HOME_DIRNAME in value]
-    assert not spelled, "use get_home() / display_home() instead of spelling the directory:\n  " + "\n  ".join(spelled)
+    spelled = [
+        f"{path.relative_to(REPO_ROOT)}:{line}: {value!r}"
+        for path, tree in _parsed_sources()
+        if _relative(path) != "core/brand.py"
+        for value, line in _string_literals(tree)
+        if brand.HOME_DIRNAME in value
+    ]
+    assert not spelled, (
+        "use get_home() / display_home() instead of spelling the directory:\n  " + "\n  ".join(spelled)
+    )
 
 
 # Files outside ``core`` that read the process environment, with what they read. Secrets are
@@ -263,8 +299,10 @@ def test_the_home_directory_name_is_spelled_only_in_brand():
 # ``.env`` and the secret scope of the running activity.
 ENVIRONMENT_READERS: dict[str, str] = {
     "cli/display.py": "NO_COLOR and TERM, to decide whether to colour output",
+    "cli/clipboard.py": "TMUX, to wrap the OSC 52 sequence the way tmux expects",
     "cli/subcommands/config.py": "VISUAL and EDITOR, for `clite config edit`",
     "cli/subcommands/tui.py": "the TUI bundle override, and the environment handed to the Node process",
+    "cli/subcommands/update.py": "detects pipx via PIPX_HOME and accepts test version override",
     "plugins/manager.py": "the switch that enables project plugins",
     "plugins/shell_hooks.py": "the switch that accepts every configured shell hook",
     "rpc/entry.py": "the platform name the parent process chose",
@@ -276,38 +314,56 @@ ENVIRONMENT_READERS: dict[str, str] = {
 
 def _reads_environment(tree: ast.AST) -> bool:
     for node in ast.walk(tree):
-        if (isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == "os"
-                and node.attr in ("environ", "getenv", "putenv", "unsetenv")):
+        if (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "os"
+            and node.attr in ("environ", "getenv", "putenv", "unsetenv")
+        ):
             return True
-        if isinstance(node, ast.ImportFrom) and node.module == "os" and any(
-                alias.name in ("environ", "getenv", "putenv", "unsetenv") for alias in node.names):
+        if (
+            isinstance(node, ast.ImportFrom)
+            and node.module == "os"
+            and any(alias.name in ("environ", "getenv", "putenv", "unsetenv") for alias in node.names)
+        ):
             return True
     return False
 
 
 def test_the_process_environment_is_read_only_where_listed():
-    readers = {_relative(path) for path, tree in _parsed_sources()
-               if not _relative(path).startswith("core/") and _reads_environment(tree)}
+    readers = {
+        _relative(path)
+        for path, tree in _parsed_sources()
+        if not _relative(path).startswith("core/") and _reads_environment(tree)
+    }
     unlisted = sorted(readers - set(ENVIRONMENT_READERS))
     assert not unlisted, (
         f"{unlisted} read the process environment. A secret is read with core.env.get_secret and a "
         "setting belongs in config.yaml; if this is neither, list the file in ENVIRONMENT_READERS with the reason."
     )
     stale = sorted(set(ENVIRONMENT_READERS) - readers)
-    assert not stale, f"these files no longer read the environment; remove them from ENVIRONMENT_READERS: {stale}"
+    assert not stale, (
+        f"these files no longer read the environment; remove them from ENVIRONMENT_READERS: {stale}"
+    )
 
 
 # Library code logs; it does not print. On the stdio transport stdout is the protocol wire,
 # and on every surface a stray line would land in the middle of the user's output.
-PRINT_ALLOWED = {"server/run.py": "the ready line the parent process waits for, and startup notices on stderr"}
+PRINT_ALLOWED = {
+    "server/run.py": "the ready line the parent process waits for, and startup notices on stderr"
+}
 
 
 def test_only_the_command_line_prints():
-    printing = sorted({
-        _relative(path) for path, tree in _parsed_sources() if not _relative(path).startswith("cli/")
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "print"
-    })
+    printing = sorted(
+        {
+            _relative(path)
+            for path, tree in _parsed_sources()
+            if not _relative(path).startswith("cli/")
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "print"
+        }
+    )
     assert printing == sorted(PRINT_ALLOWED), (
         "print() outside clite/cli: use logging, return the text to the surface, or emit a callback. "
         f"Found in {printing}; allowed in {sorted(PRINT_ALLOWED)}."
@@ -321,11 +377,18 @@ def test_typescript_contracts_match_the_python_contracts():
     script = REPO_ROOT / "scripts" / "gen_rpc_contracts.py"
     if not script.is_file():
         pytest.skip("not a source checkout")
-    result = subprocess.run([sys.executable, str(script), "--check"], capture_output=True, text=True, timeout=120,
-                            cwd=REPO_ROOT, env=_env_with_source_path())
+    result = subprocess.run(
+        [sys.executable, str(script), "--check"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        cwd=REPO_ROOT,
+        env=_env_with_source_path(),
+    )
     assert result.returncode == 0, (
         "apps/shared/src/contracts.generated.ts is out of date. Run `python scripts/gen_rpc_contracts.py`.\n"
-        + result.stdout + result.stderr
+        + result.stdout
+        + result.stderr
     )
 
 
@@ -333,8 +396,14 @@ def test_generated_reference_pages_are_current():
     script = REPO_ROOT / "scripts" / "gen_docs.py"
     if not script.is_file():
         pytest.skip("not a source checkout")
-    result = subprocess.run([sys.executable, str(script), "--check"], capture_output=True, text=True, timeout=120,
-                            cwd=REPO_ROOT, env=_env_with_source_path())
+    result = subprocess.run(
+        [sys.executable, str(script), "--check"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        cwd=REPO_ROOT,
+        env=_env_with_source_path(),
+    )
     assert result.returncode == 0, (
         "docs/referensi/ is out of date (a tool, command, RPC method, config key or module changed). "
         "Run `python scripts/gen_docs.py` and commit the result.\n" + result.stdout + result.stderr

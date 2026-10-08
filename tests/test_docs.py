@@ -58,7 +58,11 @@ def test_relative_links_in_the_docs_resolve():
                 destination = (path.parent / file_part).resolve() if file_part else path
                 if not destination.exists():
                     broken.append(f"{_where(path, line_number)}: {target} (no such file)")
-                elif anchor and destination.suffix == ".md" and anchor not in doc_refs.heading_slugs(destination):
+                elif (
+                    anchor
+                    and destination.suffix == ".md"
+                    and anchor not in doc_refs.heading_slugs(destination)
+                ):
                     broken.append(f"{_where(path, line_number)}: {target} (no such heading)")
     assert not broken, "broken links:\n  " + "\n  ".join(broken)
 
@@ -122,7 +126,7 @@ def test_tests_named_in_the_docs_exist():
             if doc_refs.TEST_NAME.fullmatch(name) and name not in defined:
                 unknown.append(f"{_where(path, line_number)}: `{name}`")
     assert not unknown, (
-        "the docs cite tests that do not exist; a rule is only \"guarded by a test\" if the test is there:\n  "
+        'the docs cite tests that do not exist; a rule is only "guarded by a test" if the test is there:\n  '
         + "\n  ".join(unknown)
     )
 
@@ -138,7 +142,9 @@ def _roadmap_tasks() -> dict[str, Path]:
     for path in sorted((DOCS / "roadmap").glob("fase-*.md")):
         for task_id in TASK_HEADING.findall(path.read_text(encoding="utf-8")):
             assert task_id not in tasks, f"{task_id} is defined twice ({tasks[task_id].name} and {path.name})"
-            assert task_id[1] == path.name[len("fase-")], f"{task_id} is defined in {path.name}, the wrong phase file"
+            assert task_id[1] == path.name[len("fase-")], (
+                f"{task_id} is defined in {path.name}, the wrong phase file"
+            )
             tasks[task_id] = path
     return tasks
 
@@ -149,21 +155,32 @@ def test_roadmap_tasks_cited_in_the_docs_are_defined():
     unknown = []
     for path in _documents():
         for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-            unknown.extend(f"{_where(path, line_number)}: {task_id}" for task_id in TASK_ID.findall(line) if task_id not in tasks)
+            unknown.extend(
+                f"{_where(path, line_number)}: {task_id}"
+                for task_id in TASK_ID.findall(line)
+                if task_id not in tasks
+            )
     assert not unknown, "the docs cite roadmap tasks that are not defined:\n  " + "\n  ".join(unknown)
 
 
 def test_every_roadmap_task_is_in_the_index_and_has_the_standard_fields():
     index = (DOCS / "roadmap" / "README.md").read_text(encoding="utf-8")
-    fields = ("**Tujuan.**", "**Lingkup.**", "**File.**", "**Selesai bila.**", "**Ukuran.**", "**Bergantung pada.**")
+    fields = (
+        "**Tujuan.**",
+        "**Lingkup.**",
+        "**File.**",
+        "**Selesai bila.**",
+        "**Ukuran.**",
+        "**Bergantung pada.**",
+    )
     problems = []
     for task_id, path in _roadmap_tasks().items():
         if task_id not in index:
             problems.append(f"{task_id} is missing from docs/roadmap/README.md")
         text = path.read_text(encoding="utf-8")
-        body = text[text.index(f"### {task_id}"):]
+        body = text[text.index(f"### {task_id}") :]
         following = TASK_HEADING.search(body, 4)
-        body = body[:following.start()] if following else body
+        body = body[: following.start()] if following else body
         problems.extend(f"{task_id} has no {field} field" for field in fields if field not in body)
     assert not problems, "\n".join(problems)
 
@@ -184,9 +201,13 @@ def test_every_agents_file_has_a_claude_file_that_imports_it():
         claude = agents.with_name("CLAUDE.md")
         assert claude.is_file(), f"{agents.relative_to(REPO_ROOT)} has no CLAUDE.md beside it"
         lines = [line.strip() for line in claude.read_text(encoding="utf-8").splitlines() if line.strip()]
-        assert lines and lines[0] == "@AGENTS.md", f"{claude.relative_to(REPO_ROOT)} must start with the line @AGENTS.md"
+        assert lines and lines[0] == "@AGENTS.md", (
+            f"{claude.relative_to(REPO_ROOT)} must start with the line @AGENTS.md"
+        )
     for claude in _instruction_files("CLAUDE.md"):
-        assert claude.with_name("AGENTS.md").is_file(), f"{claude.relative_to(REPO_ROOT)} imports an AGENTS.md that is not there"
+        assert claude.with_name("AGENTS.md").is_file(), (
+            f"{claude.relative_to(REPO_ROOT)} imports an AGENTS.md that is not there"
+        )
 
 
 def test_instruction_files_stay_short():
@@ -195,7 +216,9 @@ def test_instruction_files_stay_short():
         for path in _instruction_files("AGENTS.md")
         if (count := len(path.read_text(encoding="utf-8").splitlines())) > MAX_AGENTS_LINES
     }
-    assert not too_long, f"keep each AGENTS.md under {MAX_AGENTS_LINES} lines; move detail to docs/: {too_long}"
+    assert not too_long, (
+        f"keep each AGENTS.md under {MAX_AGENTS_LINES} lines; move detail to docs/: {too_long}"
+    )
 
 
 # ── the Hermes reference checker ─────────────────────────────────────────────────────────
@@ -205,7 +228,12 @@ def test_hermes_reference_checker_reports_a_missing_checkout(tmp_path):
     """The checker needs a Hermes checkout this repository does not contain. Without one it
     must say so and fail, never report success."""
     script = REPO_ROOT / "scripts" / "check_hermes_refs.py"
-    result = subprocess.run([sys.executable, str(script), "--hermes", str(tmp_path / "absent")],
-                            capture_output=True, text=True, timeout=60, cwd=REPO_ROOT)
+    result = subprocess.run(
+        [sys.executable, str(script), "--hermes", str(tmp_path / "absent")],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        cwd=REPO_ROOT,
+    )
     assert result.returncode == 2
     assert "not a Hermes checkout" in result.stderr

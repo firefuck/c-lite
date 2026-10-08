@@ -56,8 +56,14 @@ class Skill:
         return self.tier == TIER_LOCAL
 
     def summary(self) -> dict[str, Any]:
-        return {"name": self.name, "description": self.description, "category": self.category, "tier": self.tier,
-                "version": self.meta.version, "tags": list(self.meta.tags)}
+        return {
+            "name": self.name,
+            "description": self.description,
+            "category": self.category,
+            "tier": self.tier,
+            "version": self.meta.version,
+            "tags": list(self.meta.tags),
+        }
 
 
 def find_project_root(start: str | os.PathLike[str] | None = None) -> Path | None:
@@ -85,7 +91,9 @@ def unregister_extra_root(directory: Path) -> None:
         roots.remove(directory)
 
 
-def skill_roots(cwd: str | os.PathLike[str] | None = None, config: dict[str, Any] | None = None) -> list[tuple[str, Path]]:
+def skill_roots(
+    cwd: str | os.PathLike[str] | None = None, config: dict[str, Any] | None = None
+) -> list[tuple[str, Path]]:
     cfg = config if config is not None else load_config()
     roots: list[tuple[str, Path]] = []
     project = find_project_root(cwd)
@@ -143,7 +151,9 @@ def discover_skills(
             if tier in SCANNED_TIERS:
                 threats = scan_text(text)
                 if threats:
-                    logger.warning("skipping skill %s: rejected by the security scan (%s)", path, describe(threats))
+                    logger.warning(
+                        "skipping skill %s: rejected by the security scan (%s)", path, describe(threats)
+                    )
                     continue
             if meta.name in chosen:
                 continue  # a higher tier already provides this name
@@ -157,7 +167,9 @@ def discover_skills(
     return sorted(chosen.values(), key=lambda skill: (skill.category or "~", skill.name))
 
 
-def get_skill(name: str, *, cwd: str | os.PathLike[str] | None = None, config: dict[str, Any] | None = None) -> Skill | None:
+def get_skill(
+    name: str, *, cwd: str | os.PathLike[str] | None = None, config: dict[str, Any] | None = None
+) -> Skill | None:
     for skill in discover_skills(cwd=cwd, config=config, include_disabled=True, all_platforms=True):
         if skill.name == name:
             return skill
@@ -170,7 +182,9 @@ def linked_files(skill: Skill) -> dict[str, list[str]]:
     for kind in LINKED_DIRS:
         directory = skill.directory / kind
         if directory.is_dir():
-            entries = sorted(p.relative_to(skill.directory).as_posix() for p in directory.rglob("*") if p.is_file())
+            entries = sorted(
+                p.relative_to(skill.directory).as_posix() for p in directory.rglob("*") if p.is_file()
+            )
             if entries:
                 files[kind] = entries
     return files

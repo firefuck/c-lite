@@ -167,14 +167,24 @@ class SessionUsageResult(Result):
     context: ContextStatus
 
 
-method("session.create", SessionCreateParams, SessionInfo, "Open a runtime session (new, or resuming a stored one).")
+method(
+    "session.create",
+    SessionCreateParams,
+    SessionInfo,
+    "Open a runtime session (new, or resuming a stored one).",
+)
 method("session.info", SessionRef, SessionInfo)
 method("session.list", SessionListParams, SessionListResult, "Stored sessions, most recent first.")
 method("session.history", SessionRef, SessionHistoryResult, "The transcript, in display form.")
 method("session.close", SessionRef, Ok)
 method("session.interrupt", SessionRef, Ok, "Stop the running turn.")
 method("session.steer", SessionSteerParams, Ok, "Guide the running turn without stopping it.")
-method("session.title", SessionTitleParams, SessionTitleResult, "Read the title, or set it when `title` is given.")
+method(
+    "session.title",
+    SessionTitleParams,
+    SessionTitleResult,
+    "Read the title, or set it when `title` is given.",
+)
 method("session.delete", SessionDeleteParams, Ok)
 method("session.compress", SessionCompressParams, SessionCompressResult)
 method("session.usage", SessionRef, SessionUsageResult)
@@ -227,10 +237,19 @@ class CompleteResult(Result):
     items: list[CommandEntry]
 
 
-method("prompt.submit", PromptSubmitParams, PromptSubmitResult,
-       "Start a turn. Returns at once; the answer arrives as events ending with turn.complete.")
+method(
+    "prompt.submit",
+    PromptSubmitParams,
+    PromptSubmitResult,
+    "Start a turn. Returns at once; the answer arrives as events ending with turn.complete.",
+)
 method("slash.exec", SlashExecParams, SlashExecResult, "Run a slash command.")
-method("commands.catalog", CatalogParams, CatalogResult, "Every command available now, for help and autocomplete.")
+method(
+    "commands.catalog",
+    CatalogParams,
+    CatalogResult,
+    "Every command available now, for help and autocomplete.",
+)
 method("complete.slash", CompleteParams, CompleteResult, "Commands starting with a prefix.")
 
 # ── configuration, models, providers ─────────────────────────────────────────────────────
@@ -305,12 +324,24 @@ class SetupApplyResult(Result):
     model: str
 
 
-method("config.get", ConfigGetParams, ConfigGetResult, "One value by dotted key, or the whole effective config.")
+method(
+    "config.get", ConfigGetParams, ConfigGetResult, "One value by dotted key, or the whole effective config."
+)
 method("config.set", ConfigSetParams, Ok)
 method("model.list", ModelListParams, ModelListResult)
-method("model.set", ModelSetParams, ModelSetResult, "Switch the session's model; `persist` saves it as the default.")
+method(
+    "model.set",
+    ModelSetParams,
+    ModelSetResult,
+    "Switch the session's model; `persist` saves it as the default.",
+)
 method("providers.list", Empty, ProvidersResult)
-method("setup.apply", SetupApplyParams, SetupApplyResult, "Store a provider choice (and its API key) from a setup screen.")
+method(
+    "setup.apply",
+    SetupApplyParams,
+    SetupApplyResult,
+    "Store a provider choice (and its API key) from a setup screen.",
+)
 
 # ── tools, skills, plugins, memory, cron ─────────────────────────────────────────────────
 
@@ -459,6 +490,9 @@ class ToolCompletePayload(Payload):
     duration: float
     failed: bool = False
     result_preview: str = ""
+    # A unified diff when the tool changed a file (``patch``, ``write_file``), so a client can
+    # colour the change without parsing the tool's own payload. Empty for every other tool.
+    diff: str = ""
 
 
 class StatusPayload(Payload):
@@ -534,6 +568,12 @@ class ClarifyRequestResult(Result):
     answer: str = ""
 
 
-server_request("approval.request", ApprovalRequestParams, ApprovalRequestResult,
-               "A dangerous command needs the user's decision. No reply within the timeout means deny.")
-server_request("clarify.request", ClarifyRequestParams, ClarifyRequestResult, "The agent asks the user a question.")
+server_request(
+    "approval.request",
+    ApprovalRequestParams,
+    ApprovalRequestResult,
+    "A dangerous command needs the user's decision. No reply within the timeout means deny.",
+)
+server_request(
+    "clarify.request", ClarifyRequestParams, ClarifyRequestResult, "The agent asks the user a question."
+)

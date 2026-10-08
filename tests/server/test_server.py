@@ -33,7 +33,9 @@ class Backend:
             return error.code, json.loads(error.read())
 
     def connect(self, token=None, **kwargs):
-        return websockets_client.connect(f"ws://127.0.0.1:{self.port}/api/ws?token={token or self.token}", **kwargs)
+        return websockets_client.connect(
+            f"ws://127.0.0.1:{self.port}/api/ws?token={token or self.token}", **kwargs
+        )
 
 
 def start_backend(**kwargs):
@@ -74,7 +76,9 @@ class Rpc:
 
     def call(self, method, params=None):
         self.next_id += 1
-        self.socket.send(json.dumps({"jsonrpc": "2.0", "id": self.next_id, "method": method, "params": params or {}}))
+        self.socket.send(
+            json.dumps({"jsonrpc": "2.0", "id": self.next_id, "method": method, "params": params or {}})
+        )
         while True:
             message = json.loads(self.socket.recv(timeout=10))
             if message.get("method") == "event":
@@ -141,8 +145,8 @@ def test_websocket_rejects_a_bad_token_and_a_foreign_origin(backend):
     refused = (
         {"token": "wrong"},
         {"origin": "https://evil.example"},
-        {"origin": "null"},                                   # a sandboxed frame or a file:// page
-        {"origin": f"http://127.0.0.1:{backend.port + 1}"},   # another local web app
+        {"origin": "null"},  # a sandboxed frame or a file:// page
+        {"origin": f"http://127.0.0.1:{backend.port + 1}"},  # another local web app
         {"origin": "file://"},
     )
     for kwargs in refused:
@@ -162,7 +166,10 @@ def test_a_loopback_server_ignores_requests_addressed_to_another_name(backend):
     rebound = {"Host": f"evil.example:{backend.port}"}
     assert backend.get("/api/status", token=backend.token, headers=rebound)[0] == 401
     assert backend.get("/api/status", token=backend.token)[0] == 200
-    with pytest.raises((ConnectionClosed, InvalidStatus)), backend.connect(additional_headers=rebound) as socket:
+    with (
+        pytest.raises((ConnectionClosed, InvalidStatus)),
+        backend.connect(additional_headers=rebound) as socket,
+    ):
         socket.recv(timeout=5)
 
 

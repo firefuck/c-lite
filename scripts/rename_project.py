@@ -39,9 +39,33 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-SKIP_DIRS = {".git", "node_modules", "dist", "build", "__pycache__", ".pytest_cache", ".ruff_cache", ".mypy_cache",
-             ".venv", "venv"}
-SKIP_SUFFIXES = {".pyc", ".png", ".jpg", ".jpeg", ".gif", ".ico", ".icns", ".woff", ".woff2", ".db", ".gz", ".zip", ".whl"}
+SKIP_DIRS = {
+    ".git",
+    "node_modules",
+    "dist",
+    "build",
+    "__pycache__",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".mypy_cache",
+    ".venv",
+    "venv",
+}
+SKIP_SUFFIXES = {
+    ".pyc",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".ico",
+    ".icns",
+    ".woff",
+    ".woff2",
+    ".db",
+    ".gz",
+    ".zip",
+    ".whl",
+}
 VALID_NAME = re.compile(r"^[a-z][a-z0-9_]{1,30}$")
 WORD = r"[A-Za-z0-9_]"
 
@@ -55,7 +79,9 @@ def current_brand(root: Path) -> tuple[str, str, list[str], str]:
     repository states them."""
     brand_files = sorted((root / "src").glob("*/core/brand.py"))
     if len(brand_files) != 1:
-        raise RenameError(f"expected exactly one src/<package>/core/brand.py under {root}, found {len(brand_files)}")
+        raise RenameError(
+            f"expected exactly one src/<package>/core/brand.py under {root}, found {len(brand_files)}"
+        )
     text = brand_files[0].read_text(encoding="utf-8")
     name = re.search(r'^APP_NAME = "([^"]+)"', text, re.MULTILINE)
     display = re.search(r'^DISPLAY_NAME = "([^"]+)"', text, re.MULTILINE)
@@ -63,12 +89,22 @@ def current_brand(root: Path) -> tuple[str, str, list[str], str]:
         raise RenameError(f"{brand_files[0]} does not define APP_NAME and DISPLAY_NAME as plain strings")
     project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8")).get("project", {})
     scripts = project.get("scripts", {})
-    return (name.group(1), display.group(1), [key for key in scripts if key != name.group(1)],
-            project.get("name", name.group(1)))
+    return (
+        name.group(1),
+        display.group(1),
+        [key for key in scripts if key != name.group(1)],
+        project.get("name", name.group(1)),
+    )
 
 
-def build_rewriter(old: str, old_display: str, new: str, new_display: str, aliases: dict[str, str],
-                   distribution: str | None = None):
+def build_rewriter(
+    old: str,
+    old_display: str,
+    new: str,
+    new_display: str,
+    aliases: dict[str, str],
+    distribution: str | None = None,
+):
     """A function that rewrites one text. Rules run in this order:
 
     1. the display name, only where it is a word of its own (never inside an identifier);
@@ -102,8 +138,11 @@ def drop_console_scripts(text: str, names: list[str]) -> str:
 
 
 def is_skipped(relative: Path) -> bool:
-    return (bool(SKIP_DIRS.intersection(relative.parts)) or relative.suffix.lower() in SKIP_SUFFIXES
-            or any(part.endswith(".egg-info") for part in relative.parts))
+    return (
+        bool(SKIP_DIRS.intersection(relative.parts))
+        or relative.suffix.lower() in SKIP_SUFFIXES
+        or any(part.endswith(".egg-info") for part in relative.parts)
+    )
 
 
 def text_files(root: Path) -> list[Path]:
@@ -121,7 +160,9 @@ def text_files(root: Path) -> list[Path]:
 
 def rename_paths(root: Path, old: str, new: str, *, dry_run: bool) -> list[tuple[Path, Path]]:
     """Rename every file and directory whose own name contains the old name, deepest first."""
-    candidates = [path for path in root.rglob("*") if old in path.name and not is_skipped(path.relative_to(root))]
+    candidates = [
+        path for path in root.rglob("*") if old in path.name and not is_skipped(path.relative_to(root))
+    ]
     moves = []
     for path in sorted(candidates, key=lambda item: len(item.parts), reverse=True):
         target = path.with_name(path.name.replace(old, new))
@@ -133,10 +174,16 @@ def rename_paths(root: Path, old: str, new: str, *, dry_run: bool) -> list[tuple
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Rename the project everywhere in this repository.")
-    parser.add_argument("--name", required=True, help="new package and command name: lowercase letters, digits, underscore")
+    parser.add_argument(
+        "--name", required=True, help="new package and command name: lowercase letters, digits, underscore"
+    )
     parser.add_argument("--display", required=True, help="new display name, e.g. 'Orbit'")
-    parser.add_argument("--alias", help="keep one extra console script under this name (default: extra scripts are dropped)")
-    parser.add_argument("--root", type=Path, default=REPO_ROOT, help="repository to rename (default: this one)")
+    parser.add_argument(
+        "--alias", help="keep one extra console script under this name (default: extra scripts are dropped)"
+    )
+    parser.add_argument(
+        "--root", type=Path, default=REPO_ROOT, help="repository to rename (default: this one)"
+    )
     parser.add_argument("--dry-run", action="store_true", help="show what would change and change nothing")
     args = parser.parse_args(argv)
     root = args.root.resolve()
@@ -150,7 +197,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.name == old:
         parser.error("that is already the name")
     if old in args.name or old in args.display.lower():
-        parser.error(f"the new names must not contain {old!r}: the replacement could not be told apart from the original")
+        parser.error(
+            f"the new names must not contain {old!r}: the replacement could not be told apart from the original"
+        )
 
     kept = {old_aliases[0]: args.alias} if args.alias and old_aliases else {}
     dropped = [alias for alias in old_aliases if alias not in kept]

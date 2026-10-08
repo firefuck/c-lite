@@ -30,12 +30,14 @@ DEFAULT_MODEL = "gpt-image-1"
 SUPPORTED_SIZES = ("1024x1024", "1536x1024", "1024x1536")
 _USER_AGENT = "clite (+image_generate; openai)"
 
-register_secret(SecretSpec(
-    OPENAI_API_KEY_ENV,
-    "OpenAI API key: image generation (image_generate)",
-    category="tool",
-    url="https://platform.openai.com/api-keys",
-))
+register_secret(
+    SecretSpec(
+        OPENAI_API_KEY_ENV,
+        "OpenAI API key: image generation (image_generate)",
+        category="tool",
+        url="https://platform.openai.com/api-keys",
+    )
+)
 
 
 class OpenAIImageProvider(ImageProvider):
@@ -57,7 +59,8 @@ class OpenAIImageProvider(ImageProvider):
         if size:
             payload["size"] = size
         request = urllib.request.Request(  # noqa: S310 - https is enforced
-            self._base_url, data=json.dumps(payload).encode(),
+            self._base_url,
+            data=json.dumps(payload).encode(),
             headers={
                 "Authorization": f"Bearer {key}",
                 "Content-Type": "application/json",
@@ -81,11 +84,13 @@ def _parse_images(body: dict) -> list[GeneratedImage]:
         revised = str(item.get("revised_prompt") or "").strip()
         if revised:
             metadata["revised_prompt"] = revised
-        images.append(GeneratedImage(
-            media_type=str(item.get("output_format") and f"image/{item['output_format']}" or "image/png"),
-            data=base64.b64decode(encoded),
-            metadata=metadata,
-        ))
+        images.append(
+            GeneratedImage(
+                media_type=str(item.get("output_format") and f"image/{item['output_format']}" or "image/png"),
+                data=base64.b64decode(encoded),
+                metadata=metadata,
+            )
+        )
     return images
 
 

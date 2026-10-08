@@ -32,13 +32,24 @@ class AzureProfile(ProviderProfile):
         path = "/openai/deployments/" + quote(route.model, safe="") + "/chat/completions"
         return HttpRequest(
             url=urlunsplit((parts.scheme, parts.netloc, path, urlencode({"api-version": version}), "")),
-            headers=dict(request.headers), body={k: v for k, v in request.body.items() if k != "model"},
+            headers=dict(request.headers),
+            body={k: v for k, v in request.body.items() if k != "model"},
         )
 
 
-register_provider(AzureProfile(
-    name="azure", display_name="Azure OpenAI", description="Azure OpenAI deployment (resource URL + API version)",
-    env_vars=("AZURE_OPENAI_API_KEY",), base_url="", base_url_env="AZURE_OPENAI_ENDPOINT",
-    auth_header="api-key", auth_scheme="", auto_select=False, supports_model_listing=False,
-    fallback_models=(), context_lengths={},
-))
+register_provider(
+    AzureProfile(
+        name="azure",
+        display_name="Azure OpenAI",
+        description="Azure OpenAI deployment (resource URL + API version)",
+        env_vars=("AZURE_OPENAI_API_KEY",),
+        base_url="",
+        base_url_env="AZURE_OPENAI_ENDPOINT",
+        auth_header="api-key",
+        auth_scheme="",
+        auto_select=False,
+        supports_model_listing=False,
+        fallback_models=(),
+        context_lengths={},
+    )
+)

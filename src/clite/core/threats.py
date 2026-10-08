@@ -13,12 +13,24 @@ from dataclasses import dataclass
 
 # (pattern, id). Deliberately specific: a false positive silently drops a user's file.
 _PATTERNS: list[tuple[str, str]] = [
-    (r"ignore\s+(all\s+)?(the\s+)?(previous|prior|above|earlier)\s+(instructions|prompts|rules)", "ignore_instructions"),
-    (r"disregard\s+(all\s+|any\s+)?(your\s+|the\s+)?(previous\s+|prior\s+)?(instructions|rules|guidelines)", "disregard_rules"),
+    (
+        r"ignore\s+(all\s+)?(the\s+)?(previous|prior|above|earlier)\s+(instructions|prompts|rules)",
+        "ignore_instructions",
+    ),
+    (
+        r"disregard\s+(all\s+|any\s+)?(your\s+|the\s+)?(previous\s+|prior\s+)?(instructions|rules|guidelines)",
+        "disregard_rules",
+    ),
     (r"you\s+are\s+now\s+(?!able|ready|in\s+the|going)(a|an|the|in)\s", "role_hijack"),
     (r"do\s+not\s+(tell|inform|mention\s+(this\s+)?to)\s+the\s+user", "deception"),
-    (r"(reveal|print|output|show)\s+(your\s+|the\s+)?(system\s+prompt|hidden\s+instructions)", "prompt_extraction"),
-    (r"act\s+as\s+(if|though)\s+you\s+(have|had)\s+no\s+(restrictions|rules|guidelines)", "bypass_restrictions"),
+    (
+        r"(reveal|print|output|show)\s+(your\s+|the\s+)?(system\s+prompt|hidden\s+instructions)",
+        "prompt_extraction",
+    ),
+    (
+        r"act\s+as\s+(if|though)\s+you\s+(have|had)\s+no\s+(restrictions|rules|guidelines)",
+        "bypass_restrictions",
+    ),
     (r"<!--[^>]*(ignore|override|system\s*prompt|secret\s+instruction)[^>]*-->", "hidden_html_comment"),
     (r"<\s*div[^>]*display\s*:\s*none", "hidden_div"),
     (r"curl\s+[^\n]*\$\{?\w*(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)", "exfil_curl"),
@@ -31,10 +43,18 @@ _COMPILED = [(re.compile(pattern, re.IGNORECASE), name) for pattern, name in _PA
 
 # Characters that are invisible when rendered and are used to hide instructions.
 _INVISIBLE = {
-    "​": "zero_width_space", "‌": "zero_width_non_joiner", "‍": "zero_width_joiner",
-    "⁠": "word_joiner", "﻿": "byte_order_mark",
-    "‪": "bidi_embedding", "‫": "bidi_embedding", "‭": "bidi_override", "‮": "bidi_override",
-    "⁦": "bidi_isolate", "⁧": "bidi_isolate", "⁨": "bidi_isolate",
+    "​": "zero_width_space",
+    "‌": "zero_width_non_joiner",
+    "‍": "zero_width_joiner",
+    "⁠": "word_joiner",
+    "﻿": "byte_order_mark",
+    "‪": "bidi_embedding",
+    "‫": "bidi_embedding",
+    "‭": "bidi_override",
+    "‮": "bidi_override",
+    "⁦": "bidi_isolate",
+    "⁧": "bidi_isolate",
+    "⁨": "bidi_isolate",
 }
 
 

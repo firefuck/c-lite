@@ -61,6 +61,12 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `/title` |  | Session | `[title]` | queue |  | Show or set the session title |
 | `/sessions` |  | Session | `[count]` | queue |  | List recent sessions |
 | `/resume` |  | Session | `<id \| title>` | queue |  | Switch to an earlier session |
+| `/branch` |  | Session | `[title]` | queue |  | Copy this conversation into a new session |
+| `/queue` |  | Session | `<text>` | allow |  | Queue a message to run after the running turn |
+| `/background` | `/bg` | Session | `<text>` | allow |  | Run one turn in a separate session and report the result |
+| `/export` |  | Session | `[path]` | queue |  | Save the transcript as Markdown or JSON |
+| `/pin` |  | Session |  | queue |  | Mark this session so it is never pruned |
+| `/archive` |  | Session |  | queue |  | Hide this session from the session list |
 | `/compress` |  | Session | `[focus]` | queue |  | Summarise older turns to free context |
 | `/rollback` |  | Session | `[turns]` | queue |  | Undo the files the agent changed in the last turn(s) |
 | `/checkpoints` |  | Session |  | queue |  | List the file checkpoints kept for this session |
@@ -75,14 +81,22 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `/config` |  | Configuration | `[key]` | queue |  | Show a setting or the config file path |
 | `/reload` |  | Configuration |  | queue |  | Reload config and plugins |
 | `/profile` |  | Configuration |  | queue |  | Show the active profile and list the others |
+| `/verbose` |  | Configuration | `[off\|new\|all\|verbose]` | queue |  | Set how much tool progress is shown |
+| `/skin` |  | Configuration | `[name]` | queue | ya | Show or change the display skin/theme |
 | `/skills` |  | Tools & Skills | `[filter]` | queue |  | List skills |
 | `/plugins` |  | Tools & Skills |  | queue |  | List plugins and their status |
+| `/hooks` |  | Tools & Skills |  | queue |  | List shell hooks and which await approval |
 | `/mcp` |  | Tools & Skills | `[name]` | queue |  | Show the status of the MCP servers |
 | `/memory` |  | Tools & Skills |  | queue |  | Show what is in persistent memory |
 | `/cron` |  | Tools & Skills |  | queue |  | List scheduled jobs |
 | `/help` | `/?` | Info |  | allow |  | List commands |
 | `/status` |  | Info |  | allow |  | Show model, session and context usage |
+| `/context` |  | Info |  | queue |  | Break down the context window: prompt tiers, tools, history |
 | `/usage` |  | Info |  | allow |  | Show token usage for this session |
+| `/tasks` |  | Info |  | queue |  | Show this session's todo list |
+| `/logs` |  | Info | `[count]` | queue | ya | Show the last lines of the agent log |
+| `/copy` |  | Info |  | queue | ya | Copy the last answer to the clipboard |
+| `/insights` |  | Info | `[days]` | queue |  | Show usage insights, tokens and costs |
 | `/debug` |  | Info |  | queue |  | Show prompt and context internals |
 
 ## Perintah CLI
@@ -105,12 +119,17 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `clite serve` | run the headless backend (for the desktop app or a remote client) |  |
 | `clite dashboard` | run the backend and open the web dashboard |  |
 | `clite tui` | start the terminal UI (needs Node.js) |  |
+| `clite completion` | print a shell completion script for bash, zsh or fish |  |
+| `clite update` | check for updates and upgrade c-lite |  |
+| `clite backup` | archive or restore the agent's home directory | `create`, `restore` |
+| `clite uninstall` | uninstall c-lite and optionally purge data |  |
 | `clite version` | print version information |  |
 | `clite status` | show what is configured |  |
 | `clite doctor` | check the installation |  |
 | `clite logs` | show the agent log |  |
 | `clite memory` | show persistent memory |  |
 | `clite acp` | editor integration server (not implemented yet) |  |
+| `clite insights` | show usage analytics, tokens and costs |  |
 
 ## Protokol JSON-RPC (versi 1)
 
@@ -163,7 +182,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `reasoning.delta` | `text` |
 | `message.complete` | `role`, `text?`, `tool_calls?` |
 | `tool.start` | `call_id`, `name`, `args?`, `preview?` |
-| `tool.complete` | `call_id`, `name`, `duration`, `failed?`, `result_preview?` |
+| `tool.complete` | `call_id`, `name`, `duration`, `failed?`, `result_preview?`, `diff?` |
 | `status.update` | `kind`, `text` |
 | `subagent.update` | `event`, `index?`, `goal?`, `tool?`, `status?`, `args?`, `iteration?`, `model?`, `spawn_id?` |
 | `turn.complete` | `turn_id`, `final_response`, `completed`, `interrupted?`, `error?`, `exit_reason?`, `api_calls?`, `duration?`, `usage?` |

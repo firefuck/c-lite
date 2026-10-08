@@ -81,20 +81,26 @@ def split_frontmatter(text: str) -> tuple[dict[str, Any], str]:
         raise SkillFormatError(f"frontmatter is not valid YAML: {exc}") from exc
     if not isinstance(data, dict):
         raise SkillFormatError("frontmatter must be a YAML mapping")
-    return data, text[match.end():]
+    return data, text[match.end() :]
 
 
 def parse_skill_text(text: str, *, expected_name: str | None = None) -> tuple[SkillMeta, str]:
     """Parse and validate. ``expected_name`` (the directory name) must match ``name``."""
     if len(text) > MAX_SKILL_CHARS:
-        raise SkillFormatError(f"SKILL.md is larger than {MAX_SKILL_CHARS} characters; move detail into references/")
+        raise SkillFormatError(
+            f"SKILL.md is larger than {MAX_SKILL_CHARS} characters; move detail into references/"
+        )
     data, body = split_frontmatter(text)
     name = validate_skill_name(data.get("name"))
     if expected_name is not None and name != expected_name:
-        raise SkillFormatError(f"frontmatter name {name!r} does not match the skill directory {expected_name!r}")
+        raise SkillFormatError(
+            f"frontmatter name {name!r} does not match the skill directory {expected_name!r}"
+        )
     description = data.get("description")
     if not isinstance(description, str) or not description.strip():
-        raise SkillFormatError("skill description is required: it is what the model reads to decide when to load the skill")
+        raise SkillFormatError(
+            "skill description is required: it is what the model reads to decide when to load the skill"
+        )
     if len(description) > MAX_DESCRIPTION_LENGTH:
         raise SkillFormatError(f"description is longer than {MAX_DESCRIPTION_LENGTH} characters")
     if not body.strip():
@@ -120,7 +126,9 @@ def parse_skill_text(text: str, *, expected_name: str | None = None) -> tuple[Sk
             fallback_for_toolsets=_strings(agent.get("fallback_for_toolsets")),
             requires_tools=_strings(agent.get("requires_tools")),
             fallback_for_tools=_strings(agent.get("fallback_for_tools")),
-            env_passthrough=_strings(agent.get("required_environment_variables") or agent.get("env_passthrough")),
+            env_passthrough=_strings(
+                agent.get("required_environment_variables") or agent.get("env_passthrough")
+            ),
             raw=data,
         ),
         body.lstrip("\n"),
@@ -139,4 +147,10 @@ def platform_matches(meta: SkillMeta, host: str | None = None) -> bool:
 def render_skill(name: str, description: str, body: str, **extra: Any) -> str:
     """A SKILL.md document from its parts."""
     frontmatter = {"name": name, "description": description, **extra}
-    return "---\n" + yaml.safe_dump(frontmatter, sort_keys=False, allow_unicode=True).rstrip() + "\n---\n\n" + body.strip() + "\n"
+    return (
+        "---\n"
+        + yaml.safe_dump(frontmatter, sort_keys=False, allow_unicode=True).rstrip()
+        + "\n---\n\n"
+        + body.strip()
+        + "\n"
+    )
