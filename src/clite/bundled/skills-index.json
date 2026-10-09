@@ -11,12 +11,129 @@
     },
     {
       "category": "productivity",
+      "description": "Airtable REST API: records CRUD, filters, upserts via the bundled stdlib helper.",
+      "hash": "sha256:cfeec3f69a47c2a34a8b5ed7d8430548d839a5d3839b9316119a557ef9f29e10",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/airtable",
+      "name": "airtable",
+      "source": "github",
+      "version": "1.1.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Box manages cloud files, sharing, search, and metadata.",
+      "hash": "sha256:bfe448d94f241658debc4a8047a4bcc9e2800f0f425236abd16fb87c5248d7a1",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/box",
+      "name": "box",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Extract cited obligations, deadlines, tasks from documents.",
+      "hash": "sha256:48884daddc72833a5811570bb9191da0dbddff12bc04c1727cad4be6dc5813e4",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/document-to-action-items",
+      "name": "document-to-action-items",
+      "source": "github",
+      "version": "0.1.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Create, read, edit, template, and review Word .docx files.",
+      "hash": "sha256:27aa06d90cc0e978a79af23b43cd2aaafcbbece2067db3cd234795a8fc5094c5",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/docx",
+      "name": "docx",
+      "source": "github",
+      "version": "1.1.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Gmail, Calendar, Drive, Docs, Sheets via gws CLI or Python.",
+      "hash": "sha256:2d0f601348fcf2d4cb1ca86fcc55c78a6145e240696323dc060c871859b33fd5",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/google-workspace",
+      "name": "google-workspace",
+      "source": "github",
+      "version": "1.2.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Geocode, POIs, routes, timezones via OpenStreetMap/OSRM.",
+      "hash": "sha256:53eeba8f64c83745c3f7315cf34dd2c762d79d6a0649d0b721c523cf06e00b3b",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/maps",
+      "name": "maps",
+      "source": "github",
+      "version": "1.2.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Turn meeting notes into cited decisions, owners, tickets.",
+      "hash": "sha256:31509e2881ae92795c91d06a529e7310a6757cf08f121649dee3e88100c78862",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/meeting-action-items",
+      "name": "meeting-action-items",
+      "source": "github",
+      "version": "0.1.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Notion API + ntn CLI: pages, databases, markdown, Workers.",
+      "hash": "sha256:5c3d86821331c78b813968d81cbc8cb8e5becfe185485c00c90deef27e6bee34",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/notion",
+      "name": "notion",
+      "source": "github",
+      "version": "2.0.0"
+    },
+    {
+      "category": "productivity",
+      "description": "PDF files: create, read, merge, fill, OCR, edit text.",
+      "hash": "sha256:7e4a1a4cbbfa9831dc6c7ba23c906feea5f714b40cb47d7da9d13dcbcc45dce7",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/pdf",
+      "name": "pdf",
+      "source": "github",
+      "version": "1.1.0"
+    },
+    {
+      "category": "productivity",
       "description": "Break a large or ambiguous task into verifiable steps before starting. Use when a request spans several files or systems, or when the first step is not obvious.",
       "hash": "sha256:744403c8fbda4f041f14bfd16e09de116fe9881e03a33f7e0b30ab707922d858",
       "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/plan-before-acting",
       "name": "plan-before-acting",
       "source": "github",
       "version": "1.0.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Create, read, edit .pptx decks with python-pptx.",
+      "hash": "sha256:36a87e33f49ebbfa2ddd6d06f312e0ad9ff45a4c79b607821a6e6e0c578326a9",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/powerpoint",
+      "name": "powerpoint",
+      "source": "github",
+      "version": "1.1.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Watch product, flight, or listing prices; alert on target.",
+      "hash": "sha256:69b6928c64cce69d517714529d11ee81c5689a1d8c8ca9c5d37fede32ded8c92",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/product-price-monitor",
+      "name": "product-price-monitor",
+      "source": "github",
+      "version": "0.1.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Weekly reset: commitments, stalled work, next-week plan.",
+      "hash": "sha256:6d7a8d9c72865ab0f59c9de38895d173bdc7ee6a4cdab4d0627e7244d7f3914c",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/weekly-review-planning",
+      "name": "weekly-review-planning",
+      "source": "github",
+      "version": "0.1.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Create, read, edit Excel .xlsx workbooks and CSVs.",
+      "hash": "sha256:49caa3e70eb2557ba0b168c3653924940143fb450aeac160b4ab2600573683e1",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/xlsx",
+      "name": "xlsx",
+      "source": "github",
+      "version": "1.1.0"
     },
     {
       "category": "research",
