@@ -11,10 +11,28 @@
     },
     {
       "category": "productivity",
+      "description": "Turn meeting notes or a transcript into cited decisions, owners and follow-ups. Use when asked to extract action items from a meeting, or to reconcile notes with existing work.",
+      "hash": "sha256:4dfc7a4d0e6a2789bd058f8a4f39e201e84d7af53273c2737da140938da2ca1c",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/meeting-action-items",
+      "name": "meeting-action-items",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "category": "productivity",
       "description": "Break a large or ambiguous task into verifiable steps before starting. Use when a request spans several files or systems, or when the first step is not obvious.",
       "hash": "sha256:744403c8fbda4f041f14bfd16e09de116fe9881e03a33f7e0b30ab707922d858",
       "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/plan-before-acting",
       "name": "plan-before-acting",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Run a bounded weekly review over the user's notes and tasks, then propose next week's plan. Use when asked what slipped, what is waiting, or to plan the coming week.",
+      "hash": "sha256:298aa4d9c3bad593f48d9922d2d533aa169b611be99ba1efdad7e074d6cd968a",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/weekly-review-planning",
+      "name": "weekly-review-planning",
       "source": "github",
       "version": "1.0.0"
     },

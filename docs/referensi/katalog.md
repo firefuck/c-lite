@@ -306,7 +306,9 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | Skill | Kategori | Deskripsi |
 | --- | --- | --- |
 | `skill-authoring` | meta | Write or improve a skill (SKILL.md). Use when saving a reusable procedure with skill_manage, or when a skill turned out wrong or incomplete. |
+| `meeting-action-items` | productivity | Turn meeting notes or a transcript into cited decisions, owners and follow-ups. Use when asked to extract action items from a meeting, or to reconcile notes with existing work. |
 | `plan-before-acting` | productivity | Break a large or ambiguous task into verifiable steps before starting. Use when a request spans several files or systems, or when the first step is not obvious. |
+| `weekly-review-planning` | productivity | Run a bounded weekly review over the user's notes and tasks, then propose next week's plan. Use when asked what slipped, what is waiting, or to plan the coming week. |
 | `codebase-inspection` | software-development | Measure a codebase with pygount or the shell, to answer how big it is and what it is made of. Use when asked for lines of code, a language breakdown, or code-to-comment ratios. |
 | `github` | software-development | Work GitHub end to end with the gh CLI: auth, issues, the pull-request lifecycle, reviews and repo management. Use when the task touches a GitHub repository's remote state. |
 | `python-debugpy` | software-development | Debug Python with pdb, post-mortem inspection and debugpy remote attach. Use when a traceback does not explain a wrong value, or a long-running process misbehaves. |
