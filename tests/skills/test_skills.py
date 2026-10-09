@@ -7,18 +7,25 @@ import time
 
 import pytest
 
+from clite.core.constants import bundled_dir
 from clite.core.threats import scan_text
 from clite.plugins.hooks import get_hook_bus
 from clite.skills import curator, manager
 from clite.skills.catalog import discover_skills, get_skill, linked_files, read_skill_file
 from clite.skills.commands import build_skill_message, skill_commands
-from clite.skills.frontmatter import SkillFormatError, parse_skill_text, render_skill
+from clite.skills.frontmatter import (
+    MAX_DESCRIPTION_LENGTH,
+    SkillFormatError,
+    parse_skill_text,
+    render_skill,
+)
 from clite.skills.hub import install_skill, installed_skills
-from clite.skills.index import build_skills_index, visible_skills
+from clite.skills.index import MAX_INDEX_CHARS, build_skills_index, visible_skills
 from clite.skills.manager import SkillError
 from clite.skills.usage import load_usage
 from clite.tools.builtin.skills import skill_manage_tool, skill_view_tool, skills_list_tool
 from clite.tools.context import ToolContext
+from clite.tools.registry import discover_builtin_tools, registry
 
 BODY = "# Steps\n\n1. Do the thing.\n"
 
@@ -659,3 +666,90 @@ def test_install_a_skill_from_a_real_public_github_repository(skills_dir):
     skill = get_skill(result["name"])
     assert skill is not None and (skill.directory / "SKILL.md").is_file()
     assert installed_skills()[result["name"]]["source"] == "github"
+
+
+# ── bundled skills ───────────────────────────────────────────────────────────────────────
+#
+# The five tests below guard the set of skills that ships inside the package. They are the
+# price of the port: a skill that reaches the prompt is sent to the model, so a stray tool
+# name or a mention of the upstream product is a bug in what the model reads, not a typo.
+
+# Tool names the upstream corpus calls that this project does not register. A skill may name
+# one of these only after declaring it in ``requires_tools``/``fallback_for_tools``, so the
+# skill stays hidden until the tool exists. Gathered by reading the upstream skills.
+FOREIGN_TOOL_NAMES = frozenset(
+    {
+        "web_extract",
+        "browser_navigate",
+        "browser_click",
+        "browser_type",
+        "browser_snapshot",
+        "browser_console",
+        "browser_scroll",
+        "browser_back",
+        "browser_press",
+        "browser_vision",
+        "computer_use",
+        "screenshot_path",
+        "blogwatcher",
+        "xurl",
+        "himalaya",
+        "ndb",
+    }
+)
+
+
+def _bundled_skill_files():
+    return sorted((bundled_dir() / "skills").rglob("SKILL.md"))
+
+
+def test_every_bundled_skill_passes_format_validation_and_the_threat_scan():
+    paths = _bundled_skill_files()
+    assert paths, "the package should ship at least one bundled skill"
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        meta, body = parse_skill_text(text)
+        assert meta.name == path.parent.name, f"{path}: name must equal the directory name"
+        assert meta.description and len(meta.description) <= MAX_DESCRIPTION_LENGTH
+        assert body.strip(), f"{path}: the skill has no body"
+        assert not scan_text(text), f"{path}: the skill reads like an injection"
+
+
+def test_no_bundled_skill_names_a_tool_this_project_does_not_register(clite_home):
+    discover_builtin_tools()
+    registered = set(registry.names())
+    toolsets = set(registry.toolset_names())
+    assert {"terminal", "read_file", "web_fetch"} <= registered, "the registry should be loaded"
+
+    for path in _bundled_skill_files():
+        meta, body = parse_skill_text(path.read_text(encoding="utf-8"))
+        declared = set(meta.requires_tools) | set(meta.fallback_for_tools)
+        undeclared = {name for name in FOREIGN_TOOL_NAMES if name in body} - declared
+        assert not undeclared, f"{path} names {sorted(undeclared)} without declaring them"
+
+        wanted = set(meta.requires_toolsets) | set(meta.fallback_for_toolsets)
+        assert wanted <= toolsets, f"{path} asks for unknown toolset(s) {sorted(wanted - toolsets)}"
+
+
+def test_no_bundled_skill_mentions_the_upstream_product_or_its_home():
+    for path in _bundled_skill_files():
+        meta, body = parse_skill_text(path.read_text(encoding="utf-8"))
+        # The body, the name and the description are what the model reads; the origin of a
+        # ported skill is recorded in the frontmatter attribution, which is not part of this.
+        seen = f"{meta.name}\n{meta.description}\n{body}".lower()
+        assert "hermes" not in seen, f"{path} names the upstream product in what the model reads"
+        assert "/.hermes" not in seen, f"{path} names the upstream product's home"
+
+
+def test_the_index_fits_every_bundled_skill(clite_home):
+    bundled = [skill for skill in discover_skills() if skill.tier == "bundled"]
+    assert len(bundled) == len(_bundled_skill_files())
+    index = build_skills_index(
+        visible_skills(
+            bundled,
+            enabled_tools=registry.names(),
+            enabled_toolsets=registry.toolset_names(),
+        )
+    )
+    assert "more not shown" not in index, "some bundled skills fell outside the index"
+    assert len(index) <= MAX_INDEX_CHARS

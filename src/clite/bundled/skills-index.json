@@ -20,6 +20,60 @@
     },
     {
       "category": "software-development",
+      "description": "Measure a codebase with pygount or the shell, to answer how big it is and what it is made of. Use when asked for lines of code, a language breakdown, or code-to-comment ratios.",
+      "hash": "sha256:c96f5c1d2f79421006cd0151abb480b09ce22fb72ddb69763d383045fe49e36a",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/codebase-inspection",
+      "name": "codebase-inspection",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "category": "software-development",
+      "description": "Work GitHub end to end with the gh CLI: auth, issues, the pull-request lifecycle, reviews and repo management. Use when the task touches a GitHub repository's remote state.",
+      "hash": "sha256:d1f5a5f7b5b1ac72def31cb13847b2063fdcfca7bbe5e264aeae4914ee32f27d",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/github",
+      "name": "github",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "category": "software-development",
+      "description": "Debug Python with pdb, post-mortem inspection and debugpy remote attach. Use when a traceback does not explain a wrong value, or a long-running process misbehaves.",
+      "hash": "sha256:57a2c6f8e122385f818912ebded802ce70ae3cc48be64a57211c0a31ffef46c8",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/python-debugpy",
+      "name": "python-debugpy",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "category": "software-development",
+      "description": "Verify a change before it is committed with a static scan, the test suite and an independent reviewer. Use when finishing a task, or when the user says commit, push, ship or review.",
+      "hash": "sha256:262270e86e7f4c2e85b409e85ee168ff90d16184666b1250791d145757113522",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/requesting-code-review",
+      "name": "requesting-code-review",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "category": "software-development",
+      "description": "Clean up recent code changes with four focused reviewers running in parallel, then apply only the fixes worth applying. Use when the user says simplify, or asks for a cleanup of what was just written.",
+      "hash": "sha256:6f3ebe7aead5320f22926bed835246f5901351c6222d67c7e63b5e64b80673ac",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/simplify-code",
+      "name": "simplify-code",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "category": "software-development",
+      "description": "Run throwaway experiments to answer feasibility questions before committing to a build. Use when the user wants to see if something works, or to compare two approaches.",
+      "hash": "sha256:8aa669f68c61c2abda17d993f37aea35924b8e5decb1f963f35b72e6a12262f0",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/spike",
+      "name": "spike",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "category": "software-development",
       "description": "Find the root cause of a bug before changing code. Use for any failing test, crash, or behaviour that does not match what the code appears to say.",
       "hash": "sha256:f30208aab19d972b77d5af7092cd899c93f9f9a2fec1df15631602a3a4af6537",
       "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/systematic-debugging",
