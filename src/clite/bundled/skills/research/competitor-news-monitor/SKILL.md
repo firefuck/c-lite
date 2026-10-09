@@ -44,7 +44,7 @@ Not for one-off company research; `web_search` and `web_fetch` answer those dire
    under the C-lite home in `competitor-watches/<slug>.json`, then create the job:
 
    ```
-   cronjob(action="create", schedule="every monday 9am",
+   cronjob(action="create", schedule="0 9 * * 1",
            prompt="Load the competitor-news-monitor skill and run the tick for the watch contract at competitor-watches/<slug>.json.",
            deliver=<the user's destination>)
    ```

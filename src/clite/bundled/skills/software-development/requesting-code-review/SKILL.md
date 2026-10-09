@@ -9,7 +9,7 @@ metadata:
     category: software-development
     tags: [code-review, security, verification, pre-commit]
     requires_toolsets: [terminal]
-    attribution: "Adapted from the requesting-code-review skill in Nous Research's hermes-agent (MIT, Copyright (c) 2025 Nous Research), which adapted it from obra/superpowers."
+    attribution: "Adapted from the requesting-code-review skill in Nous Research's hermes-agent (MIT, Copyright (c) 2025 Nous Research), which adapted it from obra/superpowers and MorAlekss."
 ---
 
 # Pre-commit code verification

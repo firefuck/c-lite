@@ -118,8 +118,8 @@ hilang.
   bawaan mereka; menulisnya ulang secara ringkas akan menghilangkan justru bagian yang berguna.
 - Khusus Hermes: `hermes-agent-skill-authoring`, yang padanannya sudah ada di
   `meta/skill-authoring`.
-- Kategori yang belum disentuh sama sekali: `apple`, `autonomous-ai-agents`, `creative`,
-  `devops`, `email`, `media`, `note-taking`, `social-media`, `web`.
+- Kategori lain di Hermes, belum disentuh sama sekali: `apple`, `autonomous-ai-agents`,
+  `creative`, `devops`, `email`, `media`, `note-taking`, `social-media`, `web`.
 - Pemisahan "selalu ikut" dan "opsional" belum bisa dikerjakan: hub C-lite hanya punya
   `LocalDirSource` dan `GitHubSource`, belum ada sumber `optional-skills` seperti punya Hermes.
   Skill berat dan ceruk menunggu sumber itu.

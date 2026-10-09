@@ -71,7 +71,7 @@ reference file was brought along.
 | `software-development/codebase-inspection` | `skills/software-development/codebase-inspection` | Hermes Agent |
 | `software-development/github` | `skills/software-development/github` | Ben Barclay, Hermes Agent |
 | `software-development/python-debugpy` | `skills/software-development/python-debugpy` | Hermes Agent |
-| `software-development/requesting-code-review` | `skills/software-development/requesting-code-review` | Hermes Agent, adapted from obra/superpowers |
+| `software-development/requesting-code-review` | `skills/software-development/requesting-code-review` | Hermes Agent, adapted from obra/superpowers and MorAlekss |
 | `software-development/simplify-code` | `skills/software-development/simplify-code` | Hermes Agent, after Claude Code's `/simplify` |
 | `software-development/spike` | `skills/software-development/spike` | Hermes Agent, adapted from gsd-build/get-shit-done |
 

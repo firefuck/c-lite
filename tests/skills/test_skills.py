@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 
 import pytest
@@ -670,7 +671,7 @@ def test_install_a_skill_from_a_real_public_github_repository(skills_dir):
 
 # ── bundled skills ───────────────────────────────────────────────────────────────────────
 #
-# The five tests below guard the set of skills that ships inside the package. They are the
+# The four tests below guard the set of skills that ships inside the package. They are the
 # price of the port: a skill that reaches the prompt is sent to the model, so a stray tool
 # name or a mention of the upstream product is a bug in what the model reads, not a typo.
 
@@ -698,6 +699,93 @@ FOREIGN_TOOL_NAMES = frozenset(
     }
 )
 
+# Identifiers a bundled skill writes in backticks without meaning a tool of this project:
+# shell commands, Python names, pdb commands, review labels, conventional-commit types, and
+# the keys of the files those skills write. Listing one here is the decision that it is not
+# something the model can call. Anything else in backticks has to be a registered tool, a
+# declared one, or one of the upstream names above, so a new name fails this test rather than
+# slipping through it.
+NOT_A_TOOL_NAMES = frozenset(
+    {
+        # Shell commands and developer tools used in the steps.
+        "black",
+        "cloc",
+        "curl",
+        "depcheck",
+        "gh",
+        "git",
+        "github",
+        "isort",
+        "knip",
+        "ptrace",
+        "pygount",
+        "tokei",
+        # Python names and keywords, and pdb's one-letter commands.
+        "await",
+        "debugpy",
+        "except",
+        "interact",
+        "a",
+        "c",
+        "d",
+        "h",
+        "l",
+        "ll",
+        "n",
+        "q",
+        "r",
+        "s",
+        "u",
+        "w",
+        # Review labels, commit types, and words the steps use about the work itself.
+        "add",
+        "altitude",
+        "catch",
+        "chore",
+        "ci",
+        "docs",
+        "develop",
+        "efficiency",
+        "feat",
+        "file",
+        "fix",
+        "high",
+        "low",
+        "main",
+        "origin",
+        "perf",
+        "quality",
+        "refactor",
+        "repo",
+        "reuse",
+        "start",
+        "test",
+        "unresolved",
+        "upstream",
+        "workflow",
+        # Keys and values of the files these skills write.
+        "created",
+        "ingested",
+        "max_results",
+        "path",
+        "quotes",
+        "search_query",
+        "sha256",
+        "source_url",
+        "sources",
+        "state",
+        "tags",
+        "title",
+        "type",
+        "updated",
+        # Test names used as examples.
+        "test_auth_2",
+        "test_expired_token_is_rejected",
+    }
+)
+
+_BACKTICKED_NAME = re.compile(r"`([a-z][a-z0-9_]*)`")
+
 
 def _bundled_skill_files():
     return sorted((bundled_dir() / "skills").rglob("SKILL.md"))
@@ -721,11 +809,18 @@ def test_no_bundled_skill_names_a_tool_this_project_does_not_register(clite_home
     toolsets = set(registry.toolset_names())
     assert {"terminal", "read_file", "web_fetch"} <= registered, "the registry should be loaded"
 
+    known = registered | FOREIGN_TOOL_NAMES | NOT_A_TOOL_NAMES
     for path in _bundled_skill_files():
         meta, body = parse_skill_text(path.read_text(encoding="utf-8"))
         declared = set(meta.requires_tools) | set(meta.fallback_for_tools)
         undeclared = {name for name in FOREIGN_TOOL_NAMES if name in body} - declared
         assert not undeclared, f"{path} names {sorted(undeclared)} without declaring them"
+
+        unknown = set(_BACKTICKED_NAME.findall(body)) - known - declared
+        assert not unknown, (
+            f"{path} writes {sorted(unknown)} in backticks; neither a tool this project "
+            "registers nor a name listed as not-a-tool"
+        )
 
         wanted = set(meta.requires_toolsets) | set(meta.fallback_for_toolsets)
         assert wanted <= toolsets, f"{path} asks for unknown toolset(s) {sorted(wanted - toolsets)}"

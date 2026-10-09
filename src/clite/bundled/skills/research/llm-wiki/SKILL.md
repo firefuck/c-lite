@@ -55,9 +55,9 @@ query or lint:
 2. `index.md` — which pages exist.
 3. the last 20–30 entries of `log.md` — what has been happening.
 
-```bash
-read_file "$WIKI/SCHEMA.md"; read_file "$WIKI/index.md"
-read_file "$WIKI/log.md"          # the tail is enough
+```text
+read_file(path="$WIKI/SCHEMA.md"); read_file(path="$WIKI/index.md")
+read_file(path="$WIKI/log.md")          # the tail is enough
 ```
 
 Skipping this produces duplicate pages for entities that already exist, misses cross-references,

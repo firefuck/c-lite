@@ -67,7 +67,7 @@ times a paper was cited, what it cites, and what to read next.
    extract a PDF, so for the full text download it and extract locally:
 
    ```
-   web_fetch("https://arxiv.org/abs/2402.03300")
+   web_fetch(url="https://arxiv.org/abs/2402.03300")
    ```
 
    ```bash

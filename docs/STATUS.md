@@ -55,7 +55,7 @@ format dan pemindaian ancaman; tidak menyebut tool yang tidak terdaftar di luar
 indeks tetap di bawah `MAX_INDEX_CHARS` dengan semuanya aktif. `tests/skills/` lulus 74,
 terlewati 1 (jaringan).
 
-Yang belum: kategori di luar tiga itu (`apple`, `autonomous-ai-agents`, `creative`, `devops`,
+Yang belum: kategori lain di Hermes (`apple`, `autonomous-ai-agents`, `creative`, `devops`,
 `email`, `media`, `note-taking`, `social-media`, `web`), skill yang butuh peramban atau CLI
 pihak ketiga, skill berat yang membawa skrip sendiri (`docx`, `xlsx`, `pdf`, `powerpoint`), dan
 pemisahan bawaan/opsional — hub C-lite belum punya sumber `optional-skills`. Daftarnya ada di

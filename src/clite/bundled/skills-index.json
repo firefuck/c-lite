@@ -39,7 +39,7 @@
     {
       "category": "research",
       "description": "Search arXiv and Semantic Scholar for papers by keyword, author, category or id, and read their metadata and citations. Use when the task needs academic papers or citation counts.",
-      "hash": "sha256:781065e5ad10cae6083b0b5d6590fededcd0425b2316c36309256ea51c56c238",
+      "hash": "sha256:a0bb7e87a85d55bf685a69c6de4a05db88034df575fb8180a5621ef81f510358",
       "identifier": "dragovics/clite/src/clite/bundled/skills/research/arxiv",
       "name": "arxiv",
       "source": "github",
@@ -48,7 +48,7 @@
     {
       "category": "research",
       "description": "Watch a fixed set of companies for material news and report cited digests, or stay silent when nothing happened. Use when asked to track competitors, pricing changes or launches on a schedule.",
-      "hash": "sha256:16609e7517d765e6b8c657841f0551fcc64868b48dc2ad32756eba471185a1e9",
+      "hash": "sha256:6a21ba77720d7d6837c131b8543062db430aa171077260b804b6e578d099e705",
       "identifier": "dragovics/clite/src/clite/bundled/skills/research/competitor-news-monitor",
       "name": "competitor-news-monitor",
       "source": "github",
@@ -66,7 +66,7 @@
     {
       "category": "research",
       "description": "Build and maintain a compounding knowledge base of interlinked markdown pages, and answer questions from it. Use when the user keeps a wiki or knowledge base, or asks to ingest a source into one.",
-      "hash": "sha256:4a022b4bfcbc2d575534ae00faee4acbfa55f8815e11202393904c11a6685deb",
+      "hash": "sha256:53cb4bf229517af684fb278c84780da814e7abd0bae5525a714338664cccff29",
       "identifier": "dragovics/clite/src/clite/bundled/skills/research/llm-wiki",
       "name": "llm-wiki",
       "source": "github",
@@ -102,7 +102,7 @@
     {
       "category": "software-development",
       "description": "Verify a change before it is committed with a static scan, the test suite and an independent reviewer. Use when finishing a task, or when the user says commit, push, ship or review.",
-      "hash": "sha256:262270e86e7f4c2e85b409e85ee168ff90d16184666b1250791d145757113522",
+      "hash": "sha256:c2643b5d9153dc97b13ed91e9195a04f51e2e53b8d58675761111cfc2c20e259",
       "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/requesting-code-review",
       "name": "requesting-code-review",
       "source": "github",
