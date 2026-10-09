@@ -1144,6 +1144,7 @@ def test_a_turn_with_a_tool_call_and_a_permission_request_over_real_pipes(clite_
     assert oct(target.stat().st_mode & 0o777) == "0o777"  # the command really ran
 
 
+@pytest.mark.platforms("posix")
 def test_the_entry_point_talks_over_real_pipes(clite_home):
     """Spawn ``clite acp`` as an editor does and shake hands over stdin/stdout."""
     env = {**os.environ, "CLITE_HOME": str(clite_home), "PYTHONPATH": os.pathsep.join(sys.path)}

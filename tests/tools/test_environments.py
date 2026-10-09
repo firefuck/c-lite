@@ -163,6 +163,7 @@ def test_docker_backend_refuses_without_an_image(tmp_path):
 
 
 @pytest.mark.docker
+@pytest.mark.platforms("linux", "macos")
 def test_docker_runs_commands_in_a_container(tmp_path, clite_home):
     import clite.core.config as config
 
@@ -181,6 +182,7 @@ def test_docker_runs_commands_in_a_container(tmp_path, clite_home):
 
 
 @pytest.mark.docker
+@pytest.mark.platforms("linux", "macos")
 def test_docker_file_tools_write_through_the_mount(tmp_path, clite_home):
     import clite.core.config as config
 
@@ -200,6 +202,7 @@ def test_docker_file_tools_write_through_the_mount(tmp_path, clite_home):
 
 
 @pytest.mark.docker
+@pytest.mark.platforms("linux", "macos")
 def test_a_file_outside_the_mount_is_not_readable_from_the_container(tmp_path, clite_home):
     """The container only sees what is mounted: a file above the workspace is absent inside it."""
     import clite.core.config as config

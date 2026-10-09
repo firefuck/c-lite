@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import difflib
 import fnmatch
+import os
 import re
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -162,16 +163,13 @@ def read_file_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
 
 
 def _similar_names(path: str, ctx: ToolContext) -> list[str]:
-    parent = str(PurePosixPath(path).parent)
+    parent = os.path.dirname(path) or "."
     try:
         siblings = [entry.name for entry in _env(ctx).list_dir(parent)]
     except OSError:
         return []
-    name = PurePosixPath(path).name
-    return [
-        str(PurePosixPath(parent) / match)
-        for match in difflib.get_close_matches(name, siblings, n=3, cutoff=0.6)
-    ]
+    name = os.path.basename(path)
+    return [os.path.join(parent, match) for match in difflib.get_close_matches(name, siblings, n=3, cutoff=0.6)]
 
 
 # ── write_file ───────────────────────────────────────────────────────────────────────────
