@@ -54,4 +54,25 @@ SOFTWARE.
 
 ### Copied from Hermes
 
-Nothing yet.
+The bundled skills under `src/clite/bundled/skills/` are adapted from the bundled skills of the
+same repository and commit. Each one records its origin in its own frontmatter
+(`metadata.clite.attribution`). The text was rewritten for this project's tools, paths and
+conventions — no upstream file was copied verbatim, and no upstream script, template or
+reference file was brought along.
+
+| Skill here | Upstream skill | Author recorded upstream |
+|---|---|---|
+| `productivity/meeting-action-items` | `skills/productivity/meeting-action-items` | Ben Barclay, Hermes Agent |
+| `productivity/weekly-review-planning` | `skills/productivity/weekly-review-planning` | Ben Barclay, Hermes Agent |
+| `research/arxiv` | `skills/research/arxiv` | Hermes Agent |
+| `research/competitor-news-monitor` | `skills/research/competitor-news-monitor` | Ben Barclay, Hermes Agent |
+| `research/grounded-citations` | `skills/research/grounded-citations` | Hermes Agent + Teknium |
+| `research/llm-wiki` | `skills/research/llm-wiki` | Hermes Agent, after Andrej Karpathy's LLM wiki |
+| `software-development/codebase-inspection` | `skills/software-development/codebase-inspection` | Hermes Agent |
+| `software-development/github` | `skills/software-development/github` | Ben Barclay, Hermes Agent |
+| `software-development/python-debugpy` | `skills/software-development/python-debugpy` | Hermes Agent |
+| `software-development/requesting-code-review` | `skills/software-development/requesting-code-review` | Hermes Agent, adapted from obra/superpowers |
+| `software-development/simplify-code` | `skills/software-development/simplify-code` | Hermes Agent, after Claude Code's `/simplify` |
+| `software-development/spike` | `skills/software-development/spike` | Hermes Agent, adapted from gsd-build/get-shit-done |
+
+The license below is the one these skills arrived under.

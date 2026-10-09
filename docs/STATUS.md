@@ -40,6 +40,27 @@ Yang tercakup tes Python itu, selain perilaku tiap modul:
 
 Spesifikasi tiap modul (`docs/spesifikasi/`) menandai fitur yang dijaga tes dengan ✅.
 
+### F6-T2 skill bawaan (10 Oktober 2026)
+
+Dua belas skill bawaan dibawa dari Hermes dalam tiga kategori, masing-masing ditulis ulang
+mengikuti tool C-lite: enam di `software-development` (`codebase-inspection`, `github`,
+`python-debugpy`, `requesting-code-review`, `simplify-code`, `spike`), dua di `productivity`
+(`meeting-action-items`, `weekly-review-planning`), dan empat di `research` (`arxiv`,
+`competitor-news-monitor`, `grounded-citations`, `llm-wiki`). Setiap berkas menyebut asalnya di
+`metadata.clite.attribution`, dan `NOTICE.md` mendaftar kumpulannya.
+
+Empat tes baru di `tests/skills/test_skills.py` menjaga setiap berkas bawaan: lolos validasi
+format dan pemindaian ancaman; tidak menyebut tool yang tidak terdaftar di luar
+`requires_tools`/`fallback_for_tools`; tidak memuat nama produk atau path home Hermes; dan
+indeks tetap di bawah `MAX_INDEX_CHARS` dengan semuanya aktif. `tests/skills/` lulus 74,
+terlewati 1 (jaringan).
+
+Yang belum: kategori di luar tiga itu (`apple`, `autonomous-ai-agents`, `creative`, `devops`,
+`email`, `media`, `note-taking`, `social-media`, `web`), skill yang butuh peramban atau CLI
+pihak ketiga, skill berat yang membawa skrip sendiri (`docx`, `xlsx`, `pdf`, `powerpoint`), dan
+pemisahan bawaan/opsional — hub C-lite belum punya sumber `optional-skills`. Daftarnya ada di
+[roadmap fase 6](roadmap/fase-6-ekosistem.md#f6-t2-porting-skill-bawaan-dari-hermes).
+
 ### F2-T14 OAuth dan `clite auth` (8 Oktober 2026)
 
 Dukungan OAuth 2.0 PKCE dan Device Code flow untuk provider model:

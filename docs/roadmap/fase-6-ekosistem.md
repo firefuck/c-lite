@@ -87,15 +87,42 @@ pencarian dijawab indeks. Tap adalah lokasi indeks tambahan, bukan konsep baru.
 `website/docs/developer-guide/creating-skills.md`.
 
 **Selesai bila.**
-- [ ] Tes: setiap skill bawaan lolos validasi format dan pemindaian ancaman.
-- [ ] Tes: tidak ada skill bawaan yang menyebut tool yang tidak terdaftar, kecuali lewat
+- [x] Tes: setiap skill bawaan lolos validasi format dan pemindaian ancaman.
+- [x] Tes: tidak ada skill bawaan yang menyebut tool yang tidak terdaftar, kecuali lewat
       `requires_tools` atau `fallback_for_tools`.
-- [ ] Tes: tidak ada skill bawaan yang memuat nama produk atau path home Hermes.
-- [ ] Indeks skill tetap di bawah batas ukurannya dengan semua skill bawaan aktif.
+- [x] Tes: tidak ada skill bawaan yang memuat nama produk atau path home Hermes.
+- [x] Indeks skill tetap di bawah batas ukurannya dengan semua skill bawaan aktif.
 
 **Ukuran.** L
 
 **Bergantung pada.** -
+
+**Yang sudah dibawa** (10 Oktober 2026, 12 skill dalam tiga kategori). Setiap berkas ditulis
+ulang mengikuti tool C-lite, menyebut asalnya di `metadata.clite.attribution`, dan didaftar di
+`NOTICE.md`. Tesnya ada di `tests/skills/test_skills.py` (bagian "bundled skills").
+
+- `software-development/`: `codebase-inspection`, `github`, `python-debugpy`,
+  `requesting-code-review`, `simplify-code`, `spike`
+- `productivity/`: `meeting-action-items`, `weekly-review-planning`
+- `research/`: `arxiv`, `competitor-news-monitor`, `grounded-citations`, `llm-wiki`
+
+**Yang ditunda, beserta alasannya.** Sisa kategori belum disentuh; ini daftarnya supaya tidak
+hilang.
+
+- Bergantung fitur yang belum ada: `dogfood`, `inspecting-hermes-desktop-dom` (butuh tool
+  peramban dan DOM aplikasi desktop), `node-inspect-debugger` (butuh CLI `ndb`),
+  `product-price-monitor` (butuh peramban).
+- Bergantung layanan atau CLI pihak ketiga: `airtable`, `box`, `google-workspace`, `notion`,
+  `teams-meeting-pipeline`, `maps`, `document-to-action-items`.
+- Berat dan membawa skrip sendiri: `docx`, `xlsx`, `pdf`, `powerpoint`. Nilainya ada di skrip
+  bawaan mereka; menulisnya ulang secara ringkas akan menghilangkan justru bagian yang berguna.
+- Khusus Hermes: `hermes-agent-skill-authoring`, yang padanannya sudah ada di
+  `meta/skill-authoring`.
+- Kategori yang belum disentuh sama sekali: `apple`, `autonomous-ai-agents`, `creative`,
+  `devops`, `email`, `media`, `note-taking`, `social-media`, `web`.
+- Pemisahan "selalu ikut" dan "opsional" belum bisa dikerjakan: hub C-lite hanya punya
+  `LocalDirSource` dan `GitHubSource`, belum ada sumber `optional-skills` seperti punya Hermes.
+  Skill berat dan ceruk menunggu sumber itu.
 
 ---
 
