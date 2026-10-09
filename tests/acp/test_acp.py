@@ -34,6 +34,10 @@ from clite.rpc.transport import MemoryTransport
 
 MOCK = "model:\n  provider: mock\n  default: mock-1\n"
 
+# ``/tmp/project`` is not an absolute path on Windows, and ``session/new`` requires one, so the
+# tests build a path the host platform agrees is absolute.
+PROJECT = os.path.abspath("/tmp/project")
+
 # A client that says nothing to a permission request is not the same as one that answers
 # "cancelled", so "no answer" needs a value of its own.
 NO_ANSWER = object()
@@ -120,7 +124,7 @@ class Client:
             },
         )
 
-    def new_session(self, cwd: str = "/tmp/project") -> str:
+    def new_session(self, cwd: str = PROJECT) -> str:
         if not self.server.initialized:
             self.initialize()
         return self.call("session/new", {"cwd": cwd, "mcpServers": []})["sessionId"]
@@ -278,7 +282,7 @@ def test_an_error_reply_carries_only_code_and_message(client):
 
 def test_session_new_hands_back_an_id_and_a_live_session(client):
     acp = client()
-    session_id = acp.new_session("/tmp/project")
+    session_id = acp.new_session(PROJECT)
     session = acp.server.sessions[session_id]
     assert session.id == session_id
     # The id is the stored conversation's own, so the client can hand it back to session/load
@@ -290,7 +294,7 @@ def test_session_new_hands_back_an_id_and_a_live_session(client):
 
 def test_session_new_needs_the_handshake_first(client):
     acp = client()
-    error = acp.error("session/new", {"cwd": "/tmp/project"})
+    error = acp.error("session/new", {"cwd": PROJECT})
     assert error["code"] == -32600 and "initialize" in error["message"]
 
 
@@ -310,7 +314,7 @@ def test_session_new_accepts_the_clients_mcp_servers_without_taking_them(client)
     acp.initialize()
     session_id = acp.call(
         "session/new",
-        {"cwd": "/tmp/project", "mcpServers": [{"name": "fs", "command": "/bin/fs", "args": [], "env": []}]},
+        {"cwd": PROJECT, "mcpServers": [{"name": "fs", "command": "/bin/fs", "args": [], "env": []}]},
     )["sessionId"]
     assert acp.server.sessions[session_id].chat is not None
 
@@ -356,7 +360,7 @@ def test_the_command_list_keeps_only_what_a_client_can_show():
 def test_session_new_tells_the_client_which_commands_it_can_type(client):
     acp = client()
     acp.initialize()
-    request_id = acp.send("session/new", {"cwd": "/tmp/project"})
+    request_id = acp.send("session/new", {"cwd": PROJECT})
     reply = acp.reply_to(request_id)
     params = acp.wait_update("available_commands_update")
     assert params["sessionId"] == reply["result"]["sessionId"]
@@ -1036,7 +1040,7 @@ def test_a_stray_print_never_reaches_the_wire(clite_home):
             print("stray output from a tool")
             yield _line(1, "initialize", {"protocolVersion": PROTOCOL_VERSION})
             print("and another one")
-            yield _line(2, "session/new", {"cwd": "/tmp/project", "mcpServers": []})
+            yield _line(2, "session/new", {"cwd": PROJECT, "mcpServers": []})
 
     sys.stdout = wire  # in the real process this is the pipe the editor reads
     try:

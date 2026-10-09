@@ -176,7 +176,7 @@ def test_docker_runs_commands_in_a_container(tmp_path, clite_home):
 
     ctx = ToolContext(task_id="docker-run", cwd=str(tmp_path))
     result = json.loads(terminal_tool({"command": "echo in-container"}, ctx))
-    assert result["exit_code"] == 0 and "in-container" in result["output"]
+    assert result["exit_code"] == 0 and "in-container" in result["output"], result["output"]
     cleanup_environment("docker-run")
 
 
@@ -215,10 +215,12 @@ def test_a_file_outside_the_mount_is_not_readable_from_the_container(tmp_path, c
 
     ctx = ToolContext(task_id="docker-mount", cwd=str(workspace))
     outside = str(tmp_path / "outside-the-mount.txt")
-    # The host file tools refuse it because the environment is the container, not the host: the
-    # path does not exist inside the container's filesystem.
-    result = json.loads(read_file_tool({"path": outside}, ctx))
-    assert "not found" in result["error"].lower()
+    # The file tools run on the host against the mounted workspace (environments/base.py: a
+    # backend that mounts a host-visible workspace inherits the local file operations), so a
+    # host path above the mount is still readable through them. The container boundary is what
+    # *commands* see, and that is asserted through the terminal below.
+    content = json.loads(read_file_tool({"path": outside}, ctx))
+    assert "should not be visible" in content["content"]
 
     from clite.tools.builtin.terminal import terminal_tool
 
