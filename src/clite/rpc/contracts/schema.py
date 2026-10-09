@@ -103,10 +103,31 @@ class SystemInfoResult(Result):
     configured: bool
     model: str = ""
     provider: str = ""
+    # A dashboard setting the page needs before it can do anything: it rides along here so the
+    # page does not have to ask for the whole config to learn one boolean.
+    notifications: bool = True
+
+
+class ProfileEntry(Result):
+    name: str
+    active: bool = False  # the profile this server is running on
+
+
+class ProfilesListResult(Result):
+    current: str
+    # The profile a new shell would start in; not necessarily the one this server runs.
+    sticky: str = "default"
+    profiles: list[ProfileEntry] = []
 
 
 method("ping", Empty, PingResult, "Liveness check.")
 method("system.info", Empty, SystemInfoResult, "Version, active profile and whether a model is configured.")
+method(
+    "profiles.list",
+    Empty,
+    ProfilesListResult,
+    "Every profile on this machine, and which one this server is running.",
+)
 
 # ── sessions ─────────────────────────────────────────────────────────────────────────────
 
@@ -174,6 +195,30 @@ class SessionExportResult(Result):
     count: int = 0
 
 
+class ReplayEvent(Result):
+    type: str
+    seq: int
+    session_id: str = ""
+    payload: dict[str, Any] = {}
+
+
+class SessionAttachParams(Params):
+    session_id: str
+    # The last `seq` the client saw. Events after it are replayed.
+    last_seq: int = 0
+
+
+class SessionAttachResult(Result):
+    session: SessionInfo
+    events: list[ReplayEvent] = []
+    # False when the client fell further behind than the server remembers: it must reload the
+    # transcript (`session.history`) instead of continuing from a stream with a hole in it.
+    complete: bool = True
+    # The newest seq the server had when the client attached. A client that reloaded its
+    # transcript stores this so the next reconnect asks only about what came after.
+    last_seq: int = 0
+
+
 class SessionHistoryResult(Result):
     messages: list[TranscriptMessage]
 
@@ -231,6 +276,12 @@ method("session.info", SessionRef, SessionInfo)
 method("session.list", SessionListParams, SessionListResult, "Stored sessions, most recent first.")
 method("session.history", SessionRef, SessionHistoryResult, "The transcript, in display form.")
 method("session.close", SessionRef, Ok)
+method(
+    "session.attach",
+    SessionAttachParams,
+    SessionAttachResult,
+    "Reconnect to a session kept after a dropped connection, replaying what was missed.",
+)
 method("session.interrupt", SessionRef, Ok, "Stop the running turn.")
 method("session.steer", SessionSteerParams, Ok, "Guide the running turn without stopping it.")
 method(
@@ -555,6 +606,20 @@ class MemoryEditParams(Params):
     old_text: str = ""
 
 
+class AttachmentSaveParams(Params):
+    name: str
+    # The file's bytes, base64. No `data:` prefix: the client strips it.
+    data: str
+    mime: str = ""
+
+
+class AttachmentSaveResult(Result):
+    path: str
+    name: str = ""
+    bytes: int = 0
+    image: bool = False
+
+
 class MemoryEditResult(Result):
     success: bool
     message: str = ""
@@ -660,6 +725,12 @@ method(
     "Configured shell hooks and whether each one is approved on this machine.",
 )
 method("mcp.status", Empty, McpStatusResult, "Known MCP servers, their transport, and what they serve.")
+method(
+    "attachment.save",
+    AttachmentSaveParams,
+    AttachmentSaveResult,
+    "Store a dropped or pasted file where the agent can read it; returns its path.",
+)
 method(
     "memory.set",
     MemoryEditParams,

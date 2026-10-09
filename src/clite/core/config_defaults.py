@@ -261,6 +261,11 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "max_message_bytes": 1_000_000,
         # Wrong-token throttling, counted per client address and kept in memory only.
         "rate_limit": {"max_failures": 10, "window_seconds": 60, "delay_seconds": 5},
+        # Reconnect replay: how many recent events per session are kept, how many sessions are
+        # remembered at once, and how long a session outlives the connection that opened it.
+        "replay_buffer_events": 500,
+        "replay_sessions": 64,
+        "resume_grace_seconds": 120,
         # Record connections, the token each used, and commands approved from the dashboard, in
         # <home>/logs/audit.log. Never holds a token value, only its name.
         "audit_log": True,
@@ -270,6 +275,11 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     # Named inbound webhooks; their HMAC secrets live in .env as CLITE_WEBHOOK_<NAME>_SECRET.
     "webhooks": {},
+    # ── Dashboard (browser and the desktop shell) ────────────────────────────────────────
+    # A system notification when a turn finishes or an approval is needed while the window is
+    # not focused. The page still needs the browser's own permission, which only a user
+    # gesture can ask for.
+    "dashboard": {"notifications": True},
     # auto_prune deletes sessions with no activity for retention_days, at most once a day, when
     # a surface starts. Pinned sessions are kept. `clite sessions prune` does it on demand.
     "sessions": {"auto_prune": False, "retention_days": 90},

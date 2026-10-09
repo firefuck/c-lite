@@ -9,6 +9,7 @@ from __future__ import annotations
 import io
 import threading
 import time
+from pathlib import Path
 
 import pytest
 
@@ -394,6 +395,175 @@ def test_closing_an_open_session_keeps_the_other_one(dashboard):
         "document.querySelector('.message.user')?.textContent === 'keep me'"
     )
     assert dashboard.inner_text(".message.assistant") == "You said: keep me"
+
+
+def test_the_dashboard_reconnects_and_keeps_the_conversation(clite_home, browser):
+    """The socket drops and comes back: the conversation is still there and still works.
+
+    The drop is forced from the browser side (`route_web_socket`), which is what a flaky network
+    or a sleeping laptop looks like to the page.
+    """
+    box, thread = _start("model:\n  provider: mock\n  default: mock-1\n", clite_home)
+    page = browser.new_page()
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    sockets = []
+
+    def on_socket(socket):
+        sockets.append(socket)
+        socket.connect_to_server()
+
+    page.route_web_socket(lambda url: "/api/ws" in url, on_socket)
+    try:
+        page.goto(f"http://127.0.0.1:{box['port']}/#token={box['token']}")
+        page.wait_for_selector("#status-connection.online")
+        page.wait_for_function("document.querySelector('#status-model').textContent !== ''")
+        page.fill("#prompt", "before the drop")
+        page.press("#prompt", "Enter")
+        page.wait_for_selector(".message.assistant")
+        before = page.inner_text(".message.assistant")
+        assert len(sockets) == 1
+
+        sockets[0].close()
+        page.wait_for_function(
+            "document.querySelector('#status-connection').textContent.includes('reconnecting')"
+        )
+        page.wait_for_function(
+            "document.querySelector('#status-connection').textContent === 'connected'",
+            timeout=30_000,
+        )
+        assert len(sockets) == 2  # the page opened a new one by itself
+
+        # The transcript survived the round trip, and the session is usable again.
+        assert page.inner_text(".message.assistant") == before
+        page.fill("#prompt", "after the drop")
+        page.press("#prompt", "Enter")
+        page.wait_for_function(
+            "(() => { const all = document.querySelectorAll('.message.assistant');"
+            " return all.length > 1 && all[all.length - 1].textContent === 'You said: after the drop'; })()"
+        )
+        assert errors == []
+    finally:
+        page.close()
+        box["server"].should_exit = True
+        thread.join(timeout=10)
+
+
+NOTIFICATION_RECORDER = """(() => {
+  window.__notifications = [];
+  class FakeNotification {
+    static permission = "granted";
+    static requestPermission() { return Promise.resolve("granted"); }
+    constructor(title, options) {
+      window.__notifications.push({title, body: (options || {}).body || ""});
+    }
+  }
+  Object.defineProperty(window, "Notification", {value: FakeNotification, configurable: true});
+  // A headless window reports focus; the point of a notification is the window nobody watches.
+  Object.defineProperty(document, "hasFocus", {value: () => false, configurable: true});
+})()"""
+
+
+def test_a_finished_turn_notifies_only_when_the_window_is_not_watched(clite_home, browser):
+    box, thread = _start("model:\n  provider: mock\n  default: mock-1\n", clite_home)
+    page = browser.new_page()
+    page.add_init_script(script=NOTIFICATION_RECORDER)
+    try:
+        page.goto(f"http://127.0.0.1:{box['port']}/#token={box['token']}")
+        page.wait_for_selector("#status-connection.online")
+        # The socket is up before the first session is: sending now would find no view.
+        page.wait_for_function("document.querySelector('#status-model').textContent !== ''")
+        page.fill("#prompt", "hello")
+        page.press("#prompt", "Enter")
+        page.wait_for_function("window.__notifications.length > 0")
+        sent = page.evaluate("window.__notifications")
+        # A fresh session has no title yet, so the fallback name stands in for it.
+        assert sent[0]["title"]
+        assert "You said: hello" in sent[0]["body"]
+
+        # A window that has focus already shows the answer: no notification.
+        page.evaluate("Object.defineProperty(document, 'hasFocus', {value: () => true})")
+        page.evaluate("window.__notifications.length = 0")
+        page.fill("#prompt", "again")
+        page.press("#prompt", "Enter")
+        page.wait_for_function("document.querySelectorAll('.message.assistant').length > 1")
+        assert page.evaluate("window.__notifications") == []
+    finally:
+        page.close()
+        box["server"].should_exit = True
+        thread.join(timeout=10)
+
+
+def test_the_notification_setting_can_turn_notifications_off(clite_home, browser):
+    box, thread = _start("model:\n  provider: mock\n  default: mock-1\n", clite_home)
+    page = browser.new_page()
+    page.add_init_script(script=NOTIFICATION_RECORDER)
+    try:
+        page.goto(f"http://127.0.0.1:{box['port']}/#token={box['token']}")
+        page.wait_for_selector("#status-connection.online")
+        page.wait_for_function("document.querySelector('#status-model').textContent !== ''")
+
+        # Turned off from the config page, like any other setting.
+        page.click("[data-tab=config]")
+        page.wait_for_selector("#panel-config .row")
+        page.fill("#config-dashboard\\.notifications", "false")
+        page.click("#panel-config .row[data-key='dashboard.notifications'] [data-action=save]")
+        page.wait_for_function(
+            "document.querySelector('#config-dashboard\\\\.notifications')"
+            ".getAttribute('value') === 'false'"
+        )
+        page.click("[data-tab=chat]")
+
+        page.fill("#prompt", "quiet")
+        page.press("#prompt", "Enter")
+        page.wait_for_selector(".message.assistant")
+        page.wait_for_timeout(200)
+        assert page.evaluate("window.__notifications") == []
+    finally:
+        page.close()
+        box["server"].should_exit = True
+        thread.join(timeout=10)
+
+
+def test_a_dropped_file_is_attached_and_reaches_the_agent(dashboard, clite_home):
+    """Dropping a file puts a chip in the composer, and sending hands the agent a real path."""
+    dashboard.evaluate(
+        """() => {
+          const transfer = new DataTransfer();
+          transfer.items.add(new File(["notes from a drop\\n"], "dropped.txt", {type: "text/plain"}));
+          document.querySelector("#view-chat").dispatchEvent(
+            new DragEvent("drop", {dataTransfer: transfer, bubbles: true, cancelable: true}));
+        }"""
+    )
+    dashboard.wait_for_selector("#attachments .chip[data-name='dropped.txt']")
+
+    _send(dashboard, "read this")
+    dashboard.wait_for_function(
+        "(() => { const all = document.querySelectorAll('.message.assistant');"
+        " return all.length && all[all.length - 1].textContent.includes('[attached: '); })()"
+    )
+    # The chip is gone, and the file really is on disk where the message said it was.
+    assert dashboard.query_selector("#attachments .chip") is None
+    shown = dashboard.inner_text(".message.assistant")
+    stored = Path(shown.split("[attached: ")[1].rstrip("]"))
+    assert stored.read_text() == "notes from a drop\n"
+    assert stored.parent == clite_home / "cache" / "attachments"
+
+
+def test_the_profiles_page_lists_them_and_says_which_one_is_running(dashboard, clite_home):
+    from clite.core.profiles import create_profile
+
+    create_profile("work")
+    dashboard.click("[data-tab=profiles]")
+    dashboard.wait_for_selector("#panel-profiles .row[data-profile='work']")
+    rows = dashboard.eval_on_selector_all(
+        "#panel-profiles .row", "nodes => nodes.map(n => [n.dataset.profile, n.innerText])"
+    )
+    assert [row[0] for row in rows] == ["default", "work"]
+    # This backend serves the default profile; the other one is a different home.
+    assert "running" in rows[0][1]
+    assert "clite dashboard -p work" in rows[1][1]
+    assert dashboard.inner_text("#status-profile") == "profile: default"
 
 
 def test_other_tabs_list_what_is_installed(dashboard):

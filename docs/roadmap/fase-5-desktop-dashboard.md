@@ -154,6 +154,16 @@ kerangka build sekarang berarti menambah langkah build pada paket Python yang se
 punya satu pun, tanpa masalah yang diselesaikannya. Task ini tetap ⬜ sampai salah satu dari
 dua pemicunya benar-benar terjadi.
 
+**Ditimbang ulang 9 Oktober 2026, sesudah F5-T5: masih belum.** `app.js` kini 1108 baris
+(`index.html` 70, `style.css` 173, `rpc.js` 115), setelah sambung ulang, lampiran, notifikasi,
+dan halaman profil. Yang bertambah adalah fungsi render panel kesebelas dan tiga fungsi
+pendukung di sekitar kotak tulis; yang **tidak** bertambah adalah keadaan bersama — masih
+`state.views`, `state.activeId`, dan `state.rpc`, dengan satu tambahan boolean. Kesebelas panel
+masih tidak saling tahu. Jadi ambangnya belum tersentuh, dan alasan yang sama masih berlaku:
+kerangka build adalah langkah build tetap pada paket yang sampai sekarang tidak punya satu pun.
+Yang akan mengubah jawabannya adalah keadaan bersama antar-halaman (misalnya penyaring global
+atau riwayat navigasi), bukan jumlah baris.
+
 ---
 
 ### F5-T4 Pemaketan desktop
@@ -177,10 +187,13 @@ dua pemicunya benar-benar terjadi.
 `apps/desktop/electron/app-updater.ts`.
 
 **Selesai bila.**
-- [ ] CI menghasilkan installer untuk ketiga sistem pada tag rilis.
-- [ ] Installer dicoba dengan tangan di tiap sistem yang tersedia, dan hasilnya dicatat di
-      `docs/STATUS.md` per sistem.
-- [ ] Tes: nama produk dan versi di installer sama dengan yang di `pyproject.toml`.
+- [ ] CI menghasilkan installer untuk ketiga sistem pada tag rilis. (Pekerjaan `desktop` sudah
+      ada di `release.yml`, satu runner per sistem; belum pernah berjalan karena belum di-push.)
+- [x] Installer dicoba dengan tangan di tiap sistem yang tersedia, dan hasilnya dicatat di
+      `docs/STATUS.md` per sistem. (Linux: AppImage 120 MB dibangun dan dijalankan; jendela
+      memuat dashboard dari backend yang dijalankannya sendiri. macOS dan Windows tidak
+      tersedia di mesin ini.)
+- [x] Tes: nama produk dan versi di installer sama dengan yang di `pyproject.toml`.
 
 **Ukuran.** M
 
@@ -219,12 +232,12 @@ saat koneksi putus sebentar.
 `apps/shared/src/json-rpc-gateway.ts`.
 
 **Selesai bila.**
-- [ ] Tes: klien yang putus di tengah giliran lalu menyambung ulang menerima event yang
+- [x] Tes: klien yang putus di tengah giliran lalu menyambung ulang menerima event yang
       terlewat, berurutan dan tanpa ganda, dan giliran itu tidak terhenti.
-- [ ] Tes: penyangga event berbatas; klien yang tertinggal terlalu jauh diberi tahu untuk
+- [x] Tes: penyangga event berbatas; klien yang tertinggal terlalu jauh diberi tahu untuk
       memuat ulang riwayat, bukan menerima aliran yang bolong.
-- [ ] Tes browser: dua sesi berjalan bersamaan tanpa event yang tertukar.
-- [ ] Baris "Pemutaran ulang event" di spesifikasi rpc dan baris fitur di spesifikasi desktop
+- [x] Tes browser: dua sesi berjalan bersamaan tanpa event yang tertukar.
+- [x] Baris "Pemutaran ulang event" di spesifikasi rpc dan baris fitur di spesifikasi desktop
       menjadi ✅.
 
 **Ukuran.** L

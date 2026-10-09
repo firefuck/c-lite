@@ -22,6 +22,10 @@ export class RpcClient {
     this.requestHandlers = new Map(); // server request method -> async handler(params)
     this.onClose = () => {};
     this.socket = null;
+    // The newest event this client has seen. A reconnect says where it got to, so the server
+    // can replay what came after instead of the client starting over.
+    this.lastSeq = 0;
+    this.closeCode = 0;
   }
 
   connect() {
@@ -38,12 +42,17 @@ export class RpcClient {
         if (!opened) reject(new Error("could not connect"));
       };
       socket.onclose = (event) => {
+        this.closeCode = event.code;
         for (const { reject: fail } of this.pending.values()) fail(new RpcError(-1, "connection closed"));
         this.pending.clear();
         if (!opened) reject(new Error(event.code === 4401 ? "unauthorized" : "connection closed"));
         this.onClose(event);
       };
     });
+  }
+
+  get isOpen() {
+    return Boolean(this.socket) && this.socket.readyState === 1;
   }
 
   close() {
@@ -75,6 +84,9 @@ export class RpcClient {
       return; // not ours to fix; the server only sends JSON
     }
     if (message.method === "event") {
+      if (typeof message.params.seq === "number") {
+        this.lastSeq = Math.max(this.lastSeq, message.params.seq);
+      }
       for (const handler of this.eventHandlers) handler(message.params);
       return;
     }

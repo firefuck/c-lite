@@ -1,11 +1,13 @@
-# A pushed tag v<version> publishes a GitHub Release with the wheel and sdist attached.
+# A pushed tag v<version> publishes a GitHub Release with the wheel, the sdist and the desktop
+# installers attached.
 #
 # Cut the tag with scripts/release.py (it checks that the tag, __version__, pyproject.toml and
 # CHANGELOG.md agree). Nothing is uploaded to PyPI: `clite` there belongs to another project
 # and the distribution here is `c-lite`, installed from the release assets.
 #
-# NOT VERIFIED: this workflow has not run on GitHub yet; the same build, wheel check and
-# clean-venv install were run locally on 2026-10-06.
+# NOT VERIFIED: this workflow has not run on GitHub yet. The same build, wheel check and
+# clean-venv install were run locally on 2026-10-06; the Linux AppImage was built locally on
+# 2026-10-09 and the macOS and Windows installers have not been built at all.
 name: release
 
 on:
@@ -79,8 +81,53 @@ jobs:
           pipx install --python "$(command -v python)" dist/*.whl
           clite --version
 
+  desktop:
+    needs: build
+    # One runner per system: an installer can only be built on the system it installs on.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: --linux
+          - os: macos-latest
+            target: --mac
+          - os: windows-latest
+            target: --win
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: npm ci
+      # The name and version in the installer have to be the package's, so they are checked
+      # before anything is built.
+      - name: The installer agrees with the Python package
+        run: node --test apps/desktop/test/packaging.test.ts
+      - run: npm run build --workspace apps/desktop
+      - name: Build the installer
+        working-directory: apps/desktop
+        env:
+          # No certificate in CI: build unsigned rather than fail. A certificate in the
+          # repository secrets is picked up when it is there.
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          GH_TOKEN: ${{ github.token }}
+        run: npx electron-builder ${{ matrix.target }} --config electron-builder.config.cjs --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.AppImage
+          if-no-files-found: error
+
   publish:
-    needs: test
+    needs: [test, desktop]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -90,10 +137,20 @@ jobs:
         with:
           name: dist
           path: dist
-      - name: Create the GitHub Release with wheel and sdist attached
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          path: desktop
+          merge-multiple: true
+      - name: Create the GitHub Release with the wheel, the sdist and the installers
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           python3 scripts/release.py notes > "$RUNNER_TEMP/notes.md"
-          gh release create "$GITHUB_REF_NAME" dist/*.whl dist/*.tar.gz \
+          # Say it plainly: without a certificate these installers are not signed, and the
+          # system will warn about them. Better in the notes than in a surprise.
+          if [ -z "${{ secrets.MAC_CSC_LINK }}" ]; then
+            printf '\n---\n\n**The desktop installers are unsigned.** macOS Gatekeeper and Windows\nSmartScreen will warn about them; the source is in this repository if you want to build\nyour own.\n' >> "$RUNNER_TEMP/notes.md"
+          fi
+          gh release create "$GITHUB_REF_NAME" dist/*.whl dist/*.tar.gz desktop/* \
             --title "C-lite ${GITHUB_REF_NAME#v}" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag

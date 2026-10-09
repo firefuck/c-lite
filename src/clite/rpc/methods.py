@@ -8,6 +8,9 @@ else in config and the session database.
 from __future__ import annotations
 
 import json
+import re
+import time
+import uuid
 from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import Any
@@ -59,10 +62,22 @@ def system_info(server: RpcServer, params: Empty) -> schema.SystemInfoResult:
         configured=configured,
         model=model,
         provider=provider,
+        notifications=bool(get_path(load_config(), "dashboard.notifications", True)),
     )
 
 
 # ── sessions ─────────────────────────────────────────────────────────────────────────────
+
+
+@rpc_method("profiles.list")
+def profiles_list(server: RpcServer, params: Empty) -> schema.ProfilesListResult:
+    from clite.core.profiles import get_sticky_profile, list_profiles
+
+    return schema.ProfilesListResult(
+        current=get_active_profile_name(),
+        sticky=get_sticky_profile(),
+        profiles=[schema.ProfileEntry(name=p.name, active=p.active) for p in list_profiles()],
+    )
 
 
 @rpc_method("session.create")
@@ -113,6 +128,32 @@ def session_close(server: RpcServer, params: schema.SessionRef) -> Ok:
     server.get_session(params.session_id)
     server.remove_session(params.session_id)
     return Ok()
+
+
+@rpc_method("session.attach")
+def session_attach(server: RpcServer, params: schema.SessionAttachParams) -> schema.SessionAttachResult:
+    from clite.rpc.replay import get_detached_sessions, get_event_log
+    from clite.rpc.server import SESSION_NOT_FOUND
+
+    log = get_event_log()
+    # The same critical section `emit` uses: taking the session back and reading what it missed
+    # happen together, so nothing is delivered live *and* replayed, and nothing falls between.
+    with log.lock:
+        session = get_detached_sessions().adopt(params.session_id)
+        if session is None:
+            raise RpcError(
+                SESSION_NOT_FOUND,
+                f"session {params.session_id!r} is no longer open; resume the stored session instead",
+            )
+        events, complete = log.missed(params.session_id, max(0, params.last_seq))
+        newest = log.last_seq
+        server.adopt_session(session)
+    return schema.SessionAttachResult(
+        session=session.info(),
+        events=[schema.ReplayEvent(**event) for event in events],
+        complete=complete,
+        last_seq=newest,
+    )
 
 
 @rpc_method("session.interrupt")
@@ -626,6 +667,72 @@ def mcp_status(server: RpcServer, params: Empty) -> schema.McpStatusResult:
             for row in mcp_servers_snapshot()
         ],
         configured=len(configured) if isinstance(configured, Mapping) else 0,
+    )
+
+
+ATTACHMENT_MAX_AGE_SECONDS = 24 * 3600
+
+
+def attachments_dir() -> Path:
+    """Where a dropped or pasted file waits for the agent. Under the cache: it is disposable."""
+    from clite.core.constants import get_cache_dir
+
+    return get_cache_dir() / "attachments"
+
+
+def _safe_attachment_name(name: str) -> str:
+    """A file name with no directory part and nothing that means anything to a shell."""
+    base = Path(str(name or "attachment")).name
+    cleaned = re.sub(r"[^A-Za-z0-9._-]", "_", base).strip("._")
+    return (cleaned or "attachment")[:120]
+
+
+def _prune_attachments(directory: Path, *, now: float | None = None) -> int:
+    """Drop attachments older than a day. They are a copy of something the user still has."""
+    current = now if now is not None else time.time()
+    removed = 0
+    try:
+        for entry in directory.iterdir():
+            try:
+                if entry.is_file() and current - entry.stat().st_mtime > ATTACHMENT_MAX_AGE_SECONDS:
+                    entry.unlink()
+                    removed += 1
+            except OSError:
+                continue
+    except OSError:
+        return removed
+    return removed
+
+
+@rpc_method("attachment.save")
+def attachment_save(server: RpcServer, params: schema.AttachmentSaveParams) -> schema.AttachmentSaveResult:
+    import base64
+    import binascii
+
+    from clite.agent.attachments import detect_media_type
+    from clite.core.constants import ensure_dir
+
+    try:
+        raw = base64.b64decode(params.data, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise RpcError(REQUEST_FAILED, "the attachment's bytes are not valid base64") from exc
+    limit = int(get_path(load_config(), "attachments.max_bytes", 5_000_000) or 5_000_000)
+    if len(raw) > limit:
+        raise RpcError(REQUEST_FAILED, f"the attachment is {len(raw)} bytes; the limit is {limit}")
+    name = _safe_attachment_name(params.name)
+    directory = attachments_dir()
+    ensure_dir(directory)
+    _prune_attachments(directory)
+    target = directory / f"{uuid.uuid4().hex[:8]}-{name}"
+    try:
+        target.write_bytes(raw)
+    except OSError as exc:
+        raise RpcError(REQUEST_FAILED, f"could not store the attachment: {exc}") from exc
+    return schema.AttachmentSaveResult(
+        path=str(target),
+        name=name,
+        bytes=len(raw),
+        image=detect_media_type(raw, target) is not None,
     )
 
 

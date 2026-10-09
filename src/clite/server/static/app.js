@@ -35,6 +35,10 @@ function newView(id, info) {
     busy: false,
     streaming: null,
     tools: new Map(),
+    // The newest event this view has applied. A reconnect sends it back so the server can
+    // replay exactly what was missed.
+    lastSeq: 0,
+    attachments: [], // files dropped or pasted but not sent yet
     // Each view owns its transcript element. Only the active one is in the document, so a
     // background session keeps receiving events into its own element without touching the page.
     container: h("div", { class: "transcript-body" }),
@@ -45,6 +49,8 @@ const state = {
   rpc: null,
   views: new Map(), // runtime session id -> view
   activeId: null,
+  closing: false, // the page is going away: do not try to reconnect
+  notifications: true, // dashboard.notifications, read from the config
 };
 
 function activeView() {
@@ -80,7 +86,7 @@ async function connect() {
   rpc.onEvent(handleEvent);
   rpc.onServerRequest("approval.request", askApproval);
   rpc.onServerRequest("clarify.request", askClarification);
-  rpc.onClose = () => setConnection(false, "disconnected");
+  rpc.onClose = () => onConnectionLost();
   try {
     await rpc.connect();
   } catch (error) {
@@ -92,9 +98,118 @@ async function connect() {
   state.rpc = rpc;
   setConnection(true, "connected");
   const system = await rpc.request("system.info");
+  $("#status-profile").textContent = system.profile ? `profile: ${system.profile}` : "";
   if (!system.configured) await runSetup();
+  state.notifications = system.notifications !== false;
   await openSession({});
   await refreshSessions();
+}
+
+/** The dashboard's own settings, which the server reports with everything else. */
+async function loadDashboardPrefs() {
+  try {
+    const info = await state.rpc.request("system.info");
+    state.notifications = info.notifications !== false;
+  } catch {
+    // A config we cannot read is not worth stopping the dashboard for: keep the default.
+  }
+}
+
+// ── notifications ────────────────────────────────────────────────────────────────────────
+
+/** Ask for the browser's permission, once, while a user gesture is on the stack. */
+function askNotificationPermission() {
+  if (typeof Notification === "undefined") return;
+  if (Notification.permission === "default") Notification.requestPermission().catch(() => {});
+}
+
+/**
+ * Tell the user something happened, if they are not looking.
+ *
+ * The point of a notification is the window you are *not* watching: when the dashboard has
+ * focus the message is already on screen, so nothing is sent.
+ */
+function notify(title, body, view) {
+  if (!state.notifications || typeof Notification === "undefined") return;
+  if (Notification.permission !== "granted") return;
+  if (document.hasFocus()) return;
+  try {
+    const note = new Notification(title, { body, tag: "clite" });
+    note.onclick = () => {
+      window.focus();
+      if (view) activateSession(view.id).catch(() => {});
+    };
+  } catch {
+    // Some browsers refuse outside a service worker; a missing notification is not an error.
+  }
+}
+
+// ── coming back after the socket drops ───────────────────────────────────────────────────
+
+let reconnectTimer = null;
+let reconnectDelay = 500;
+
+/** The socket went away. Try to come back; a turn that was running is still running. */
+function onConnectionLost() {
+  if (state.closing) return;
+  setConnection(false, "reconnecting…");
+  scheduleReconnect();
+}
+
+function scheduleReconnect() {
+  if (reconnectTimer) return;
+  reconnectTimer = setTimeout(async () => {
+    reconnectTimer = null;
+    try {
+      await state.rpc.connect();
+    } catch (error) {
+      if (state.rpc.closeCode === 4401) {
+        // The token is no longer accepted; retrying would hammer the server. Ask again.
+        sessionStorage.removeItem("clite-token");
+        setConnection(false, error.message);
+        notice("The session token was refused. Reload the page with the link printed by `clite dashboard`.", "error");
+        return;
+      }
+      reconnectDelay = Math.min(reconnectDelay * 2, 10_000);
+      scheduleReconnect();
+      return;
+    }
+    reconnectDelay = 500;
+    setConnection(true, "connected");
+    await reattach();
+  }, reconnectDelay);
+}
+
+/** Take every open conversation back, and apply what happened while we were away. */
+async function reattach() {
+  for (const view of [...state.views.values()]) {
+    try {
+      const result = await state.rpc.request("session.attach", {
+        session_id: view.id, last_seq: view.lastSeq,
+      });
+      setInfo(result.session);
+      if (result.complete) {
+        for (const event of result.events) handleEvent(event);
+      } else {
+        // Too much happened to replay: show the transcript as it is now.
+        await reloadTranscript(view);
+        notice("This conversation fell too far behind to replay; its transcript was reloaded.", "notice");
+      }
+      view.lastSeq = Math.max(view.lastSeq, result.last_seq);
+    } catch (error) {
+      notice(`Lost “${view.info.title || view.id}”: ${error.message}`, "error");
+    }
+  }
+  await refreshSessions();
+}
+
+/** Rebuild a view's transcript from the stored history. */
+async function reloadTranscript(view) {
+  view.container.replaceChildren();
+  view.streaming = null;
+  view.tools.clear();
+  const history = await state.rpc.request("session.history", { session_id: view.id });
+  for (const message of history.messages) renderStored(message, view);
 }
 
 // ── sessions ─────────────────────────────────────────────────────────────────────────────
@@ -120,6 +235,7 @@ async function activateSession(sessionId) {
   $("#transcript").replaceChildren(view.container);
   setInfo(view.info);
   setBusy(view.busy);
+  renderAttachments();
   renderOpenSessions();
   scrollDown();
   $("#prompt").focus();
@@ -164,13 +280,16 @@ function renderOpenSessions() {
       h("button", {
         type: "button", "data-open": view.id,
         class: `${view.id === state.activeId ? "current" : ""}${view.busy ? " busy" : ""}`,
-        onclick: () => activateSession(view.id),
+        onclick: () => activateSession(view.id).catch(() => {}),
       },
       h("span", { class: "dot" }),
       view.info.title || "(new chat)",
       view.busy ? h("span", { class: "meta" }, "working") : null,
       open.length > 1
-        ? h("span", { class: "close", role: "button", "data-close": view.id, onclick: (event) => { event.stopPropagation(); closeSession(view.id); } }, "×")
+        ? h("span", { class: "close", role: "button", "data-close": view.id, onclick: (event) => {
+          event.stopPropagation();
+          closeSession(view.id).catch((error) => notice(error.message, "error"));
+        } }, "×")
         : null),
     )),
   );
@@ -183,10 +302,84 @@ async function refreshSessions() {
     ...sessions.map((session) =>
       h("li", {}, h("button", {
         type: "button", "data-id": session.id, class: session.id === current ? "current" : "",
-        onclick: () => openSession({ resume: session.id }).then(refreshSessions),
+        onclick: () => openSession({ resume: session.id }).catch((error) => notice(error.message, "error")),
       }, session.title || "(untitled)", h("span", { class: "meta" }, `${session.message_count} messages · ${session.source}`))),
     ),
   );
+}
+
+// ── attachments ──────────────────────────────────────────────────────────────────────────
+
+/** Files the user dropped or pasted, waiting to be sent with the next message. */
+function addAttachments(files) {
+  const view = activeView();
+  if (!view || !files.length) return;
+  for (const file of files) {
+    view.attachments.push({
+      file,
+      name: file.name || "attachment",
+      mime: file.type || "",
+      image: (file.type || "").startsWith("image/"),
+    });
+  }
+  renderAttachments();
+}
+
+function renderAttachments() {
+  const view = activeView();
+  const pending = view ? view.attachments : [];
+  $("#attachments").replaceChildren(
+    ...pending.map((entry, index) => h("span", { class: "chip", "data-name": entry.name },
+      entry.image ? "image · " : "file · ",
+      entry.name,
+      h("span", {
+        class: "remove", role: "button", "data-remove": index,
+        onclick: () => {
+          view.attachments.splice(index, 1);
+          renderAttachments();
+        },
+      }, "×"))),
+  );
+}
+
+function base64Of(file) {
+  return file.arrayBuffer().then((buffer) => {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    for (let index = 0; index < bytes.length; index += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+    }
+    return btoa(binary);
+  });
+}
+
+/**
+ * Turn the pending files into paths the server can use, and clear the chips.
+ *
+ * The desktop app can hand over the real path of a dropped file (`cliteDesktop.pathForFile`),
+ * so nothing is copied. A browser cannot: the bytes go up through `attachment.save` and land in
+ * the cache directory, where the agent reads them like any other file.
+ */
+async function takeAttachments(view) {
+  const pending = view.attachments;
+  view.attachments = [];
+  if (view.id === state.activeId) renderAttachments();
+  const images = [];
+  const files = [];
+  for (const entry of pending) {
+    let path = "";
+    if (window.cliteDesktop && window.cliteDesktop.pathForFile) {
+      path = await window.cliteDesktop.pathForFile(entry.file);
+    }
+    if (!path) {
+      const saved = await state.rpc.request("attachment.save", {
+        name: entry.name, data: await base64Of(entry.file), mime: entry.mime,
+      });
+      path = saved.path;
+    }
+    (entry.image ? images : files).push(path);
+  }
+  return { images, files };
 }
 
 // ── transcript ───────────────────────────────────────────────────────────────────────────
@@ -222,8 +415,7 @@ function notice(text, kind = "notice") {
   return addMessage(kind, text);
 }
 
-function renderStored(message) {
-  const view = activeView();
+function renderStored(message, view = activeView()) {
   if (!view) return;
   if (message.role === "tool") {
     view.container.append(h("div", { class: "tool" }, `✓ ${message.tool_name}`));
@@ -244,6 +436,7 @@ function setBusy(busy) {
 function handleEvent(event) {
   const view = viewOf(event.session_id);
   if (!view) return; // an event for a session this connection never opened
+  if (typeof event.seq === "number") view.lastSeq = Math.max(view.lastSeq, event.seq);
   const payload = event.payload;
   const markBusy = (busy) => {
     view.busy = busy;
@@ -287,14 +480,27 @@ function handleEvent(event) {
       break;
     case "session.info":
       setInfo(payload);
-      refreshSessions();
+      refreshSessions().catch(() => {}); // a refresh racing a dropped socket is not news
       break;
     case "turn.complete":
       view.streaming = null;
       markBusy(false);
       if (payload.interrupted) addMessage("notice", "(interrupted)", view);
       else if (payload.error) addMessage("error", payload.final_response || payload.error, view);
-      state.rpc.request("session.info", { session_id: view.id }).then(setInfo).then(refreshSessions);
+      notify(
+        view.info.title || "clite",
+        payload.interrupted
+          ? "The turn was interrupted."
+          : payload.error
+            ? `The turn failed: ${payload.error}`
+            : (payload.final_response || "The turn finished."),
+        view,
+      );
+      state.rpc
+        .request("session.info", { session_id: view.id })
+        .then(setInfo)
+        .then(refreshSessions)
+        .catch(() => {});
       break;
     case "error":
       addMessage("error", payload.message, view);
@@ -306,7 +512,9 @@ function handleEvent(event) {
 
 async function send(text) {
   const view = activeView();
-  if (!text.trim() || !state.rpc || !view) return;
+  if (!state.rpc || !view) return;
+  if (!text.trim() && !view.attachments.length) return;
+  askNotificationPermission(); // this is a user gesture: the only moment a browser will ask
   if (text.trim().startsWith("/")) {
     try {
       const result = await state.rpc.request("slash.exec", { session_id: view.id, command: text.trim() });
@@ -323,7 +531,13 @@ async function send(text) {
   }
   addMessage("user", text);
   try {
-    await state.rpc.request("prompt.submit", { session_id: view.id, text });
+    // A dropped image rides along as an image part; anything else is a file the agent can
+    // read, so its path is spelled out in the message.
+    const { images, files } = await takeAttachments(view);
+    const outgoing = files.length ? `${text}\n\n[attached: ${files.join(", ")}]` : text;
+    await state.rpc.request("prompt.submit", {
+      session_id: view.id, text: outgoing, attachments: images.length ? images : null,
+    });
   } catch (error) {
     notice(error.message, "error");
   }
@@ -358,6 +572,11 @@ function askToken() {
 }
 
 function askApproval(params) {
+  notify(
+    "Approval needed",
+    params.description || params.command || "",
+    viewOf(params.session_id) || activeView(),
+  );
   return new Promise((resolve) => {
     const choose = (choice) => () => {
       $("#dialog").close();
@@ -535,6 +754,7 @@ const panels = {
           if (!ok) return;
         }
         await state.rpc.request("config.set", { key: entry.key, value, confirm: entry.sensitive });
+        if (entry.key.startsWith("dashboard.")) await loadDashboardPrefs();
         await show();
       };
       panel.replaceChildren(
@@ -755,6 +975,25 @@ const panels = {
     };
     await show();
   },
+  async profiles(panel) {
+    const { current, sticky, profiles } = await state.rpc.request("profiles.list");
+    const describe = (profile) => {
+      if (profile.name === current) return "this dashboard is running here";
+      if (window.cliteDesktop) return `restart C-lite with --profile ${profile.name}`;
+      return `run: clite dashboard -p ${profile.name}`;
+    };
+    panel.replaceChildren(
+      h("h2", {}, "Profiles"),
+      h("p", { class: "empty" },
+        "A profile is a separate home: its own config, keys, memory and sessions. One backend "
+        + "serves one profile, so switching means starting another one."),
+      ...profiles.map((profile) => h("div", { class: `row${profile.name === current ? " current" : ""}`, "data-profile": profile.name },
+        h("div", { class: "name" }, profile.name,
+          profile.name === current ? h("span", { class: "badge" }, "running") : null,
+          profile.name === sticky && profile.name !== current ? h("span", { class: "badge" }, "default for new shells") : null),
+        h("div", { class: "desc" }, describe(profile)))),
+    );
+  },
   async logs(panel) {
     const source = h("select", { id: "logs-source" },
       h("option", { value: "agent" }, "agent.log"),
@@ -835,7 +1074,37 @@ $("#stop").addEventListener("click", interrupt);
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && activeView()?.busy && !$("#dialog").open) interrupt();
 });
-$("#new-chat").addEventListener("click", () => openSession({}));
+$("#new-chat").addEventListener("click", () => openSession({}).catch((error) => notice(error.message, "error")));
+// The page is going away on purpose; a reconnect now would only fight the unload.
+window.addEventListener("beforeunload", () => {
+  state.closing = true;
+});
+
+// ── dropping and pasting files ───────────────────────────────────────────────────────────
+
+const chatView = $("#view-chat");
+for (const type of ["dragenter", "dragover"]) {
+  chatView.addEventListener(type, (event) => {
+    event.preventDefault(); // without this the browser just opens the file
+    $("#composer").classList.add("dragging");
+  });
+}
+for (const type of ["dragleave", "dragend"]) {
+  chatView.addEventListener(type, () => $("#composer").classList.remove("dragging"));
+}
+chatView.addEventListener("drop", (event) => {
+  event.preventDefault();
+  $("#composer").classList.remove("dragging");
+  addAttachments([...(event.dataTransfer?.files || [])]);
+});
+$("#prompt").addEventListener("paste", (event) => {
+  const files = [...(event.clipboardData?.files || [])];
+  if (files.length) {
+    event.preventDefault();
+    addAttachments(files);
+  }
+});
+
 $("#tabs").addEventListener("click", (event) => {
   if (event.target.dataset.tab) selectTab(event.target.dataset.tab);
 });

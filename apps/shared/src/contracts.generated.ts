@@ -14,6 +14,19 @@ export interface ApprovalRequestResult {
   choice: "once" | "session" | "always" | "deny";
 }
 
+export interface AttachmentSaveParams {
+  name: string;
+  data: string;
+  mime?: string;
+}
+
+export interface AttachmentSaveResult {
+  path: string;
+  name: string;
+  bytes: number;
+  image: boolean;
+}
+
 export interface CatalogParams {
   session_id?: string | null;
 }
@@ -300,6 +313,17 @@ export interface PluginsListResult {
   plugins: PluginEntry[];
 }
 
+export interface ProfileEntry {
+  name: string;
+  active: boolean;
+}
+
+export interface ProfilesListResult {
+  current: string;
+  sticky: string;
+  profiles: ProfileEntry[];
+}
+
 export interface PromptSubmitParams {
   session_id: string;
   text: string;
@@ -333,9 +357,28 @@ export interface ReadyPayload {
   protocol_version: number;
 }
 
+export interface ReplayEvent {
+  type: string;
+  seq: number;
+  session_id: string;
+  payload: Record<string, unknown>;
+}
+
 export interface SessionArchiveParams {
   stored_session_id: string;
   archived: boolean;
+}
+
+export interface SessionAttachParams {
+  session_id: string;
+  last_seq?: number;
+}
+
+export interface SessionAttachResult {
+  session: SessionInfo;
+  events: ReplayEvent[];
+  complete: boolean;
+  last_seq: number;
 }
 
 export interface SessionCompressParams {
@@ -559,6 +602,7 @@ export interface SystemInfoResult {
   configured: boolean;
   model: string;
   provider: string;
+  notifications: boolean;
 }
 
 export interface TextPayload {
@@ -636,6 +680,8 @@ export interface Methods {
   "ping": { params: Empty; result: PingResult };
   /** Version, active profile and whether a model is configured. */
   "system.info": { params: Empty; result: SystemInfoResult };
+  /** Every profile on this machine, and which one this server is running. */
+  "profiles.list": { params: Empty; result: ProfilesListResult };
   /** Open a runtime session (new, or resuming a stored one). */
   "session.create": { params: SessionCreateParams; result: SessionInfo };
   "session.info": { params: SessionRef; result: SessionInfo };
@@ -644,6 +690,8 @@ export interface Methods {
   /** The transcript, in display form. */
   "session.history": { params: SessionRef; result: SessionHistoryResult };
   "session.close": { params: SessionRef; result: Ok };
+  /** Reconnect to a session kept after a dropped connection, replaying what was missed. */
+  "session.attach": { params: SessionAttachParams; result: SessionAttachResult };
   /** Stop the running turn. */
   "session.interrupt": { params: SessionRef; result: Ok };
   /** Guide the running turn without stopping it. */
@@ -699,6 +747,8 @@ export interface Methods {
   "hooks.status": { params: Empty; result: HooksStatusResult };
   /** Known MCP servers, their transport, and what they serve. */
   "mcp.status": { params: Empty; result: McpStatusResult };
+  /** Store a dropped or pasted file where the agent can read it; returns its path. */
+  "attachment.save": { params: AttachmentSaveParams; result: AttachmentSaveResult };
   /** Add, replace or remove one memory entry, through the same store the tool uses. */
   "memory.set": { params: MemoryEditParams; result: MemoryEditResult };
   "cron.list": { params: Empty; result: CronListResult };
@@ -736,7 +786,7 @@ export interface ServerRequests {
   "clarify.request": { params: ClarifyRequestParams; result: ClarifyRequestResult };
 }
 
-export const METHOD_NAMES = ["ping", "system.info", "session.create", "session.info", "session.list", "session.history", "session.close", "session.interrupt", "session.steer", "session.title", "session.delete", "session.rename", "session.search", "session.pin", "session.archive", "session.export", "session.compress", "session.usage", "prompt.submit", "slash.exec", "commands.catalog", "complete.slash", "config.get", "config.list", "config.set", "model.list", "model.set", "providers.list", "setup.apply", "tools.list", "skills.list", "skills.view", "plugins.list", "plugins.set_enabled", "credentials.list", "credentials.set", "credentials.delete", "memory.get", "hooks.status", "mcp.status", "memory.set", "cron.list", "cron.history", "cron.create", "cron.action", "cron.output", "logs.tail"] as const;
+export const METHOD_NAMES = ["ping", "system.info", "profiles.list", "session.create", "session.info", "session.list", "session.history", "session.close", "session.attach", "session.interrupt", "session.steer", "session.title", "session.delete", "session.rename", "session.search", "session.pin", "session.archive", "session.export", "session.compress", "session.usage", "prompt.submit", "slash.exec", "commands.catalog", "complete.slash", "config.get", "config.list", "config.set", "model.list", "model.set", "providers.list", "setup.apply", "tools.list", "skills.list", "skills.view", "plugins.list", "plugins.set_enabled", "credentials.list", "credentials.set", "credentials.delete", "memory.get", "hooks.status", "mcp.status", "attachment.save", "memory.set", "cron.list", "cron.history", "cron.create", "cron.action", "cron.output", "logs.tail"] as const;
 export const EVENT_TYPES = ["gateway.ready", "session.info", "turn.start", "turn.step", "message.delta", "reasoning.delta", "message.complete", "tool.start", "tool.complete", "status.update", "subagent.update", "turn.complete", "error"] as const;
 export const SERVER_REQUEST_NAMES = ["approval.request", "clarify.request"] as const;
 

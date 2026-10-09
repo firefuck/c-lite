@@ -19,6 +19,7 @@
       <div id="status" aria-live="polite">
         <div id="status-connection" class="pill offline">connecting…</div>
         <div id="status-model"></div>
+        <div id="status-profile" title="This backend serves one profile"></div>
         <div id="status-context"></div>
       </div>
     </aside>
@@ -36,12 +37,14 @@
         <button type="button" role="tab" data-tab="memory">Memory</button>
         <button type="button" role="tab" data-tab="logs">Logs</button>
         <button type="button" role="tab" data-tab="hooks">Hooks &amp; MCP</button>
+        <button type="button" role="tab" data-tab="profiles">Profiles</button>
       </nav>
 
       <section id="view-chat" class="view active">
         <div id="transcript" aria-live="polite"></div>
         <form id="composer">
-          <textarea id="prompt" rows="2" placeholder="Message, or /help for commands" autocomplete="off"></textarea>
+          <div id="attachments" aria-live="polite"></div>
+          <textarea id="prompt" rows="2" placeholder="Message, /help for commands, or drop a file here" autocomplete="off"></textarea>
           <button id="send" type="submit">Send</button>
           <button id="stop" type="button" hidden>Stop</button>
         </form>
@@ -56,6 +59,7 @@
       <section id="view-memory" class="view"><div class="panel" id="panel-memory"></div></section>
       <section id="view-logs" class="view"><div class="panel" id="panel-logs"></div></section>
       <section id="view-hooks" class="view"><div class="panel" id="panel-hooks"></div></section>
+      <section id="view-profiles" class="view"><div class="panel" id="panel-profiles"></div></section>
     </main>
   </div>
 

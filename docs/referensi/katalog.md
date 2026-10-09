@@ -145,12 +145,14 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | Method | Parameter | Hasil | Keterangan |
 | --- | --- | --- | --- |
 | `ping` | (kosong) | `pong?`, `version?` | Liveness check. |
-| `system.info` | (kosong) | `version`, `protocol_version`, `home`, `profile`, `configured`, `model?`, `provider?` | Version, active profile and whether a model is configured. |
+| `system.info` | (kosong) | `version`, `protocol_version`, `home`, `profile`, `configured`, `model?`, `provider?`, `notifications?` | Version, active profile and whether a model is configured. |
+| `profiles.list` | (kosong) | `current`, `sticky?`, `profiles?` | Every profile on this machine, and which one this server is running. |
 | `session.create` | `cwd?`, `model?`, `provider?`, `toolsets?`, `yolo?`, `resume?`, `platform?` | `session_id`, `stored_session_id`, `title?`, `platform?`, `model?`, `provider?`, `cwd?`, `busy?`, `yolo?`, `message_count?`, `tools?`, `toolsets?`, `reasoning_effort?`, `context?` | Open a runtime session (new, or resuming a stored one). |
 | `session.info` | `session_id` | `session_id`, `stored_session_id`, `title?`, `platform?`, `model?`, `provider?`, `cwd?`, `busy?`, `yolo?`, `message_count?`, `tools?`, `toolsets?`, `reasoning_effort?`, `context?` |  |
 | `session.list` | `limit?`, `source?`, `include_archived?` | `sessions` | Stored sessions, most recent first. |
 | `session.history` | `session_id` | `messages` | The transcript, in display form. |
 | `session.close` | `session_id` | `ok?` |  |
+| `session.attach` | `session_id`, `last_seq?` | `session`, `events?`, `complete?`, `last_seq?` | Reconnect to a session kept after a dropped connection, replaying what was missed. |
 | `session.interrupt` | `session_id` | `ok?` | Stop the running turn. |
 | `session.steer` | `session_id`, `text` | `ok?` | Guide the running turn without stopping it. |
 | `session.title` | `session_id`, `title?` | `title?` | Read the title, or set it when `title` is given. |
@@ -184,6 +186,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `memory.get` | (kosong) | `memory?`, `user?`, `memory_limit?`, `user_limit?`, `provider?` |  |
 | `hooks.status` | (kosong) | `hooks`, `pending?`, `allowlist_path?` | Configured shell hooks and whether each one is approved on this machine. |
 | `mcp.status` | (kosong) | `servers`, `configured?` | Known MCP servers, their transport, and what they serve. |
+| `attachment.save` | `name`, `data`, `mime?` | `path`, `name?`, `bytes?`, `image?` | Store a dropped or pasted file where the agent can read it; returns its path. |
 | `memory.set` | `action`, `target`, `content?`, `old_text?` | `success`, `message?`, `memory?`, `user?`, `memory_limit?`, `user_limit?`, `provider?` | Add, replace or remove one memory entry, through the same store the tool uses. |
 | `cron.list` | (kosong) | `jobs` |  |
 | `cron.history` | `job_id?` | `entries` |  |
@@ -444,10 +447,14 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `server.rate_limit.max_failures` | `10` |
 | `server.rate_limit.window_seconds` | `60` |
 | `server.rate_limit.delay_seconds` | `5` |
+| `server.replay_buffer_events` | `500` |
+| `server.replay_sessions` | `64` |
+| `server.resume_grace_seconds` | `120` |
 | `server.audit_log` | `true` |
 | `server.openai_api_enabled` | `false` |
 | `server.webhooks_enabled` | `false` |
 | `webhooks` | `{}` |
+| `dashboard.notifications` | `true` |
 | `sessions.auto_prune` | `false` |
 | `sessions.retention_days` | `90` |
 | `checkpoints.max_bytes` | `100000000` |
