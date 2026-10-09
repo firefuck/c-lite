@@ -1,7 +1,8 @@
 # Peta dokumen
 
 Semua dokumen di folder ini ditulis untuk orang atau AI yang **mengubah** kode. Dokumentasi
-untuk pengguna akhir belum ada (roadmap F6-T9).
+untuk orang yang **memakai** C-lite ada di folder `website/`, terbit dalam dua bahasa di
+<https://dragovics.github.io/clite/>.
 
 ## Mulai dari mana
 

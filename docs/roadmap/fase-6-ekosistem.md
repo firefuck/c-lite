@@ -498,13 +498,36 @@ cepat, konfigurasi, tool, skill, plugin, gateway, keamanan.
 **Rujukan Hermes.** `website/docs/`, `website/docusaurus.config.ts`, `website/sidebars.ts`.
 
 **Selesai bila.**
-- [ ] Situs terbit, dan tautannya ada di `README.md`.
-- [ ] Tes: halaman rujukan pengguna sama dengan keluaran pembangkitnya.
-- [ ] Tes: contoh perintah di halaman mulai cepat berjalan apa adanya.
+- [x] Situs terbit, dan tautannya ada di `README.md`.
+- [x] Tes: halaman rujukan pengguna sama dengan keluaran pembangkitnya.
+- [x] Tes: contoh perintah di halaman mulai cepat berjalan apa adanya.
 
 **Ukuran.** M
 
 **Bergantung pada.** F1-T7
 
 **Butuh dari Anda.** Keputusan bahasa dan nama domain bila tidak memakai alamat GitHub Pages
-bawaan.
+bawaan. Dijawab: **keduanya**, dan alamat bawaan `https://dragovics.github.io/clite/` dipakai
+apa adanya, jadi tidak ada keputusan domain.
+
+**Catatan.** Situs ditulis dalam dua bahasa karena jawabannya "keduanya": setiap halaman ada
+di `website/content/id/` dan `website/content/en/` dengan slug yang sama persis, sehingga
+tombol bahasa selalu menemukan padanannya; tes pertama di `tests/test_website.py` gagal bila
+kedua pohon tidak lagi sama.
+
+Pembangkitnya `scripts/build_site.py`, memakai pustaka standar saja, bukan Docusaurus seperti
+Hermes: paket Python harus bisa dipasang tanpa Node, dan pekerjaan docs di CI tidak boleh
+menuntut toolchain kedua. `website/docusaurus.config.ts` dan `website/sidebars.ts` tetap
+menjadi rujukan strukturnya (pohon halaman, menu samping, tombol bahasa).
+
+`scripts/gen_docs.py` sekarang punya tiga sasaran: `--target docs` (dua halaman pengembang di
+`docs/referensi/`, keluarannya tidak berubah sama sekali oleh tugas ini), `--target site`
+(enam halaman rujukan situs, tiga per bahasa), dan `--target all`. Datanya satu: fungsi
+`catalog_sections(language)` membaca registry yang sama. Halaman rujukan yang dihasilkan
+tidak pernah disunting dengan tangan, dan `test_the_generated_pages_are_the_only_ones_in_the_reference_tree`
+menjaga itu.
+
+**Belum diverifikasi.** Penerbitannya sendiri belum pernah berjalan di GitHub:
+`.github/workflows/docs.yml` membangun dan mengunggah artefaknya apa adanya, dan hal yang sama
+sudah dijalankan di sini pada 2026-10-10, tetapi "situs terbit" baru terbukti setelah rilis
+pertama yang memicunya. Tercatat juga di [STATUS.md](../STATUS.md), bukan diberi ✅ penuh.

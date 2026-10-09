@@ -27,6 +27,14 @@ Hermes; yang ada di sini adalah fondasi dan peta kerja untuk menumbuhkan sisanya
 Daftar lengkap yang dihasilkan dari kode ada di
 [docs/referensi/katalog.md](docs/referensi/katalog.md).
 
+## Dokumentasi pengguna
+
+Untuk yang memakai C-lite tanpa pernah membuka kodenya, ada situs terpisah dalam dua bahasa:
+<https://dragovics.github.io/clite/>. Isinya pasang, mulai cepat, konfigurasi, tool, skill,
+plugin, gateway, dan keamanan; halaman rujukannya dihasilkan dari kode oleh
+`scripts/gen_docs.py`, dan situsnya dibangun ulang setiap rilis. Dokumentasi di `docs/`
+tetap untuk yang mengubah kodenya.
+
 ## Memasang
 
 Butuh Python 3.11 atau lebih baru. Node 22 hanya diperlukan untuk TUI. Distribusi bernama
@@ -105,6 +113,7 @@ Sebagian besar aturan itu dijaga tes, sehingga pelanggaran menggagalkan suite.
 | `apps/desktop/` | Cangkang Electron |
 | `tests/` | Tes Python, termasuk penjaga arsitektur dan penjaga dokumen |
 | `scripts/` | Pemeriksaan, pembangkit file turunan, dan penggantian nama proyek |
+| `website/` | Situs dokumentasi pengguna (Indonesia dan Inggris), dibangun oleh `scripts/build_site.py` |
 | `docs/` | Arsitektur, spesifikasi, roadmap, prompt, dan bedah Hermes. Mulai dari [docs/README.md](docs/README.md) |
 
 ## Mengganti nama proyek

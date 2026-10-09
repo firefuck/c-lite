@@ -40,6 +40,57 @@ Yang tercakup tes Python itu, selain perilaku tiap modul:
 
 Spesifikasi tiap modul (`docs/spesifikasi/`) menandai fitur yang dijaga tes dengan ✅.
 
+### F6-T9 situs dokumentasi pengguna (10 Oktober 2026)
+
+Situs terpisah dari `docs/`, untuk orang yang memakai C-lite tanpa pernah membuka kodenya:
+pasang, mulai cepat, konfigurasi, tool, skill, plugin, gateway, keamanan, dan halaman rujukan.
+Ditulis dalam dua bahasa karena keputusan pemiliknya "keduanya": `website/content/id/` dan
+`website/content/en/`, dua belas halaman masing-masing, dengan daftar slug yang sama persis
+supaya tombol bahasa selalu menemukan padanannya. Nama perintah, flag, path produk, dan
+keluaran perintah tidak diterjemahkan; yang berbeda antar-bahasa adalah prosanya dan teks
+contoh yang diketik pengguna (prompt, nama profil, nama skill, nama berkas contoh).
+
+Pembangkitnya `scripts/build_site.py`, memakai pustaka standar saja, bukan Docusaurus seperti
+Hermes: paket Python harus tetap bisa dipasang tanpa Node. `website/docusaurus.config.ts` dan
+`website/sidebars.ts` menjadi rujukan strukturnya (pohon halaman, menu samping, tombol
+bahasa), bukan dependensinya. Tata letak dan aturan penulisannya ada di `website/AGENTS.md`.
+
+Halaman rujukan situs (perintah, kunci config, tool) **dihasilkan** oleh
+`scripts/gen_docs.py --target site` dari registry yang sama dengan katalog pengembang; satu
+fungsi `catalog_sections(language)` memasok keduanya. Dua halaman pengembang di
+`docs/referensi/` keluarannya tidak berubah sama sekali oleh tugas ini. Seperti katalog
+pengembang, halaman ini tidak boleh disunting dengan tangan, dan ada tes yang gagal bila ada
+halaman lain muncul di pohon `reference/`.
+
+Tiga belas tes di `tests/test_website.py` menjaga janji situs, semuanya tanpa jaringan:
+halaman rujukan sama dengan keluaran pembangkit; tidak ada halaman tulisan tangan di pohon
+`reference/`; kedua pohon bahasa punya daftar slug yang sama; menu samping memuat setiap
+halaman; setiap halaman dimulai satu heading `# `; terjemahan mempertahankan bentuk halamannya
+(jumlah bagian, pagar kode berurutan, dan baris tabel sama persis); situs dibangun dan setiap
+halaman serta `style.css` ada; tombol bahasa menunjuk halaman yang sama di bahasa lain; setiap
+tautan relatif di hasil bangun menunjuk berkas yang ada; dan pagar `bash` hanya ada di halaman
+mulai cepat.
+
+Dua kriteria "selesai bila" yang bisa diuji di sini dijalankan sungguhan, sebagai proses
+terpisah seperti `test_generated_reference_pages_are_current`:
+`test_the_reference_pages_of_the_site_match_the_generator` menjalankan
+`scripts/gen_docs.py --target site --check`, dan
+`test_the_commands_in_the_quick_start_run_as_written` menjalankan **setiap baris** setiap pagar
+`bash` di `start/quickstart.md` apa adanya — `clite` menjadi `python -m clite` — terhadap
+provider `mock` di home sementara. Karena blok itu dijalankan apa adanya, satu pagar `bash`
+hanya boleh ada di halaman mulai cepat; halaman lain memakai `console` (transkrip terminal,
+dibaca saja) atau info string bahasa datanya. Perintah yang tampil di transkrip mulai cepat
+tetapi tidak dijalankan (`clite`, `clite setup`, dan bentuk flag `clite setup` yang butuh kunci
+sungguhan) terdaftar di `NOT_EXECUTED` beserta alasannya, dan tes gagal bila halaman itu
+menampilkan perintah baru yang tidak dijalankan maupun dijelaskan.
+
+Yang belum: **penerbitannya**. `.github/workflows/docs.yml` membangun situs dan mengunggahnya
+sebagai artefak GitHub Pages setiap kali ada rilis diterbitkan, dan hal yang sama sudah
+dijalankan di sini pada 10 Oktober 2026, tetapi workflow itu belum pernah berjalan di GitHub.
+Jadi kriteria pertama ("situs terbit, dan tautannya ada di `README.md`") baru terbukti setelah
+rilis pertama yang memicunya; tautannya sendiri sudah ada di `README.md`. Karena itu F6-T9
+tetap 🟡, sama seperti F6-T7.
+
 ### F6-T2 skill bawaan (10 Oktober 2026)
 
 Dua belas skill bawaan dibawa dari Hermes dalam tiga kategori, masing-masing ditulis ulang
@@ -853,6 +904,7 @@ dijalankan terhadap hal yang sebenarnya. Anggap belum berfungsi sampai terbukti.
 | macOS | Belum pernah dijalankan | F1-T1 |
 | Installer desktop (dmg, nsis, AppImage) | Linux: AppImage dibangun dan dijalankan, jendela memuat dashboard dari backend yang dijalankannya sendiri. macOS dan Windows belum pernah dibangun; pekerjaan CI `desktop` di `release.yml` belum pernah berjalan. Installer tidak bertanda tangan (tanpa sertifikat) | F5-T4 🟡 |
 | Plugin lewat entry point pip | Jalur muatnya ada; belum diuji dengan paket yang benar-benar terpasang | F6-T5 |
+| Situs dokumentasi pengguna | Halaman, pembangkit, dan contoh perintah mulai cepat diuji di sini; penerbitan GitHub Pages belum pernah berjalan | F6-T9 🟡 |
 | Model atau harness selain Claude Code | Belum pernah ada yang mengerjakan repositori ini. Panduan peralihannya disusun dari isi repositori, belum dari sesi nyata ([PANDUAN-MODEL-LAIN.md](PANDUAN-MODEL-LAIN.md)) | Coba dengan satu task S |
 | Skill dan subagent Claude Code di `.claude/` | Ditulis mengikuti dokumentasi Claude Code; belum pernah dipanggil di Claude Code. Bila `/orientasi` tidak dikenali, tempel bagian "Prompt" dari file di `docs/prompts/` | Coba dengan `/orientasi` |
 
@@ -1009,6 +1061,7 @@ dari "belum diverifikasi".
 | 9 Oktober 2026 | F5-T4 (pemaketan) — **sebagian**: `apps/desktop/electron-builder.config.cjs` (dmg x64+arm64, nsis x64, AppImage x64), `assets/icon.png` 512×512 (digambar tanpa pustaka gambar), `src/brand.ts` sebagai satu-satunya ejaan nama produk, `src/menu.ts` untuk menu aplikasi, dan pekerjaan `desktop` di `release.yml` (satu runner per sistem, `--publish never`, catatan rilis menyebut installer tidak bertanda tangan). Keputusan "tidak menyertakan runtime Python" ditulis beserta alasannya di `docs/spesifikasi/desktop.md`. Lima tes pemaketan baru: nama produk dan versi sama dengan `clite.core.brand.DISPLAY_NAME` dan `clite.__version__`, berkas yang dikemas hanya kedua bundel, ikon persegi ≥512 dipakai ketiga target, build macOS tidak mencari sertifikat, dan bentuk menu mengikuti platform. Dibangun sungguhan di mesin ini: `release/C-lite-0.1.0.AppImage` (120 MB) dijalankan dengan `--remote-debugging-port`, jendelanya memuat dashboard dari backend yang dijalankannya sendiri (`C-lite` di `.desktop`, `X-AppImage-Version=0.1.0`, ikon kita di dalam squashfs), dan menutup jendela menghentikan backend. Suite penuh pada worktree bersih `HEAD`: Ruff bersih, mypy 200 file bersih, 1523 tes Python lulus/47 terlewati, 22+52+16 tes TypeScript lulus, `== all checks passed`. Satu kegagalan yang ditemukan dan diperbaiki di sini: `apps/desktop/README.md` menyebut direktori build yang diabaikan git, sehingga `test_paths_named_in_the_docs_exist` gagal di checkout bersih. Dua butir "Selesai bila" belum: CI menghasilkan installer untuk ketiga sistem (belum di-push), dan installer macOS/Windows (tidak ada mesinnya) | Linux, Node 26.7.0, Electron 44.5.1 |
 |
 | 9 Oktober 2026 | F6-T2 (porting skill bawaan) — **selesai**: 25 skill diporting dari Hermes `1298c8e74baa73e1a2b90124228d017261ac6bc4` (7 software-development, 14 productivity, 4 research) ke `src/clite/bundled/skills/`, frontmatter diadaptasi (`metadata.clite` + `attributed_from`), `~/.hermes`→`~/.clite`, tool yang tidak ada di C-lite dihapus atau dialihkan (`web_extract`→`web_fetch`, `browser_*` dihapus, helper tak ada seperti rss-feeds/blogwatcher/obsidian/xurl dialihkan ke `web_search`/`web_fetch`). Pola curl+token pada baris perintah di `airtable` dan `github` ditolak pemindai (`exfil_curl`); keduanya dibekali skrip stdlib (`atr.py`, `ghapi.py`) yang membaca token di dalam proses. Empat tes penjaga baru di `tests/skills/test_skills.py`: validasi format + pemindaian ancaman seluruh bundled, larangan menyebut tool/path yang tidak ada, dan batas ukuran indeks; guard dibuktikan merah dengan menyuntikkan `browser_navigate` pada salinan, hijau setelah dipulihkan. `scripts/build_skills_index.py` dijalankan ulang; `NOTICE.md` mendaftar seluruh skill yang dibawa. Porting tidak menambah satu pun kegagalan; perburuan CI menyusul membereskan kegagalan runner yang sudah ada sebelumnya di akarnya: impor `scripts.*` pada `pytest` polos, identitas git untuk `release.tag`, argv Docker `--workdir` pada path yang belum ada di image (container kini dialamati lewat nama hasil generate, bukan parse output `run`), dan payload TypeScript yang tertinggal kolom biaya; `clite profile list` di desktop dihardening (env anak proses menumpuk di atas environment asli, stderr dilaporkan), smoke desktop mencoba ulang saat konteks halaman dimuat ulang, dan job Windows menjadi `continue-on-error` (porting Windows belum tuntas: 39 kegagalan turun ke 9 setelah penulisan berkas byte-exact di `atomic_write_text`, pemisahan path bawaan platform di `_similar_names`, dan penandaan platform pada tes chmod/SIGTERM/fcntl/alpine; sisanya: pencocokan patch atas CRLF, hash indeks dan dokumen yang dihasilkan, dua tes terminal Windows). Suite penuh lokal: Ruff bersih, mypy 211 file bersih, 1570 tes Python lulus/0 gagal/47 terlewati, 90 tes TypeScript lulus; CI hijau — python 3.11–3.13, node, dan wheel `success`, run `success` | Linux, Python 3.14.7 |
+| 10 Oktober 2026 | F6-T9: situs dokumentasi pengguna. 1617 tes Python lulus/50 terlewati/1 gagal (identitas git, lingkungan, sudah ada sebelum tugas ini), Ruff bersih, mypy 213 file bersih, `python scripts/gen_docs.py --check` bersih (keluaran `docs/referensi/` tidak berubah oleh tugas ini). Tiga belas tes baru `tests/test_website.py`, semuanya tanpa jaringan. Merah/hijau: (a) menyunting satu halaman rujukan situs membuat `gen_docs.py --target site --check` keluar 1 dengan `out of date: website/content/id/reference/tools.md`, hijau sesudah dihasilkan ulang; (b) mengganti `clite doctor` menjadi `clite docter` di pagar `bash` mulai cepat menggagalkan `test_the_commands_in_the_quick_start_run_as_written` dengan `the quick start shows `clite docter`, and it fails`; (c) tes menemukan satu cacat sungguhan di `scripts/build_site.py` — `website/static/` disalin ke akar hasil bangun tetapi setiap halaman menautkan `static/style.css`, jadi stylesheet-nya 404 di seluruh situs; sesudah diperbaiki, `test_every_relative_link_in_the_built_pages_resolves` dan `test_the_site_builds_and_writes_every_page` hijau. Situs dibangun sungguhan: 24 halaman (12 slug × 2 bahasa), `index.html`, dan `style.css`. Belum: penerbitan GitHub Pages; `.github/workflows/docs.yml` belum pernah berjalan di GitHub, jadi kriteria "situs terbit" belum terbukti dan F6-T9 tetap 🟡 | Linux, Python 3.14.7 |
 
 ### F1-T3 Gateway Telegram — verifikasi live (10 Oktober 2026)
 
