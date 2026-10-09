@@ -487,7 +487,14 @@ def test_catalog_and_completion(client):
     commands = {entry["name"]: entry for entry in rpc.call("commands.catalog")["commands"]}
     assert commands["model"]["args_hint"] and commands["skill-authoring"]["kind"] == "skill"
     names = [item["name"] for item in rpc.call("complete.slash", {"prefix": "/re"})["items"]]
-    assert names == ["new", "retry", "resume", "reasoning", "reload"]  # /new matches through its alias /reset
+    assert set(names) == {
+        "new",
+        "retry",
+        "resume",
+        "reasoning",
+        "reload",  # /new matches through its alias /reset
+        "requesting-code-review",  # a bundled skill is a command like any other
+    }
     assert [item["name"] for item in rpc.call("complete.slash", {"prefix": "exi"})["items"]] == [
         "quit"
     ]  # by alias
