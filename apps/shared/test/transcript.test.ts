@@ -13,11 +13,11 @@ function event<T extends EventEnvelope["type"]>(type: T, payload: Extract<EventE
   return { type, session_id: "s1", payload, seq: ++seq } as EventEnvelope;
 }
 
-const usage = { input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0, reasoning_tokens: 0, prompt_tokens: 0 };
+const usage = { input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0, reasoning_tokens: 0, prompt_tokens: 0, estimated_cost_usd: 0 };
 const turnComplete = (overrides: Partial<Extract<EventEnvelope, { type: "turn.complete" }>["payload"]> = {}) =>
   event("turn.complete", {
     turn_id: "t1", final_response: "", completed: true, interrupted: false, error: null, exit_reason: "completed",
-    api_calls: 1, duration: 0.1, usage, ...overrides,
+    api_calls: 1, duration: 0.1, usage, cost_usd: 0, estimated_cost_usd: 0, ...overrides,
   });
 
 function play(events: EventEnvelope[], start: TranscriptState = emptyTranscript): TranscriptState {
