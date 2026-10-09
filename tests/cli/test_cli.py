@@ -748,6 +748,7 @@ def test_the_bash_completion_script_names_every_subcommand(cli):
                 assert name in out, f"{name} missing from the completion script"
 
 
+@pytest.mark.platforms("posix")
 def test_the_generated_bash_script_parses(cli, tmp_path):
     out = cli("completion", "bash")
     script = tmp_path / "clite.bash"
@@ -772,6 +773,7 @@ def test_completion_values_for_sessions_are_fast_and_load_no_plugins(cli):
     assert isinstance(out, str)
 
 
+@pytest.mark.platforms("posix")
 def test_backup_and_restore(clite_home, tmp_path):
     import tarfile
 

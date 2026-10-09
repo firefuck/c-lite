@@ -85,7 +85,10 @@ class DockerEnvironment(LocalEnvironment):
         result = self._run_docker(argv)
         if result.exit_code != 0:
             raise RuntimeError(f"could not start Docker container: {result.output.strip()}")
-        self._container_id = result.output.strip().splitlines()[-1] if result.output.strip() else name
+        # Address the container by the name we chose, not by parsing run's output: a first-time
+        # image pull interleaves progress lines ("Status: Downloaded newer image for ...") with
+        # the id, so the last line of merged output is not reliably the id.
+        self._container_id = name
         return self._container_id
 
     def _run_docker(self, argv: list[str], *, timeout: int = 60) -> ExecResult:

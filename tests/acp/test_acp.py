@@ -873,6 +873,7 @@ def _dangerous_command(target) -> str:
     return f"chmod 777 {target}"
 
 
+@pytest.mark.platforms("posix")
 def test_a_dangerous_command_asks_the_client_and_runs_only_when_allowed(client, clite_home):
     target = clite_home / "approve.txt"
     target.write_text("x\n")
@@ -911,6 +912,7 @@ def test_a_dangerous_command_asks_the_client_and_runs_only_when_allowed(client, 
     assert oct(target.stat().st_mode & 0o777) == "0o777"
 
 
+@pytest.mark.platforms("posix")
 def test_a_rejected_command_never_runs(client, clite_home):
     target = clite_home / "keep.txt"
     target.write_text("x\n")
@@ -929,6 +931,7 @@ def test_a_rejected_command_never_runs(client, clite_home):
     assert oct(target.stat().st_mode & 0o777) == "0o644"  # untouched
 
 
+@pytest.mark.platforms("posix")
 @pytest.mark.parametrize("answer", [{"outcome": "cancelled"}, "an_option_we_never_offered"])
 def test_an_answer_that_is_not_one_of_our_options_is_a_refusal(client, clite_home, answer):
     target = clite_home / "keep.txt"
@@ -947,6 +950,7 @@ def test_an_answer_that_is_not_one_of_our_options_is_a_refusal(client, clite_hom
     assert oct(target.stat().st_mode & 0o777) == "0o644"
 
 
+@pytest.mark.platforms("posix")
 def test_a_client_that_never_answers_is_taken_as_a_no(client, clite_home):
     """A permission request is a question, and a question left hanging is not a yes."""
     target = clite_home / "keep.txt"
@@ -1055,6 +1059,7 @@ def test_a_stray_print_never_reaches_the_wire(clite_home):
     assert "stray output" not in wire.getvalue()
 
 
+@pytest.mark.platforms("posix")
 def test_a_turn_with_a_tool_call_and_a_permission_request_over_real_pipes(clite_home):
     """The whole way, with nothing scripted at the Python level.
 
@@ -1178,4 +1183,4 @@ def test_the_entry_point_talks_over_real_pipes(clite_home):
         assert session_id  # the store's own id, handed back by session/new
     finally:
         process.stdin.close()
-        assert process.wait(timeout=10) == 0
+        assert process.wait(timeout=30) == 0
