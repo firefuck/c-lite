@@ -173,6 +173,69 @@
     },
     {
       "category": "software-development",
+      "description": "Inspect codebases w/ pygount: LOC, languages, ratios.",
+      "hash": "sha256:c0e01f6a19ad1cc9ae2a665a6e59526bd7e073fe4ad17d61f47b7ee1e32cb487",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/codebase-inspection",
+      "name": "codebase-inspection",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "category": "software-development",
+      "description": "GitHub via gh CLI: PRs, issues, reviews, repos, auth.",
+      "hash": "sha256:cfd34d95222b7c4d6f574787dbfc5a852769387ed44f5aa0f2e4b0320fd6fec4",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/github",
+      "name": "github",
+      "source": "github",
+      "version": "2.0.0"
+    },
+    {
+      "category": "software-development",
+      "description": "Debug Node.js via --inspect + Chrome DevTools Protocol CLI.",
+      "hash": "sha256:a88f705515bc1d456281838629451d38367e33cc1c35ce6b4332b5dc2ff4bae6",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/node-inspect-debugger",
+      "name": "node-inspect-debugger",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "category": "software-development",
+      "description": "Debug Python: pdb REPL + debugpy remote (DAP).",
+      "hash": "sha256:996c5f4d5a471010c80fa72725eea4970fa146813b85756aac97696e6ff94af3",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/python-debugpy",
+      "name": "python-debugpy",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "category": "software-development",
+      "description": "Pre-commit review: security scan, quality gates, auto-fix.",
+      "hash": "sha256:2f8e2ef70e49263372a50dc08390875e3151913e3dbad3a0d310815efc33460d",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/requesting-code-review",
+      "name": "requesting-code-review",
+      "source": "github",
+      "version": "2.1.0"
+    },
+    {
+      "category": "software-development",
+      "description": "Parallel 4-agent cleanup of recent code changes.",
+      "hash": "sha256:105b92e72299a7f4f18d5d75b07539f3b20f7b2c17b21bfd4bf0e33ce0e5d1a9",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/simplify-code",
+      "name": "simplify-code",
+      "source": "github",
+      "version": "1.1.0"
+    },
+    {
+      "category": "software-development",
+      "description": "Throwaway experiments to validate an idea before build.",
+      "hash": "sha256:fe308f1de58b7c77f717a265c77bad611f26532bfe6d5b02eff0e7e1e1b216f0",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/spike",
+      "name": "spike",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "category": "software-development",
       "description": "Find the root cause of a bug before changing code. Use for any failing test, crash, or behaviour that does not match what the code appears to say.",
       "hash": "sha256:f30208aab19d972b77d5af7092cd899c93f9f9a2fec1df15631602a3a4af6537",
       "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/systematic-debugging",

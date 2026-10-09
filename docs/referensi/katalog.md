@@ -306,7 +306,31 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | Skill | Kategori | Deskripsi |
 | --- | --- | --- |
 | `skill-authoring` | meta | Write or improve a skill (SKILL.md). Use when saving a reusable procedure with skill_manage, or when a skill turned out wrong or incomplete. |
+| `airtable` | productivity | Airtable REST API: records CRUD, filters, upserts via the bundled stdlib helper. |
+| `box` | productivity | Box manages cloud files, sharing, search, and metadata. |
+| `document-to-action-items` | productivity | Extract cited obligations, deadlines, tasks from documents. |
+| `docx` | productivity | Create, read, edit, template, and review Word .docx files. |
+| `google-workspace` | productivity | Gmail, Calendar, Drive, Docs, Sheets via gws CLI or Python. |
+| `maps` | productivity | Geocode, POIs, routes, timezones via OpenStreetMap/OSRM. |
+| `meeting-action-items` | productivity | Turn meeting notes into cited decisions, owners, tickets. |
+| `notion` | productivity | Notion API + ntn CLI: pages, databases, markdown, Workers. |
+| `pdf` | productivity | PDF files: create, read, merge, fill, OCR, edit text. |
 | `plan-before-acting` | productivity | Break a large or ambiguous task into verifiable steps before starting. Use when a request spans several files or systems, or when the first step is not obvious. |
+| `powerpoint` | productivity | Create, read, edit .pptx decks with python-pptx. |
+| `product-price-monitor` | productivity | Watch product, flight, or listing prices; alert on target. |
+| `weekly-review-planning` | productivity | Weekly reset: commitments, stalled work, next-week plan. |
+| `xlsx` | productivity | Create, read, edit Excel .xlsx workbooks and CSVs. |
+| `arxiv` | research | Search arXiv papers by keyword, author, category, or ID. |
+| `competitor-news-monitor` | research | Watch named companies for material news; cited digests. |
+| `grounded-citations` | research | Ground answers and documents in cited, verifiable sources. |
+| `llm-wiki` | research | Karpathy's LLM Wiki: build/query interlinked markdown KB. |
+| `codebase-inspection` | software-development | Inspect codebases w/ pygount: LOC, languages, ratios. |
+| `github` | software-development | GitHub via gh CLI: PRs, issues, reviews, repos, auth. |
+| `node-inspect-debugger` | software-development | Debug Node.js via --inspect + Chrome DevTools Protocol CLI. |
+| `python-debugpy` | software-development | Debug Python: pdb REPL + debugpy remote (DAP). |
+| `requesting-code-review` | software-development | Pre-commit review: security scan, quality gates, auto-fix. |
+| `simplify-code` | software-development | Parallel 4-agent cleanup of recent code changes. |
+| `spike` | software-development | Throwaway experiments to validate an idea before build. |
 | `systematic-debugging` | software-development | Find the root cause of a bug before changing code. Use for any failing test, crash, or behaviour that does not match what the code appears to say. |
 | `test-driven-development` | software-development | Implement a feature or fix by writing a failing test first. Use when adding behaviour to tested code or when a bug needs a regression test. |
 | `working-without-web-search` | web | How to find information when the web_search tool is not available. Use when web_search is not offered and the user asks something that needs current information. |

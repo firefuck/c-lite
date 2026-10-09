@@ -150,7 +150,7 @@ skill.
 | Pasang dari direktori lokal | ✅ | |
 | Pasang dari GitHub (`GitHubSource`) | ✅ | `owner/repo/path[@ref]`; `GITHUB_TOKEN` opsional dan hanya dikirim ke host API dan host unduhan GitHub; ukuran dicek dari daftar sebelum mengunduh; galat batas laju menyebut waktu reset. Diuji terhadap tiruan lokal dan ke repositori publik sungguhan (`test_install_a_skill_from_a_real_public_github_repository`, `-m network`) |
 | Kurator | ✅ | Manual (`clite skills curate`) dan otomatis paling banyak sekali per `curator.interval_hours` dari `run_startup_maintenance` (`curator.enabled`, `curator.stale_days`). Dijaga `tests/skills/test_skills.py` dan `tests/agent/test_review.py`. F2-T12 |
-| Skill bawaan | 🟡 | 4 skill. Hermes mengirim 58: F6-T2 |
+| Skill bawaan | ✅ | 29 skill (4 + 25 hasil porting F6-T2): meta, productivity, software-development, research, web — setiap skill lolos pemindaian ancaman, tidak menyebut tool yang tidak terdaftar, dan indeksnya tetap di bawah batas ukuran. Dijaga `tests/skills/test_skills.py` |
 | Hub: indeks registry, pencarian, pembaruan | ✅ | F6-T1: indeks JSON (+ tap lewat `clite skills tap`), `clite skills search`/`info`/`install <nama>`/`update`, hash isi dicatat di kunci dan diverifikasi saat memasang; `update` menampilkan diff per file dan tidak menimpa skill yang disunting pengguna tanpa konfirmasi. Dijaga `tests/skills/test_hub.py` |
 | Pemindai keamanan skill yang lebih dalam | ✅ | F6-T1: `scanner.py` membaca setiap file (bukan hanya `SKILL.md`), menolak berkas biner, dan melaporkan skrip beserta perintahnya serta host yang dituju. Dijaga `tests/skills/test_hub.py` |
 | Variabel lingkungan per skill (`env_passthrough`) | 🟡 | Dibaca dari frontmatter, belum diteruskan ke terminal |

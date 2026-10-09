@@ -137,6 +137,86 @@ def test_bundled_skills_ship_with_the_package(clite_home):
     assert all(skill.description for skill in bundled)
 
 
+def _bundled_skills():
+    return [skill for skill in discover_skills() if skill.tier == "bundled"]
+
+
+def test_bundled_skills_validate_format_and_pass_the_threat_scan(clite_home):
+    from clite.skills.scanner import looks_binary, scan_bundle
+
+    bundled = _bundled_skills()
+    assert bundled
+    for skill in bundled:
+        files = {}
+        for path in sorted(skill.directory.rglob("*")):
+            if path.is_file():
+                files[path.relative_to(skill.directory).as_posix()] = path.read_bytes()
+        report = scan_bundle(files)
+        assert not report.blocked, f"{skill.name}: {report.lines()}"
+        assert not report.binaries, f"{skill.name}: {', '.join(report.binaries)}"
+        assert not any(looks_binary(content) for content in files.values())
+
+
+# Tool names that exist in other agents' ecosystems but not here. Mentioning one in a
+# bundled skill would promise the model a capability it can never get; a missing tool
+# must be gated with requires_tools instead.
+_ABSENT_TOOL_NAMES = frozenset(
+    {
+        "browser_navigate", "browser_click", "browser_console", "browser_scroll",
+        "browser_snapshot", "browser_back", "browser_press", "browser_type",
+        "browser_vision", "web_extract", "todo_write", "execute_shell",
+    }
+)
+
+
+def test_bundled_skills_never_mention_tools_or_paths_that_do_not_exist(clite_home):
+    from clite.tools.registry import discover_builtin_tools, registry
+    from clite.tools.toolsets import TOOLSETS
+
+    discover_builtin_tools()
+    known_tools = set(registry.names())
+    known_toolsets = set(TOOLSETS)
+    problems = []
+    for skill in _bundled_skills():
+        meta = skill.meta
+        for name in meta.requires_tools + meta.fallback_for_tools:
+            if name not in known_tools:
+                problems.append(f"{skill.name}: unknown tool in frontmatter {name!r}")
+        for name in meta.requires_toolsets + meta.fallback_for_toolsets:
+            if name not in known_toolsets:
+                problems.append(f"{skill.name}: unknown toolset in frontmatter {name!r}")
+        for path in sorted(skill.directory.rglob("*")):
+            if not path.is_file():
+                continue
+            text = path.read_text(errors="replace")
+            for gone in _ABSENT_TOOL_NAMES:
+                if f"`{gone}`" in text:
+                    problems.append(f"{skill.name}: {path.name} mentions missing tool {gone}")
+            # No bundled skill may name the upstream product or its home path: a
+            # reference to `hermes setup`, `~/.hermes`, `HERMES_HOME` and the like would
+            # send the model at a command or directory that does not exist here. The
+            # attribution metadata and footer are the one place the upstream project may
+            # be named, so those lines are exempt.
+            for lineno, line in enumerate(text.splitlines(), 1):
+                if "hermes" not in line.lower():
+                    continue
+                if "attributed_from" in line or "NousResearch/hermes-agent" in line:
+                    continue
+                problems.append(
+                    f"{skill.name}: {path.name}:{lineno} names the upstream product: {line.strip()[:90]}"
+                )
+    assert not problems, "\n".join(problems)
+
+
+def test_the_bundled_index_fits_the_budget_with_every_bundled_skill_active(clite_home):
+    from clite.skills.index import MAX_INDEX_CHARS
+
+    bundled = _bundled_skills()
+    index = build_skills_index(bundled)  # no enabled_tools: every skill visible at once
+    assert "not shown" not in index, f"the index dropped skills:\n{index}"
+    assert len(index) <= MAX_INDEX_CHARS
+
+
 def test_platform_and_disabled_filters(skills_dir, clite_home):
     _write(skills_dir, "windows-only", extra="platforms: [windows]\n")
     _write(skills_dir, "switched-off")

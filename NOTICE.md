@@ -54,4 +54,31 @@ SOFTWARE.
 
 ### Copied from Hermes
 
-Nothing yet.
+Bundled skills ported (adapted) from `NousResearch/hermes-agent` at commit
+`1298c8e74baa73e1a2b90124228d017261ac6bc4`, each marked with an
+`attributed_from` entry in its frontmatter:
+
+- `software-development/codebase-inspection`
+- `software-development/github`
+- `software-development/node-inspect-debugger`
+- `software-development/python-debugpy`
+- `software-development/requesting-code-review`
+- `software-development/simplify-code`
+- `software-development/spike`
+- `productivity/airtable`
+- `productivity/box`
+- `productivity/document-to-action-items`
+- `productivity/docx`
+- `productivity/google-workspace`
+- `productivity/maps`
+- `productivity/meeting-action-items`
+- `productivity/notion`
+- `productivity/pdf`
+- `productivity/powerpoint`
+- `productivity/product-price-monitor`
+- `productivity/weekly-review-planning`
+- `productivity/xlsx`
+- `research/arxiv`
+- `research/competitor-news-monitor`
+- `research/grounded-citations`
+- `research/llm-wiki`

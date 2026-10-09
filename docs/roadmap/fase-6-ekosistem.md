@@ -87,11 +87,31 @@ pencarian dijawab indeks. Tap adalah lokasi indeks tambahan, bukan konsep baru.
 `website/docs/developer-guide/creating-skills.md`.
 
 **Selesai bila.**
-- [ ] Tes: setiap skill bawaan lolos validasi format dan pemindaian ancaman.
-- [ ] Tes: tidak ada skill bawaan yang menyebut tool yang tidak terdaftar, kecuali lewat
+- [x] Tes: setiap skill bawaan lolos validasi format dan pemindaian ancaman.
+      (`test_bundled_skills_validate_format_and_pass_the_threat_scan`)
+- [x] Tes: tidak ada skill bawaan yang menyebut tool yang tidak terdaftar, kecuali lewat
       `requires_tools` atau `fallback_for_tools`.
-- [ ] Tes: tidak ada skill bawaan yang memuat nama produk atau path home Hermes.
-- [ ] Indeks skill tetap di bawah batas ukurannya dengan semua skill bawaan aktif.
+      (`test_bundled_skills_never_mention_tools_or_paths_that_do_not_exist`; frontmatter
+      `requires_tools`/`requires_toolsets` divalidasi terhadap registry dan toolset,
+      penyebutan tool yang tidak ada di C-lite ditolak)
+- [x] Tes: tidak ada skill bawaan yang memuat nama produk atau path home Hermes.
+      (tes yang sama, atas `~/.hermes`, `HERMES_HOME`, dan penyebutan produk)
+- [x] Indeks skill tetap di bawah batas ukurannya dengan semua skill bawaan aktif.
+      (`test_the_bundled_index_fits_the_budget_with_every_bundled_skill_active`)
+
+**Hasil porting (9 Oktober 2026).** Dua puluh lima skill dari Hermes pada commit
+`1298c8e74baa73e1a2b90124228d017261ac6bc4`: 7 software-development, 14 productivity,
+4 research. Adaptasinya: frontmatter `metadata.hermes` diganti `metadata.clite` dengan
+`attributed_from`; nama tool Hermes dipetakan ke milik C-lite (`web_extract` →
+`web_fetch`, `browser_*` dihapus); penyebutan helper yang tidak ada (rss-feeds,
+blogwatcher, obsidian, xurl, himalaya) dialihkan ke `web_search`/`web_fetch` atau plugin
+gateway bawaan; `airtable` dan `github` dibekali skrip pembantu stdlib
+(`atr.py`, `ghapi.py`) karena pola curl + token pada baris perintahnya ditolak pemindai
+sebagai `exfil_curl`; path `~/.hermes` menjadi `~/.clite`. `NOTICE.md` mendaftar
+semuanya. Dua skill Hermes yang bergantung pada fitur yang belum ada ditunda:
+`inspecting-hermes-desktop-dom` (DOM desktop Hermes, bukan C-lite) dan kategori web/media
+yang menuntut tool browser serta suara. Skill opsional dari `optional-skills/` belum
+dibawa; tinggal satu langkah manual bila dibutuhkan.
 
 **Ukuran.** L
 
