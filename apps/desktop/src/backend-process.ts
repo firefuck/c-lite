@@ -104,10 +104,13 @@ export function listProfiles(
   const { command, args } = resolveCliCommand(env);
   return new Promise((resolve, reject) => {
     const child = spawn(command, [...args, "profile", "list", "--json"], {
-      env,
-      stdio: ["ignore", "pipe", "ignore"],
+      // The caller's vars ride on top of the real environment: stripping PATH and friends made
+      // the CLI fail in ways this function could not see, because stderr was dropped too.
+      env: { ...process.env, ...env },
+      stdio: ["ignore", "pipe", "pipe"],
     });
     let out = "";
+    let err = "";
     const timer = setTimeout(() => {
       child.kill();
       reject(new Error("`clite profile list` timed out"));
@@ -115,6 +118,10 @@ export function listProfiles(
     child.stdout.setEncoding("utf8");
     child.stdout.on("data", (chunk: string) => {
       out += chunk;
+    });
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk: string) => {
+      err += chunk;
     });
     child.once("error", (error) => {
       clearTimeout(timer);
@@ -125,8 +132,12 @@ export function listProfiles(
       try {
         const parsed = JSON.parse(out) as { profiles?: { name?: string }[] };
         resolve((parsed.profiles ?? []).map((entry) => entry.name ?? "").filter(Boolean));
-      } catch (error) {
-        reject(error instanceof Error ? error : new Error(String(error)));
+      } catch {
+        reject(
+          new Error(
+            `\`clite profile list\` printed no JSON (exit ${child.exitCode}): ${err.trim() || out.trim() || "no output"}`,
+          ),
+        );
       }
     });
   });

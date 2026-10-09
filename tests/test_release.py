@@ -167,6 +167,10 @@ def test_area_instructions_for_contributors_are_not_expected_in_the_wheel():
 def test_tagging_needs_a_clean_tree_and_creates_the_tag_for_the_version(tmp_path):
     root = _mini_repository(tmp_path)
     assert _git(root, "init", "-q").returncode == 0
+    # `release.tag` runs `git tag` with the ambient environment, so the throwaway repository
+    # carries its own identity instead of relying on the machine's global config.
+    assert _git(root, "config", "user.email", "t@example.invalid").returncode == 0
+    assert _git(root, "config", "user.name", "t").returncode == 0
     assert _git(root, "add", "-A").returncode == 0
     assert _git(root, "commit", "-q", "-m", "init").returncode == 0
 

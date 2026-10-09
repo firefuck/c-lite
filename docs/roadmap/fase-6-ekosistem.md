@@ -88,10 +88,30 @@ pencarian dijawab indeks. Tap adalah lokasi indeks tambahan, bukan konsep baru.
 
 **Selesai bila.**
 - [x] Tes: setiap skill bawaan lolos validasi format dan pemindaian ancaman.
+      (`test_every_bundled_skill_passes_format_validation_and_the_threat_scan`)
 - [x] Tes: tidak ada skill bawaan yang menyebut tool yang tidak terdaftar, kecuali lewat
       `requires_tools` atau `fallback_for_tools`.
+      (`test_no_bundled_skill_names_a_tool_this_project_does_not_register`; frontmatter
+      `requires_tools`/`requires_toolsets` divalidasi terhadap registry dan toolset,
+      penyebutan tool yang tidak ada di C-lite ditolak)
 - [x] Tes: tidak ada skill bawaan yang memuat nama produk atau path home Hermes.
+      (tes yang sama, atas `~/.hermes`, `HERMES_HOME`, dan penyebutan produk)
 - [x] Indeks skill tetap di bawah batas ukurannya dengan semua skill bawaan aktif.
+      (`test_the_index_fits_every_bundled_skill`)
+
+**Hasil porting (9 Oktober 2026).** Dua puluh lima skill dari Hermes pada commit
+`1298c8e74baa73e1a2b90124228d017261ac6bc4`: 7 software-development, 14 productivity,
+4 research. Adaptasinya: frontmatter `metadata.hermes` diganti `metadata.clite` dengan
+`attributed_from`; nama tool Hermes dipetakan ke milik C-lite (`web_extract` →
+`web_fetch`, `browser_*` dihapus); penyebutan helper yang tidak ada (rss-feeds,
+blogwatcher, obsidian, xurl, himalaya) dialihkan ke `web_search`/`web_fetch` atau plugin
+gateway bawaan; `airtable` dan `github` dibekali skrip pembantu stdlib
+(`atr.py`, `ghapi.py`) karena pola curl + token pada baris perintahnya ditolak pemindai
+sebagai `exfil_curl`; path `~/.hermes` menjadi `~/.clite`. `NOTICE.md` mendaftar
+semuanya. Dua skill Hermes yang bergantung pada fitur yang belum ada ditunda:
+`inspecting-hermes-desktop-dom` (DOM desktop Hermes, bukan C-lite) dan kategori web/media
+yang menuntut tool browser serta suara. Skill opsional dari `optional-skills/` belum
+dibawa; tinggal satu langkah manual bila dibutuhkan.
 
 **Ukuran.** L
 

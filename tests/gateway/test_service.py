@@ -21,6 +21,7 @@ def test_service_files_name_default_and_named_profiles():
     assert "<string>gateway</string>" in plist and "<string>run</string>" in plist
 
 
+@pytest.mark.platforms("posix")
 def test_second_gateway_for_the_same_home_is_refused(tmp_path):
     first = GatewayLock(tmp_path)
     second = GatewayLock(tmp_path)
@@ -59,6 +60,7 @@ class _SlowRunner:
         self.running = False
 
 
+@pytest.mark.platforms("posix")
 def test_sigterm_drains_an_active_turn_before_exiting_zero(tmp_path):
     runner = _SlowRunner()
     service = GatewayService(runner=runner, home=tmp_path, drain_timeout=1)

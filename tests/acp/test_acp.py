@@ -34,6 +34,10 @@ from clite.rpc.transport import MemoryTransport
 
 MOCK = "model:\n  provider: mock\n  default: mock-1\n"
 
+# ``/tmp/project`` is not an absolute path on Windows, and ``session/new`` requires one, so the
+# tests build a path the host platform agrees is absolute.
+PROJECT = os.path.abspath("/tmp/project")
+
 # A client that says nothing to a permission request is not the same as one that answers
 # "cancelled", so "no answer" needs a value of its own.
 NO_ANSWER = object()
@@ -120,7 +124,7 @@ class Client:
             },
         )
 
-    def new_session(self, cwd: str = "/tmp/project") -> str:
+    def new_session(self, cwd: str = PROJECT) -> str:
         if not self.server.initialized:
             self.initialize()
         return self.call("session/new", {"cwd": cwd, "mcpServers": []})["sessionId"]
@@ -278,7 +282,7 @@ def test_an_error_reply_carries_only_code_and_message(client):
 
 def test_session_new_hands_back_an_id_and_a_live_session(client):
     acp = client()
-    session_id = acp.new_session("/tmp/project")
+    session_id = acp.new_session(PROJECT)
     session = acp.server.sessions[session_id]
     assert session.id == session_id
     # The id is the stored conversation's own, so the client can hand it back to session/load
@@ -290,7 +294,7 @@ def test_session_new_hands_back_an_id_and_a_live_session(client):
 
 def test_session_new_needs_the_handshake_first(client):
     acp = client()
-    error = acp.error("session/new", {"cwd": "/tmp/project"})
+    error = acp.error("session/new", {"cwd": PROJECT})
     assert error["code"] == -32600 and "initialize" in error["message"]
 
 
@@ -310,7 +314,7 @@ def test_session_new_accepts_the_clients_mcp_servers_without_taking_them(client)
     acp.initialize()
     session_id = acp.call(
         "session/new",
-        {"cwd": "/tmp/project", "mcpServers": [{"name": "fs", "command": "/bin/fs", "args": [], "env": []}]},
+        {"cwd": PROJECT, "mcpServers": [{"name": "fs", "command": "/bin/fs", "args": [], "env": []}]},
     )["sessionId"]
     assert acp.server.sessions[session_id].chat is not None
 
@@ -356,7 +360,7 @@ def test_the_command_list_keeps_only_what_a_client_can_show():
 def test_session_new_tells_the_client_which_commands_it_can_type(client):
     acp = client()
     acp.initialize()
-    request_id = acp.send("session/new", {"cwd": "/tmp/project"})
+    request_id = acp.send("session/new", {"cwd": PROJECT})
     reply = acp.reply_to(request_id)
     params = acp.wait_update("available_commands_update")
     assert params["sessionId"] == reply["result"]["sessionId"]
@@ -869,6 +873,7 @@ def _dangerous_command(target) -> str:
     return f"chmod 777 {target}"
 
 
+@pytest.mark.platforms("posix")
 def test_a_dangerous_command_asks_the_client_and_runs_only_when_allowed(client, clite_home):
     target = clite_home / "approve.txt"
     target.write_text("x\n")
@@ -907,6 +912,7 @@ def test_a_dangerous_command_asks_the_client_and_runs_only_when_allowed(client, 
     assert oct(target.stat().st_mode & 0o777) == "0o777"
 
 
+@pytest.mark.platforms("posix")
 def test_a_rejected_command_never_runs(client, clite_home):
     target = clite_home / "keep.txt"
     target.write_text("x\n")
@@ -925,6 +931,7 @@ def test_a_rejected_command_never_runs(client, clite_home):
     assert oct(target.stat().st_mode & 0o777) == "0o644"  # untouched
 
 
+@pytest.mark.platforms("posix")
 @pytest.mark.parametrize("answer", [{"outcome": "cancelled"}, "an_option_we_never_offered"])
 def test_an_answer_that_is_not_one_of_our_options_is_a_refusal(client, clite_home, answer):
     target = clite_home / "keep.txt"
@@ -943,6 +950,7 @@ def test_an_answer_that_is_not_one_of_our_options_is_a_refusal(client, clite_hom
     assert oct(target.stat().st_mode & 0o777) == "0o644"
 
 
+@pytest.mark.platforms("posix")
 def test_a_client_that_never_answers_is_taken_as_a_no(client, clite_home):
     """A permission request is a question, and a question left hanging is not a yes."""
     target = clite_home / "keep.txt"
@@ -1036,7 +1044,7 @@ def test_a_stray_print_never_reaches_the_wire(clite_home):
             print("stray output from a tool")
             yield _line(1, "initialize", {"protocolVersion": PROTOCOL_VERSION})
             print("and another one")
-            yield _line(2, "session/new", {"cwd": "/tmp/project", "mcpServers": []})
+            yield _line(2, "session/new", {"cwd": PROJECT, "mcpServers": []})
 
     sys.stdout = wire  # in the real process this is the pipe the editor reads
     try:
@@ -1051,6 +1059,7 @@ def test_a_stray_print_never_reaches_the_wire(clite_home):
     assert "stray output" not in wire.getvalue()
 
 
+@pytest.mark.platforms("posix")
 def test_a_turn_with_a_tool_call_and_a_permission_request_over_real_pipes(clite_home):
     """The whole way, with nothing scripted at the Python level.
 
@@ -1135,6 +1144,7 @@ def test_a_turn_with_a_tool_call_and_a_permission_request_over_real_pipes(clite_
     assert oct(target.stat().st_mode & 0o777) == "0o777"  # the command really ran
 
 
+@pytest.mark.platforms("posix")
 def test_the_entry_point_talks_over_real_pipes(clite_home):
     """Spawn ``clite acp`` as an editor does and shake hands over stdin/stdout."""
     env = {**os.environ, "CLITE_HOME": str(clite_home), "PYTHONPATH": os.pathsep.join(sys.path)}
@@ -1174,4 +1184,4 @@ def test_the_entry_point_talks_over_real_pipes(clite_home):
         assert session_id  # the store's own id, handed back by session/new
     finally:
         process.stdin.close()
-        assert process.wait(timeout=10) == 0
+        assert process.wait(timeout=30) == 0

@@ -45,7 +45,9 @@ def atomic_write_text(path: str | Path, text: str, *, mode: int | None = None) -
     target.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_name = tempfile.mkstemp(prefix=f".{target.name}.", suffix=".tmp", dir=str(target.parent))
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        # newline="": write the bytes the caller gave, on every platform — Windows text-mode
+        # translation would otherwise turn every \n into \r\n and corrupt round-trips.
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
             if mode == 0o600:
                 _restrict_private_file(tmp_name)
             elif mode is not None:

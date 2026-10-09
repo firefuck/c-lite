@@ -838,7 +838,8 @@ def test_a_document_from_chat_is_announced_as_a_readable_path(gateway, tmp_path)
     sent = client.calls[0]["messages"][-1]["content"]
     assert "see the notes" in sent
     assert "notes.txt" in sent  # the model is told what arrived...
-    assert "/gateway/media/" in sent  # ...and where to read it
+    # Windows path separators, so compare in the path's own terms.
+    assert "/gateway/media/" in sent or "gateway\\media\\" in sent  # ...and where to read it
 
 
 def test_a_file_over_the_limit_is_refused_without_being_stored(gateway, clite_home):

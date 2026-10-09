@@ -394,11 +394,17 @@ def test_cli_tap_add_list_and_remove(hub_repo, cli):
 
 
 def test_the_bundled_index_matches_the_bundled_skills():
+    import sys
     from pathlib import Path
 
     from clite.skills.hub import bundled_index_path
 
     root = Path(__file__).resolve().parents[2] / "src" / "clite" / "bundled" / "skills"
+    # `pytest tests` (the console-script entry point) leaves the repository root off sys.path,
+    # unlike `python -m pytest`, so the index builder is imported from it explicitly.
+    repo_root = Path(__file__).resolve().parents[2]
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
     from scripts.build_skills_index import BUNDLED_PREFIX
 
     expected = build_index(root, source="github", identifier_prefix=BUNDLED_PREFIX)

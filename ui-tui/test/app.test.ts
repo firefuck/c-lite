@@ -175,6 +175,7 @@ test("the session picker formats stored sessions with title, model, and activity
     message_count: 5,
     started_at: Date.now() - 3600000,
     last_activity_at: Date.now() - 60000,
+    estimated_cost_usd: 0,
     archived: false,
     pinned: false,
   };
@@ -194,6 +195,7 @@ test("selecting a session triggers resume via session.create", async () => {
     message_count: 2,
     started_at: 1000,
     last_activity_at: 2000,
+    estimated_cost_usd: 0,
     archived: false,
     pinned: false,
   };

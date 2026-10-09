@@ -1,135 +1,258 @@
 ---
 name: grounded-citations
-description: Ground an answer or document in numbered citations, with the source list rendered from a ledger instead of memory. Use when a deliverable reports outside facts and the reader will want to check them.
-version: 1.0.0
-author: C-lite
+description: "Ground answers and documents in cited, verifiable sources."
+version: 1.2.0
+author: Teknium and contributors
 license: MIT
+platforms: [linux, macos, windows]
 metadata:
   clite:
+    attributed_from: NousResearch/hermes-agent@1298c8e74b (MIT)
+    tags: [Research, Citations, Grounding, Sources, Web, Reports]
     category: research
-    tags: [citations, grounding, sources, fact-checking]
-    requires_toolsets: [web, terminal]
-    attribution: "Adapted from the grounded-citations skill in Nous Research's hermes-agent (skills/research/grounded-citations, MIT, Copyright (c) 2025 Nous Research)."
+    related_skills: [arxiv, pdf]
 ---
 
-# Grounded citations
+# Grounded Citations
 
-Every claim taken from an outside source gets an inline numbered citation and a `Sources:`
-list. The numbers come from a ledger written at retrieval time, never from memory: the model
-only ever emits small integers it was handed, so a URL cannot be hallucinated into a citation.
+Every claim taken from an outside source gets an inline numbered citation and a
+`Sources:` list, Perplexity-style. A ledger script owns the `url → [n]` mapping
+so the numbers and URLs come from retrieval, never from memory — the model only
+ever emits small integers it was handed.
 
-## When to use
+For high-stakes work the same ledger doubles as a fact-checking chain: verbatim
+quotes are attached to each source (rejected unless they literally appear in
+the fetched page text), claims from model knowledge are flagged `[unverified]`,
+and `verify --evidence` fails any draft whose cited sources carry no evidence.
 
-- Research, comparisons, news summaries, "what is the current state of X".
-- Any deliverable written to disk that quotes or reports outside facts: a report, a brief, a
-  document, a wiki page.
-- Fact-finding the user will want to check.
-- A synthesis of sources that disagree, where each position needs its own attribution.
+This skill covers answers in chat, written documents (markdown, PDF, docx,
+slides), and research reports. It does not cover academic BibTeX pipelines —
+for conference papers use the `arxiv` skill, which this skill
+feeds (see `references/citation-formats.md`).
 
-Skip inline citations when the retrieval was incidental — a version number looked up mid-coding,
-a chat answer, creative writing.
+## When to Use
 
-## The ledger
+Use whenever an answer or artifact rests on information you fetched rather than
+knew:
 
-One JSON file per task, written with `write_file` and read back with `execute_code`. It maps a
-normalised URL to an id, a title and the evidence attached to it. Give it a per-task path under
-the working directory, for example `.citation-ledger.json`, and delete it when the task ends.
+- Research, comparisons, news summaries, "what is the current state of X"
+- Any deliverable you write to disk that quotes, paraphrases, or reports
+  outside facts — reports, briefs, docs, decks, wiki pages
+- Fact-finding where the user will want to check your work
+- Multi-source synthesis where conflicting sources must be attributed
 
-```python
-# register after every fetch — the id is what you will cite
-import json, pathlib
-ledger = pathlib.Path(".citation-ledger.json")
-seen = json.loads(ledger.read_text()) if ledger.exists() else {}
-url = "https://example.com/a"
-if url not in seen:
-    seen[url] = {"id": len(seen) + 1, "url": url, "title": "A", "quotes": []}
-ledger.write_text(json.dumps(seen, indent=2))
-print(seen[url]["id"])
+Skip inline citations when the retrieval is incidental to another task — a
+quick syntax/version lookup mid-coding, casual conversation, creative writing.
+Mention a URL only if the user would plausibly want the link.
+
+## Prerequisites
+
+None beyond the standard toolset. `scripts/sources.py` is stdlib-only Python 3.
+Retrieval comes from whatever is configured: `web_search`, `web_fetch`,
+or `terminal` (curl, CLIs).
+
+Ledger location: `${CLITE_HOME:-~/.clite}/cache/citations/ledger.json` (profile-aware).
+Override per task with `--ledger <path>` or `CLITE_CITATION_LEDGER`.
+
+## How to Run
+
+```bash
+S=~/.clite/skills/research/grounded-citations/scripts/sources.py
+
+python "$S" reset                                  # start a clean ledger
+python "$S" add https://example.com/a --title "A"  # prints: [1]
+python "$S" add https://example.com/b --title "B"  # prints: [2]
+python "$S" list                                   # ledger table
+python "$S" render                                 # Sources: block
+python "$S" verify draft.md                        # catch bad citations
 ```
 
-`add` is idempotent in the same way: the same URL always returns the same id, so the numbering
-stays stable across many rounds of searching.
+`add` is idempotent and URL-normalized: the same page always returns the same
+id within a ledger, so ids stay stable across many search/extract rounds.
 
-## Steps
+## Quick Reference
 
-1. **Start a fresh ledger** for a task that will produce a grounded answer. Do not reset one
-   whose ids already appear in a draft — keep the numbering stable.
+| Action | Command |
+|---|---|
+| Fresh ledger for a new task | `sources.py reset` |
+| Register a source, get its id | `sources.py add <url> [--title T]` |
+| Register several at once | `sources.py add <url1> <url2> ...` |
+| Register from JSON tool output | `sources.py ingest results.json` |
+| Attach verbatim evidence to a source | `sources.py quote <id> --text "exact wording" --from page.txt` |
+| Show ledger | `sources.py list [--json]` |
+| Render the Sources block | `sources.py render [--style markdown\|plain\|footnotes\|bibtex\|evidence] [--only 1,3]` |
+| Render only what a draft cites | `sources.py render --cited-in draft.md` |
+| Rewrite a draft's Sources block in place | `sources.py render --replace-in draft.md` |
+| Check a draft's citations | `sources.py verify draft.md [--strict] [--min-coverage 0.6] [--evidence]` |
 
-2. **Register every source at retrieval time.** After each `web_search`, `web_fetch` or `curl`,
-   add its URL to the ledger. Do this *before* writing prose. Registering afterwards, from
-   memory, is exactly the failure this skill exists to prevent.
+## Procedure
 
-3. **Cite while drafting.** Put the bracketed id immediately after the sentence it supports,
-   no space before the bracket, one id per pair of brackets, at most three per sentence:
+① **Reset the ledger** at the start of a task that will produce a grounded
+answer or document. Skip the reset when continuing work whose ids are already
+in a draft — reusing the ledger keeps the numbering stable.
 
-   ```
-   Ice floats because it is less dense than liquid water.[1][2]
-   ```
+② **Register every source at retrieval time.** After each `web_search` or
+`web_fetch`, pass the URLs to `sources.py add`
+(or pipe the raw JSON through `sources.py ingest`). Do this *before* writing
+prose. Registering later, from memory, is the failure mode this skill exists to
+prevent.
 
-   Only ids the ledger returned. Never invent an id or a URL. Claims from your own knowledge
-   carry no citation. When sources conflict, present both readings with their own ids. Quote
-   figures, dates and names as the source states them, and when there is no source for
-   something, write that down instead of smoothing over it.
+③ **Write cite-while-drafting.** Place the bracketed id(s) immediately after
+each sentence the source supports:
 
-4. **Render the `Sources` block from the ledger**, mechanically, with `execute_code`:
+```
+Ice floats because it is less dense than liquid water.[1][2]
+```
 
-   ```python
-   import json, pathlib, re
-   led = json.loads(pathlib.Path(".citation-ledger.json").read_text())
-   draft = pathlib.Path("report.md").read_text()
-   cited = {int(n) for n in re.findall(r"\[(\d+)\]", draft)}
-   for entry in sorted(led.values(), key=lambda e: e["id"]):
-       if entry["id"] in cited:
-           print(f'[{entry["id"]}] {entry["title"]} — {entry["url"]}')
-   ```
+- No space before the bracket; each id in its own brackets.
+- Max 3 ids per sentence. Cite per sentence, not one dump at the end.
+- Only ids the ledger returned. Never invent an id or a URL.
+- Claims from your own knowledge get no citation.
+- Conflicting sources: present both readings, each with its own id.
+- Quote exact figures, dates, and names as the source states them; flag gaps
+  explicitly ("no source found for X") instead of smoothing them over.
 
-   Never retype a URL into the block by hand; a hand-typed URL is an unverified claim.
+④ **Append the Sources block** with `sources.py render --cited-in <draft>` so
+the id → URL mapping is generated mechanically from the ledger, not retyped.
+For non-markdown targets pick the matching `--style` and follow
+`references/citation-formats.md` for placement (footnotes in docx, endnotes in
+PDF/LaTeX, a Sources slide in decks, per-page source lists in wiki output).
 
-5. **Check before delivering.** The same script, run as a check, should fail the draft when it
-   cites an id the ledger does not have, or when the `Sources` block disagrees with the ledger.
-   Fix and re-run.
+⑤ **Verify before delivering** — `sources.py verify <draft>` exits non-zero on
+unknown ids, on a Sources block that disagrees with the ledger, or (with
+`--min-coverage`) on prose that is too thinly cited. Fix and re-run.
 
-6. **Chat answers follow the same shape**: register, cite inline, end with the rendered list.
+⑥ **Chat answers** follow the same steps with the draft in your reply: register
+sources, cite inline, end with the rendered `Sources:` list. For a short answer
+you may render the block from `sources.py render --only <ids>` instead of
+writing to a file.
 
-## Fact-checking mode
+## Multi-Platform Sweeps
 
-For work the reader must be able to verify — medical, legal, financial, safety, or a disputed
-claim — upgrade from citations to evidence:
+"What are people saying about X" / "research X across the web" is not one
+`web_search`. Fan out across source types, collect in parallel, then synthesise
+with every claim attributed to the platform it came from:
 
-- **Attach a verbatim quote per source.** Save the fetched page text to a file, then copy the
-  sentence that carries the claim into the ledger's `quotes`. Copy it — never retype it from
-  memory — and keep the sentence as a reader sees it.
-- **Flag unsourced load-bearing claims** with `[unverified]` rather than leaving them bare.
-  That is for what genuinely cannot be checked, not an escape hatch: a deliverable dominated by
-  `[unverified]` needed more retrieval, not more markers.
-- **Cross-check a disputed fact against a second independent source.** One source is a report;
-  two independent sources are corroboration. Say which you weight and why.
+| Source type | Route | What it adds |
+|---|---|---|
+| Open web | `web_search` → `web_fetch` | official docs, articles, announcements |
+| Community discussion | `web_search` on community sites | real user experience, complaints, workarounds |
+| Blogs / releases / changelogs | `web_fetch` on the project site | dated primary posts, version history |
+| Video | `web_search` then `web_fetch` | walkthroughs, demos, talks |
+| Code | `terminal` with `gh search repos` / `gh search issues` | implementations, open bugs |
+| X/Twitter | `web_search` with `site:x.com` | announcements, developer chatter |
 
-## Multi-source sweeps
+The table may name retrieval skills that C-lite does not ship, such as
+`reddit-reading` and `rss-feeds`; treat those rows as optional and use
+`web_search` plus `web_fetch` instead when they are absent.
 
-"Research X across the web" is not one search. Fan out — the open web, community discussion,
-changelogs, code search, papers — and register every URL as it arrives. Keep opinion and
-measurement apart: a forum thread is evidence that people *report* something, not that it is
-true. Where a channel returned nothing, report the gap instead of quietly narrowing to what
-worked.
+Register every URL from every route in the ledger as it arrives (step ②). Keep
+opinion and measurement apart: a Reddit thread is evidence that users *report*
+something, not that it is true; pair it with a primary source or label it as
+sentiment. Report per-platform coverage gaps ("Reddit search returned nothing
+newer than March") rather than silently narrowing to what worked.
+
+## Fact-Checking Mode
+
+For work where the reader must be able to check the chain — medical, legal,
+financial, safety, disputed claims, or when the user asks for fact-checking —
+upgrade from citations to evidence:
+
+① **Attach a verbatim quote per source.** After extracting a page, save its
+text to a file and attach the sentence(s) that carry each claim:
+
+```bash
+python "$S" quote 1 --text "Ice is about 9% less dense than liquid water." --from page1.txt
+```
+
+The quote is rejected unless it appears verbatim in the evidence text
+(insensitive to whitespace, case, and markdown markup — inline links like
+`_[ERAP1](https://…)_` in extracted text match the plain prose a reader sees),
+so a paraphrase or misremembered figure cannot masquerade as evidence.
+Copy-paste from the fetched text; never retype. Quote the sentence as the
+reader sees it — the matcher sees through the extractor's markup for you, so
+you don't have to reproduce link syntax or escaped asterisks in your quote.
+
+② **Flag model-knowledge claims with `[unverified]`.** A load-bearing claim
+you could not source gets an explicit marker instead of a citation:
+
+```
+The refactor likely predates the 2.0 release.[unverified]
+```
+
+`verify --min-coverage` counts `[unverified]` sentences as covered — the goal
+is declared provenance for every claim, not a citation on every sentence.
+If a key claim can be checked, check it; `[unverified]` is for what genuinely
+cannot be, and a fact-check deliverable dominated by `[unverified]` markers
+should say so in its summary.
+
+③ **Cross-check disputed facts against a second independent source.** When two
+sources disagree, cite both readings with their own ids and quotes, and say
+which you weight and why. One source is reporting; two independent sources are
+corroboration.
+
+④ **Verify with the evidence gate and render the evidence block:**
+
+```bash
+python "$S" verify report.md --evidence --min-coverage 0.5
+python "$S" render --style evidence --replace-in report.md
+```
+
+`--evidence` fails the draft if any cited source has no attached quote. The
+`evidence` render style prints each source's quotes beneath its URL, so the
+deliverable shows claim → source → exact supporting text with nothing taken on
+faith. Use `--replace-in <draft>` to rewrite an existing Sources block in place
+(idempotent — safe to re-run after attaching more quotes); `--cited-in` prints
+to stdout instead. Both emit the heading `## Sources` (`--style plain` emits
+`Sources:`).
+
+**What `--min-coverage` counts.** Coverage is
+`sentences with declared provenance / prose sentences`. A prose sentence is a
+non-empty line fragment of 4+ words after the Sources block, headings (`#`),
+table rows (`|`), and fenced code are dropped; blockquote markers are stripped.
+Provenance is declared by either a `[n]` citation or an `[unverified]` marker,
+so a sentence carrying both counts once. Run `verify` without a threshold first
+and read the `info: stats:` line to see the counts before picking a number.
 
 ## Pitfalls
 
-- **Registering after writing.** It reintroduces the invented URL that the numbering removes.
-- **Renumbering mid-task.** An id is an identity: if the draft cites `[4]`, `[4]` stays that
-  source. Reset only between tasks.
-- **Retyping an id or a URL.** Both come from the ledger.
-- **Citing a search snippet as though you read the page.** A snippet supports only what it
-  literally says; `web_fetch` the page when the claim needs the body.
-- **Over-citing.** Three ids is the ceiling; a citation on every clause hides which source
-  carries the load.
-- **Putting citations into code or configuration.** They belong in prose, not in generated code.
-- **Parallel subagents sharing a task.** Each gets its own ledger unless you point them all at
-  one file; unshared ledgers colliding on ids produce nonsense.
+- **Registering after writing.** The ledger must be populated from tool output,
+  not reconstructed from the draft — that reintroduces exactly the hallucinated
+  -URL risk the numbering removes.
+- **Renumbering mid-task.** Never hand-edit ids in a draft. Ids are ledger
+  identities; if a draft cites `[4]`, `[4]` must stay that source. Run `reset`
+  only between tasks.
+- **Retyping URLs into the Sources block.** Always `render`. A hand-typed URL
+  is an unverified claim.
+- **Citing a search snippet as if you read the page.** A `web_search`
+  description supports only what it literally says. Cite the extracted page
+  when the claim needs the body — `web_fetch` it first.
+- **Over-citing.** Three ids on a sentence is the ceiling; a citation on every
+  clause makes text unreadable and hides which source carries the load.
+- **Citing the ledger in code/config artifacts.** Source comments belong in
+  prose deliverables and doc headers, not inside generated code.
+- **Parallel subagents.** Each subagent has its own working directory; point
+  them all at one ledger with `--ledger` (or `CLITE_CITATION_LEDGER`) if their
+  outputs get merged, otherwise their ids will collide.
+- **Quoting from a snippet instead of the page.** Evidence quotes must come
+  from the extracted page text, not a search-result description — `web_fetch`
+  first, save the text, then `quote --from` that file.
+- **Paraphrasing into `quote --text`.** The verbatim check will reject it; the
+  fix is to find the actual sentence, not to reword until something matches.
+- **Using `[unverified]` as an escape hatch.** It marks the rare claim that
+  genuinely cannot be sourced; if most sentences carry it, the task needed more
+  retrieval, not more markers.
+- **Hand-editing the Sources block.** Use `render --replace-in <draft>`; slicing
+  the file yourself risks a stale or duplicated block that `verify` then flags.
 
 ## Verification
 
-- [ ] Every `[n]` in the draft exists in the ledger.
-- [ ] The `Sources` block was rendered, not typed, and lists exactly the cited ids.
-- [ ] No URL in the deliverable came from memory.
-- [ ] In fact-checking mode, every cited source has a verbatim quote attached.
+```bash
+python "$S" verify report.md --strict --min-coverage 0.5
+```
+
+Green means: every `[n]` in the draft exists in the ledger, the Sources block
+lists exactly the cited ids with the ledger's URLs, and the cited share of
+source-bearing sentences meets the threshold. Read the warnings even when the
+exit code is 0 — uncited registered sources usually mean a claim lost its
+attribution during editing.

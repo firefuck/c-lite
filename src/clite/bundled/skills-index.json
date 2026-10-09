@@ -11,12 +11,84 @@
     },
     {
       "category": "productivity",
-      "description": "Turn meeting notes or a transcript into cited decisions, owners and follow-ups. Use when asked to extract action items from a meeting, or to reconcile notes with existing work.",
-      "hash": "sha256:4dfc7a4d0e6a2789bd058f8a4f39e201e84d7af53273c2737da140938da2ca1c",
+      "description": "Airtable REST API: records CRUD, filters, upserts via the bundled stdlib helper.",
+      "hash": "sha256:6bd79ac8e0f16ba060d3ec0dd4ced4312fb8158bd329826dbba16686be108207",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/airtable",
+      "name": "airtable",
+      "source": "github",
+      "version": "1.1.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Box manages cloud files, sharing, search, and metadata.",
+      "hash": "sha256:bfe448d94f241658debc4a8047a4bcc9e2800f0f425236abd16fb87c5248d7a1",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/box",
+      "name": "box",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Extract cited obligations, deadlines, tasks from documents.",
+      "hash": "sha256:48884daddc72833a5811570bb9191da0dbddff12bc04c1727cad4be6dc5813e4",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/document-to-action-items",
+      "name": "document-to-action-items",
+      "source": "github",
+      "version": "0.1.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Create, read, edit, template, and review Word .docx files.",
+      "hash": "sha256:27aa06d90cc0e978a79af23b43cd2aaafcbbece2067db3cd234795a8fc5094c5",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/docx",
+      "name": "docx",
+      "source": "github",
+      "version": "1.1.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Gmail, Calendar, Drive, Docs, Sheets via gws CLI or Python.",
+      "hash": "sha256:2d0f601348fcf2d4cb1ca86fcc55c78a6145e240696323dc060c871859b33fd5",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/google-workspace",
+      "name": "google-workspace",
+      "source": "github",
+      "version": "1.2.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Geocode, POIs, routes, timezones via OpenStreetMap/OSRM.",
+      "hash": "sha256:53eeba8f64c83745c3f7315cf34dd2c762d79d6a0649d0b721c523cf06e00b3b",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/maps",
+      "name": "maps",
+      "source": "github",
+      "version": "1.2.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Turn meeting notes into cited decisions, owners, tickets.",
+      "hash": "sha256:31509e2881ae92795c91d06a529e7310a6757cf08f121649dee3e88100c78862",
       "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/meeting-action-items",
       "name": "meeting-action-items",
       "source": "github",
-      "version": "1.0.0"
+      "version": "0.1.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Notion API + ntn CLI: pages, databases, markdown, Workers.",
+      "hash": "sha256:5c3d86821331c78b813968d81cbc8cb8e5becfe185485c00c90deef27e6bee34",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/notion",
+      "name": "notion",
+      "source": "github",
+      "version": "2.0.0"
+    },
+    {
+      "category": "productivity",
+      "description": "PDF files: create, read, merge, fill, OCR, edit text.",
+      "hash": "sha256:7e4a1a4cbbfa9831dc6c7ba23c906feea5f714b40cb47d7da9d13dcbcc45dce7",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/pdf",
+      "name": "pdf",
+      "source": "github",
+      "version": "1.1.0"
     },
     {
       "category": "productivity",
@@ -29,17 +101,44 @@
     },
     {
       "category": "productivity",
-      "description": "Run a bounded weekly review over the user's notes and tasks, then propose next week's plan. Use when asked what slipped, what is waiting, or to plan the coming week.",
-      "hash": "sha256:298aa4d9c3bad593f48d9922d2d533aa169b611be99ba1efdad7e074d6cd968a",
+      "description": "Create, read, edit .pptx decks with python-pptx.",
+      "hash": "sha256:36a87e33f49ebbfa2ddd6d06f312e0ad9ff45a4c79b607821a6e6e0c578326a9",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/powerpoint",
+      "name": "powerpoint",
+      "source": "github",
+      "version": "1.1.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Watch product, flight, or listing prices; alert on target.",
+      "hash": "sha256:69b6928c64cce69d517714529d11ee81c5689a1d8c8ca9c5d37fede32ded8c92",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/product-price-monitor",
+      "name": "product-price-monitor",
+      "source": "github",
+      "version": "0.1.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Weekly reset: commitments, stalled work, next-week plan.",
+      "hash": "sha256:6d7a8d9c72865ab0f59c9de38895d173bdc7ee6a4cdab4d0627e7244d7f3914c",
       "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/weekly-review-planning",
       "name": "weekly-review-planning",
       "source": "github",
-      "version": "1.0.0"
+      "version": "0.1.0"
+    },
+    {
+      "category": "productivity",
+      "description": "Create, read, edit Excel .xlsx workbooks and CSVs.",
+      "hash": "sha256:49caa3e70eb2557ba0b168c3653924940143fb450aeac160b4ab2600573683e1",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/xlsx",
+      "name": "xlsx",
+      "source": "github",
+      "version": "1.1.0"
     },
     {
       "category": "research",
-      "description": "Search arXiv and Semantic Scholar for papers by keyword, author, category or id, and read their metadata and citations. Use when the task needs academic papers or citation counts.",
-      "hash": "sha256:a0bb7e87a85d55bf685a69c6de4a05db88034df575fb8180a5621ef81f510358",
+      "description": "Search arXiv papers by keyword, author, category, or ID.",
+      "hash": "sha256:cd9588e04dd6a7a4738e64916ed66f91708e95c0141eb945eedf1a62c242f083",
       "identifier": "dragovics/clite/src/clite/bundled/skills/research/arxiv",
       "name": "arxiv",
       "source": "github",
@@ -47,35 +146,35 @@
     },
     {
       "category": "research",
-      "description": "Watch a fixed set of companies for material news and report cited digests, or stay silent when nothing happened. Use when asked to track competitors, pricing changes or launches on a schedule.",
-      "hash": "sha256:6a21ba77720d7d6837c131b8543062db430aa171077260b804b6e578d099e705",
+      "description": "Watch named companies for material news; cited digests.",
+      "hash": "sha256:12e5a8cd3c712b1ce438f0f32277ed6a28ffa36aef4ebfb4fa0f76e4b018cca0",
       "identifier": "dragovics/clite/src/clite/bundled/skills/research/competitor-news-monitor",
       "name": "competitor-news-monitor",
       "source": "github",
-      "version": "1.0.0"
+      "version": "0.1.0"
     },
     {
       "category": "research",
-      "description": "Ground an answer or document in numbered citations, with the source list rendered from a ledger instead of memory. Use when a deliverable reports outside facts and the reader will want to check them.",
-      "hash": "sha256:1c3d212bfe348760480c5b8c38b91e31b34a685678bca7405129202e3bb60c30",
+      "description": "Ground answers and documents in cited, verifiable sources.",
+      "hash": "sha256:fac7640485e6ca017c20e7fd9037c29e91207cdfb69b832536b7d7acbff24c89",
       "identifier": "dragovics/clite/src/clite/bundled/skills/research/grounded-citations",
       "name": "grounded-citations",
       "source": "github",
-      "version": "1.0.0"
+      "version": "1.2.0"
     },
     {
       "category": "research",
-      "description": "Build and maintain a compounding knowledge base of interlinked markdown pages, and answer questions from it. Use when the user keeps a wiki or knowledge base, or asks to ingest a source into one.",
-      "hash": "sha256:53cb4bf229517af684fb278c84780da814e7abd0bae5525a714338664cccff29",
+      "description": "Karpathy's LLM Wiki: build/query interlinked markdown KB.",
+      "hash": "sha256:2d8223c787ac978d1e77027a3603928df7552098702cfffc52ca813e2c8c10cc",
       "identifier": "dragovics/clite/src/clite/bundled/skills/research/llm-wiki",
       "name": "llm-wiki",
       "source": "github",
-      "version": "1.0.0"
+      "version": "2.1.0"
     },
     {
       "category": "software-development",
-      "description": "Measure a codebase with pygount or the shell, to answer how big it is and what it is made of. Use when asked for lines of code, a language breakdown, or code-to-comment ratios.",
-      "hash": "sha256:c96f5c1d2f79421006cd0151abb480b09ce22fb72ddb69763d383045fe49e36a",
+      "description": "Inspect codebases w/ pygount: LOC, languages, ratios.",
+      "hash": "sha256:c0e01f6a19ad1cc9ae2a665a6e59526bd7e073fe4ad17d61f47b7ee1e32cb487",
       "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/codebase-inspection",
       "name": "codebase-inspection",
       "source": "github",
@@ -83,17 +182,26 @@
     },
     {
       "category": "software-development",
-      "description": "Work GitHub end to end with the gh CLI: auth, issues, the pull-request lifecycle, reviews and repo management. Use when the task touches a GitHub repository's remote state.",
-      "hash": "sha256:d1f5a5f7b5b1ac72def31cb13847b2063fdcfca7bbe5e264aeae4914ee32f27d",
+      "description": "GitHub via gh CLI: PRs, issues, reviews, repos, auth.",
+      "hash": "sha256:cfd34d95222b7c4d6f574787dbfc5a852769387ed44f5aa0f2e4b0320fd6fec4",
       "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/github",
       "name": "github",
+      "source": "github",
+      "version": "2.0.0"
+    },
+    {
+      "category": "software-development",
+      "description": "Debug Node.js via --inspect + Chrome DevTools Protocol CLI.",
+      "hash": "sha256:a88f705515bc1d456281838629451d38367e33cc1c35ce6b4332b5dc2ff4bae6",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/node-inspect-debugger",
+      "name": "node-inspect-debugger",
       "source": "github",
       "version": "1.0.0"
     },
     {
       "category": "software-development",
-      "description": "Debug Python with pdb, post-mortem inspection and debugpy remote attach. Use when a traceback does not explain a wrong value, or a long-running process misbehaves.",
-      "hash": "sha256:57a2c6f8e122385f818912ebded802ce70ae3cc48be64a57211c0a31ffef46c8",
+      "description": "Debug Python: pdb REPL + debugpy remote (DAP).",
+      "hash": "sha256:996c5f4d5a471010c80fa72725eea4970fa146813b85756aac97696e6ff94af3",
       "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/python-debugpy",
       "name": "python-debugpy",
       "source": "github",
@@ -101,26 +209,26 @@
     },
     {
       "category": "software-development",
-      "description": "Verify a change before it is committed with a static scan, the test suite and an independent reviewer. Use when finishing a task, or when the user says commit, push, ship or review.",
-      "hash": "sha256:c2643b5d9153dc97b13ed91e9195a04f51e2e53b8d58675761111cfc2c20e259",
+      "description": "Pre-commit review: security scan, quality gates, auto-fix.",
+      "hash": "sha256:2f8e2ef70e49263372a50dc08390875e3151913e3dbad3a0d310815efc33460d",
       "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/requesting-code-review",
       "name": "requesting-code-review",
       "source": "github",
-      "version": "1.0.0"
+      "version": "2.1.0"
     },
     {
       "category": "software-development",
-      "description": "Clean up recent code changes with four focused reviewers running in parallel, then apply only the fixes worth applying. Use when the user says simplify, or asks for a cleanup of what was just written.",
-      "hash": "sha256:6f3ebe7aead5320f22926bed835246f5901351c6222d67c7e63b5e64b80673ac",
+      "description": "Parallel 4-agent cleanup of recent code changes.",
+      "hash": "sha256:105b92e72299a7f4f18d5d75b07539f3b20f7b2c17b21bfd4bf0e33ce0e5d1a9",
       "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/simplify-code",
       "name": "simplify-code",
       "source": "github",
-      "version": "1.0.0"
+      "version": "1.1.0"
     },
     {
       "category": "software-development",
-      "description": "Run throwaway experiments to answer feasibility questions before committing to a build. Use when the user wants to see if something works, or to compare two approaches.",
-      "hash": "sha256:8aa669f68c61c2abda17d993f37aea35924b8e5decb1f963f35b72e6a12262f0",
+      "description": "Throwaway experiments to validate an idea before build.",
+      "hash": "sha256:fe308f1de58b7c77f717a265c77bad611f26532bfe6d5b02eff0e7e1e1b216f0",
       "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/spike",
       "name": "spike",
       "source": "github",

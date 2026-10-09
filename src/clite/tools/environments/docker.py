@@ -57,7 +57,7 @@ class DockerEnvironment(LocalEnvironment):
                 "(e.g. `terminal.docker.image: python:3.12-slim`) to use the Docker backend"
             )
         name = "clite-" + uuid.uuid4().hex[:12]
-        argv = ["docker", "run", "-d", "--name", name, "--workdir", self.cwd]
+        argv = ["docker", "run", "-d", "--name", name]
         for mount in config_get("terminal.docker.mounts", []) or []:
             argv += ["-v", str(mount)]
         # The workspace itself is mounted so the file tools and the container agree on paths.
@@ -69,11 +69,26 @@ class DockerEnvironment(LocalEnvironment):
         if memory:
             argv += ["--memory", memory]
         argv += ["--network", str(config_get("terminal.docker.network", "none") or "none")]
-        argv += ["--entrypoint", "/bin/sh", image, "-c", "sleep infinity"]
+        # No --workdir here: the image's filesystem usually lacks the host working directory, and
+        # a missing working directory refuses to start the container. The mount above creates the
+        # path, and every exec below passes -w explicitly; the mkdir keeps a fresh image whose
+        # filesystem lacks the path working before that mount lands.
+        argv += [
+            "--entrypoint",
+            "/bin/sh",
+            image,
+            "-c",
+            'mkdir -p "$1" && exec sleep infinity',
+            "sh",
+            self.cwd,
+        ]
         result = self._run_docker(argv)
         if result.exit_code != 0:
             raise RuntimeError(f"could not start Docker container: {result.output.strip()}")
-        self._container_id = result.output.strip().splitlines()[-1] if result.output.strip() else name
+        # Address the container by the name we chose, not by parsing run's output: a first-time
+        # image pull interleaves progress lines ("Status: Downloaded newer image for ...") with
+        # the id, so the last line of merged output is not reliably the id.
+        self._container_id = name
         return self._container_id
 
     def _run_docker(self, argv: list[str], *, timeout: int = 60) -> ExecResult:

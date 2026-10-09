@@ -1,93 +1,119 @@
 ---
 name: python-debugpy
-description: "Debug Python with pdb, post-mortem inspection and debugpy remote attach. Use when a traceback does not explain a wrong value, or a long-running process misbehaves."
+description: "Debug Python: pdb REPL + debugpy remote (DAP)."
 version: 1.0.0
 author: C-lite
 license: MIT
+platforms: [linux, macos]
 metadata:
   clite:
-    category: software-development
-    tags: [debugging, python, pdb, debugpy, post-mortem]
-    requires_toolsets: [terminal]
-    attribution: "Adapted from the python-debugpy skill in Nous Research's hermes-agent (skills/software-development/python-debugpy, MIT, Copyright (c) 2025 Nous Research)."
+    attributed_from: NousResearch/hermes-agent@1298c8e74b (MIT)
+    tags: [debugging, python, pdb, debugpy, breakpoints, dap, post-mortem]
+    related_skills: [systematic-debugging, node-inspect-debugger]
 ---
 
-# Python debugging
+# Python Debugger (pdb + debugpy)
 
-Three tools, picked by situation. Start with the cheapest one that works.
+## Overview
 
-| Tool | Use it when |
+Three tools, picked by situation:
+
+| Tool | When |
 |---|---|
-| `breakpoint()` then pdb | Local and interactive. Add the call, run the code, get a prompt on that line. |
-| `python -m pdb script.py` | Launch an existing script under pdb without editing it. |
-| `debugpy` | Remote or headless: attach to a process that is already running and cannot be restarted. |
+| **`breakpoint()` + pdb** | Local, interactive, simplest. Add `breakpoint()` in the source, run normally, get a REPL at that line. |
+| **`python -m pdb`** | Launch an existing script under pdb with no source edits. Useful for quick poking. |
+| **`debugpy`** | Remote / headless / "attach to already-running process." Talks DAP, scriptable from terminal, works for long-lived processes (gateway, daemon, PTY children). |
 
-## When to use
+**Start with `breakpoint()`.** It's the cheapest thing that works.
 
-- A failing test whose traceback does not say which value was wrong.
-- Stepping through a function to watch a collection change.
-- A long-running process (a server, a worker, a daemon) misbehaves and cannot be restarted
-  cleanly.
-- Post-mortem: an exception fired and the locals at the crash site are what you need.
+## When to Use
 
-Do not reach for a debugger when `print()` or `logging.debug` settles it in a minute, or when
-`pytest -vv --tb=long --showlocals` already shows the values.
+- A test fails and the traceback doesn't reveal why a value is wrong
+- You need to step through a function and watch a collection mutate
+- A long-running process (clite gateway, tui_gateway) misbehaves and you can't restart it
+- Post-mortem: an exception fired in prod-ish code and you want to inspect locals at the crash site
+- A subprocess / child (Python `_SlashWorker`, PTY bridge worker) is the actual bug site
 
-## pdb quick reference
+**Don't use for:** things `print()` / `logging.debug` solve in under a minute, or things `pytest -vv --tb=long --showlocals` already reveals.
+
+## pdb Quick Reference
+
+Inside any pdb prompt (`(Pdb)`):
 
 | Command | Action |
 |---|---|
-| `n` / `s` / `r` / `c` | next line / step into / return / continue |
-| `unt N` / `j N` | continue until line N / jump to line N (same function only) |
-| `l` / `ll` / `w` | list source / list the whole function / show the stack |
-| `u` / `d` | move up / down the stack |
-| `a` | arguments of the current function |
-| `p expr` / `pp expr` | print / pretty-print an expression |
-| `display expr` | print it again at every stop |
-| `b file:line` / `b func` / `b file:line, cond` | set a breakpoint, plain, on entry, or conditional |
-| `cl N` / `tbreak file:line` | clear breakpoint N / one-shot breakpoint |
-| `!stmt` | run a statement in the current frame, assignments included |
-| `interact` | drop into a full REPL in the current scope, Ctrl+D to leave |
-| `h` / `q` | help / quit |
+| `h` / `h cmd` | help |
+| `n` | next line (step over) |
+| `s` | step into |
+| `r` | return from current function |
+| `c` | continue |
+| `unt N` | continue until line N |
+| `j N` | jump to line N (same function only) |
+| `l` / `ll` | list source around current line / full function |
+| `w` | where (stack trace) |
+| `u` / `d` | move up / down in the stack |
+| `a` | print args of the current function |
+| `p expr` / `pp expr` | print / pretty-print expression |
+| `display expr` | auto-print expr on every stop |
+| `b file:line` | set breakpoint |
+| `b func` | break on function entry |
+| `b file:line, cond` | conditional breakpoint |
+| `cl N` | clear breakpoint N |
+| `tbreak file:line` | one-shot breakpoint |
+| `!stmt` | execute arbitrary Python (assignments included) |
+| `interact` | drop into full Python REPL in current scope (Ctrl+D to exit) |
+| `q` | quit |
 
-`interact` is the strongest of these: import anything, inspect complex objects, call methods
-that mutate state. Locals are read-only from the `(Pdb)` prompt; use `!x = 42` to assign.
+The `interact` command is the most powerful — you can import anything, inspect complex objects, even call methods that mutate state. Locals are read-only by default; use `!x = 42` from the `(Pdb)` prompt to mutate.
 
-## Recipes
+## Recipe 1: Local breakpoint
 
-**Local breakpoint.** Edit the file, run it normally, land on the line:
+Easiest. Edit the file:
 
 ```python
 def compute(x, y):
     result = some_helper(x)
-    breakpoint()
+    breakpoint()           # <-- drops into pdb here
     return result + y
 ```
 
-Remove it before committing. `grep -rn 'breakpoint()' --include='*.py' .` is the safety net,
-and it belongs in a pre-commit check if the project has one.
+Run the code normally. You land at the `breakpoint()` line with full access to locals.
 
-**An existing script, unedited:**
+**Don't forget to remove `breakpoint()` before committing.** Use `git diff` or a pre-commit grep:
+```bash
+rg -n 'breakpoint\(\)' --type py
+```
+
+## Recipe 2: Launch a script under pdb (no source edits)
 
 ```bash
-python -m pdb path/to/script.py arg1
+python -m pdb path/to/script.py arg1 arg2
+# Lands at first line of script
 (Pdb) b path/to/script.py:42
 (Pdb) c
 ```
 
-**A failing test.** Run the project's own runner first, because it is what the project
-promises, and it usually reports locals on its own:
+## Recipe 3: Debug a pytest test
+
+Use `terminal` and the canonical runner for noninteractive diagnostics:
 
 ```bash
+# Show locals in tracebacks without pdb:
 scripts/run_tests.sh tests/path/to/test_file.py --showlocals --tb=long
 ```
 
-If the runner captures each file in a subprocess, pdb cannot give you a prompt inside it.
-For an interactive session, run the test file directly with the interpreter this machine uses
-for development, `.venv/bin/python -m pytest tests/foo_test.py::test_bar --pdb`, and re-run
-through the wrapper afterwards to confirm.
+`scripts/run_tests.sh` captures each file in a separate subprocess, so `--pdb`
+or `--trace` cannot provide an interactive prompt there. For an interactive
+debugger only, use the independent development/test interpreter prepared in
+Recipe 5 (never a production generation):
 
-**Post-mortem.** Catch the crash and inspect the frame that raised:
+```bash
+.venv/bin/python -m pytest tests/foo_test.py::test_bar --pdb
+```
+
+This bypasses the hermetic-env guarantees — fine for debugging, but re-run under the wrapper to confirm before pushing.
+
+## Recipe 4: Post-mortem on any exception
 
 ```python
 import pdb, sys
@@ -97,57 +123,268 @@ except Exception:
     pdb.post_mortem(sys.exc_info()[2])
 ```
 
-Or let pdb catch it for a whole script:
+Or wrap a whole script:
 
 ```bash
 python -m pdb -c continue script.py
+# When it crashes, pdb catches it and you're in the frame of the exception
 ```
 
-**Remote attach with debugpy.** For a process that is already running and must not be
-restarted. Add near the entry point:
+Or set a global hook in a repl/jupyter:
+
+```python
+import sys
+def excepthook(etype, value, tb):
+    import pdb; pdb.post_mortem(tb)
+sys.excepthook = excepthook
+```
+
+## Recipe 5: Remote debug with debugpy (attach to running process)
+
+For long-lived processes: C-lite gateway, tui_gateway, a daemon, a process that's already misbehaving and can't be restarted clean.
+
+### Setup
+
+For C-lite, use a separate development checkout and data home, not a live
+production generation. Follow the package manager developer workflow
+and activate that checkout — PowerShell: `. .\activate.ps1`. The declared `dev`
+extra includes debugpy, which PM activation does not sync (`all` excludes it).
+Through `terminal`, build a fresh, caller-owned debug/test environment with the
+prepared checkout's Python:
+
+```bash
+source ./activate
+python -m pm.build_env --source . --out .venv --group dev --group test
+.venv/bin/python -c "import debugpy; print(debugpy.__file__)"
+```
+
+The output must not already exist. Stop its processes and intentionally remove
+only that disposable environment before rebuilding. Keep the same isolated
+`CLITE_HOME` for the debug target. `.venv/bin/python` is this explicitly built
+debug environment, not a guessed application venv, and the patterns below run
+through it. Do not add debugpy to a running production environment; reproduce
+there only with an already-prepared debug target or arrange a restart in the
+development environment.
+
+### Pattern A: Source-edit — process waits for debugger at launch
+
+Add near the top of the entry point (or inside the function you want to debug):
 
 ```python
 import debugpy
 debugpy.listen(("127.0.0.1", 5678))
-print("debugpy on 5678, waiting for a client", flush=True)
+print("debugpy listening on 5678, waiting for client...", flush=True)
 debugpy.wait_for_client()
+debugpy.breakpoint()       # optional: pause immediately once attached
 ```
 
-or launch it under debugpy without an edit:
+Start the process; it blocks on `wait_for_client()`.
+
+### Pattern B: No source edit — launch with `-m debugpy`
 
 ```bash
-python -m debugpy --listen 127.0.0.1:5678 --wait-for-client script.py
-python -m debugpy --listen 127.0.0.1:5678 --pid <pid>     # attach to a running process
+.venv/bin/python -m debugpy --listen 127.0.0.1:5678 --wait-for-client your_script.py arg1
 ```
 
-`--pid` needs `ptrace` rights: on a hardened kernel, `/proc/sys/kernel/yama/ptrace_scope`
-must be `0` for a process that is not your own child. Then attach a DAP client (an editor's
-attach configuration, on port 5678). When DAP is more protocol than the problem deserves,
-`remote-pdb` is easier: `set_trace(host="127.0.0.1", port=4444)` in the handler, and a plain
-`nc 127.0.0.1 4444` gives an ordinary `(Pdb)` prompt.
+Equivalent for module entry:
 
-## Pitfalls
+```bash
+.venv/bin/python -m debugpy --listen 127.0.0.1:5678 --wait-for-client -m your.module
+```
 
-- pdb under a runner that captures or parallelises output silently does nothing: no prompt,
-  the process just hangs. Run the one test directly instead.
-- A committed `breakpoint()` hangs any non-interactive run. Grep before you commit.
-- `PYTHONBREAKPOINT=0` disables every `breakpoint()`. Check it when a breakpoint never fires.
-- `debugpy.listen` only blocks if `wait_for_client()` follows it. Without the wait, the first
-  breakpoint can fire before a client is attached.
-- pdb debugs the current thread only. For threads, use debugpy, or `threading.settrace()`
-  per thread.
-- pdb does not follow forks. Each child process needs its own `breakpoint()` or `set_trace()`
-  — debug one process at a time.
-- `await` inside pdb needs Python 3.13+, or the `interact` mode on older versions. For an
-  async deadlock, `interact` then `!import asyncio; asyncio.all_tasks()` shows what is pending.
-- A debugging environment that strips credentials or moves `HOME` will not reproduce a bug
-  that depends on user config. Reproduce with the raw interpreter first, then confirm the fix
-  under the project's runner.
+### Pattern C: Attach to an already-running process
 
-## Verification
+Needs the PID and debugpy preinstalled in the target's environment:
 
-- [ ] The port is actually listening when you attach: `ss -tlnp | grep 5678`.
-- [ ] The first breakpoint hits. If it does not, check `PYTHONBREAKPOINT`, a capturing runner,
-  and whether execution finished before the attach.
-- [ ] `w` shows the call stack you expected before you start reading values.
-- [ ] Nothing is left behind: `grep -rn 'breakpoint()\|set_trace(\|debugpy\.listen' --include='*.py' .`
+```bash
+.venv/bin/python -m debugpy --listen 127.0.0.1:5678 --pid <pid>
+# debugpy injects itself into the process. Then attach a client as below.
+```
+
+Some kernels/security configs block the ptrace-based injection (`/proc/sys/kernel/yama/ptrace_scope`). Fix with:
+```bash
+echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
+```
+
+### Connecting a client from the terminal
+
+The easiest terminal-side DAP client is VS Code CLI or a small script. From inside C-lite you have two practical options:
+
+**Option 1: `debugpy`'s own CLI REPL** — not an official feature, but a tiny DAP client script:
+
+```python
+# ~/.clite/cache/scratch/dap_client.py
+import socket, json, itertools, time, sys
+
+HOST, PORT = "127.0.0.1", 5678
+s = socket.create_connection((HOST, PORT))
+seq = itertools.count(1)
+
+def send(msg):
+    msg["seq"] = next(seq)
+    body = json.dumps(msg).encode()
+    s.sendall(f"Content-Length: {len(body)}\r\n\r\n".encode() + body)
+
+def recv():
+    header = b""
+    while b"\r\n\r\n" not in header:
+        header += s.recv(1)
+    length = int(header.decode().split("Content-Length:")[1].split("\r\n")[0].strip())
+    body = b""
+    while len(body) < length:
+        body += s.recv(length - len(body))
+    return json.loads(body)
+
+send({"type": "request", "command": "initialize", "arguments": {"adapterID": "python"}})
+print(recv())
+send({"type": "request", "command": "attach", "arguments": {}})
+print(recv())
+send({"type": "request", "command": "setBreakpoints",
+      "arguments": {"source": {"path": sys.argv[1]},
+                    "breakpoints": [{"line": int(sys.argv[2])}]}})
+print(recv())
+send({"type": "request", "command": "configurationDone"})
+# ... loop reading events and sending continue/stepIn/etc.
+```
+
+This is fine for one-off automation but painful as an interactive UX.
+
+**Option 2: Attach from VS Code / Cursor / Zed** — if the user has one open, they can add a `launch.json`:
+
+```json
+{
+  "name": "Attach to C-lite",
+  "type": "debugpy",
+  "request": "attach",
+  "connect": { "host": "127.0.0.1", "port": 5678 },
+  "justMyCode": false,
+  "pathMappings": [
+    { "localRoot": "${workspaceFolder}", "remoteRoot": "<clite-repo>" }
+  ]
+}
+```
+
+**Option 3: Ditch DAP, use `remote-pdb`** — usually what you actually want from a terminal agent:
+
+For an independently owned Python project, declare `remote-pdb` in that
+project's development dependencies and prepare its debug environment through
+the project's package manager. This is not a C-lite SDK install recipe. For
+C-lite, prefer the declared debugpy dependency; the remote-pdb examples below
+require a separately declared, freshly built debug environment, never an
+in-place pip install into the selected application generation.
+
+In your code:
+```python
+from remote_pdb import set_trace
+set_trace(host="127.0.0.1", port=4444)   # blocks until connection
+```
+
+Then from the terminal:
+```bash
+nc 127.0.0.1 4444
+# You get a (Pdb) prompt exactly as if debugging locally.
+```
+
+`remote-pdb` is the cleanest agent-friendly choice when `debugpy`'s DAP protocol is overkill. Use `debugpy` only when you actually need IDE integration.
+
+## Debugging C-lite-specific Processes
+
+### Tests
+See Recipe 3. The wrapper captures subprocess output, so run pytest directly for interactive pdb.
+
+### `run_agent.py` / CLI — one-shot
+In the prepared debug checkout, add `breakpoint()` near the suspect line, then
+run `python clite`. Control returns to your terminal at the pause point.
+
+### `tui_gateway` subprocess (spawned by `clite --tui`)
+The gateway runs as a child of the Node TUI. Options:
+
+**A. Source-edit the gateway:**
+```python
+# tui_gateway/server.py near the top of serve()
+import debugpy
+debugpy.listen(("127.0.0.1", 5678))
+debugpy.wait_for_client()
+```
+Start `python clite --tui` from the prepared debug checkout. The TUI will appear frozen (its backend is waiting). Attach a client; execution resumes when you `continue`. Check the child's interpreter and imports before assuming it inherited the debug environment.
+
+**B. Use `remote-pdb` at a specific handler:**
+```python
+from remote_pdb import set_trace
+set_trace(host="127.0.0.1", port=4444)   # in the RPC handler you want to trap
+```
+Trigger the matching slash command from the TUI, then `nc 127.0.0.1 4444` in another terminal.
+
+### `_SlashWorker` subprocess
+Same pattern — `remote-pdb` with `set_trace()` inside the worker's `exec` path. The worker is persistent across slash commands, so the first trigger blocks until you connect; subsequent slash commands pass through normally unless you re-arm.
+
+### Gateway (`gateway/run.py`)
+Long-lived. Use `remote-pdb` at a handler, or `debugpy` with `--wait-for-client` if you're restarting the gateway anyway.
+
+## Common Pitfalls
+
+1. **pdb under a parallel/output-capturing runner silently does nothing.** You won't see the prompt, the test just hangs (true of pytest-xdist and of `scripts/run_tests.sh`'s captured per-file subprocesses). Run pytest directly on a single file for interactive debugging.
+
+2. **`breakpoint()` in CI / non-TTY contexts hangs the process.** Safe locally; never commit it. Add a pre-commit grep as a safety net.
+
+3. **`PYTHONBREAKPOINT=0`** disables all `breakpoint()` calls. Check the env if your breakpoint isn't hitting:
+   ```bash
+   echo $PYTHONBREAKPOINT
+   ```
+
+4. **`debugpy.listen` blocks only if you also call `wait_for_client()`.** Without it, execution continues and your first breakpoint may fire before the client is attached.
+
+5. **Attach to PID fails on hardened kernels.** `ptrace_scope=1` (Ubuntu default) allows only same-user ptrace of child processes. Workaround: `echo 0 > /proc/sys/kernel/yama/ptrace_scope` (needs root) or launch under `debugpy` from the start.
+
+6. **Threads.** `pdb` only debugs the current thread. For multithreaded code, use `debugpy` (thread-aware DAP) or set `threading.settrace()` per thread.
+
+7. **asyncio.** `pdb` works in coroutines but `await` inside pdb requires Python 3.13+ or `await` from `interact` mode on older versions. For 3.11/3.12, use `asyncio.run_coroutine_threadsafe` tricks or `!stmt`-based awaits via `asyncio.ensure_future`.
+
+8. **`scripts/run_tests.sh` strips credentials and sets `HOME=<tmpdir>`.** If your bug depends on user config or real API keys, it won't reproduce under the wrapper. Debug with raw `pytest` first to repro, then re-confirm under the wrapper.
+
+9. **Forking / multiprocessing.** pdb does not follow forks. Each child needs its own `breakpoint()` or `set_trace()`. For C-lite subagents, debug one process at a time.
+
+## Verification Checklist
+
+- [ ] In the independently built debug environment, confirm: `.venv/bin/python -c "import debugpy; print(debugpy.__version__); print(debugpy.__file__)"`
+- [ ] For remote debug, confirm the port is actually listening: `ss -tlnp | grep 5678`
+- [ ] First breakpoint actually hits (if it doesn't, you likely have `PYTHONBREAKPOINT=0`, you're under a parallel/capturing runner, or execution finished before attach)
+- [ ] `where` / `w` shows the expected call stack
+- [ ] Post-debug cleanup: no stray `breakpoint()` / `set_trace()` in committed code
+  ```bash
+  rg -n 'breakpoint\(\)|set_trace\(|debugpy\.listen' --type py
+  ```
+
+## One-Shot Recipes
+
+**"Why is this dict missing a key?"**
+```python
+# add above the KeyError site
+breakpoint()
+# then in pdb:
+(Pdb) pp d
+(Pdb) pp list(d.keys())
+(Pdb) w                # how did we get here
+```
+
+**"This test passes in isolation but fails in the suite."**
+```bash
+scripts/run_tests.sh tests/the_test.py   # confirm it fails under the isolated runner first
+# For interactive debugging, or if it only fails WITH other tests, use the
+# independent development/test interpreter prepared in Recipe 5:
+.venv/bin/python -m pytest tests/ -x --pdb
+# Now it pdb-traps at the exact failing test after state accumulated.
+```
+
+**"My async handler deadlocks."**
+```python
+# Add at handler entry
+import remote_pdb; remote_pdb.set_trace(host="127.0.0.1", port=4444)
+```
+Trigger the handler. `nc 127.0.0.1 4444`, then `w` to see the suspended frame, `!import asyncio; asyncio.all_tasks()` to see what else is pending.
+
+**"Post-mortem on a crash in an Ink child process / subprocess."**
+```bash
+PYTHONFAULTHANDLER=1 python -m pdb -c continue path/to/entrypoint.py
+# On crash, pdb lands at the frame of the exception with full locals
+```

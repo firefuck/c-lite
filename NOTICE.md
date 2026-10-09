@@ -54,25 +54,31 @@ SOFTWARE.
 
 ### Copied from Hermes
 
-The bundled skills under `src/clite/bundled/skills/` are adapted from the bundled skills of the
-same repository and commit. Each one records its origin in its own frontmatter
-(`metadata.clite.attribution`). The text was rewritten for this project's tools, paths and
-conventions — no upstream file was copied verbatim, and no upstream script, template or
-reference file was brought along.
+Bundled skills ported (adapted) from `NousResearch/hermes-agent` at commit
+`1298c8e74baa73e1a2b90124228d017261ac6bc4`, each marked with an
+`attributed_from` entry in its frontmatter:
 
-| Skill here | Upstream skill | Author recorded upstream |
-|---|---|---|
-| `productivity/meeting-action-items` | `skills/productivity/meeting-action-items` | Ben Barclay, Hermes Agent |
-| `productivity/weekly-review-planning` | `skills/productivity/weekly-review-planning` | Ben Barclay, Hermes Agent |
-| `research/arxiv` | `skills/research/arxiv` | Hermes Agent |
-| `research/competitor-news-monitor` | `skills/research/competitor-news-monitor` | Ben Barclay, Hermes Agent |
-| `research/grounded-citations` | `skills/research/grounded-citations` | Hermes Agent + Teknium |
-| `research/llm-wiki` | `skills/research/llm-wiki` | Hermes Agent, after Andrej Karpathy's LLM wiki |
-| `software-development/codebase-inspection` | `skills/software-development/codebase-inspection` | Hermes Agent |
-| `software-development/github` | `skills/software-development/github` | Ben Barclay, Hermes Agent |
-| `software-development/python-debugpy` | `skills/software-development/python-debugpy` | Hermes Agent |
-| `software-development/requesting-code-review` | `skills/software-development/requesting-code-review` | Hermes Agent, adapted from obra/superpowers and MorAlekss |
-| `software-development/simplify-code` | `skills/software-development/simplify-code` | Hermes Agent, after Claude Code's `/simplify` |
-| `software-development/spike` | `skills/software-development/spike` | Hermes Agent, adapted from gsd-build/get-shit-done |
-
-The license below is the one these skills arrived under.
+- `software-development/codebase-inspection`
+- `software-development/github`
+- `software-development/node-inspect-debugger`
+- `software-development/python-debugpy`
+- `software-development/requesting-code-review` (yang sendirinya mengadaptasi obra/superpowers dan MorAlekss)
+- `software-development/simplify-code`
+- `software-development/spike`
+- `productivity/airtable`
+- `productivity/box`
+- `productivity/document-to-action-items`
+- `productivity/docx`
+- `productivity/google-workspace`
+- `productivity/maps`
+- `productivity/meeting-action-items`
+- `productivity/notion`
+- `productivity/pdf`
+- `productivity/powerpoint`
+- `productivity/product-price-monitor`
+- `productivity/weekly-review-planning`
+- `productivity/xlsx`
+- `research/arxiv`
+- `research/competitor-news-monitor`
+- `research/grounded-citations`
+- `research/llm-wiki`

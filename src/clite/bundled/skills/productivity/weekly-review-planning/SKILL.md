@@ -1,84 +1,82 @@
 ---
 name: weekly-review-planning
-description: Run a bounded weekly review over the user's notes and tasks, then propose next week's plan. Use when asked what slipped, what is waiting, or to plan the coming week.
-version: 1.0.0
-author: C-lite
+description: "Weekly reset: commitments, stalled work, next-week plan."
+version: 0.1.0
+author: Ben Barclay (benbarclay), C-lite
 license: MIT
+platforms: [linux, macos, windows]
 metadata:
   clite:
-    category: productivity
-    tags: [weekly-review, planning, tasks]
-    attribution: "Adapted from the weekly-review-planning skill in Nous Research's hermes-agent (MIT, Copyright (c) 2025 Nous Research) by Ben Barclay."
+    attributed_from: NousResearch/hermes-agent@1298c8e74b (MIT)
+    tags: [Weekly-Review, Planning, Tasks, Calendar, Productivity]
+    related_skills: [notion, airtable, google-workspace]
 ---
 
-# Weekly review and planning
+# Weekly Review and Planning
 
-A concrete, bounded reset over the sources the user actually keeps — not a general
-productivity methodology. It can be run by hand or fired by a `cronjob` tick.
+Run a bounded weekly reset across the user's chosen systems. This is a concrete recurring task, not a generic productivity methodology — the `weekly-review` Automation Blueprint schedules it as a cron job.
 
-## When to use
+## When to Use
 
 - "Run my weekly review."
-- "What did I commit to, and what is slipping?"
-- "Plan next week."
-- "Find the projects that have gone quiet."
-- A scheduled weekly job fires.
+- "What did I commit to and what is slipping?"
+- "Plan next week from my calendar, tasks, and notes."
+- "Find stale projects and waiting items."
+- A cron tick fires for a scheduled weekly review.
 
-Not for a daily brief, and not for triaging one inbox.
+Don't use for: daily briefs (see the `google-workspace` daily-brief reference) or single-inbox triage (`email-inbox-triage`).
 
-## Steps
+## Procedure
 
-1. **Agree on the sources and the window.** Confirm the timezone, the period under review, the
-   planning horizon, and which places are authoritative: task lists, notes, calendars,
-   inboxes. Where two sources disagree about the same thing, decide and state which one wins.
-   Default to proposals, not edits.
+### 1. Set systems and window
 
-2. **Read the two halves of the calendar**: the week that finished (what was promised and
-   what happened) and the one or two weeks ahead (deadlines, travel, preparation, capacity).
-   Capture the follow-ups implied by what already happened, not only the scheduled items.
+Confirm timezone, review period, planning horizon, authoritative task/project store, calendars, inboxes, and allowed writes. Default to recommendations/drafts, not mutations. Done when source-of-truth conflicts have a declared winner.
 
-3. **Clear the capture points.** Walk the task list, the notes and anything else declared in
-   step 1. Give each item one of: next action, project, waiting, scheduled, someday,
-   reference, archive, delete. Count what is left unprocessed and say the number instead of
-   quietly stopping.
+### 2. Review calendar evidence
 
-4. **Reconcile the active projects.** For each one: the outcome wanted, the next action, the
-   owner, the deadline, the blocker, the last time anything happened, and where it lives. Flag
-   a project with no next action, a passed date, a duplicate record or a contradictory status.
-   A project is either actionable or explicitly paused.
+Load `google-workspace` or the relevant calendar connector. Inspect the completed week for meetings and commitments, then the next 1-2 weeks for deadlines, travel, preparation, and capacity. Capture follow-ups implied by past events and conflicts ahead. Done when both retrospective and horizon are covered.
 
-5. **Review what is waiting.** Separately list what the user owes others and what others owe
-   the user. Propose a follow-up with a date and a channel for each. Silence is not
-   completion; never treat it as one.
+### 3. Clear capture inboxes
 
-6. **Build a plan that fits the capacity.** Estimate the fixed load first, then pick a small
-   set of outcomes for the week and their near-term next actions. Rank by consequence,
-   deadline, dependency and effort. Do not fill every free hour, and name what was deferred —
-   a plan that does not say what it dropped is not a plan.
+Review the task inbox, notes (such as `notion`), flagged email, and other declared capture points. Convert each item to next action, project, waiting, scheduled, someday, reference, archive, or delete proposal. Do not mutate until scope is approved. Done when remaining unprocessed items are counted and stated.
 
-7. **Apply only what was approved**, then read each changed record back.
+### 4. Reconcile active projects
 
-## Output shape
+For each project identify desired outcome, next action, owner, deadline, blocker, last meaningful activity, and source link. Flag projects with no next action, missed dates, duplicate records, or contradictory status. Done when every active project is actionable or explicitly paused.
 
-1. Wins and commitments met
+### 5. Review waiting and commitments
+
+Find promises made by the user and items owed by others. Propose follow-ups with dates and channels. Do not infer that silence means completion. Done when each waiting item has an owner and next review/follow-up date.
+
+### 6. Build a capacity-aware plan
+
+Estimate fixed calendar load and select a small set of weekly outcomes plus near-term next actions. Rank by consequence, deadline, dependency, and effort; do not fill every free hour. Done when the plan fits actual capacity and names deferred work.
+
+### 7. Apply approved updates
+
+Update tasks/projects, create calendar holds, archive processed items, and draft follow-ups only as approved. Read every changed record back from the provider. Done when verified writes match the review summary.
+
+## Output Shape
+
+1. Wins and completed commitments
 2. Overdue or at risk
-3. Waiting on others, and follow-ups
+3. Waiting/follow-ups
 4. Stalled or ambiguous projects
-5. Next week's outcomes and the constraints on them
-6. Proposed changes, awaiting approval
-7. Gaps in coverage — what could not be read
+5. Next week's outcomes and calendar constraints
+6. Proposed updates awaiting approval
+7. Coverage gaps
 
 ## Pitfalls
 
-- Planning from a task list without looking at the calendar.
-- Carrying every unfinished item forward as top priority.
-- Leaving a project marked active with no next action.
-- Moving or deleting a personal commitment without asking.
-- Reading silence from someone else as done.
+- Planning from tasks without calendar capacity.
+- Carrying every unfinished item forward as high priority.
+- Marking projects active with no next action.
+- Silently deleting or rescheduling personal commitments.
+- Treating silence from others as completion.
 
 ## Verification
 
-- [ ] Both the finished week and the horizon were covered, or the gaps are named.
-- [ ] Every "stalled" or "waiting" flag points at a specific record, event or thread.
-- [ ] Nothing was changed without approval, and every approved change was read back.
-- [ ] The plan says what was deferred, not only what was chosen.
+- [ ] Both the completed week and the planning horizon were covered, or gaps are stated.
+- [ ] Every stalled/waiting flag traces to a specific record, event, or thread.
+- [ ] No task, event, or note was mutated without approval; approved writes were read back.
+- [ ] The plan names what was deferred, not just what was chosen.
