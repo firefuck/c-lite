@@ -22,7 +22,7 @@ untuk orang yang **memakai** C-lite ada di folder `website/`, terbit dalam dua b
 | [arsitektur/](arsitektur/README.md) | Lapisan, alur giliran, invarian, format data, protokol RPC, keamanan, beda dengan Hermes | Ditulis tangan; berubah bila arsitektur berubah |
 | [spesifikasi/](spesifikasi/README.md) | Satu dokumen per modul: tanggung jawab, kontrak, status fitur, celah | Ditulis tangan; berubah bersama kode modulnya |
 | [referensi/](referensi/katalog.md) | Katalog (tool, perintah, method RPC, kunci config) dan peta modul | **Dihasilkan** oleh `scripts/gen_docs.py`; jangan disunting |
-| [roadmap/](roadmap/README.md) | 55 task dalam enam fase, dengan kriteria selesai | Ditulis tangan; status diperbarui tiap task selesai |
+| [roadmap/](roadmap/README.md) | 62 task dalam enam fase, dengan kriteria selesai | Ditulis tangan; status diperbarui tiap task selesai |
 | [prompts/](prompts/README.md) | Prompt siap pakai untuk mengerjakan proyek dengan AI | Ditulis tangan |
 | [hermes/](hermes/README.md) | Bedah Hermes Agent dan peta padanan file | Ditulis tangan; mengacu ke satu commit Hermes |
 | [STATUS.md](STATUS.md) | Apa yang dijaga tes, apa yang belum diverifikasi | Diperbarui tiap ada yang terverifikasi |

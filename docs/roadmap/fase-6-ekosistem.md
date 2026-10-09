@@ -498,7 +498,9 @@ cepat, konfigurasi, tool, skill, plugin, gateway, keamanan.
 **Rujukan Hermes.** `website/docs/`, `website/docusaurus.config.ts`, `website/sidebars.ts`.
 
 **Selesai bila.**
-- [x] Situs terbit, dan tautannya ada di `README.md`.
+- [ ] Situs terbit di GitHub Pages. Tautannya sudah ada di `README.md`, dan
+      `.github/workflows/docs.yml` sudah menulis dan mengunggah artefaknya seperti yang
+      dijalankan di sini, tetapi workflow-nya belum pernah berjalan di GitHub.
 - [x] Tes: halaman rujukan pengguna sama dengan keluaran pembangkitnya.
 - [x] Tes: contoh perintah di halaman mulai cepat berjalan apa adanya.
 
