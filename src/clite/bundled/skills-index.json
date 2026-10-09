@@ -19,6 +19,42 @@
       "version": "1.0.0"
     },
     {
+      "category": "research",
+      "description": "Search arXiv papers by keyword, author, category, or ID.",
+      "hash": "sha256:cd9588e04dd6a7a4738e64916ed66f91708e95c0141eb945eedf1a62c242f083",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/research/arxiv",
+      "name": "arxiv",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
+      "category": "research",
+      "description": "Watch named companies for material news; cited digests.",
+      "hash": "sha256:299939239d4435a63e9a42b9743304202074092df226fcd4e51859a566bf334b",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/research/competitor-news-monitor",
+      "name": "competitor-news-monitor",
+      "source": "github",
+      "version": "0.1.0"
+    },
+    {
+      "category": "research",
+      "description": "Ground answers and documents in cited, verifiable sources.",
+      "hash": "sha256:fac7640485e6ca017c20e7fd9037c29e91207cdfb69b832536b7d7acbff24c89",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/research/grounded-citations",
+      "name": "grounded-citations",
+      "source": "github",
+      "version": "1.2.0"
+    },
+    {
+      "category": "research",
+      "description": "Karpathy's LLM Wiki: build/query interlinked markdown KB.",
+      "hash": "sha256:d159d7a4d96fb594d8e2cfb98c00e30538a3e3858bba0d276999da7b585bfc62",
+      "identifier": "dragovics/clite/src/clite/bundled/skills/research/llm-wiki",
+      "name": "llm-wiki",
+      "source": "github",
+      "version": "2.1.0"
+    },
+    {
       "category": "software-development",
       "description": "Find the root cause of a bug before changing code. Use for any failing test, crash, or behaviour that does not match what the code appears to say.",
       "hash": "sha256:f30208aab19d972b77d5af7092cd899c93f9f9a2fec1df15631602a3a4af6537",
