@@ -235,11 +235,24 @@ test("the app opens the dashboard, sends a message to the mock provider, and sho
     });
     await cdp.send("Runtime.enable");
 
-    const evaluated = (await cdp.send("Runtime.evaluate", {
-      expression: INTERACTION,
-      awaitPromise: true,
-      returnByValue: true,
-    })) as { result?: { value?: { user?: string; answer?: string } } };
+    // A slow runner can reload the page (a renderer restart) while the interaction is in
+    // flight; CDP answers that with "Execution context was destroyed". The interaction is
+    // safe to rerun from scratch, so let the page settle and try again.
+    let evaluated: { result?: { value?: { user?: string; answer?: string } } };
+    for (let attempt = 1; ; attempt++) {
+      try {
+        evaluated = (await cdp.send("Runtime.evaluate", {
+          expression: INTERACTION,
+          awaitPromise: true,
+          returnByValue: true,
+        })) as { result?: { value?: { user?: string; answer?: string } } };
+        break;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (attempt >= 3 || !message.includes("context was destroyed")) throw error;
+        await new Promise((wake) => setTimeout(wake, 2_000));
+      }
+    }
     const rendered = evaluated.result?.value ?? {};
     assert.equal(rendered.user, "hello from the desktop smoke test");
     assert.equal(rendered.answer, "You said: hello from the desktop smoke test");
