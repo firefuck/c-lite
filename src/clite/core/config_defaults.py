@@ -110,6 +110,20 @@ DEFAULT_CONFIG: dict[str, Any] = {
     # downscaling; `max_images` is the ceiling per message; `max_edge` is the longest side in
     # pixels an oversized image is shrunk to (needs the `images` extra, Pillow).
     "attachments": {"max_bytes": 5_000_000, "max_images": 8, "max_edge": 1568},
+    # Voice. Each half selects a backend plugin by name (empty = the first configured one).
+    # `max_seconds` and `max_bytes` bound one inbound recording before it is sent for
+    # transcription -- the byte ceiling only bites below `attachments.max_bytes`, since a larger
+    # file is refused before it is stored. `max_chars` bounds the text one `text_to_speech` call
+    # may speak; zero means no ceiling on either count.
+    # `reply_with_voice` names the platforms whose answer to a voice message is spoken back.
+    "speech": {
+        "transcription": {"provider": "", "model": "", "language": ""},
+        "speech": {"provider": "", "model": "", "voice": ""},
+        "max_seconds": 300,
+        "max_bytes": 10_000_000,
+        "max_chars": 4000,
+        "reply_with_voice": [],
+    },
     # ── Context ──────────────────────────────────────────────────────────────────────────
     "compression": {
         "enabled": True,

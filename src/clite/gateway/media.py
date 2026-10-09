@@ -36,10 +36,16 @@ _MAGIC = (
     (b"PK\x03\x04", DOCUMENT, ".zip"),
     (b"\x1f\x8b", DOCUMENT, ".gz"),
     (b"OggS", AUDIO, ".ogg"),
+    (b"ID3", AUDIO, ".mp3"),
     (b"\x1aE\xdf\xa3", VIDEO, ".webm"),
 )
+# The audio frame sync of MPEG-1/2 Layer III, which carries no other marker at the front. An
+# M4A voice memo is left to its name: its container is the same ISO base media header a video
+# uses, and guessing audio from those five bytes would call every MP4 a voice message.
+_MP3_SYNC = (b"\xff\xfb", b"\xff\xfa", b"\xff\xf3", b"\xff\xf2")
 _IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp")
 _TEXT_SUFFIXES = (".md", ".txt", ".json", ".csv", ".yaml", ".yml", ".py", ".log")
+_AUDIO_SUFFIXES = (".mp3", ".m4a", ".wav", ".oga", ".opus", ".flac")
 
 
 class MediaError(Exception):
@@ -87,6 +93,10 @@ def classify(data: bytes, name: str = "") -> tuple[str, str]:
     for magic, kind, extension in _MAGIC:
         if data.startswith(magic):
             return kind, extension
+    if data[:2] in _MP3_SYNC:
+        return AUDIO, ".mp3"
+    if data[:4] == b"RIFF" and data[8:12] == b"WAVE":
+        return AUDIO, ".wav"
     if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
         return IMAGE, ".webp"
     suffix = Path(name).suffix.lower()
@@ -94,6 +104,8 @@ def classify(data: bytes, name: str = "") -> tuple[str, str]:
         return IMAGE, suffix
     if suffix in _TEXT_SUFFIXES:
         return DOCUMENT, suffix
+    if suffix in _AUDIO_SUFFIXES:
+        return AUDIO, suffix
     if data[:1] in (b"\x7b", b"\x5b"):  # a JSON object or array
         return DOCUMENT, ".json"
     return OTHER, suffix or ".bin"

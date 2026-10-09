@@ -116,6 +116,21 @@ class LocalAdapter(BasePlatformAdapter):
             self._condition.notify_all()
             return SendResult(True, message_id=f"file-{len(self.files)}")
 
+    def wait_for_files(self, count: int, timeout: float = 5.0) -> list[dict[str, Any]]:
+        """Block until ``count`` files have been sent; return them.
+
+        A file often follows the text answer rather than arriving with it -- a spoken reply is
+        made after the words are already on screen -- so a test has to wait for the file too.
+        """
+        deadline = time.monotonic() + timeout
+        with self._condition:
+            while len(self.files) < count:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError(f"expected {count} files, got {[f['path'] for f in self.files]}")
+                self._condition.wait(remaining)
+            return list(self.files)
+
     def wait_for_messages(self, count: int, timeout: float = 5.0) -> list[str]:
         """Block until ``count`` messages have been sent; return all their texts."""
         deadline = time.monotonic() + timeout

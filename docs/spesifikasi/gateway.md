@@ -73,6 +73,22 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
   `max_message_length` adapter.
 - Giliran yang gagal dilaporkan di chat.
 
+**Suara**
+- Pesan suara ditranskripsi sebelum menjadi giliran (`TranscriptionProvider` di
+  `tools/speech.py`; plugin mendaftarkannya dengan `ctx.register_transcription_provider`).
+  Giliran melihat kata-katanya, bukan path berkas; transkripnya masuk sebagai teks pengguna,
+  sedangkan berkasnya tetap tersimpan di direktori media sesi. Batas `speech.max_seconds` dan
+  `speech.max_bytes` diperiksa lebih dulu: rekaman yang melewatinya tidak dikirim ke mana pun
+  untuk ditranskripsi. Batas ukuran itu hanya menggigit bila diset lebih ketat dari
+  `attachments.max_bytes`, karena berkas yang lebih besar sudah ditolak sebelum disimpan.
+- Tidak ada jalur suara yang boleh menggagalkan giliran. Tanpa provider, tanpa durasi yang bisa
+  dibaca, atau dengan provider yang error, model tetap menerima pemberitahuan yang jujur dan
+  pengguna tetap mendapat jawaban.
+- Jawaban atas pesan suara dibalas suara hanya untuk platform yang disebut
+  `speech.reply_with_voice`, dan hanya bila ada `SpeechProvider`. Jawaban yang lebih panjang
+  dari `speech.max_chars` dibiarkan sebagai teks, bukan diucapkan sebagian. Salinan bersuara
+  dibuat setelah jawaban teks terkirim dan bersifat bonus: kegagalannya tidak mengubah giliran.
+
 **Persetujuan dan klarifikasi lewat chat**
 - Perintah berbahaya: agent mengirim perintahnya dan menunggu `/approve`, `/approve session`,
   `/approve always`, atau `/deny`. Diam sampai `approvals.timeout` berarti tolak.
@@ -104,6 +120,7 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
 | Adapter Signal | 🟡 | Plugin platform bawaan berbicara ke REST `signal-cli` yang dijalankan pengguna: polling `GET /v1/receive/<akun>` dan kirim DM melalui `POST /v2/send`. Hanya pengirim pada `allowed_users` yang diteruskan; tidak ada alur pairing. Diuji terhadap server REST tiruan lokal (`tests/gateway/test_signal.py`); belum diuji terhadap layanan Signal atau `signal-cli` asli: F4-T3 |
 | Adapter WhatsApp | 🟡 | Plugin platform bawaan memakai webhook Cloud API resmi untuk pesan masuk yang diverifikasi dengan `X-Hub-Signature-256`, dan Graph API untuk balasan teks. Hanya pengirim pada `allowed_users` yang diteruskan. Diuji terhadap webhook dan Graph API tiruan lokal (`tests/gateway/test_whatsapp.py`); layanan WhatsApp Cloud API asli belum diverifikasi: F4-T3 |
 | Lampiran masuk dan keluar (gambar, suara, dokumen) | 🟡 | `gateway/media.py` menyimpan lampiran ke `<home>/gateway/media/<sesi>`: jenis ditentukan dari isi berkas (bukan nama), batas ukuran ditolak sebelum ditulis, direktori dibersihkan saat sesi tutup. Gambar masuk ke permintaan model sebagai bagian konten; dokumen diberitahukan sebagai path yang bisa dibaca. `send_file` membatasi path ke direktori kerja + media sesi dan tetap lewat `read_denied_reason`. Telegram menerima foto/dokumen/suara/video (`fetch_attachment`) dan mengirim lewat `sendDocument`. Dijaga `tests/gateway/test_gateway.py`. Belum diuji terhadap Telegram sungguhan: F4-T4 |
+| Pesan suara masuk, jawaban bersuara | 🟡 | Pesan suara ditranskripsi sebelum menjadi giliran lewat `TranscriptionProvider` (plugin bawaan `speech-openai`; backend tiruan di tes); batas `speech.max_bytes` / `speech.max_seconds` diperiksa lebih dulu dan kegagalan apa pun berakhir sebagai pemberitahuan, bukan giliran yang hilang. Jawaban bersuara hanya untuk platform di `speech.reply_with_voice`, lewat `SpeechProvider` dan `send_file`. Dijaga `tests/gateway/test_gateway.py`. Uji tangan di Telegram belum dijalankan (tidak ada kredensial): F6-T7 |
 | Jawaban streaming (menyunting pesan), progres tool | ✅ | Adapter yang bisa menyunting (`can_edit`/`edit`) mendapat jawaban bertahap: `gateway/stream.py` mengirim satu pesan lalu menyuntingnya dengan batas laju, dan satu pesan status yang diperbarui untuk progres tool (`display.tool_progress`). Suntingan yang ditolak platform tidak kehilangan jawaban (sisa dikirim sebagai pesan baru). Adapter tanpa `edit` tetap seperti semula. Dijaga `tests/gateway/test_gateway.py`: F4-T5 |
 | Layanan sistem (systemd, launchd), restart dengan drain | ✅ | `clite gateway install`, `uninstall`, `start`, `stop`, `restart`, `status`, dan `logs`; unit user systemd/LaunchAgent dibuat per profil, kunci menolak instance kedua dalam home yang sama, dan SIGTERM menghentikan pesan baru lalu menunggu giliran aktif. Dijaga `tests/gateway/test_service.py`: F4-T6. Verifikasi manual systemd Linux belum dilakukan. |
 | Kebijakan reset sesi (menganggur, harian), home channel | ✅ | `gateway.session_reset` (`idle`, `daily`), notifikasi reset sesi satu kali; `/sethome` menetapkan home channel; cron `deliver: <platform>` mengirim ke home channel platform tersebut. Dijaga `tests/gateway/test_gateway.py`: F4-T7 |

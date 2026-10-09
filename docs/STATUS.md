@@ -61,6 +61,47 @@ pihak ketiga, skill berat yang membawa skrip sendiri (`docx`, `xlsx`, `pdf`, `po
 pemisahan bawaan/opsional — hub C-lite belum punya sumber `optional-skills`. Daftarnya ada di
 [roadmap fase 6](roadmap/fase-6-ekosistem.md#f6-t2-porting-skill-bawaan-dari-hermes).
 
+### F6-T7 suara (10 Oktober 2026)
+
+Dua registry provider di `src/clite/tools/speech.py` (`TranscriptionProvider`, `SpeechProvider`),
+masing-masing dipilih lewat `speech.transcription.provider` dan `speech.speech.provider`. Nama
+yang tidak terdaftar, factory yang rusak, atau provider berkunci tanpa kunci di `.env` dilewati;
+yang tersisa dipakai, supaya satu backend rusak tidak mematikan seluruh suara. Plugin bawaan
+`speech-openai` (`kind: backend`) mendaftarkan dua provider sekaligus atas `OPENAI_API_KEY` yang
+sama: `openai-transcribe` (`POST /v1/audio/transcriptions`) dan `openai-speech`
+(`POST /v1/audio/speech`). Bentuk permintaan, daftar suara, dan batas 25 MB / 4096 karakter
+dicatat di docstring plugin bersama tanggal pemeriksaannya.
+
+Pesan suara ditranskripsi di `gateway/runner.py` sebelum menjadi giliran: transkripnya masuk
+sebagai teks pengguna, berkasnya tetap di direktori media sesi, dan model tidak menerima path
+rekaman kecuali transkripsi gagal. `speech.max_seconds` dan `speech.max_bytes` diperiksa lebih
+dulu, jadi rekaman yang melewatinya tidak pernah dikirim ke provider — catatan: dengan bawaan
+`attachments.max_bytes: 5000000` yang lebih ketat, batas ukuran suara baru menggigit bila
+diset di bawahnya. Durasi dibaca dari header
+container — WAV lewat modul `wave`, Ogg Opus lewat granule position halaman terakhir — dan
+container yang tidak menyebutkan durasinya hanya tunduk pada batas ukuran. Setiap kegagalan
+(provider tidak ada, provider error, provider mengembalikan bukan string, transkrip kosong)
+berakhir sebagai pemberitahuan ke model; tidak ada jalur suara yang menggagalkan giliran.
+
+Tool `text_to_speech` menulis berkas audio dan menyerahkan pengirimannya ke `send_file`, dan
+hanya ditawarkan bila ada provider yang bisa dipakai (`check_fn`); teks di atas
+`speech.max_chars` ditolak sebelum provider dipanggil. Jawaban atas pesan suara dibalas suara
+hanya untuk platform yang disebut `speech.reply_with_voice`, dan jawaban yang terlalu panjang
+dibiarkan sebagai teks.
+
+Dijaga `tests/tools/test_speech.py` (24) dan bagian "voice messages and spoken replies" di
+`tests/gateway/test_gateway.py` (13), termasuk kedua kriteria "selesai bila": pesan suara dari
+adapter `local` menjadi giliran dengan transkrip provider tiruan, dan `text_to_speech` tidak
+ditawarkan tanpa provider. Bentuk permintaan `speech-openai` diuji terhadap server HTTP lokal,
+seperti plugin provider lain: multipart transkripsi (`file`, `model`, `language`,
+`response_format`) dan badan JSON suara (`model`, `input`, `voice`, `speed`, `response_format`),
+beserta pesan galat API yang diteruskan apa adanya.
+
+Yang belum: uji tangan di Telegram, yang jadi kriteria ketiga F6-T7, belum dijalankan — tidak
+ada kredensial bot di mesin ini dan transkripsi sungguhan butuh `OPENAI_API_KEY`. Jadi belum ada
+satu pun panggilan ke Audio API OpenAI yang nyata; yang diuji adalah bentuk permintaan terhadap
+server tiruan dan perilaku tool terhadap backend tiruan. Karena itu F6-T7 tetap 🟡.
+
 ### F2-T14 OAuth dan `clite auth` (8 Oktober 2026)
 
 Dukungan OAuth 2.0 PKCE dan Device Code flow untuk provider model:

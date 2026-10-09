@@ -205,6 +205,22 @@ class PluginContext:
         image_gen.register_image_provider(name, factory)
         self._record("image_provider", name, lambda: image_gen._PROVIDERS.pop(name, None))
 
+    def register_transcription_provider(self, name: str, factory: Callable[[], Any]) -> None:
+        """Add a speech-to-text backend, selectable with ``speech.transcription.provider``."""
+        from clite.tools import speech
+
+        speech.register_transcription_provider(name, factory)
+        self._record(
+            "transcription_provider", name, lambda: speech.unregister_transcription_provider(name)
+        )
+
+    def register_speech_provider(self, name: str, factory: Callable[[], Any]) -> None:
+        """Add a text-to-speech backend, selectable with ``speech.speech.provider``."""
+        from clite.tools import speech
+
+        speech.register_speech_provider(name, factory)
+        self._record("speech_provider", name, lambda: speech.unregister_speech_provider(name))
+
     def register_platform(self, name: str, factory: Callable[..., Any]) -> None:
         """Add a gateway platform adapter. ``factory(config, runner)`` returns the adapter."""
         from clite.gateway.platforms import base

@@ -170,7 +170,7 @@ dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
 | F6-T4 | Server ACP | L | - | 🟡 |
 | F6-T5 | Ekosistem plugin | L | - | ✅ |
 | F6-T6 | Context engine alternatif | M | F2-T11 | ✅ |
-| F6-T7 | Suara | L | F4-T4 | ⬜ |
+| F6-T7 | Suara | L | F4-T4 | 🟡 |
 | F6-T8 | Batch runner dan ekspor lintasan | M | - | ✅ |
 | F6-T9 | Situs dokumentasi pengguna | M | F1-T7 | ⬜ |
 

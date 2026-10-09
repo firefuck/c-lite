@@ -64,6 +64,15 @@
       "version": "1.0.0"
     },
     {
+      "description": "Voice messages and spoken replies via the OpenAI Audio API (requires OPENAI_API_KEY)",
+      "hash": "sha256:2bc954ff9b095ba67cbfa2ede3d5c072c8cea1781cb604620c38ad310c0164bb",
+      "identifier": "dragovics/clite/src/clite/bundled/plugins/speech-openai",
+      "kind": "backend",
+      "name": "speech-openai",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
       "description": "Web search via the DuckDuckGo HTML endpoint (no API key required)",
       "hash": "sha256:09919a5340d41bff2eb7fbc7ac31175363c433c1ec43f0456bc353320b78356e",
       "identifier": "dragovics/clite/src/clite/bundled/plugins/web-search-ddg",

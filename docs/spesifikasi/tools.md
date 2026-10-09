@@ -23,7 +23,7 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 | Persetujuan | `approval.py` | Pola berbahaya, pola terlarang mutlak, mode `manual` / `smart` / `off` |
 | Penjaga file | `file_safety.py` | Path yang tidak boleh ditulis atau dibaca tool file; `PROTECTED_PATHS` adalah daftar file terlindung di tiap home agent, dipakai juga oleh gerbang persetujuan |
 | Lingkungan | `environments/` | `BaseEnvironment` + operasi file, backend `local`, `docker`, `ssh` |
-| Tool bawaan | `builtin/` | 20 tool (lihat [katalog](../referensi/katalog.md)) |
+| Tool bawaan | `builtin/` | 23 tool (lihat [katalog](../referensi/katalog.md)) |
 | MCP | `mcp/client.py`, `mcp/http.py` | Klien MCP tanpa SDK: transport stdio dan Streamable HTTP, tools, resources, prompts |
 
 ## Kontrak
@@ -208,6 +208,24 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
   ``<cwd>/generated-images/`` dan mengembalikan path-nya (percakapan membawa teks, bukan
   gambar). Setiap path melewati ``write_denied_reason`` seperti tulisan file lain.
 
+**`text_to_speech`**
+
+- Mengubah teks menjadi berkas audio lewat backend yang bisa dipasang (`SpeechProvider` di
+  `tools/speech.py`); sebuah plugin mendaftarkannya dengan
+  `ctx.register_speech_provider(name, factory)`. Arah sebaliknya — pesan suara menjadi teks —
+  memakai tabel kedua (`TranscriptionProvider`, `ctx.register_transcription_provider`).
+- Tool hanya ditawarkan bila ada provider yang benar-benar bisa dipakai (`check_fn`), jadi model
+  tidak pernah diberi tahu ia bisa bersuara di mesin yang tidak bisa. Provider yang butuh kunci
+  tidak dihitung bila kuncinya tidak ada di `.env`.
+- Tool berhenti di berkas; yang mengantarkannya ke pengguna adalah `send_file`. Jadi keluaran
+  bersuara menempuh jalur yang sama, dan kena pemeriksaan yang sama, dengan berkas lain yang
+  dibuat agent — dan permukaan tanpa chat pun tetap berakhir dengan berkas yang bisa diputar.
+- Path keluaran (`<cwd>/spoken/<nama>.<format>`) melewati `write_denied_reason` lebih dulu.
+  Teks yang melebihi `speech.max_chars` ditolak sebelum provider dipanggil, bukan dipotong.
+- Satu plugin bawaan berjenis `backend`: `speech-openai` (OpenAI Audio API, butuh
+  `OPENAI_API_KEY`). Kuncinya didaftarkan `register_secret`. `speech.speech.provider` dan
+  `speech.transcription.provider` memilih backend saat lebih dari satu terpasang.
+
 **`execute_code`**
 - Menjalankan program Python pendek dan mengembalikan `stdout`, `stderr`, dan `exit_code`
   secara terpisah. Program dijalankan lewat lingkungan eksekusi sesi yang sama dengan
@@ -287,6 +305,7 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 | Checkpoint sebelum menulis file | ✅ | `write_file` dan `patch` menyimpan isi lama ke `<home>/checkpoints/<id sesi>/turn-<n>/` sebelum mengubah file; `/rollback [n]` dan `/checkpoints` ada di semua surface. Batasnya: perubahan lewat perintah `terminal` tidak terlihat (lihat "Celah yang diketahui"). Dijaga `tests/tools/test_checkpoints.py`. F2-T8 |
 | Otomasi browser | ⬜ | Belum dijadwalkan |
 | `send_message` lintas platform | ✅ | Hanya ditawarkan saat gateway berjalan (`check_fn`); tujuan dibatasi ke chat asal percakapan, home channel tiap platform, dan daftar `gateway.send_targets`. Dijaga `tests/gateway/test_gateway.py`: F4-T8 |
+| Suara (`text_to_speech`) | 🟡 | Dua registry provider (`SpeechProvider`, `TranscriptionProvider`), plugin bawaan `speech-openai`, dan `check_fn` tanpa provider. Dijaga `tests/tools/test_speech.py` dan `tests/gateway/test_gateway.py`. Uji terhadap API asli belum dijalankan. F6-T7 |
 | Windows | ✅ | cmd.exe dan Git Bash: cwd, exit code, stdin, timeout/interupsi pohon proses dan penjaga path lulus di Windows nyata. CI `37499972911`, F1-T5 |
 
 ## Yang sengaja berbeda dari Hermes

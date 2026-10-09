@@ -18,6 +18,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `memory` | `memory` | never | Save durable facts to persistent memory. |
 | `send_file` | `messaging` | never | Send a local file to the user through a connected chat platform, for example a report or a generated image. |
 | `send_message` | `messaging` | never | Send a message to a chat on a connected platform, for example to tell the user something later on Telegram while working elsewhere. |
+| `text_to_speech` | `messaging` | never | Turn text into an audio file with the configured speech provider and return the path. |
 | `session_search` | `session_search` | safe | Search past conversations (all sessions, including parts that were summarised away) by keyword. |
 | `skill_manage` | `skills` | never | Create and maintain skills: your procedural memory. |
 | `skill_view` | `skills` | safe | Load a skill's full instructions. |
@@ -46,9 +47,9 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `clarify` | Ask the user a question | `clarify` |
 | `delegation` | Spawn subagents with isolated context | `delegate_task` |
 | `cronjob` | Schedule recurring or one-off agent tasks | `cronjob` |
-| `messaging` | Send messages and files to connected chat platforms | `send_message`, `send_file` |
-| `clite-cli` | Everything, for the interactive terminal | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob`, `send_message`, `send_file` |
-| `clite-gateway` | Messaging platforms | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob`, `send_message`, `send_file` |
+| `messaging` | Send messages and files to connected chat platforms, and speak | `send_message`, `send_file`, `text_to_speech` |
+| `clite-cli` | Everything, for the interactive terminal | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob`, `send_message`, `send_file`, `text_to_speech` |
+| `clite-gateway` | Messaging platforms | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `clarify`, `delegate_task`, `cronjob`, `send_message`, `send_file`, `text_to_speech` |
 | `clite-cron` | Scheduled runs | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `vision_analyze`, `image_generate`, `todo`, `memory`, `skills_list`, `skill_view`, `skill_manage`, `session_search`, `delegate_task` |
 | `clite-subagent` | Delegated workers | `terminal`, `process`, `execute_code`, `read_file`, `write_file`, `patch`, `search_files`, `web_fetch`, `web_search`, `todo`, `skills_list`, `skill_view`, `skill_manage`, `session_search` |
 
@@ -297,6 +298,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `matrix` | platform | Receive and send Matrix room messages through the Client-Server API |
 | `memory-sqlite` | backend | Long-term memory in SQLite: facts saved with a tool, found again with FTS5 search in later sessions |
 | `signal` | platform | Receive and send Signal messages through a user-run signal-cli REST service |
+| `speech-openai` | backend | Voice messages and spoken replies via the OpenAI Audio API (requires OPENAI_API_KEY) |
 | `web-search-ddg` | backend | Web search via the DuckDuckGo HTML endpoint (no API key required) |
 | `web-search-tavily` | backend | Web search via the Tavily API (requires TAVILY_API_KEY) |
 | `whatsapp` | platform | Receive WhatsApp Cloud API webhooks and send replies through the Graph API |
@@ -374,6 +376,16 @@ Nilai default dari `clite/core/config_defaults.py`. Penjelasan tiap kunci ada di
 | `attachments.max_bytes` | `5000000` |
 | `attachments.max_images` | `8` |
 | `attachments.max_edge` | `1568` |
+| `speech.transcription.provider` | `""` |
+| `speech.transcription.model` | `""` |
+| `speech.transcription.language` | `""` |
+| `speech.speech.provider` | `""` |
+| `speech.speech.model` | `""` |
+| `speech.speech.voice` | `""` |
+| `speech.max_seconds` | `300` |
+| `speech.max_bytes` | `10000000` |
+| `speech.max_chars` | `4000` |
+| `speech.reply_with_voice` | `[]` |
 | `compression.enabled` | `true` |
 | `compression.threshold` | `0.5` |
 | `compression.protect_first_n` | `3` |

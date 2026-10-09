@@ -304,6 +304,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `image_gen.py` | ``ImageProvider``: a pluggable backend for the ``image_generate`` tool. | `GeneratedImage`, `ImageProvider`, `register_image_provider()`, `unregister_image_provider()`, `reset_image_providers()`, `provider_names()`, `has_image_provider()`, `get_image_provider()` |
 | `patching.py` | Tolerant patch matching and V4A multi-file patch application. | `MatchResult`, `find_tolerant_match()`, `apply_replacement()`, `PatchHunk`, `ParsedPatch`, `parse_v4a_patch()`, `MultiFileResult`, `apply_v4a_patch()` |
 | `registry.py` | Tool registry: one process-wide table of every tool the model can call. | `ToolEntry`, `ToolRegistry`, `get_background_loop()`, `run_async()`, `tool_error()`, `tool_result()`, `discover_builtin_tools()`, `reset_check_cache()` |
+| `speech.py` | ``TranscriptionProvider`` and ``SpeechProvider``: the two pluggable backends behind voice. | `TranscriptionProvider`, `SpeechProvider`, `register_transcription_provider()`, `unregister_transcription_provider()`, `transcription_provider_names()`, `get_transcription_provider()`, `has_transcription_provider()`, `register_speech_provider()`, `unregister_speech_provider()`, `speech_provider_names()`, … (+8) |
 | `toolsets.py` | Toolsets: named groups of tools, composable through ``includes``. | `register_toolset()`, `toolset_exists()`, `resolve_toolset()`, `resolve_toolsets()`, `all_toolsets()`, `toolset_for_tool()` |
 | `web_search.py` | ``WebSearchProvider``: a pluggable backend for the ``web_search`` tool. | `WebSearchProvider`, `register_web_search_provider()`, `unregister_web_search_provider()`, `reset_web_search_providers()`, `provider_names()`, `has_web_search_provider()`, `get_web_search_provider()` |
 
@@ -324,6 +325,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `send_message.py` | ``send_message``: let the agent message a chat on a connected platform. | `send_message_tool()` |
 | `session_search.py` | ``session_search``: recall past conversations from the session database. | `session_search_tool()` |
 | `skills.py` | Skill tools: list, view (progressive disclosure), and manage (procedural memory). | `skills_list_tool()`, `skill_view_tool()`, `skill_manage_tool()` |
+| `speech.py` | ``text_to_speech``: speak text into an audio file through a configured ``SpeechProvider``. | `text_to_speech_tool()` |
 | `terminal.py` | ``terminal``: run a shell command in the session's execution environment. | `clip_lines()`, `terminal_tool()` |
 | `todo.py` | ``todo``: the agent's task list for multi-step work. | `todo_tool()` |
 | `vision.py` | ``vision_analyze``: let a text-only model look at an image through a helper model. | `vision_analyze_tool()` |
@@ -347,4 +349,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 211 modul.
+Jumlah: 213 modul.

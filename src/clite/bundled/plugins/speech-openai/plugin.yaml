@@ -1,0 +1,5 @@
+name: speech-openai
+version: 1.0.0
+description: Voice messages and spoken replies via the OpenAI Audio API (requires OPENAI_API_KEY)
+author: C-lite
+kind: backend

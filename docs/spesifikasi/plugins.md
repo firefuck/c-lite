@@ -172,7 +172,7 @@ Python yang mendaftarkan kemampuan lewat `PluginContext`, dan shell hook dari `c
 | Ledger pembatalan | ✅ | |
 | Shell hook dengan persetujuan | ✅ | |
 | Plugin bawaan contoh (`audit-log`) | ✅ | |
-| Plugin bawaan backend (`web-search-ddg`, `web-search-tavily`, `image-gen-openai`, `context-sliding-window`, `memory-sqlite`) | ✅ | DDG tanpa kunci; Tavily berkunci, `TAVILY_API_KEY` terdaftar sebagai kredensial. `context-sliding-window` dan `memory-sqlite` adalah contoh titik perluasan: context engine (F6-T6) dan provider memori (F6-T3) |
+| Plugin bawaan backend (`web-search-ddg`, `web-search-tavily`, `image-gen-openai`, `speech-openai`, `context-sliding-window`, `memory-sqlite`) | ✅ | DDG tanpa kunci; Tavily berkunci, `TAVILY_API_KEY` terdaftar sebagai kredensial. `speech-openai` mendaftarkan dua provider sekaligus (transkripsi dan suara) dan memakai `OPENAI_API_KEY` yang sama dengan `image-gen-openai`. `context-sliding-window` dan `memory-sqlite` adalah contoh titik perluasan: context engine (F6-T6) dan provider memori (F6-T3) |
 | `pip_dependencies` di manifest | ✅ | Ditampilkan sebagai perintah `pip install ...` oleh `install` dan `info`; tidak ada pemasangan otomatis. F6-T5 |
 | `provides_tools`, `provides_hooks` di manifest | 🟡 | Diparse, belum dipakai (informasi saja) |
 | Asal-usul pemasangan dan `clite plugins update` | ✅ | F6-T5: sumber, commit, versi, dan hash dicatat; `update` menampilkan diff per berkas, menolak menimpa plugin yang disunting tanpa `--force`, dan meninggalkan plugin **nonaktif** sesudah diperbarui. Dijaga `tests/plugins/test_plugin_hub.py` |

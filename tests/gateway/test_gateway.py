@@ -6,6 +6,7 @@ import json
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -923,3 +924,377 @@ def test_send_file_sends_a_workspace_file_and_refuses_credentials(gateway, tmp_p
     outside.write_text("nope")
     refused = json.loads(send_file_tool({"path": str(outside)}, ctx))
     assert "error" in refused and "outside the directories" in refused["error"]
+
+
+# ── voice messages and spoken replies (F6-T7) ──────────────────────────────────────────────
+
+_VOICE = b"OggS" + b"\x00" * 40
+
+
+def _voice(name: str = "voice.ogg", data: bytes = _VOICE) -> Any:
+    from clite.gateway.media import AUDIO, Attachment
+
+    return Attachment(kind=AUDIO, name=name, size=len(data), data=data)
+
+
+def _register_transcriber(words: str = "remind me to water the plants"):
+    """A fake speech-to-text backend, so the test never reaches a vendor."""
+    from clite.tools.speech import TranscriptionProvider, register_transcription_provider
+
+    class _Fake(TranscriptionProvider):
+        name = "fake-stt"
+
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+
+        def transcribe(self, path, *, model: str = "", language: str = "") -> str:
+            self.calls.append(str(path))
+            return words
+
+    provider = _Fake()
+    register_transcription_provider("fake-stt", lambda: provider)
+    return provider
+
+
+def test_a_voice_message_becomes_a_turn_with_the_transcript(gateway):
+    from clite.tools.speech import reset_speech_registries
+
+    provider = _register_transcriber()
+    try:
+        runner, local, client = gateway([text_response("Watering noted.")])
+        local.inject("", user_id="owner", attachments=[_voice()])
+        assert local.wait_for_messages(1) == ["Watering noted."]
+
+        sent = client.calls[0]["messages"][-1]["content"]
+        assert "remind me to water the plants" in sent  # the turn sees words, not a path
+        assert "/gateway/media/" not in sent  # the recording itself is not handed to the model
+        assert provider.calls and provider.calls[0].endswith(".ogg")
+    finally:
+        reset_speech_registries()
+
+
+def test_a_caption_and_a_voice_message_arrive_together(gateway):
+    from clite.tools.speech import reset_speech_registries
+
+    _register_transcriber("what does this button do")
+    try:
+        runner, local, client = gateway([text_response("ok")])
+        local.inject("listen to this ", user_id="owner", attachments=[_voice()])
+        local.wait_for_messages(1)
+        sent = client.calls[0]["messages"][-1]["content"]
+        assert "listen to this" in sent and "what does this button do" in sent
+    finally:
+        reset_speech_registries()
+
+
+def test_a_voice_message_without_a_provider_still_gets_an_answer(gateway):
+    from clite.tools.speech import reset_speech_registries
+
+    reset_speech_registries()
+    runner, local, client = gateway([text_response("I cannot hear that yet.")])
+    local.inject("", user_id="owner", attachments=[_voice()])
+    assert local.wait_for_messages(1) == ["I cannot hear that yet."]
+
+    sent = client.calls[0]["messages"][-1]["content"]
+    assert "No speech-to-text provider is configured" in sent
+    assert "/gateway/media/" in sent  # the model is told where the recording is
+
+
+def test_a_recording_over_the_duration_limit_is_not_sent_for_transcription(gateway, clite_home):
+    import wave
+    from io import BytesIO
+
+    from clite.tools.speech import reset_speech_registries
+
+    buffer = BytesIO()
+    with wave.open(buffer, "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(8000)
+        handle.writeframes(b"\x00\x00" * 8000 * 3)  # three seconds
+    provider = _register_transcriber()
+    try:
+        runner, local, client = gateway(
+            [text_response("That was long.")], extra="speech:\n  max_seconds: 1\n"
+        )
+        local.inject("", user_id="owner", attachments=[_voice("voice.wav", buffer.getvalue())])
+        local.wait_for_messages(1)
+
+        assert provider.calls == [], "an over-long recording must not be paid for"
+        sent = client.calls[0]["messages"][-1]["content"]
+        assert "longer than the 1 second limit" in sent
+    finally:
+        reset_speech_registries()
+
+
+def test_a_recording_over_the_byte_limit_is_not_sent_for_transcription(gateway, clite_home):
+    from clite.tools.speech import reset_speech_registries
+
+    provider = _register_transcriber()
+    try:
+        runner, local, client = gateway(
+            [text_response("That was heavy.")], extra="speech:\n  max_bytes: 10\n"
+        )
+        local.inject("", user_id="owner", attachments=[_voice()])
+        local.wait_for_messages(1)
+
+        assert provider.calls == [], "a recording over the ceiling must not be paid for"
+        sent = client.calls[0]["messages"][-1]["content"]
+        assert "larger than the 10 byte limit" in sent
+        assert "/gateway/media/" in sent  # the model is still told where it is
+    finally:
+        reset_speech_registries()
+
+
+def test_a_transcriber_that_answers_nothing_usable_is_reported(gateway):
+    """A provider that returns ``None`` rather than raising is as broken, and as survivable."""
+    from clite.tools.speech import TranscriptionProvider, register_transcription_provider
+
+    class _Silent(TranscriptionProvider):
+        name = "silent-stt"
+
+        def transcribe(self, path, *, model: str = "", language: str = ""):
+            return None
+
+    register_transcription_provider("silent-stt", _Silent)
+    try:
+        runner, local, client = gateway([text_response("I noticed.")])
+        local.inject("", user_id="owner", attachments=[_voice()])
+        assert local.wait_for_messages(1) == ["I noticed."]
+        sent = client.calls[0]["messages"][-1]["content"]
+        assert "could not be transcribed" in sent and "AttributeError" in sent
+    finally:
+        from clite.tools.speech import reset_speech_registries
+
+        reset_speech_registries()
+
+
+def test_a_failing_transcriber_is_reported_and_the_turn_still_runs(gateway):
+    from clite.tools.speech import TranscriptionProvider, register_transcription_provider
+
+    class _Broken(TranscriptionProvider):
+        name = "broken-stt"
+
+        def transcribe(self, path, *, model: str = "", language: str = "") -> str:
+            raise RuntimeError("the vendor is down")
+
+    register_transcription_provider("broken-stt", _Broken)
+    try:
+        runner, local, client = gateway([text_response("I still answered.")])
+        local.inject("", user_id="owner", attachments=[_voice()])
+        assert local.wait_for_messages(1) == ["I still answered."]
+        sent = client.calls[0]["messages"][-1]["content"]
+        assert "could not be transcribed" in sent and "the vendor is down" in sent
+    finally:
+        from clite.tools.speech import reset_speech_registries
+
+        reset_speech_registries()
+
+
+def test_the_answer_to_a_voice_message_is_spoken_where_the_platform_asks_for_it(gateway):
+    from clite.tools.speech import (
+        SpeechProvider,
+        register_speech_provider,
+        reset_speech_registries,
+    )
+
+    class _FakeSpeech(SpeechProvider):
+        name = "fake-tts"
+        output_format = "mp3"
+
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+
+        def synthesize(self, text, path, *, voice="", model="", speed=0.0):
+            self.calls.append(text)
+            Path(path).write_bytes(b"\xff\xfb" + b"\x00" * 16)
+            return Path(path)
+
+    speech = _FakeSpeech()
+    register_speech_provider("fake-tts", lambda: speech)
+    _register_transcriber()
+    try:
+        runner, local, client = gateway(
+            [text_response("Watering noted.")], extra="speech:\n  reply_with_voice: [local]\n"
+        )
+        local.inject("", user_id="owner", attachments=[_voice()])
+        local.wait_for_messages(1)
+
+        (sent,) = local.wait_for_files(1)
+        assert sent["chat_id"] == "owner"
+        assert sent["path"].endswith(".mp3")
+        assert Path(sent["path"]).read_bytes().startswith(b"\xff\xfb")
+        assert speech.calls == ["Watering noted."]  # the same words the chat shows
+    finally:
+        reset_speech_registries()
+
+
+def test_a_speech_provider_that_fails_leaves_no_file_and_the_turn_intact(gateway, clite_home):
+    from clite.tools.speech import (
+        SpeechProvider,
+        register_speech_provider,
+        reset_speech_registries,
+    )
+
+    class _Broken(SpeechProvider):
+        name = "broken-tts"
+        output_format = "mp3"
+
+        def synthesize(self, text, path, *, voice="", model="", speed=0.0):
+            Path(path).write_bytes(b"\xff\xfb half an answer")  # then the vendor gives up
+            raise RuntimeError("the vendor is down")
+
+    register_speech_provider("broken-tts", _Broken)
+    _register_transcriber()
+    try:
+        runner, local, client = gateway(
+            [text_response("Watering noted.")], extra="speech:\n  reply_with_voice: [local]\n"
+        )
+        local.inject("", user_id="owner", attachments=[_voice()])
+        assert local.wait_for_messages(1) == ["Watering noted."]  # the text answer still landed
+        assert local.files == []
+        assert list((clite_home / "gateway" / "media").rglob("reply-*")) == []
+    finally:
+        reset_speech_registries()
+
+
+def test_a_reply_too_long_to_speak_is_left_as_text(gateway, clite_home):
+    from clite.tools.speech import (
+        SpeechProvider,
+        register_speech_provider,
+        reset_speech_registries,
+    )
+
+    calls: list[str] = []
+
+    class _FakeSpeech(SpeechProvider):
+        name = "fake-tts"
+
+        def synthesize(self, text, path, *, voice="", model="", speed=0.0):
+            # Recorded, not raised: _speak_reply swallows exceptions on purpose, so a raised
+            # canary would prove nothing about whether this provider was reached.
+            calls.append(text)
+            Path(path).write_bytes(b"\xff\xfb" + b"\x00" * 16)
+            return Path(path)
+
+    register_speech_provider("fake-tts", _FakeSpeech)
+    _register_transcriber()
+    try:
+        runner, local, client = gateway(
+            [text_response("A much longer answer than that.")],
+            extra="speech:\n  reply_with_voice: [local]\n  max_chars: 5\n",
+        )
+        local.inject("", user_id="owner", attachments=[_voice()])
+        local.wait_for_messages(1)
+
+        assert calls == [], "half an answer read aloud is worse than one read"
+        assert local.files == []
+        assert list((clite_home / "gateway" / "media").rglob("reply-*")) == []
+    finally:
+        reset_speech_registries()
+
+
+def test_a_refused_upload_is_logged_and_the_spoken_file_dropped(gateway, clite_home, caplog):
+    """``send_file`` reports a refusal instead of raising, so the new caller has to look."""
+    from clite.gateway.event import SendResult
+    from clite.tools.speech import (
+        SpeechProvider,
+        register_speech_provider,
+        reset_speech_registries,
+    )
+
+    class _FakeSpeech(SpeechProvider):
+        name = "fake-tts"
+        output_format = "mp3"
+
+        def synthesize(self, text, path, *, voice="", model="", speed=0.0):
+            Path(path).write_bytes(b"\xff\xfb" + b"\x00" * 16)
+            return Path(path)
+
+    register_speech_provider("fake-tts", _FakeSpeech)
+    _register_transcriber()
+    refused: list[str] = []
+
+    def refuse(chat_id: str, path: str, **kwargs: Any) -> SendResult:
+        refused.append(path)
+        return SendResult(False, error="this platform has no upload path")
+
+    try:
+        runner, local, client = gateway(
+            [text_response("Watering noted.")], extra="speech:\n  reply_with_voice: [local]\n"
+        )
+        local.send_file = refuse  # type: ignore[method-assign]
+        with caplog.at_level("WARNING", logger="clite.gateway"):
+            local.inject("", user_id="owner", attachments=[_voice()])
+            assert local.wait_for_messages(1) == ["Watering noted."]
+            # The refusal arrives after the words do, and the file is dropped right after it.
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline and (not refused or Path(refused[0]).exists()):
+                time.sleep(0.01)
+
+        assert refused and refused[0].endswith(".mp3")
+        assert not Path(refused[0]).exists(), "a file nobody can play is not left behind"
+        assert "no upload path" in caplog.text
+    finally:
+        reset_speech_registries()
+
+
+def test_a_text_message_is_never_answered_with_audio(gateway):
+    from clite.tools.speech import (
+        SpeechProvider,
+        register_speech_provider,
+        reset_speech_registries,
+    )
+
+    calls: list[str] = []
+
+    class _FakeSpeech(SpeechProvider):
+        name = "fake-tts"
+
+        def synthesize(self, text, path, *, voice="", model="", speed=0.0):
+            calls.append(text)
+            raise AssertionError("unreachable: a text message must not be spoken back")
+
+    register_speech_provider("fake-tts", _FakeSpeech)
+    try:
+        runner, local, client = gateway(
+            [text_response("As you like.")], extra="speech:\n  reply_with_voice: [local]\n"
+        )
+        local.inject("just type it", user_id="owner")
+        local.wait_for_messages(1)
+        assert calls == []  # the provider was never reached, so nothing was spoken
+        assert local.files == []
+    finally:
+        reset_speech_registries()
+
+
+def test_text_to_speech_is_offered_to_a_chat_agent_only_when_it_can_speak(gateway):
+    from clite.tools.dispatch import get_tool_definitions
+    from clite.tools.registry import registry
+    from clite.tools.speech import (
+        SpeechProvider,
+        register_speech_provider,
+        reset_speech_registries,
+    )
+
+    class _FakeSpeech(SpeechProvider):
+        name = "fake-tts"
+
+        def synthesize(self, text, path, *, voice="", model="", speed=0.0):
+            raise AssertionError("not called here")
+
+    reset_speech_registries()
+    runner, local, client = gateway()
+    names = [definition["function"]["name"] for definition in get_tool_definitions(["clite-gateway"])]
+    assert "send_file" in names  # the rest of the messaging toolset is offered
+    assert "text_to_speech" not in names
+
+    register_speech_provider("fake-tts", _FakeSpeech)
+    try:
+        registry.reset_check_cache()  # the availability answer is cached for 30 seconds
+        names = [
+            definition["function"]["name"] for definition in get_tool_definitions(["clite-gateway"])
+        ]
+        assert "text_to_speech" in names
+    finally:
+        reset_speech_registries()

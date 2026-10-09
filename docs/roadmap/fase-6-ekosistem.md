@@ -379,14 +379,40 @@ plugin punya cara memastikan engine buatannya benar.
 `agent/transcription_provider.py`, `agent/tts_provider.py`, `tools/voice_mode.py`.
 
 **Selesai bila.**
-- [ ] Tes: pesan suara dari adapter `local` menjadi giliran dengan transkrip dari provider
+- [x] Tes: pesan suara dari adapter `local` menjadi giliran dengan transkrip dari provider
       tiruan.
-- [ ] Tes: `text_to_speech` tidak ditawarkan tanpa provider yang terkonfigurasi.
+- [x] Tes: `text_to_speech` tidak ditawarkan tanpa provider yang terkonfigurasi.
 - [ ] Dicoba dengan tangan di Telegram dan dicatat di `docs/STATUS.md`.
 
 **Ukuran.** L
 
 **Bergantung pada.** F4-T4
+
+**Yang sudah dikerjakan** (10 Oktober 2026).
+
+- Dua registry provider di `src/clite/tools/speech.py` (`TranscriptionProvider`,
+  `SpeechProvider`), masing-masing memilih backend dari `speech.transcription.provider` /
+  `speech.speech.provider`; nama yang tidak terdaftar, factory yang rusak, atau provider
+  berkunci tanpa kunci di `.env` dilewati, bukan menggagalkan seluruh suara.
+- Plugin bawaan `speech-openai` (`kind: backend`) mendaftarkan `openai-transcribe`
+  (`POST /v1/audio/transcriptions`) dan `openai-speech` (`POST /v1/audio/speech`), keduanya
+  memakai `OPENAI_API_KEY` yang didaftarkan sebagai kredensial. Bentuk permintaan dan batasnya
+  dicatat di docstring plugin beserta tanggal pemeriksaannya.
+- Pesan suara ditranskripsi di `gateway/runner.py` sebelum menjadi giliran; transkripnya masuk
+  sebagai teks pengguna dan berkasnya tetap di direktori media sesi.
+- Tool `text_to_speech` menulis berkas audio dan menyerahkan pengirimannya ke `send_file`;
+  jawaban bersuara untuk platform di `speech.reply_with_voice`.
+- Batas: `speech.max_bytes` dan `speech.max_seconds` menahan rekaman sebelum dikirim ke
+  provider; `speech.max_chars` menahan teks yang akan diucapkan. Durasi dibaca dari header
+  container (WAV lewat `wave`, Ogg Opus lewat granule position); container yang tidak
+  menyebutkan durasinya hanya tunduk pada batas ukuran.
+- Dijaga `tests/tools/test_speech.py` dan bagian "voice messages and spoken replies" di
+  `tests/gateway/test_gateway.py`.
+
+**Yang belum.** Uji tangan di Telegram belum dijalankan: tidak ada kredensial bot di mesin ini,
+dan transkripsi sungguhan butuh `OPENAI_API_KEY`. Karena itu kotak ketiga tetap kosong dan
+status di `docs/spesifikasi/gateway.md` tetap 🟡. Percakapan suara waktu nyata dan kata pemicu
+tetap di luar lingkup.
 
 ---
 

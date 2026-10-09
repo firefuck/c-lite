@@ -157,6 +157,7 @@ def test_bundled_plugins_use_only_the_plugin_api():
         "clite.plugins.hooks",
         "clite.tools.web_search",
         "clite.tools.image_gen",
+        "clite.tools.speech",
         "clite.agent.context.engine",
         "clite.agent.memory.provider",
     )

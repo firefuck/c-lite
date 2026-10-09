@@ -10,6 +10,9 @@ For every inbound message, in this order:
    answer;
 5. a slash command is run; anything else becomes the next turn, subject to the busy policy.
 
+A voice message is transcribed on the way in, so the turn sees words; where a platform asked
+for it, the answer to a voice message is spoken on the way out.
+
 A turn runs on its own thread, so one long task never blocks another chat.
 """
 
@@ -36,6 +39,7 @@ from clite.plugins.hooks import has_hook, invoke_hook
 from clite.plugins.manager import ensure_plugins_loaded
 from clite.runtime.commands import BUSY_ALLOW, resolve_command, split_command
 from clite.runtime.session import ACTION_NEW, ACTION_SUBMIT, BUSY_INTERRUPT, ChatSession, Turn, TurnQueue
+from clite.tools import speech
 
 logger = logging.getLogger("clite.gateway")
 
@@ -494,7 +498,7 @@ class GatewayRunner:
                     return
                 if isinstance(directive, dict) and directive.get("action") == "rewrite":
                     text = str(directive.get("text") or "").strip()
-        if not text:
+        if not text and not event.attachments:
             return
         if not self.is_authorized(event.source):
             self._handle_unauthorized(event.source)
@@ -520,24 +524,35 @@ class GatewayRunner:
                 self.reply(event.source, result.text)
                 return
             text = result.text  # a skill command: run it as a turn
-        images, notes = self._collect_attachments(session, event)
+        images, notes, transcript = self._collect_attachments(session, event)
+        if transcript:
+            text = f"{text}\n\n{transcript}".strip() if text else transcript
         if notes:
             text = f"{text}\n\n{notes}".strip()
-        self._submit(session, text, payload={"images": images} if images else None)
+        if not text:
+            return
+        payload: dict[str, Any] = {"images": images} if images else {}
+        if transcript:
+            payload["voice"] = True  # the turn came from a recording; how to answer is a policy
+        self._submit(session, text, payload=payload or None)
 
-    def _collect_attachments(self, session: GatewaySession, event: MessageEvent) -> tuple[list[str], str]:
+    def _collect_attachments(
+        self, session: GatewaySession, event: MessageEvent
+    ) -> tuple[list[str], str, str]:
         """Store the message's files and say what the model gets.
 
-        An image becomes a content part; anything else is announced as a path the model can read
-        with its file tools. A file over the size limit is refused with a message to the user --
-        it is never written, so nothing large lands on disk.
+        An image becomes a content part; a voice message becomes the words the transcription
+        provider heard; anything else is announced as a path the model can read with its file
+        tools. A file over the size limit is refused with a message to the user -- it is never
+        written, so nothing large lands on disk.
         """
         if not event.attachments:
-            return [], ""
+            return [], "", ""
         max_bytes = int(get_path(self.config, "attachments.max_bytes", 5_000_000) or 5_000_000)
         adapter = self.adapters.get(event.source.platform)
         images: list[str] = []
         notes: list[str] = []
+        spoken: list[str] = []
         for attachment in event.attachments:
             try:
                 if attachment.data is None:
@@ -553,15 +568,80 @@ class GatewayRunner:
                 continue
             if stored.kind == media.IMAGE:
                 images.append(str(stored.path))
+            elif stored.kind == media.AUDIO:
+                words, note = self._hear(attachment, stored)
+                if words:
+                    spoken.append(words)
+                else:
+                    notes.append(note)
             else:
                 notes.append(
                     f"The user attached {attachment.describe()}, saved at {stored.path}. "
                     "Read it with the file tools if it is relevant."
                 )
         logger.info(
-            "session %s took %d attachment(s): %d image(s)", session.key, len(event.attachments), len(images)
+            "session %s took %d attachment(s): %d image(s), %d voice note(s)",
+            session.key,
+            len(event.attachments),
+            len(images),
+            len(spoken),
         )
-        return images, "\n".join(notes)
+        return images, "\n".join(notes), "\n\n".join(spoken)
+
+    def _hear(self, attachment: media.Attachment, stored: media.StoredFile) -> tuple[str, str]:
+        """The words in one voice message, or the note explaining why there are none.
+
+        Nothing here fails the turn. Without a provider, over the length or size ceiling, or
+        with a provider that errors, the model still gets the file and the user is told what
+        happened -- a voice message that ends in silence is worse than one that ends in text.
+        """
+        limits = speech.speech_limits()
+        try:
+            size = stored.path.stat().st_size
+        except OSError as exc:
+            return "", f"{attachment.describe()} could not be read back: {exc}"
+        # A recording this large is not worth paying a transcription API for. Only a
+        # ``speech.max_bytes`` set below ``attachments.max_bytes`` can bite: the larger file is
+        # already refused, and the user told so, before it ever reaches this point.
+        if limits["max_bytes"] and size > limits["max_bytes"]:
+            return "", (
+                f"{attachment.describe()} is larger than the "
+                f"{limits['max_bytes']:,.0f} byte limit for transcription, so it was not "
+                f"transcribed; it is saved at {stored.path}."
+            )
+        seconds = speech.audio_seconds(stored.path)
+        if limits["max_seconds"] and seconds is not None and seconds > limits["max_seconds"]:
+            return "", (
+                f"The user sent a voice message of {seconds:.0f} seconds, longer than the "
+                f"{limits['max_seconds']:.0f} second limit, so it was not transcribed; it is "
+                f"saved at {stored.path}."
+            )
+        provider = speech.get_transcription_provider()
+        if provider is None:
+            return "", (
+                f"The user attached {attachment.describe()}, saved at {stored.path}. "
+                "No speech-to-text provider is configured, so it was not transcribed; read it "
+                "with the file tools if it is relevant."
+            )
+        settings = speech.transcription_settings()
+        try:
+            # A provider that answers anything but a string is as broken as one that raises, and
+            # the turn has to survive both the same way.
+            words = provider.transcribe(
+                stored.path, model=settings["model"], language=settings["language"]
+            ).strip()
+        except Exception as exc:  # noqa: BLE001 - a broken provider is reported, not fatal
+            logger.warning("transcription failed for %s", stored.path, exc_info=True)
+            return "", (
+                f"The user's voice message could not be transcribed "
+                f"({type(exc).__name__}: {exc}); it is saved at {stored.path}."
+            )
+        if not words:
+            return "", (
+                f"The user's voice message held no speech that could be transcribed; it is "
+                f"saved at {stored.path}."
+            )
+        return words, ""
 
     def _answer_pending(self, session: GatewaySession, text: str) -> bool:
         pending = session.pending
@@ -647,3 +727,66 @@ class GatewayRunner:
             return  # the user moved on; whatever interrupted this turn runs next
         if stream is None:
             self.reply(session.source, result.final_response or "(no response)")
+        self._speak_reply(
+            session,
+            adapter,
+            result.final_response or "",
+            voice=bool((turn.payload or {}).get("voice")),
+        )
+
+    def _speak_reply(
+        self,
+        session: GatewaySession,
+        adapter: BasePlatformAdapter | None,
+        text: str,
+        *,
+        voice: bool,
+    ) -> None:
+        """Answer a voice message with a voice message, on the platforms that asked for that.
+
+        The text answer is already in the chat, so this is a second, listenable copy, and nothing
+        depends on it: no provider, no policy for this platform, an answer too long to speak, or a
+        provider that fails all leave the turn exactly as it was. A long answer is left as text
+        rather than spoken in part, because half an answer read aloud is worse than one read.
+        """
+        if not voice or adapter is None or not text.strip():
+            return
+        if not speech.speaks_on(session.source.platform):
+            return
+        provider = speech.get_speech_provider()
+        if provider is None:
+            return
+        max_chars = speech.speech_limits()["max_chars"]
+        if max_chars and len(text) > max_chars:
+            logger.info(
+                "session %s: a %d character answer is too long to speak", session.key, len(text)
+            )
+            return
+        settings = speech.speech_settings()
+        directory = media.media_dir(session.key) / "spoken"
+        target = directory / f"reply-{int(time.time() * 1000)}.{provider.output_format}"
+        try:
+            directory.mkdir(parents=True, exist_ok=True)
+            provider.synthesize(text, target, voice=settings["voice"], model=settings["model"])
+            sent = adapter.send_file(
+                session.source.chat_id, str(target), thread_id=session.source.thread_id
+            )
+        except Exception:  # noqa: BLE001 - the text answer already landed; the voice copy is a bonus
+            logger.warning("session %s: could not speak the reply", session.key, exc_info=True)
+            try:  # a half-written file is worse than none, but failing to remove it is not a turn
+                target.unlink()
+            except OSError:
+                pass
+            return
+        if not sent.success:
+            # ``send_file`` reports a refusal rather than raising, so it is checked here too.
+            logger.warning(
+                "session %s: %s refused the spoken reply: %s",
+                session.key,
+                session.source.platform,
+                sent.error or "no reason given",
+            )
+            try:
+                target.unlink()
+            except OSError:
+                pass
