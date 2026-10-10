@@ -797,6 +797,72 @@ def test_tool_progress_keeps_only_the_last_lines():
     assert chat.messages["m1"] == "tool 3\ntool 4"
 
 
+def test_a_tool_message_shows_the_tool_emoji_name_and_preview():
+    import clite.tools.builtin.file_tools  # noqa: F401 - registers the emoji in the registry
+    import clite.tools.builtin.terminal  # noqa: F401
+    from clite.gateway.stream import tool_message
+
+    assert tool_message("read_file", {"path": "/tmp/report.txt"}) == "📖 read_file\n/tmp/report.txt"
+    assert tool_message("terminal", {"command": "systemctl status"}) == "💻 terminal\nsystemctl status"
+
+
+def test_a_tool_without_a_registry_emoji_falls_back_to_the_name_alone():
+    from clite.gateway.stream import tool_message
+
+    assert tool_message("mystery_tool", {"query": "status"}) == "mystery_tool\nstatus"
+
+
+def test_a_long_tool_preview_wraps_and_is_truncated_with_an_ellipsis():
+    import clite.tools.builtin.terminal  # noqa: F401 - registers the emoji in the registry
+    from clite.gateway.stream import TOOL_MESSAGE_MAX_LINES, TOOL_MESSAGE_PREVIEW_WIDTH, tool_message
+
+    lines = tool_message("terminal", {"command": "systemctl restart clite-gateway && " * 40}).splitlines()
+    assert lines[0] == "💻 terminal"
+    assert all(len(line) <= TOOL_MESSAGE_PREVIEW_WIDTH for line in lines[1:])
+    assert len(lines) - 1 <= TOOL_MESSAGE_MAX_LINES
+    assert lines[-1].endswith("…")
+
+
+def test_message_progress_sends_one_chat_message_per_tool_call(gateway):
+    runner, local, _ = gateway(
+        [
+            tool_call_response(("read_file", {"path": "/tmp/report.txt"})),
+            text_response("Read it."),
+        ],
+        extra="display:\n  tool_progress: message\n",
+    )
+    local.inject("check the report", user_id="owner")
+    assert local.wait_for_messages(2) == ["📖 read_file\n/tmp/report.txt", "Read it."]
+
+
+def test_two_tool_calls_become_two_separate_progress_messages(gateway):
+    runner, local, _ = gateway(
+        [
+            tool_call_response(("read_file", {"path": "a.txt"})),
+            tool_call_response(("terminal", {"command": "echo progress-check"})),
+            text_response("done."),
+        ],
+        extra="display:\n  tool_progress: message\n",
+    )
+    local.inject("two things", user_id="owner")
+    assert local.wait_for_messages(3) == [
+        "📖 read_file\na.txt",
+        "💻 terminal\necho progress-check",
+        "done.",
+    ]
+
+
+def test_tool_progress_off_still_sends_no_progress_messages(gateway):
+    # 'off' must be quoted: bare YAML off parses as a boolean and the session falls back
+    # to the default level instead of the requested one.
+    runner, local, _ = gateway(
+        [tool_call_response(("read_file", {"path": "a.txt"})), text_response("done.")],
+        extra='display:\n  tool_progress: "off"\n',
+    )
+    local.inject("quietly", user_id="owner")
+    assert local.wait_for_messages(1) == ["done."]
+
+
 def test_a_platform_that_refuses_edits_still_delivers_the_whole_answer(gateway):
     runner, local, client = gateway([text_response("the whole answer comes through")])
     local.fail_edits = True  # every edit is rejected, as a rate-limited platform would

@@ -83,8 +83,8 @@ COMMAND_REGISTRY: list[CommandDef] = [
         "verbose",
         "Set how much tool progress is shown",
         "Configuration",
-        args_hint="[off|new|all|verbose]",
-        subcommands=("off", "new", "all", "verbose"),
+        args_hint="[off|new|all|verbose|message]",
+        subcommands=("off", "new", "all", "verbose", "message"),
     ),
     CommandDef(
         "skin", "Show or change the display skin/theme", "Configuration", args_hint="[name]", cli_only=True

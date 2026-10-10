@@ -107,7 +107,7 @@ membutuhkan kode yang sama, kode itu tinggal di sini, bukan di salah satu surfac
 - `/hooks` menampilkan shell hook dari `plugins.shell_hooks.configured_hooks` dan mana yang
   menunggu persetujuan (`is_approved`).
 - `/pin` dan `/archive` menandai baris sesi lewat `SessionDB.update_session(pinned=/archived=)`.
-- `/verbose [off|new|all|verbose]` menetapkan `display.tool_progress` untuk sesi ini (dan
+- `/verbose [off|new|all|verbose|message]` menetapkan `display.tool_progress` untuk sesi ini (dan
   menyimpannya ke config). `/skin`, `/logs`, dan `/copy` hanya untuk terminal lokal
   (`cli_only`): handler mengembalikan teks atau `action="clipboard"`, dan surface CLI yang
   menulis ke clipboard dan mengganti tema.

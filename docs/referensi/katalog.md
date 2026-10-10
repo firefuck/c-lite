@@ -85,7 +85,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `/config` |  | Configuration | `[key]` | queue |  | Show a setting or the config file path |
 | `/reload` |  | Configuration |  | queue |  | Reload config and plugins |
 | `/profile` |  | Configuration |  | queue |  | Show the active profile and list the others |
-| `/verbose` |  | Configuration | `[off\|new\|all\|verbose]` | queue |  | Set how much tool progress is shown |
+| `/verbose` |  | Configuration | `[off\|new\|all\|verbose\|message]` | queue |  | Set how much tool progress is shown |
 | `/skin` |  | Configuration | `[name]` | queue | ya | Show or change the display skin/theme |
 | `/skills` |  | Tools & Skills | `[filter]` | queue |  | List skills |
 | `/plugins` |  | Tools & Skills |  | queue |  | List plugins and their status |

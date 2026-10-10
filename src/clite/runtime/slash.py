@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from clite.runtime.session import ChatSession
 
 REASONING_LEVELS = ("none", "minimal", "low", "medium", "high", "xhigh", "max")
-TOOL_PROGRESS_LEVELS = ("off", "new", "all", "verbose")
+TOOL_PROGRESS_LEVELS = ("off", "new", "all", "verbose", "message")
 
 
 def _when(timestamp: float | None) -> str:

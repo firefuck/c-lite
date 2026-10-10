@@ -161,7 +161,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `runner.py` | ``GatewayRunner``: the policy layer between chat platforms and the agent. | `active_runner()`, `reset_active_runners()`, `GatewaySession`, `GatewayRunner` |
 | `service.py` | System-service lifecycle for the gateway. | `service_name()`, `render_systemd_unit()`, `render_launch_agent()`, `service_path()`, `install()`, `uninstall()`, `GatewayLock`, `GatewayService`, `run_service()` |
 | `session.py` | Session keys: which conversation a message belongs to. | `build_session_key()`, `SessionMap` |
-| `stream.py` | Streaming answers into a chat: one message that grows, instead of a long silence. | `StreamSender`, `ProgressReporter`, `tool_line()` |
+| `stream.py` | Streaming answers into a chat: one message that grows, instead of a long silence. | `StreamSender`, `ProgressReporter`, `tool_line()`, `tool_message()` |
 
 ## `clite/gateway/platforms/`
 

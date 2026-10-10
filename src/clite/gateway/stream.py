@@ -10,8 +10,10 @@ function and a clock, which is what makes it testable without a platform.
 
 from __future__ import annotations
 
+import textwrap
 import time
 from collections.abc import Callable
+from typing import Any
 
 # A chat platform's edit endpoint is rate limited (Telegram allows about one edit per message
 # per second; Discord and Slack are looser but not free). One and a half seconds keeps a fast
@@ -200,3 +202,28 @@ def tool_line(name: str, result: str, seconds: float) -> str:
 
     mark = "✗" if result_failed(result) else "✓"
     return f"{mark} {name} ({seconds:.1f}s)"
+
+
+# How wide one preview line of a tool-start message may be, and how many preview lines such a
+# message keeps. A phone screen wraps around 60 columns; past ten lines the argument is no
+# longer a preview but a transcript.
+TOOL_MESSAGE_PREVIEW_WIDTH = 64
+TOOL_MESSAGE_MAX_LINES = 10
+
+
+def tool_message(name: str, args: dict[str, Any], *, width: int = TOOL_MESSAGE_PREVIEW_WIDTH) -> str:
+    """The separate chat message shown when a tool call starts (``tool_progress: message``).
+
+    The first line is the tool's emoji and name (the emoji comes from the tool registry and is
+    dropped when it has none); the rest is the argument preview from :func:`tool_preview`,
+    wrapped to ``width`` columns and cut off with an ellipsis after
+    :data:`TOOL_MESSAGE_MAX_LINES` lines.
+    """
+    from clite.runtime.presentation import tool_preview
+    from clite.tools.registry import registry
+
+    entry = registry.get(name)
+    head = f"{entry.emoji} {name}".strip() if entry and entry.emoji else name
+    preview = tool_preview(name, args, width=width * TOOL_MESSAGE_MAX_LINES)
+    lines = textwrap.wrap(preview, width=width, max_lines=TOOL_MESSAGE_MAX_LINES, placeholder="…")
+    return "\n".join([head, *lines])

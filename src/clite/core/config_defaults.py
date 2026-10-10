@@ -153,7 +153,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "display": {
         "streaming": True,
         "show_reasoning": False,
-        "tool_progress": "all",  # off | new | all | verbose
+        "tool_progress": "all",  # off | new | all | verbose | message
         "skin": "default",
         "busy_input_mode": "interrupt",  # interrupt | queue | steer
         # What a bare `clite` opens on a terminal: cli (classic) or tui (needs Node.js).
