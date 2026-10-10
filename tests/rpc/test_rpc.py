@@ -186,6 +186,7 @@ def test_a_turn_is_a_stream_of_events_ending_with_turn_complete(client, tmp_path
         "turn.step",
         "message.delta",
         "message.complete",
+        "session.info",
         "turn.complete",
     ]
     assert [event["seq"] for event in events] == list(range(1, len(events) + 1))
@@ -194,6 +195,9 @@ def test_a_turn_is_a_stream_of_events_ending_with_turn_complete(client, tmp_path
     tool_start, tool_done = events[3]["payload"], events[4]["payload"]
     assert tool_start["name"] == "read_file" and tool_start["preview"] == "notes.txt"
     assert tool_done["call_id"] == tool_start["call_id"] and tool_done["failed"] is False
+    refreshed = events[-2]["payload"]
+    assert refreshed["context"]["context_length"] > 0
+    assert refreshed["context"]["last_prompt_tokens"] > 0
     done = events[-1]["payload"]
     assert (
         done["turn_id"] == submitted["turn_id"]

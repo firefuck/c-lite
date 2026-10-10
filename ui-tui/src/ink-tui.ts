@@ -25,7 +25,7 @@ export async function runInkTui(options: InkTuiOptions): Promise<number> {
     return 1;
   }
 
-  const { waitUntilExit, unmount } = mountApp(backend.client, info.session_id);
+  const { waitUntilExit, unmount } = mountApp(backend.client, info);
 
   // When the backend dies, unmount so the process can exit.
   backend.process.on("exit", () => unmount());

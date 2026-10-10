@@ -90,6 +90,48 @@ test("the status bar shows busy when a turn is running", () => {
   assert.ok(line.includes("busy"));
 });
 
+test("the status bar presents live session, context, tool activity, and token usage", () => {
+  const line = formatStatus({
+    model: "claude-sonnet",
+    provider: "anthropic",
+    cwd: "/work/clite",
+    busy: true,
+    usagePercent: 37.5,
+    contextUsed: 48_000,
+    contextTotal: 128_000,
+    sessionId: "stored-session-abcdef",
+    title: "Refine terminal dashboard",
+    activity: "tool read_file",
+    inputTokens: 12_345,
+    outputTokens: 678,
+  });
+
+  assert.match(line, /claude-sonnet @ anthropic/);
+  assert.match(line, /48,000\/128,000 38%/);
+  assert.match(line, /Refine terminal dashboard/);
+  assert.match(line, /tool read_file/);
+  assert.match(line, /12,345 in\/678 out/);
+});
+
+test("the status bar keeps activity, model, and context visible on narrow terminals", () => {
+  const state = {
+    model: "claude-sonnet",
+    provider: "anthropic",
+    cwd: "/work/clite",
+    busy: true,
+    usagePercent: 37.5,
+    contextUsed: 48_000,
+    contextTotal: 128_000,
+    activity: "tool read_file",
+  };
+
+  const line = formatStatus(state, 55);
+  assert.ok(line.length <= 55);
+  assert.match(line, /tool read_file/);
+  assert.match(line, /claude-sonnet/);
+  assert.match(line, /48k\/128k/);
+});
+
 test("the status bar shortens the home directory to a tilde", () => {
   const home = process.env["HOME"] ?? "/home/user";
   const line = formatStatus({ model: "m", provider: "p", cwd: `${home}/projects/clite`, busy: false, usagePercent: 0 });

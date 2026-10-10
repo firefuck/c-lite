@@ -34771,16 +34771,50 @@ function ModelPicker({ models, current, onSelect, onClose }) {
 }
 
 // src/app/status-bar.ts
-function formatStatus(state) {
-  const parts = [];
-  parts.push(state.model || "(no model)");
-  if (state.cwd) {
-    const short = state.cwd.replace(process.env["HOME"] ?? "", "~");
-    parts.push(short);
+var separator = " \xB7 ";
+function tokenCount(value) {
+  return Math.max(0, Math.round(value)).toLocaleString("en-US");
+}
+function compactTokenCount(value) {
+  const rounded = Math.max(0, Math.round(value));
+  if (rounded >= 1e6) return `${Math.round(rounded / 1e5) / 10}m`;
+  if (rounded >= 1e3) return `${Math.round(rounded / 100) / 10}k`;
+  return String(rounded);
+}
+function contextLabel(state, compact = false) {
+  const count = compact ? compactTokenCount : tokenCount;
+  const used = state.contextUsed ?? 0;
+  const total = state.contextTotal ?? 0;
+  if (total > 0) {
+    return `ctx ${count(used)}/${count(total)} ${Math.round(state.usagePercent)}%`;
   }
-  if (state.usagePercent > 0) parts.push(`ctx ${Math.round(state.usagePercent)}%`);
-  if (state.busy) parts.push("busy");
-  return parts.join(" \xB7 ");
+  return state.usagePercent > 0 ? `ctx ${Math.round(state.usagePercent)}%` : "ctx \u2014";
+}
+function sessionLabel(state) {
+  const id = state.sessionId ? `#${state.sessionId.slice(-8)}` : "";
+  return [state.title, id].filter(Boolean).join(" ");
+}
+function joined(parts) {
+  return parts.filter(Boolean).join(separator);
+}
+function formatStatus(state, width) {
+  const activity = state.activity || (state.busy ? "busy" : "idle");
+  const model = state.model || "(no model)";
+  const modelWithProvider = state.provider ? `${model} @ ${state.provider}` : model;
+  const context = contextLabel(state);
+  const contextCompact = contextLabel(state, true);
+  const inputTokens = state.inputTokens ?? 0;
+  const outputTokens = state.outputTokens ?? 0;
+  const tokens = inputTokens || outputTokens ? `${tokenCount(inputTokens)} in/${tokenCount(outputTokens)} out` : "";
+  const session = sessionLabel(state);
+  const cwd2 = state.cwd ? state.cwd.replace(process.env["HOME"] ?? "", "~") : "";
+  const full = joined([`\u25CF ${activity}`, modelWithProvider, context, tokens, session, cwd2]);
+  if (!width || width <= 0 || full.length <= width) return full;
+  const useful = joined([`\u25CF ${activity}`, modelWithProvider, context, tokens]);
+  if (useful.length <= width) return useful;
+  const narrow = [`\u25CF ${activity}`, model, contextCompact].filter(Boolean).join(" | ");
+  if (narrow.length <= width) return narrow;
+  return fitStatusLine(narrow, width);
 }
 function fitStatusLine(line, width) {
   if (!width || width <= 0 || line.length <= width) {
@@ -34794,7 +34828,7 @@ var import_jsx_runtime4 = __toESM(require_jsx_runtime(), 1);
 function StatusBar({ state, width }) {
   const { stdout: stdout2 } = use_stdout_default();
   const columns = width ?? stdout2?.columns ?? 80;
-  const line = fitStatusLine(formatStatus(state), columns);
+  const line = fitStatusLine(formatStatus(state, columns), columns);
   return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Box_default, { height: 1, overflow: "hidden", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { dimColor: true, wrap: "truncate", children: line }) });
 }
 
@@ -34966,14 +35000,26 @@ function Composer({ onSubmit, onInterrupt, onQuit, prompt, catalog }) {
     ] })
   ] });
 }
-function App2({ client, sessionId }) {
+function App2({ client, session }) {
   const { exit } = use_app_default();
   const { stdout: stdout2 } = use_stdout_default();
+  const sessionId = session.session_id;
   const color = stdout2.isTTY && !process.env["NO_COLOR"];
   const [state, dispatch] = (0, import_react24.useReducer)(appReducer, emptyTranscript);
   const prompt = "\u276F";
   const turnId = (0, import_react24.useRef)(null);
-  const [status, setStatus] = (0, import_react24.useState)({ model: "", provider: "", cwd: "", busy: false, usagePercent: 0 });
+  const [status, setStatus] = (0, import_react24.useState)({
+    model: session.model,
+    provider: session.provider,
+    cwd: session.cwd,
+    busy: session.busy,
+    usagePercent: session.context?.usage_percent ?? 0,
+    contextUsed: session.context?.last_prompt_tokens ?? 0,
+    contextTotal: session.context?.context_length ?? 0,
+    sessionId: session.stored_session_id || session.session_id,
+    title: session.title,
+    activity: session.busy ? "busy" : "idle"
+  });
   const [pending, setPending] = (0, import_react24.useState)(null);
   const [catalog, setCatalog] = (0, import_react24.useState)([]);
   const [picker, setPicker] = (0, import_react24.useState)(null);
@@ -35008,16 +35054,34 @@ function App2({ client, sessionId }) {
     if (event.type === "session.info") {
       const info = event.payload;
       setStatus((s) => ({
+        ...s,
         model: info.model || s.model,
         provider: info.provider || s.provider,
         cwd: info.cwd || s.cwd,
         busy: info.busy,
-        usagePercent: info.context?.usage_percent ?? s.usagePercent
+        usagePercent: info.context?.usage_percent ?? s.usagePercent,
+        contextUsed: info.context?.last_prompt_tokens ?? s.contextUsed,
+        contextTotal: info.context?.context_length ?? s.contextTotal,
+        sessionId: info.stored_session_id || info.session_id || s.sessionId,
+        title: info.title || s.title,
+        activity: info.busy ? "busy" : "idle"
       }));
     } else if (event.type === "turn.start") {
-      setStatus((s) => ({ ...s, busy: true }));
+      setStatus((s) => ({ ...s, busy: true, activity: "thinking" }));
+    } else if (event.type === "turn.step") {
+      setStatus((s) => ({ ...s, busy: true, activity: `thinking #${event.payload.iteration}` }));
+    } else if (event.type === "tool.start") {
+      setStatus((s) => ({ ...s, busy: true, activity: `tool ${event.payload.name}` }));
+    } else if (event.type === "tool.complete") {
+      setStatus((s) => ({ ...s, busy: true, activity: "thinking" }));
     } else if (event.type === "turn.complete") {
-      setStatus((s) => ({ ...s, busy: false }));
+      setStatus((s) => ({
+        ...s,
+        busy: false,
+        activity: "idle",
+        inputTokens: event.payload.usage.input_tokens,
+        outputTokens: event.payload.usage.output_tokens
+      }));
     }
   }), [client]);
   const submit = (0, import_react24.useCallback)(async (text) => {
@@ -35113,8 +35177,15 @@ function App2({ client, sessionId }) {
 
 // src/app/mount.tsx
 var import_jsx_runtime6 = __toESM(require_jsx_runtime(), 1);
-function mountApp(client, sessionId) {
-  return render_default(/* @__PURE__ */ (0, import_jsx_runtime6.jsx)(App2, { client, sessionId }), { stdin, stdout, exitOnCtrlC: false });
+function mountApp(client, session) {
+  stdin.ref();
+  try {
+    const app = render_default(/* @__PURE__ */ (0, import_jsx_runtime6.jsx)(App2, { client, session }), { stdin, stdout, exitOnCtrlC: false });
+    return { ...app, waitUntilExit: app.waitUntilExit().finally(() => stdin.unref()) };
+  } catch (error) {
+    stdin.unref();
+    throw error;
+  }
 }
 
 // src/ink-tui.ts
@@ -35128,7 +35199,7 @@ async function runInkTui(options) {
 `);
     return 1;
   }
-  const { waitUntilExit, unmount } = mountApp(backend.client, info.session_id);
+  const { waitUntilExit, unmount } = mountApp(backend.client, info);
   backend.process.on("exit", () => unmount());
   try {
     await waitUntilExit;

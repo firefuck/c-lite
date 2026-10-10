@@ -13,7 +13,7 @@ export type { StatusBarState };
 export function StatusBar({ state, width }: { state: StatusBarState; width?: number }) {
   const { stdout } = useStdout();
   const columns = width ?? stdout?.columns ?? 80;
-  const line = fitStatusLine(formatStatus(state), columns);
+  const line = fitStatusLine(formatStatus(state, columns), columns);
 
   return (
     <Box height={1} overflow="hidden">

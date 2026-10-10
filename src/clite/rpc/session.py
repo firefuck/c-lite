@@ -201,6 +201,10 @@ class RpcSession:
             cost = payload.get("estimated_cost_usd", payload.get("cost_usd"))
             usage_payload = dict(payload["usage"])
             usage_payload["estimated_cost_usd"] = cost
+            # The context engine is updated by the completed provider response. Publish the
+            # existing session.info contract before turn.complete so live surfaces can render
+            # the measured context window without polling or a TUI-only RPC field.
+            self._emit("session.info", self.info())
             self._emit(
                 "turn.complete",
                 {

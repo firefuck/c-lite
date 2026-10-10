@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import threading
 import time
 import urllib.error
@@ -34,7 +35,36 @@ logger = logging.getLogger("clite.gateway.telegram")
 TOKEN_ENV = "TELEGRAM_BOT_TOKEN"
 DEFAULT_BASE_URL = "https://api.telegram.org"
 POLL_TIMEOUT_SECONDS = 25
+TELEGRAM_MAX_BOT_COMMANDS = 100
+TELEGRAM_MAX_COMMAND_NAME_LENGTH = 32
+TELEGRAM_MAX_COMMAND_DESCRIPTION_LENGTH = 256
+_TELEGRAM_COMMAND_NAME = re.compile(r"[a-z0-9_]{1,32}$")
 _CHAT_TYPES = {"private": CHAT_DM, "group": CHAT_GROUP, "supergroup": CHAT_GROUP, "channel": CHAT_CHANNEL}
+
+
+def telegram_command_menu() -> list[dict[str, str]]:
+    """Telegram-safe rows for the gateway slash commands declared in the shared registry."""
+    from clite.runtime.commands import commands_for
+
+    menu: list[dict[str, str]] = []
+    for command in commands_for("telegram"):
+        name = command.name.lower()
+        description = " ".join(command.description.split())
+        if not _TELEGRAM_COMMAND_NAME.fullmatch(name):
+            logger.warning("Telegram command menu skipped unsupported command name %r", command.name)
+            continue
+        if not description:
+            logger.warning("Telegram command menu skipped %r because its description is empty", command.name)
+            continue
+        menu.append(
+            {
+                "command": name,
+                "description": description[:TELEGRAM_MAX_COMMAND_DESCRIPTION_LENGTH],
+            }
+        )
+        if len(menu) == TELEGRAM_MAX_BOT_COMMANDS:
+            break
+    return menu
 
 register_secret(
     SecretSpec(
@@ -88,8 +118,16 @@ class TelegramAdapter(BasePlatformAdapter):
         if not self.token:
             raise RuntimeError(f"{TOKEN_ENV} is not set; add it to .env")
         self.bot_username = str(self._call("getMe").get("username") or "")
+        self._register_command_menu()
         self._stop.clear()
         self._thread = start_thread(self._poll, name="clite-telegram")
+
+    def _register_command_menu(self) -> None:
+        """Publish selectable slash commands without allowing a cosmetic API failure to block chat."""
+        try:
+            self._call("setMyCommands", {"commands": telegram_command_menu()}, timeout=15)
+        except Exception as exc:  # noqa: BLE001 - command menu registration is optional UX
+            logger.warning("Telegram command menu registration failed: %s", redact(str(exc)))
 
     def disconnect(self) -> None:
         self._stop.set()

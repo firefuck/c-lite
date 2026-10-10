@@ -4,10 +4,20 @@
 import { render } from "ink";
 import { stdin, stdout } from "node:process";
 
+import type { SessionInfo } from "../../../apps/shared/src/contracts.generated.ts";
 import type { GatewayClient } from "../../../apps/shared/src/gateway-client.ts";
 import { App } from "./App.tsx";
 
 /** Mount the Ink app; returns the handle whose `waitUntilExit` resolves on unmount. */
-export function mountApp(client: GatewayClient, sessionId: string) {
-  return render(<App client={client} sessionId={sessionId} />, { stdin, stdout, exitOnCtrlC: false });
+export function mountApp(client: GatewayClient, session: SessionInfo) {
+  // Ink enables raw input in Composer's passive effect. `waitUntilExit` is only a Promise,
+  // so without a referenced handle Node can exit after the first frame before that effect runs.
+  stdin.ref();
+  try {
+    const app = render(<App client={client} session={session} />, { stdin, stdout, exitOnCtrlC: false });
+    return { ...app, waitUntilExit: app.waitUntilExit().finally(() => stdin.unref()) };
+  } catch (error) {
+    stdin.unref();
+    throw error;
+  }
 }

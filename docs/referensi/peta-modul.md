@@ -172,7 +172,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `discord.py` | Discord platform adapter: WebSocket Gateway v10 + REST API. | `DiscordAdapter` |
 | `local.py` | An in-process platform: messages go in through ``inject`` and replies land in ``outbox``. | `LocalAdapter` |
 | `slack.py` | Slack platform adapter: Socket Mode + Web API. | `SlackAdapter` |
-| `telegram.py` | Telegram, over the Bot API with long polling. | `TelegramAdapter` |
+| `telegram.py` | Telegram, over the Bot API with long polling. | `telegram_command_menu()`, `TelegramAdapter` |
 
 ## `clite/plugins/`
 

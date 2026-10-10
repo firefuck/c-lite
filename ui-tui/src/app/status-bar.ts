@@ -9,19 +9,77 @@ export interface StatusBarState {
   cwd: string;
   busy: boolean;
   usagePercent: number;
+  contextUsed?: number;
+  contextTotal?: number;
+  sessionId?: string;
+  title?: string;
+  activity?: string;
+  inputTokens?: number;
+  outputTokens?: number;
 }
 
-/** One line: `model · cwd · context N% · busy`. */
-export function formatStatus(state: StatusBarState): string {
-  const parts: string[] = [];
-  parts.push(state.model || "(no model)");
-  if (state.cwd) {
-    const short = state.cwd.replace(process.env["HOME"] ?? "", "~");
-    parts.push(short);
+const separator = " · ";
+
+function tokenCount(value: number): string {
+  return Math.max(0, Math.round(value)).toLocaleString("en-US");
+}
+
+function compactTokenCount(value: number): string {
+  const rounded = Math.max(0, Math.round(value));
+  if (rounded >= 1_000_000) return `${Math.round(rounded / 100_000) / 10}m`;
+  if (rounded >= 1_000) return `${Math.round(rounded / 100) / 10}k`;
+  return String(rounded);
+}
+
+function contextLabel(state: StatusBarState, compact = false): string {
+  const count = compact ? compactTokenCount : tokenCount;
+  const used = state.contextUsed ?? 0;
+  const total = state.contextTotal ?? 0;
+  if (total > 0) {
+    return `ctx ${count(used)}/${count(total)} ${Math.round(state.usagePercent)}%`;
   }
-  if (state.usagePercent > 0) parts.push(`ctx ${Math.round(state.usagePercent)}%`);
-  if (state.busy) parts.push("busy");
-  return parts.join(" · ");
+  return state.usagePercent > 0 ? `ctx ${Math.round(state.usagePercent)}%` : "ctx —";
+}
+
+function sessionLabel(state: StatusBarState): string {
+  const id = state.sessionId ? `#${state.sessionId.slice(-8)}` : "";
+  return [state.title, id].filter(Boolean).join(" ");
+}
+
+function joined(parts: string[]): string {
+  return parts.filter(Boolean).join(separator);
+}
+
+/**
+ * Render a compact, data-first live dashboard line from facts already supplied by RPC events.
+ *
+ * At ordinary widths it includes activity, model/provider, exact context usage, last turn
+ * tokens, session title/id, and cwd. At narrow widths it sheds the least immediate details
+ * first, retaining activity, model, and context before a final one-row ellipsis fallback.
+ */
+export function formatStatus(state: StatusBarState, width?: number): string {
+  const activity = state.activity || (state.busy ? "busy" : "idle");
+  const model = state.model || "(no model)";
+  const modelWithProvider = state.provider ? `${model} @ ${state.provider}` : model;
+  const context = contextLabel(state);
+  const contextCompact = contextLabel(state, true);
+  const inputTokens = state.inputTokens ?? 0;
+  const outputTokens = state.outputTokens ?? 0;
+  const tokens = inputTokens || outputTokens
+    ? `${tokenCount(inputTokens)} in/${tokenCount(outputTokens)} out`
+    : "";
+  const session = sessionLabel(state);
+  const cwd = state.cwd ? state.cwd.replace(process.env["HOME"] ?? "", "~") : "";
+  const full = joined([`● ${activity}`, modelWithProvider, context, tokens, session, cwd]);
+  if (!width || width <= 0 || full.length <= width) return full;
+
+  const useful = joined([`● ${activity}`, modelWithProvider, context, tokens]);
+  if (useful.length <= width) return useful;
+
+  const narrow = [`● ${activity}`, model, contextCompact].filter(Boolean).join(" | ");
+  if (narrow.length <= width) return narrow;
+
+  return fitStatusLine(narrow, width);
 }
 
 /**

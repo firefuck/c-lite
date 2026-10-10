@@ -11,7 +11,9 @@ import hashlib
 import json
 import os
 import re
+import select
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -117,6 +119,64 @@ def test_clite_tui_runs_a_turn_with_the_packaged_bundle(clite_home, tmp_path):
     )
     assert result.returncode == 0, result.stderr
     assert "You said: hello bundle" in result.stdout
+
+
+@needs_node
+def test_clite_tui_stays_open_and_shows_the_created_session_model_in_a_real_pty(clite_home, tmp_path):
+    """A real terminal must remain interactive after Ink's first frame."""
+    if os.name != "posix":
+        pytest.skip("PTY test requires POSIX")
+
+    import fcntl
+    import pty
+    import struct
+    import termios
+
+    (clite_home / "config.yaml").write_text(MOCK)
+    master, slave = pty.openpty()
+    fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 80, 0, 0))
+
+    def make_controlling_terminal() -> None:
+        os.setsid()
+        fcntl.ioctl(0, termios.TIOCSCTTY, 0)
+
+    env = {
+        **os.environ,
+        "PYTHONPATH": os.pathsep.join(
+            filter(None, [str(REPO_ROOT / "src"), os.environ.get("PYTHONPATH", "")])
+        ),
+        "TERM": "xterm-256color",
+    }
+    process = subprocess.Popen(
+        [sys.executable, "-m", "clite", "tui", "--cwd", str(tmp_path)],
+        stdin=slave,
+        stdout=slave,
+        stderr=slave,
+        env=env,
+        preexec_fn=make_controlling_terminal,
+    )
+    os.close(slave)
+    output = ""
+    try:
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline and process.poll() is None and "mock-1" not in output:
+            ready, _, _ = select.select([master], [], [], 0.1)
+            if ready:
+                try:
+                    output += os.read(master, 65536).decode("utf-8", errors="replace")
+                except OSError:
+                    break
+
+        assert process.poll() is None, f"TUI exited before accepting input:\n{output}"
+        assert "mock-1" in output
+        # Wait through the trailing Ink render; a closed PTY becomes readable before this timeout.
+        select.select([master], [], [], 0.5)
+        assert process.poll() is None, f"TUI exited after its initial Ink frame:\n{output}"
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            assert process.wait(timeout=15) == -signal.SIGTERM
+        os.close(master)
 
 
 # ── choosing the interface ───────────────────────────────────────────────────────────────

@@ -385,6 +385,7 @@ def test_idle_sessions_are_closed_and_resumed_from_storage(gateway):
 class FakeTelegram:
     def __init__(self):
         self.updates, self.sent, self.calls = [], [], []
+        self.command_menu_error: str | None = None
         self.lock = threading.Lock()
         api = self
 
@@ -397,6 +398,8 @@ class FakeTelegram:
                     return self._reply({"ok": False, "description": "Unauthorized"}, 401)
                 if method == "getMe":
                     return self._reply({"ok": True, "result": {"username": "clite_bot"}})
+                if method == "setMyCommands" and api.command_menu_error:
+                    return self._reply({"ok": False, "description": api.command_menu_error}, 400)
                 if method == "getUpdates":
                     with api.lock:
                         pending = [u for u in api.updates if u["update_id"] >= body["offset"]]
@@ -462,6 +465,60 @@ def telegram(clite_home, monkeypatch):
     runner.stop()
     api.httpd.shutdown()
     api.httpd.server_close()
+
+
+def test_telegram_command_menu_enforces_bot_api_name_description_and_count_limits(monkeypatch):
+    from clite.gateway.platforms.telegram import telegram_command_menu
+    from clite.runtime.commands import CommandDef
+
+    commands = [CommandDef("invalid-name", "must not be sent")] + [
+        CommandDef(f"command_{index}", "x" * 300) for index in range(101)
+    ]
+    monkeypatch.setattr("clite.runtime.commands.commands_for", lambda surface: commands)
+
+    menu = telegram_command_menu()
+
+    assert len(menu) == 100
+    assert all(command["command"].replace("_", "").isalnum() for command in menu)
+    assert all(len(command["command"]) <= 32 for command in menu)
+    assert all(len(command["description"]) == 256 for command in menu)
+
+
+def test_telegram_registers_the_supported_slash_commands_in_the_native_menu(telegram):
+    from clite.runtime.commands import commands_for
+
+    api, _runner = telegram
+    registrations = [body for method, body in api.calls if method == "setMyCommands"]
+    assert len(registrations) == 1
+    commands = registrations[0]["commands"]
+    expected = commands_for("telegram")
+    assert [command["command"] for command in commands] == [command.name for command in expected]
+    assert [command["description"] for command in commands] == [command.description for command in expected]
+    assert len(commands) <= 100
+    assert all(1 <= len(command["command"]) <= 32 for command in commands)
+    assert all(1 <= len(command["description"]) <= 256 for command in commands)
+
+
+def test_telegram_starts_when_native_command_menu_registration_fails(clite_home, monkeypatch, caplog):
+    api = FakeTelegram()
+    api.command_menu_error = "Bot command menu rejected"
+    try:
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "good-token")
+        (clite_home / "config.yaml").write_text(
+            "model: {provider: mock, default: mock-1}\ngateway:\n  platforms:\n"
+            f"    telegram: {{enabled: true, allowed_users: [111], base_url: '{api.url}', poll_timeout: 1}}\n"
+        )
+        with caplog.at_level("WARNING", logger="clite.gateway.telegram"):
+            runner = GatewayRunner()
+            assert runner.start(with_cron=False) == ["telegram"]
+        try:
+            assert any(method == "setMyCommands" for method, _body in api.calls)
+            assert "command menu registration failed" in caplog.text
+        finally:
+            runner.stop()
+    finally:
+        api.httpd.shutdown()
+        api.httpd.server_close()
 
 
 def test_telegram_round_trip(telegram):

@@ -654,6 +654,23 @@ dan klarifikasi (F3-T11), pelengkapan slash command (F3-T12), pemilih sesi dan m
 tema dari skin dan tahan ubah ukuran (F3-T14), dan bundle Ink dalam satu `.mjs` (F3-T15).
 Kecuali F3-T12 (yang juga menunggu F3-T4), semuanya bergantung pada F3-T9.
 
+### F3-T10: dashboard status TUI langsung (10 Oktober 2026)
+
+Bilah bawah Ink kini memakai kontrak RPC yang sudah tersedia, bukan panggilan atau bidang baru:
+aktivitas menampilkan `idle`, tahap berpikir, atau nama tool yang berjalan; model/provider;
+konteks terukur `terpakai/total` dan persen; token input/output dari `turn.complete`; serta
+judul/id sesi dan cwd bila tersedia. Saat ruang cukup, semua fakta tampil dalam satu baris.
+Pada terminal sempit, formatter membuang rincian sesi, cwd, provider, dan token secara bertahap,
+sambil mempertahankan aktivitas, model, dan konteks sebelum elipsis terakhir.
+
+`RpcSession` menerbitkan `session.info` yang sudah ada tepat sebelum `turn.complete`, setelah
+provider memperbarui penghitung konteks; ini menghindari polling `session.usage` maupun kontrak
+khusus TUI. Tes formatter memeriksa semua bidang langsung dan susut sempit, sementara tes RPC
+memastikan event tambahan membawa konteks terukur. Verifikasi lokal: `node --test test/app.test.ts`,
+`node --test test/render.test.ts`, `npx tsc --noEmit -p .`, dan `npm run build` di `ui-tui/`;
+`pytest tests/rpc/test_rpc.py::test_a_turn_is_a_stream_of_events_ending_with_turn_complete -q`;
+`pytest tests/cli/test_tui_bundle.py -q`; serta `pytest tests/test_docs.py -q`.
+
 Keputusan desain yang mengikat semua anak: **Ink + React** (disetujui pemilik proyek), ditanam
 esbuild ke dalam satu file `.mjs` sehingga `pip install` tetap menghasilkan `clite tui` yang
 jalan tanpa `npm install` — ini pengecualian tertulis terhadap aturan "tanpa dependensi runtime

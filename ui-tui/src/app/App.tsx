@@ -23,7 +23,7 @@ import { resumeSession, switchModel } from "./pickers.ts";
 
 export interface AppProps {
   client: GatewayClient;
-  sessionId: string;
+  session: SessionInfo;
 }
 
 /** A wrapper around the shared reducer that also accepts an optimistic user message. */
@@ -148,14 +148,28 @@ function Composer({ onSubmit, onInterrupt, onQuit, prompt, catalog }: {
 }
 
 /** The full-screen app: transcript on top, composer at the bottom. */
-export function App({ client, sessionId }: AppProps) {
+export function App({ client, session }: AppProps) {
   const { exit } = useApp();
   const { stdout } = useStdout();
+  const sessionId = session.session_id;
   const color = stdout.isTTY && !process.env["NO_COLOR"];
   const [state, dispatch] = useReducer(appReducer, emptyTranscript);
   const prompt = "❯";
   const turnId = useRef<string | null>(null);
-  const [status, setStatus] = useState<StatusBarState>({ model: "", provider: "", cwd: "", busy: false, usagePercent: 0 });
+  // Session creation returns the initial state before event subscriptions are registered.
+  // Seed it here so the first Ink frame shows the configured model rather than `(no model)`.
+  const [status, setStatus] = useState<StatusBarState>({
+    model: session.model,
+    provider: session.provider,
+    cwd: session.cwd,
+    busy: session.busy,
+    usagePercent: session.context?.usage_percent ?? 0,
+    contextUsed: session.context?.last_prompt_tokens ?? 0,
+    contextTotal: session.context?.context_length ?? 0,
+    sessionId: session.stored_session_id || session.session_id,
+    title: session.title,
+    activity: session.busy ? "busy" : "idle",
+  });
 
   // The backend sends `approval.request` and `clarify.request` as server requests; each
   // resolves when the user picks from the dialog. Until then, the composer is hidden.
@@ -199,16 +213,34 @@ export function App({ client, sessionId }: AppProps) {
     if (event.type === "session.info") {
       const info = event.payload as SessionInfo;
       setStatus((s) => ({
+        ...s,
         model: info.model || s.model,
         provider: info.provider || s.provider,
         cwd: info.cwd || s.cwd,
         busy: info.busy,
         usagePercent: info.context?.usage_percent ?? s.usagePercent,
+        contextUsed: info.context?.last_prompt_tokens ?? s.contextUsed,
+        contextTotal: info.context?.context_length ?? s.contextTotal,
+        sessionId: info.stored_session_id || info.session_id || s.sessionId,
+        title: info.title || s.title,
+        activity: info.busy ? "busy" : "idle",
       }));
     } else if (event.type === "turn.start") {
-      setStatus((s) => ({ ...s, busy: true }));
+      setStatus((s) => ({ ...s, busy: true, activity: "thinking" }));
+    } else if (event.type === "turn.step") {
+      setStatus((s) => ({ ...s, busy: true, activity: `thinking #${event.payload.iteration}` }));
+    } else if (event.type === "tool.start") {
+      setStatus((s) => ({ ...s, busy: true, activity: `tool ${event.payload.name}` }));
+    } else if (event.type === "tool.complete") {
+      setStatus((s) => ({ ...s, busy: true, activity: "thinking" }));
     } else if (event.type === "turn.complete") {
-      setStatus((s) => ({ ...s, busy: false }));
+      setStatus((s) => ({
+        ...s,
+        busy: false,
+        activity: "idle",
+        inputTokens: event.payload.usage.input_tokens,
+        outputTokens: event.payload.usage.output_tokens,
+      }));
     }
   }), [client]);
 

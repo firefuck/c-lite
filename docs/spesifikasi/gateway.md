@@ -99,6 +99,10 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
 
 **Telegram**
 - Token dari `TELEGRAM_BOT_TOKEN` di `.env`. Long polling, tanpa webhook.
+- Saat tersambung, adapter menerbitkan perintah gateway yang didukung ke menu slash native Telegram
+  lewat `setMyCommands`. Nama dan deskripsi divalidasi terhadap batas Bot API (maksimum 100
+  perintah, nama `[a-z0-9_]` hingga 32 karakter, deskripsi hingga 256 karakter). Kegagalan
+  penerbitan menu hanya dicatat; polling dan chat tetap dimulai.
 - Di grup, agent hanya menanggapi perintah, mention, atau balasan ke pesannya sendiri.
   Perintah yang ditujukan ke bot lain (`/cmd@botlain`) diabaikan.
 - Galat jaringan dan galat Bot API diredaksi sebelum dilempar atau dicatat: URL permintaan
@@ -111,7 +115,7 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
 | Runner, kunci sesi, pairing, kebijakan sibuk | ✅ | |
 | Persetujuan dan klarifikasi lewat chat | ✅ | |
 | Adapter `local` | ✅ | |
-| Adapter Telegram | 🟡 | Diuji terhadap Bot API tiruan; token tidak sampai ke log (`test_a_network_error_never_puts_the_bot_token_in_the_log`). Belum terhadap Telegram sungguhan: F1-T3 |
+| Adapter Telegram | 🟡 | Diuji terhadap Bot API tiruan; token tidak sampai ke log (`test_a_network_error_never_puts_the_bot_token_in_the_log`), dan menu slash native diterbitkan lewat `setMyCommands` tanpa menggagalkan chat bila Bot API menolaknya (`test_telegram_registers_the_supported_slash_commands_in_the_native_menu`, `test_telegram_starts_when_native_command_menu_registration_fails`). Belum terhadap Telegram sungguhan: F1-T3 |
 | Penjadwal cron di dalam gateway | ✅ | |
 | Adapter Discord | 🟡 | Diuji terhadap WebSocket Gateway v10 dan REST API tiruan; token rahasia terdaftar; thread dan mention kanal ditangani; sambung ulang saat heartbeat terlewat. Belum dicoba terhadap server Discord sungguhan: F4-T1 |
 | Adapter Slack | 🟡 | Socket Mode dan Web API diuji terhadap server tiruan lokal; event diakui (ack), deduplikasi event ganda, balasan di thread. Belum terhadap ruang kerja Slack sungguhan: F4-T2 |

@@ -178,13 +178,16 @@ tulis yang tetap di bawah; `--plain` dan masukan pipa tetap memakai `PlainTui` y
 
 ### F3-T10 Bilah status
 
-**Tujuan.** Di bawah layar penuh ada bilah status: model, pemakaian jendela konteks, direktori
-kerja, dan keadaan sibuk.
+**Tujuan.** Di bawah layar penuh ada bilah status: model/provider, pemakaian jendela konteks,
+direktori kerja, identitas/judul sesi bila ada, aktivitas giliran/tool, dan token giliran terakhir.
 
 **Lingkup.**
-- Komponen bilah status Ink di `ui-tui/src/app/ (baru)`, data dari `session.info` dan
-  `session.usage` (RPC) serta event `session.info`/`status.update`.
-- Ikut berubah saat model atau direktori berganti dan saat giliran mulai/selesai.
+- Komponen bilah status Ink di `ui-tui/src/app/ (baru)`, memakai fakta yang sudah ada di
+  `session.info` dan event `turn.start`/`turn.step`/`tool.start`/`tool.complete`/`turn.complete`.
+- Setelah respons provider selesai, server memancarkan ulang `session.info` yang sudah ada agar
+  pemakaian konteks terukur diperbarui tanpa polling atau kontrak TUI baru.
+- Pada terminal sempit, aktivitas, model, dan konteks dipertahankan lebih dulu; rincian sesi,
+  direktori, provider, lalu token dibuang bertahap sebelum elipsis satu baris.
 
 **File.** `ui-tui/src/app/ (baru)`, `ui-tui/test/`.
 
