@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { chooseUi } from "../src/app/choose-ui.ts";
+import { createTuiSessionParams } from "../src/app/session-params.ts";
 import { fitStatusLine, formatStatus, wrapTranscriptText } from "../src/app/status-bar.ts";
 import { parseApprovalChoice, parseApprovalText, parseClarifyAnswer } from "../src/app/dialogs.ts";
 import { getSlashCandidates, handleTabCompletion } from "../src/app/completion.ts";
@@ -15,6 +16,19 @@ import { formatModelItem, formatSessionItem, resumeSession, switchModel } from "
 import { markdownRoleCodes, markdownStyle } from "../src/render.ts";
 import type { CommandEntry, ModelEntry, StoredSession } from "../../apps/shared/src/contracts.generated.ts";
 import { reduce, emptyTranscript, addUserMessage } from "../../apps/shared/src/transcript.ts";
+
+test("the Ink TUI creates a valid session.create payload", () => {
+  const params = createTuiSessionParams({ cwd: "/tmp/work", model: "mock-1", provider: "mock", yolo: false });
+
+  assert.deepEqual(params, {
+    cwd: "/tmp/work",
+    model: "mock-1",
+    provider: "mock",
+    yolo: false,
+    platform: "tui",
+  });
+  assert.equal("source" in params, false);
+});
 
 test("a piped (non-TTY) input always uses the plain UI", () => {
   assert.equal(chooseUi({ stdinIsTTY: false, stdoutIsTTY: true, plain: false }), "plain");

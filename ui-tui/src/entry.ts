@@ -8,6 +8,7 @@ import { parseArgs } from "node:util";
 
 import { spawnBackend } from "./backend.ts";
 import { chooseUi } from "./app/choose-ui.ts";
+import { createTuiSessionParams } from "./app/session-params.ts";
 import { runInkTui } from "./ink-tui.ts";
 import { PlainTui } from "./plain.ts";
 import { shouldUseColor } from "./render.ts";
@@ -51,13 +52,13 @@ async function main(): Promise<number> {
     return 1;
   }
 
-  const session = {
+  const session = createTuiSessionParams({
     resume: values.resume ?? null,
     model: values.model ?? null,
     provider: values.provider ?? null,
     cwd: values.cwd ?? process.cwd(),
     yolo: values.yolo,
-  };
+  });
 
   const ui = chooseUi({
     stdinIsTTY: process.stdin.isTTY === true,

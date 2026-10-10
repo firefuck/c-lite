@@ -19,10 +19,7 @@ export async function runInkTui(options: InkTuiOptions): Promise<number> {
   const { backend, session } = options;
   let info: SessionInfo;
   try {
-    info = await backend.client.request("session.create", {
-      source: "tui",
-      ...session,
-    } as SessionCreateParams);
+    info = await backend.client.request("session.create", session);
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     return 1;

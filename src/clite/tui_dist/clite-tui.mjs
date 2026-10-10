@@ -28476,6 +28476,11 @@ function chooseUi(options) {
   return "ink";
 }
 
+// src/app/session-params.ts
+function createTuiSessionParams(session) {
+  return { ...session, platform: "tui" };
+}
+
 // ../node_modules/ink/build/render.js
 import { Stream } from "node:stream";
 import process12 from "node:process";
@@ -35117,10 +35122,7 @@ async function runInkTui(options) {
   const { backend, session } = options;
   let info;
   try {
-    info = await backend.client.request("session.create", {
-      source: "tui",
-      ...session
-    });
+    info = await backend.client.request("session.create", session);
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}
 `);
@@ -35465,13 +35467,13 @@ async function main() {
 `);
     return 1;
   }
-  const session = {
+  const session = createTuiSessionParams({
     resume: values.resume ?? null,
     model: values.model ?? null,
     provider: values.provider ?? null,
     cwd: values.cwd ?? process.cwd(),
     yolo: values.yolo
-  };
+  });
   const ui = chooseUi({
     stdinIsTTY: process.stdin.isTTY === true,
     stdoutIsTTY: process.stdout.isTTY === true,

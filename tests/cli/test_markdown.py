@@ -319,6 +319,28 @@ def test_redirected_output_has_no_escapes():
     assert "\x1b" not in stream.getvalue()
 
 
+def test_a_tty_without_a_terminal_type_has_no_escapes(monkeypatch):
+    import io
+
+    from clite.cli.display import Display
+
+    class TtyBuffer(io.StringIO):
+        def isatty(self) -> bool:
+            return True
+
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    for term in (None, ""):
+        if term is None:
+            monkeypatch.delenv("TERM", raising=False)
+        else:
+            monkeypatch.setenv("TERM", term)
+        stream = TtyBuffer()
+        shown = Display(skin="default", stream=stream, width=WIDTH)
+        assert shown.color is False
+        shown.line("❯ ", "user_prompt")
+        assert "\x1b" not in stream.getvalue()
+
+
 def test_a_streamed_answer_is_rendered_as_markdown_in_the_skin_colours():
     out = _display(skin="default", color=True, chunks=["# Title\n", "plain `code`\n"])
     assert "<h1>" not in out  # not HTML: we render to plain text
