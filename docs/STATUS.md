@@ -1000,3 +1000,19 @@ dari "belum diverifikasi".
 - `clite gateway run` hidup >6s dan >14s (rc=124 dari timeout; tidak mati sendiri).
 - Token bot sungguhan diverifikasi lewat Bot API `getMe` → ok, bot "c-lite" (@clite0bot).
 - Belum: percakapan dua arah end-to-end (butuh Bos kirim pesan ke bot + allowed_users).
+
+### F1-T3 gateway Telegram: verifikasi hidup pertama (10 Oktober 2026)
+
+**Terverifikasi.** Bot uji sungguhan (@clite0bot) dipakai untuk menjalankan
+`clite gateway run` di home terisolasi `/tmp/clite-f1t3`:
+
+- `gateway run` bertahan hidup 14 detik (rc=124: dihentikan timeout, bukan crash);
+  proses tercatat lewat pidfile + `pgrep`.
+- Panggilan `getMe` ke Bot API asli berhasil: bot "c-lite" (@clite0bot).
+- Home terisolasi (CLITE_HOME); config.yaml + .env hanya berisi token uji;
+  token tidak pernah dicetak ke log (pemeriksaan redaksi jaringan ada di tes).
+
+Belum diverifikasi (menunggu interaksi pemilik): balasan dua arah end-to-end dari
+pesan Bos di Telegram, pairing orang asing (grup di-skip sesuai keputusan pemilik),
+jawaban >4096 karakter, persetujuan `/approve`, klarifikasi, interupsi, restart
+gateway yang melanjutkan percakapan, dan job cron `deliver: origin`.
