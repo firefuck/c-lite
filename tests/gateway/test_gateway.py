@@ -1095,11 +1095,11 @@ def test_tool_progress_is_one_message_that_is_updated():
     chat = _FakeChat()
     reporter = ProgressReporter(chat.send, chat.edit)
     reporter.note("✓ read_file (0.1s)")
-    reporter.note("✓ terminal (0.2s)")
+    reporter.note("✓ write_file (0.2s)")
 
     assert chat.send_count == 1  # one status message, not one per tool
-    assert chat.messages["m1"] == "✓ read_file (0.1s)\n✓ terminal (0.2s)"
-    assert reporter.lines == ["✓ read_file (0.1s)", "✓ terminal (0.2s)"]
+    assert chat.messages["m1"] == "✓ read_file (0.1s)\n✓ write_file (0.2s)"
+    assert reporter.lines == ["✓ read_file (0.1s)", "✓ write_file (0.2s)"]
 
 
 def test_tool_progress_keeps_only_the_last_lines():
@@ -1118,7 +1118,30 @@ def test_a_tool_message_shows_the_tool_emoji_name_and_preview():
     from clite.gateway.stream import tool_message
 
     assert tool_message("read_file", {"path": "/tmp/report.txt"}) == "📖 read_file\n/tmp/report.txt"
-    assert tool_message("terminal", {"command": "systemctl status"}) == "💻 terminal\nsystemctl status"
+    assert tool_message("terminal", {"command": "systemctl status"}) == "💻 terminal: systemctl status"
+
+
+def test_terminal_progress_is_one_redacted_line_capped_at_45_characters():
+    import clite.tools.builtin.terminal  # noqa: F401 - registers the emoji in the registry
+    from clite.core.redact import register_credential_value
+    from clite.gateway.stream import tool_line, tool_message
+
+    secret = "private-token"
+    register_credential_value(secret)
+    command = f"echo {secret} && systemctl status clite-gateway"
+    line = tool_line("terminal", {"command": command}, "{}", 0.1)
+
+    assert line == tool_message("terminal", {"command": command})
+    assert "\n" not in line
+    assert len(line) == 45
+    assert "[REDACTED]" in line
+    assert secret not in line
+
+
+def test_non_terminal_tool_progress_keeps_its_existing_completion_line():
+    from clite.gateway.stream import tool_line
+
+    assert tool_line("read_file", {"path": "/tmp/report.txt"}, "{}", 0.1) == "✓ read_file (0.1s)"
 
 
 def test_a_tool_without_a_registry_emoji_falls_back_to_the_name_alone():
@@ -1127,15 +1150,16 @@ def test_a_tool_without_a_registry_emoji_falls_back_to_the_name_alone():
     assert tool_message("mystery_tool", {"query": "status"}) == "mystery_tool\nstatus"
 
 
-def test_a_long_tool_preview_wraps_and_is_truncated_with_an_ellipsis():
+def test_a_long_terminal_preview_is_one_line_truncated_with_an_ellipsis():
     import clite.tools.builtin.terminal  # noqa: F401 - registers the emoji in the registry
-    from clite.gateway.stream import TOOL_MESSAGE_MAX_LINES, TOOL_MESSAGE_PREVIEW_WIDTH, tool_message
+    from clite.gateway.stream import TERMINAL_PROGRESS_PREVIEW_WIDTH, tool_message
 
-    lines = tool_message("terminal", {"command": "systemctl restart clite-gateway && " * 40}).splitlines()
-    assert lines[0] == "💻 terminal"
-    assert all(len(line) <= TOOL_MESSAGE_PREVIEW_WIDTH for line in lines[1:])
-    assert len(lines) - 1 <= TOOL_MESSAGE_MAX_LINES
-    assert lines[-1].endswith("…")
+    line = tool_message("terminal", {"command": "systemctl restart clite-gateway && " * 40})
+
+    assert "\n" not in line
+    assert len(line) <= TERMINAL_PROGRESS_PREVIEW_WIDTH
+    assert line.endswith("…")
+    assert line.startswith("💻 terminal: systemctl restart")
 
 
 def test_message_progress_sends_one_chat_message_per_tool_call(gateway):
@@ -1162,9 +1186,22 @@ def test_two_tool_calls_become_two_separate_progress_messages(gateway):
     local.inject("two things", user_id="owner")
     assert local.wait_for_messages(3) == [
         "📖 read_file\na.txt",
-        "💻 terminal\necho progress-check",
+        "💻 terminal: echo progress-check",
         "done.",
     ]
+
+
+def test_default_terminal_progress_shows_a_single_command_preview(gateway):
+    runner, local, _ = gateway(
+        [
+            tool_call_response(("terminal", {"command": "systemctl status clite-gateway"})),
+            text_response("done."),
+        ]
+    )
+
+    local.inject("check the gateway", user_id="owner")
+
+    assert local.wait_for_messages(2) == ["💻 terminal: systemctl status clite-gateway", "done."]
 
 
 def test_tool_progress_off_still_sends_no_progress_messages(gateway):

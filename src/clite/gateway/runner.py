@@ -1040,8 +1040,8 @@ class GatewayRunner:
         if stream is not None:
             callbacks.on_delta = stream.push
         if progress is not None:
-            callbacks.on_tool_complete = lambda _call_id, name, _args, result, seconds: progress.note(
-                tool_line(name, result, seconds)
+            callbacks.on_tool_complete = lambda _call_id, name, args, result, seconds: progress.note(
+                tool_line(name, args, result, seconds)
             )
         if per_tool_message and stream is not None:
 

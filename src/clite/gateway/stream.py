@@ -196,8 +196,25 @@ class ProgressReporter:
             self._broken = True
 
 
-def tool_line(name: str, result: str, seconds: float) -> str:
-    """A one-line summary of a finished tool call, the same shape the CLI prints."""
+# Terminal commands are the only tool progress that needs a compact, actionable preview.
+# Keep it to one phone-friendly line rather than showing a separate generic completion filler.
+TERMINAL_PROGRESS_PREVIEW_WIDTH = 45
+
+
+def _terminal_progress_message(args: dict[str, Any]) -> str:
+    """Return one redaction-safe terminal command preview for gateway progress."""
+    from clite.core.redact import redact
+
+    command = " ".join(str(args.get("command", "")).split())
+    text = f"💻 terminal: {redact(command)}" if command else "💻 terminal"
+    return text if len(text) <= TERMINAL_PROGRESS_PREVIEW_WIDTH else text[: TERMINAL_PROGRESS_PREVIEW_WIDTH - 1] + "…"
+
+
+def tool_line(name: str, args: dict[str, Any], result: str, seconds: float) -> str:
+    """One-line summary of a finished tool call, with terminal command context."""
+    if name == "terminal":
+        return _terminal_progress_message(args)
+
     from clite.runtime.presentation import result_failed
 
     mark = "✗" if result_failed(result) else "✓"
@@ -217,8 +234,12 @@ def tool_message(name: str, args: dict[str, Any], *, width: int = TOOL_MESSAGE_P
     The first line is the tool's emoji and name (the emoji comes from the tool registry and is
     dropped when it has none); the rest is the argument preview from :func:`tool_preview`,
     wrapped to ``width`` columns and cut off with an ellipsis after
-    :data:`TOOL_MESSAGE_MAX_LINES` lines.
+    :data:`TOOL_MESSAGE_MAX_LINES` lines. Terminal calls are the exception: they use the
+    compact one-line command preview shared with completion progress.
     """
+    if name == "terminal":
+        return _terminal_progress_message(args)
+
     from clite.runtime.presentation import tool_preview
     from clite.tools.registry import registry
 
