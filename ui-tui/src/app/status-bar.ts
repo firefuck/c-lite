@@ -18,7 +18,7 @@ export interface StatusBarState {
   outputTokens?: number;
 }
 
-const separator = " · ";
+const separator = " │ ";
 
 function tokenCount(value: number): string {
   return Math.max(0, Math.round(value)).toLocaleString("en-US");
@@ -36,7 +36,7 @@ function contextLabel(state: StatusBarState, compact = false): string {
   const used = state.contextUsed ?? 0;
   const total = state.contextTotal ?? 0;
   if (total > 0) {
-    return `ctx ${count(used)}/${count(total)} ${Math.round(state.usagePercent)}%`;
+    return `ctx ${count(used)}/${count(total)}`;
   }
   return state.usagePercent > 0 ? `ctx ${Math.round(state.usagePercent)}%` : "ctx —";
 }
@@ -70,16 +70,21 @@ export function formatStatus(state: StatusBarState, width?: number): string {
     : "";
   const session = sessionLabel(state);
   const cwd = state.cwd ? state.cwd.replace(process.env["HOME"] ?? "", "~") : "";
-  const full = joined([`● ${activity}`, modelWithProvider, context, tokens, session, cwd]);
-  if (!width || width <= 0 || full.length <= width) return full;
-
-  const useful = joined([`● ${activity}`, modelWithProvider, context, tokens]);
-  if (useful.length <= width) return useful;
-
-  const narrow = [`● ${activity}`, model, contextCompact].filter(Boolean).join(" | ");
-  if (narrow.length <= width) return narrow;
-
-  return fitStatusLine(narrow, width);
+  // No timer or update fields are invented: these are existing backend metrics only.
+  const known = (state.contextTotal ?? 0) > 0 || state.usagePercent > 0;
+  const percent = Math.max(0, Math.min(100, state.usagePercent || 0));
+  const filled = known ? Math.round(percent / 10) : 0;
+  const gauge = `[${"█".repeat(filled)}${"░".repeat(10 - filled)}] ${known ? `${Math.round(percent)}%` : "--"}`;
+  const candidates = [
+    joined([`☤ ${modelWithProvider}`, context, gauge, activity, tokens, session, cwd]),
+    joined([`☤ ${modelWithProvider}`, context, gauge, activity, tokens]),
+    joined([`☤ ${model}`, contextCompact, gauge, activity]),
+    joined([`☤ ${model}`, contextCompact, activity]),
+  ];
+  for (const line of candidates) {
+    if (!width || width <= 0 || line.length <= width) return line;
+  }
+  return fitStatusLine(candidates[candidates.length - 1]!, width);
 }
 
 /**

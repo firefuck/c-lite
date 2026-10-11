@@ -28189,10 +28189,10 @@ var require_react_jsx_runtime_development = __commonJS({
             return jsxWithValidation(type, props, key, false);
           }
         }
-        var jsx7 = jsxWithValidationDynamic;
+        var jsx6 = jsxWithValidationDynamic;
         var jsxs5 = jsxWithValidationStatic;
         exports.Fragment = REACT_FRAGMENT_TYPE;
-        exports.jsx = jsx7;
+        exports.jsx = jsx6;
         exports.jsxs = jsxs5;
       })();
     }
@@ -34560,21 +34560,29 @@ function CompletionMenu({ candidates, selectedIndex }) {
   const MAX_VISIBLE = 8;
   const start = Math.max(0, Math.min(selectedIndex - Math.floor(MAX_VISIBLE / 2), candidates.length - MAX_VISIBLE));
   const visible = candidates.slice(start, start + MAX_VISIBLE);
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Box_default, { flexDirection: "column", borderStyle: "single", borderColor: "gray", paddingX: 1, marginBottom: 0, children: visible.map((cmd, idx) => {
-    const actualIndex = start + idx;
-    const isSelected = actualIndex === selectedIndex;
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Box_default, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { color: isSelected ? "cyan" : void 0, bold: isSelected, children: [
-        isSelected ? "\u276F " : "  ",
-        "/",
-        cmd.name
-      ] }),
-      cmd.description ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { dimColor: true, children: [
-        " \u2014 ",
-        cmd.description.slice(0, 50)
-      ] }) : null
-    ] }, cmd.name);
-  }) });
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Box_default, { flexDirection: "column", borderStyle: "single", borderColor: "gray", paddingX: 1, marginBottom: 0, children: [
+    visible.map((cmd, idx) => {
+      const actualIndex = start + idx;
+      const isSelected = actualIndex === selectedIndex;
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Box_default, { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { color: isSelected ? "cyan" : void 0, bold: isSelected, children: [
+          isSelected ? "\u276F " : "  ",
+          "/",
+          cmd.name
+        ] }),
+        cmd.description ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { dimColor: true, children: [
+          " \u2014 ",
+          cmd.description.slice(0, 50)
+        ] }) : null
+      ] }, cmd.name);
+    }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Text, { dimColor: true, children: [
+      "\u2191\u2193 pilih \xB7 Tab/Enter lengkapi \xB7 Esc tutup \xB7 ",
+      selectedIndex + 1,
+      "/",
+      candidates.length
+    ] })
+  ] });
 }
 
 // src/app/Dialogs.tsx
@@ -34771,7 +34779,7 @@ function ModelPicker({ models, current, onSelect, onClose }) {
 }
 
 // src/app/status-bar.ts
-var separator = " \xB7 ";
+var separator = " \u2502 ";
 function tokenCount(value) {
   return Math.max(0, Math.round(value)).toLocaleString("en-US");
 }
@@ -34786,7 +34794,7 @@ function contextLabel(state, compact = false) {
   const used = state.contextUsed ?? 0;
   const total = state.contextTotal ?? 0;
   if (total > 0) {
-    return `ctx ${count(used)}/${count(total)} ${Math.round(state.usagePercent)}%`;
+    return `ctx ${count(used)}/${count(total)}`;
   }
   return state.usagePercent > 0 ? `ctx ${Math.round(state.usagePercent)}%` : "ctx \u2014";
 }
@@ -34808,13 +34816,20 @@ function formatStatus(state, width) {
   const tokens = inputTokens || outputTokens ? `${tokenCount(inputTokens)} in/${tokenCount(outputTokens)} out` : "";
   const session = sessionLabel(state);
   const cwd2 = state.cwd ? state.cwd.replace(process.env["HOME"] ?? "", "~") : "";
-  const full = joined([`\u25CF ${activity}`, modelWithProvider, context, tokens, session, cwd2]);
-  if (!width || width <= 0 || full.length <= width) return full;
-  const useful = joined([`\u25CF ${activity}`, modelWithProvider, context, tokens]);
-  if (useful.length <= width) return useful;
-  const narrow = [`\u25CF ${activity}`, model, contextCompact].filter(Boolean).join(" | ");
-  if (narrow.length <= width) return narrow;
-  return fitStatusLine(narrow, width);
+  const known = (state.contextTotal ?? 0) > 0 || state.usagePercent > 0;
+  const percent = Math.max(0, Math.min(100, state.usagePercent || 0));
+  const filled = known ? Math.round(percent / 10) : 0;
+  const gauge = `[${"\u2588".repeat(filled)}${"\u2591".repeat(10 - filled)}] ${known ? `${Math.round(percent)}%` : "--"}`;
+  const candidates = [
+    joined([`\u2624 ${modelWithProvider}`, context, gauge, activity, tokens, session, cwd2]),
+    joined([`\u2624 ${modelWithProvider}`, context, gauge, activity, tokens]),
+    joined([`\u2624 ${model}`, contextCompact, gauge, activity]),
+    joined([`\u2624 ${model}`, contextCompact, activity])
+  ];
+  for (const line of candidates) {
+    if (!width || width <= 0 || line.length <= width) return line;
+  }
+  return fitStatusLine(candidates[candidates.length - 1], width);
 }
 function fitStatusLine(line, width) {
   if (!width || width <= 0 || line.length <= width) {
@@ -34839,6 +34854,7 @@ function getSlashCandidates(catalog, input) {
   }
   const parts = input.slice(1).split(/\s+/);
   const commandWord = (parts[0] ?? "").toLowerCase();
+  if (parts.length > 2) return [];
   if (parts.length > 1) {
     const argWord = (parts[1] ?? "").toLowerCase();
     const parentCmd = catalog.find((c) => c.name.toLowerCase() === commandWord || c.aliases.some((a) => a.toLowerCase() === commandWord));
@@ -34940,6 +34956,13 @@ function Composer({ onSubmit, onInterrupt, onQuit, prompt, catalog }) {
       }
     }
     if (key.tab) {
+      const picked = menuOpen ? candidates[selectedIndex] : void 0;
+      if (picked) {
+        setValue(applySlashCompletion(value, picked));
+        setMenuOpen(false);
+        setSelectedIndex(0);
+        return;
+      }
       const res = handleTabCompletion(value, catalog);
       setValue(res.text);
       setMenuOpen(res.menuOpen);
@@ -34973,20 +34996,15 @@ function Composer({ onSubmit, onInterrupt, onQuit, prompt, catalog }) {
     if (key.backspace || key.delete) {
       const next = value.slice(0, -1);
       setValue(next);
-      if (!next.startsWith("/")) setMenuOpen(false);
+      setMenuOpen(getSlashCandidates(catalog, next).length > 0);
+      setSelectedIndex(0);
       return;
     }
     if (input && !key.ctrl && !key.meta) {
       const next = value + input;
       setValue(next);
-      if (next.startsWith("/")) {
-        const nextCandidates = getSlashCandidates(catalog, next);
-        if (nextCandidates.length > 0) {
-          setSelectedIndex(0);
-        } else {
-          setMenuOpen(false);
-        }
-      }
+      setMenuOpen(getSlashCandidates(catalog, next).length > 0);
+      setSelectedIndex(0);
     }
   });
   return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(Box_default, { flexDirection: "column", children: [
@@ -35170,8 +35188,22 @@ function App2({ client, session }) {
         onClose: () => setPicker(null)
       }
     ),
-    !pending && !picker && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Composer, { onSubmit: submit, onInterrupt: interrupt, onQuit: quit, prompt, catalog }),
-    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(StatusBar, { state: status })
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(Box_default, { flexDirection: "column", flexShrink: 0, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(StatusBar, { state: status }),
+      !pending && !picker && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+        Box_default,
+        {
+          flexDirection: "column",
+          borderStyle: "single",
+          borderTop: true,
+          borderBottom: true,
+          borderLeft: false,
+          borderRight: false,
+          borderColor: "gray",
+          children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Composer, { onSubmit: submit, onInterrupt: interrupt, onQuit: quit, prompt, catalog })
+        }
+      )
+    ] })
   ] });
 }
 

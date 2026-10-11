@@ -35,6 +35,7 @@ export function CompletionMenu({ candidates, selectedIndex }: CompletionMenuProp
           </Box>
         );
       })}
+      <Text dimColor>↑↓ pilih · Tab/Enter lengkapi · Esc tutup · {selectedIndex + 1}/{candidates.length}</Text>
     </Box>
   );
 }

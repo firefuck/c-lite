@@ -107,7 +107,11 @@ test("the status bar presents live session, context, tool activity, and token us
   });
 
   assert.match(line, /claude-sonnet @ anthropic/);
-  assert.match(line, /48,000\/128,000 38%/);
+  assert.match(line, /48,000\/128,000/);
+  assert.match(line, /\[████░░░░░░\] 38%/);
+  assert.ok(line.startsWith("☤ claude-sonnet"));
+  assert.ok(line.includes(" │ "));
+  assert.doesNotMatch(line, /update available|⏲/);
   assert.match(line, /Refine terminal dashboard/);
   assert.match(line, /tool read_file/);
   assert.match(line, /12,345 in\/678 out/);
@@ -137,6 +141,18 @@ test("the status bar shortens the home directory to a tilde", () => {
   const line = formatStatus({ model: "m", provider: "p", cwd: `${home}/projects/clite`, busy: false, usagePercent: 0 });
   assert.ok(line.includes("~/projects/clite"));
   assert.ok(!line.includes(home));
+});
+
+test("the context gauge distinguishes unknown, zero, and full usage without invented telemetry", () => {
+  const base = { model: "cx/gpt-6-astra", provider: "custom", cwd: "", busy: false, usagePercent: 0 };
+  assert.match(formatStatus(base), /\[░░░░░░░░░░\] --/);
+  assert.match(formatStatus({ ...base, contextTotal: 272000 }), /\[░░░░░░░░░░\] 0%/);
+  assert.match(formatStatus({ ...base, contextTotal: 272000, usagePercent: 100 }), /\[██████████\] 100%/);
+  for (const width of [1, 20, 40, 55, 80, 120]) {
+    const line = formatStatus({ ...base, contextUsed: 10857, contextTotal: 272000, usagePercent: 4 }, width);
+    assert.ok(line.length <= width);
+    assert.doesNotMatch(line, /update available|⏲|deepseek/);
+  }
 });
 
 // ── dialogs ─────────────────────────────────────────────────────────────────────────────

@@ -80,6 +80,13 @@ function Composer({ onSubmit, onInterrupt, onQuit, prompt, catalog }: {
     }
 
     if (key.tab) {
+      const picked = menuOpen ? candidates[selectedIndex] : undefined;
+      if (picked) {
+        setValue(applySlashCompletion(value, picked));
+        setMenuOpen(false);
+        setSelectedIndex(0);
+        return;
+      }
       const res = handleTabCompletion(value, catalog);
       setValue(res.text);
       setMenuOpen(res.menuOpen);
@@ -116,21 +123,16 @@ function Composer({ onSubmit, onInterrupt, onQuit, prompt, catalog }: {
     if (key.backspace || key.delete) {
       const next = value.slice(0, -1);
       setValue(next);
-      if (!next.startsWith("/")) setMenuOpen(false);
+      setMenuOpen(getSlashCandidates(catalog, next).length > 0);
+      setSelectedIndex(0);
       return;
     }
 
     if (input && !key.ctrl && !key.meta) {
       const next = value + input;
       setValue(next);
-      if (next.startsWith("/")) {
-        const nextCandidates = getSlashCandidates(catalog, next);
-        if (nextCandidates.length > 0) {
-          setSelectedIndex(0);
-        } else {
-          setMenuOpen(false);
-        }
-      }
+      setMenuOpen(getSlashCandidates(catalog, next).length > 0);
+      setSelectedIndex(0);
     }
   });
 
@@ -325,8 +327,15 @@ export function App({ client, session }: AppProps) {
           onClose={() => setPicker(null)}
         />
       )}
-      {!pending && !picker && <Composer onSubmit={submit} onInterrupt={interrupt} onQuit={quit} prompt={prompt} catalog={catalog} />}
-      <StatusBar state={status} />
+      <Box flexDirection="column" flexShrink={0}>
+        <StatusBar state={status} />
+        {!pending && !picker && (
+          <Box flexDirection="column" borderStyle="single" borderTop borderBottom
+            borderLeft={false} borderRight={false} borderColor="gray">
+            <Composer onSubmit={submit} onInterrupt={interrupt} onQuit={quit} prompt={prompt} catalog={catalog} />
+          </Box>
+        )}
+      </Box>
     </Box>
   );
 }

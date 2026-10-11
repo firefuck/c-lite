@@ -23,6 +23,9 @@ export function getSlashCandidates(catalog: CommandEntry[], input: string): Comm
   const parts = input.slice(1).split(/\s+/);
   const commandWord = (parts[0] ?? "").toLowerCase();
 
+  // Once a subcommand is followed by arguments, never replace the user's arguments.
+  if (parts.length > 2) return [];
+
   if (parts.length > 1) {
     const argWord = (parts[1] ?? "").toLowerCase();
     const parentCmd = catalog.find((c) => c.name.toLowerCase() === commandWord || c.aliases.some((a) => a.toLowerCase() === commandWord));
