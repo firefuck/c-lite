@@ -9,7 +9,7 @@
 import { Box, Text, useApp, useInput, useStdout } from "ink";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 
-import type { CatalogResult, CommandEntry, EventEnvelope, ModelEntry, ModelListResult, PromptSubmitResult, SessionInfo, SessionListResult, StoredSession } from "../../../apps/shared/src/contracts.generated.ts";
+import type { CatalogResult, CommandEntry, EventEnvelope, ModelEntry, ModelListResult, PromptSubmitResult, SessionInfo, SessionListResult, SlashExecResult, StoredSession } from "../../../apps/shared/src/contracts.generated.ts";
 import type { GatewayClient } from "../../../apps/shared/src/gateway-client.ts";
 import { addUserMessage, emptyTranscript, reduce, type TranscriptItem, type TranscriptState } from "../../../apps/shared/src/transcript.ts";
 import { formatItem } from "../render.ts";
@@ -27,10 +27,16 @@ export interface AppProps {
 }
 
 /** A wrapper around the shared reducer that also accepts an optimistic user message. */
-type Action = { kind: "event"; event: EventEnvelope } | { kind: "user"; text: string };
+type Action =
+  | { kind: "event"; event: EventEnvelope }
+  | { kind: "user"; text: string }
+  | { kind: "notice"; text: string };
 
 function appReducer(state: TranscriptState, action: Action): TranscriptState {
   if (action.kind === "user") return addUserMessage(state, action.text);
+  if (action.kind === "notice") {
+    return { ...state, items: [...state.items, { kind: "notice", level: "info", text: action.text }] };
+  }
   return reduce(state, action.event);
 }
 
@@ -246,6 +252,11 @@ export function App({ client, session }: AppProps) {
     }
   }), [client]);
 
+  const quit = useCallback(async () => {
+    await client.request("session.close", { session_id: sessionId }).catch(() => {});
+    exit();
+  }, [client, sessionId, exit]);
+
   const submit = useCallback(async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -256,7 +267,7 @@ export function App({ client, session }: AppProps) {
         setPicker({ kind: "model", models: res.models || [], current: res.current || status.model });
         return;
       } catch {
-        // Fall back to prompt.submit
+        // Fall back to slash.exec
       }
     }
 
@@ -266,7 +277,23 @@ export function App({ client, session }: AppProps) {
         setPicker({ kind: "session", sessions: res.sessions || [] });
         return;
       } catch {
-        // Fall back to prompt.submit
+        // Fall back to slash.exec
+      }
+    }
+
+    // Any other slash command runs through the backend, exactly as the plain UI does; sending
+    // it as a prompt would leak the command text to the model instead of executing it.
+    if (trimmed.startsWith("/")) {
+      try {
+        const result = (await client.request("slash.exec", { session_id: sessionId, command: trimmed })) as SlashExecResult;
+        if (result.text) dispatch({ kind: "notice", text: result.text });
+        if (result.action === "quit") { await quit(); return; }
+        if (result.action === "submit") { turnId.current = result.turn_id || null; return; }
+        // "new" and the rest need no further action here: the backend emits `session.info`.
+        return;
+      } catch (error) {
+        dispatch({ kind: "event", event: { type: "error", payload: { message: String(error) }, session_id: sessionId } as EventEnvelope });
+        return;
       }
     }
 
@@ -277,16 +304,11 @@ export function App({ client, session }: AppProps) {
     } catch (error) {
       dispatch({ kind: "event", event: { type: "error", payload: { message: String(error) }, session_id: sessionId } as EventEnvelope });
     }
-  }, [client, sessionId, status.model]);
+  }, [client, sessionId, status.model, quit]);
 
   const interrupt = useCallback(async () => {
     await client.request("session.interrupt", { session_id: sessionId }).catch(() => {});
   }, [client, sessionId]);
-
-  const quit = useCallback(async () => {
-    await client.request("session.close", { session_id: sessionId }).catch(() => {});
-    exit();
-  }, [client, sessionId, exit]);
 
   return (
     <Box flexDirection="column" height="100%">

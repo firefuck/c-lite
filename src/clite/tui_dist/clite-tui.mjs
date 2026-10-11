@@ -34921,6 +34921,9 @@ function handleTabCompletion(input, catalog) {
 var import_jsx_runtime5 = __toESM(require_jsx_runtime(), 1);
 function appReducer(state, action) {
   if (action.kind === "user") return addUserMessage(state, action.text);
+  if (action.kind === "notice") {
+    return { ...state, items: [...state.items, { kind: "notice", level: "info", text: action.text }] };
+  }
   return reduce(state, action.event);
 }
 function TranscriptLine({ item, color }) {
@@ -35102,6 +35105,11 @@ function App2({ client, session }) {
       }));
     }
   }), [client]);
+  const quit = (0, import_react24.useCallback)(async () => {
+    await client.request("session.close", { session_id: sessionId }).catch(() => {
+    });
+    exit();
+  }, [client, sessionId, exit]);
   const submit = (0, import_react24.useCallback)(async (text) => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -35121,6 +35129,24 @@ function App2({ client, session }) {
       } catch {
       }
     }
+    if (trimmed.startsWith("/")) {
+      try {
+        const result = await client.request("slash.exec", { session_id: sessionId, command: trimmed });
+        if (result.text) dispatch({ kind: "notice", text: result.text });
+        if (result.action === "quit") {
+          await quit();
+          return;
+        }
+        if (result.action === "submit") {
+          turnId.current = result.turn_id || null;
+          return;
+        }
+        return;
+      } catch (error) {
+        dispatch({ kind: "event", event: { type: "error", payload: { message: String(error) }, session_id: sessionId } });
+        return;
+      }
+    }
     dispatch({ kind: "user", text });
     try {
       const result = await client.request("prompt.submit", { session_id: sessionId, text });
@@ -35128,16 +35154,11 @@ function App2({ client, session }) {
     } catch (error) {
       dispatch({ kind: "event", event: { type: "error", payload: { message: String(error) }, session_id: sessionId } });
     }
-  }, [client, sessionId, status.model]);
+  }, [client, sessionId, status.model, quit]);
   const interrupt = (0, import_react24.useCallback)(async () => {
     await client.request("session.interrupt", { session_id: sessionId }).catch(() => {
     });
   }, [client, sessionId]);
-  const quit = (0, import_react24.useCallback)(async () => {
-    await client.request("session.close", { session_id: sessionId }).catch(() => {
-    });
-    exit();
-  }, [client, sessionId, exit]);
   return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(Box_default, { flexDirection: "column", height: "100%", children: [
     /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Transcript, { state, color }),
     pending?.kind === "approval" && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
