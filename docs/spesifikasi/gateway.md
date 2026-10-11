@@ -112,6 +112,10 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
 - Jawaban Telegram ke pesan masuk memakai `reply_parameters.message_id` pesan tersebut. Pada
   jawaban terpecah atau streaming, hanya pesan pertama yang membawa rujukan; semua bagian tetap
   berada di topik Telegram yang sama.
+- Teks jawaban dirender sebagai Telegram MarkdownV2. Blockquote Markdown standar (`> `), termasuk
+  beberapa baris berurutan, dikirim sebagai quote block native Telegram; karakter dan code fence
+  yang tidak membentuk entitas di-escape. Bila Bot API menolak parse MarkdownV2, adapter mencoba
+  sekali lagi sebagai teks polos agar jawaban tidak hilang.
 - `/model` tanpa argumen di chat Telegram yang diizinkan mengirim keyboard inline berhalaman:
   pilih provider lebih dulu, lalu model provider tersebut. Tampilan model memiliki tombol kembali
   dan kedua tampilan dapat dibatalkan. Tombol memanggil kembali ke runner, yang mengulang
@@ -128,7 +132,7 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
 | Runner, kunci sesi, pairing, kebijakan sibuk | ✅ | |
 | Persetujuan dan klarifikasi lewat chat | ✅ | |
 | Adapter `local` | ✅ | |
-| Adapter Telegram | 🟡 | Diuji terhadap Bot API tiruan; token tidak sampai ke log (`test_a_network_error_never_puts_the_bot_token_in_the_log`), menu slash native diterbitkan lewat `setMyCommands` tanpa menggagalkan chat bila Bot API menolaknya (`test_telegram_registers_the_supported_slash_commands_in_the_native_menu`, `test_telegram_starts_when_native_command_menu_registration_fails`), jawaban biasa dan streaming merujuk pesan masuk hanya pada bagian pertama (`test_telegram_round_trip`, `test_telegram_streamed_reply_quotes_only_the_first_chunk_and_keeps_its_topic`), dan `/model` memilih provider lalu model, mendukung halaman/kembali/batal, mengganti model sesi pada tap terotorisasi, serta menolak tap orang asing (`test_telegram_model_picker_selects_a_provider_then_switches_the_chat_model`, `test_telegram_model_picker_pages_back_and_cancels_after_provider_selection`, `test_telegram_model_picker_does_not_let_an_unauthorized_user_switch_the_owner_session`). Belum terhadap Telegram sungguhan: F1-T3 |
+| Adapter Telegram | 🟡 | Diuji terhadap Bot API tiruan; token tidak sampai ke log (`test_a_network_error_never_puts_the_bot_token_in_the_log`), menu slash native diterbitkan lewat `setMyCommands` tanpa menggagalkan chat bila Bot API menolaknya (`test_telegram_registers_the_supported_slash_commands_in_the_native_menu`, `test_telegram_starts_when_native_command_menu_registration_fails`), jawaban Markdown memakai MarkdownV2 aman termasuk blockquote native serta fallback teks polos bila parser menolak (`test_telegram_sends_model_markdown_as_safe_markdownv2_with_native_blockquotes`, `test_telegram_retries_unparseable_markdown_as_plain_text_without_dropping_the_reply`), jawaban biasa dan streaming merujuk pesan masuk hanya pada bagian pertama (`test_telegram_round_trip`, `test_telegram_streamed_reply_quotes_only_the_first_chunk_and_keeps_its_topic`), dan `/model` memilih provider lalu model, mendukung halaman/kembali/batal, mengganti model sesi pada tap terotorisasi, serta menolak tap orang asing (`test_telegram_model_picker_selects_a_provider_then_switches_the_chat_model`, `test_telegram_model_picker_pages_back_and_cancels_after_provider_selection`, `test_telegram_model_picker_does_not_let_an_unauthorized_user_switch_the_owner_session`). Belum terhadap Telegram sungguhan: F1-T3 |
 | Penjadwal cron di dalam gateway | ✅ | |
 | Adapter Discord | 🟡 | Diuji terhadap WebSocket Gateway v10 dan REST API tiruan; token rahasia terdaftar; thread dan mention kanal ditangani; sambung ulang saat heartbeat terlewat. Belum dicoba terhadap server Discord sungguhan: F4-T1 |
 | Adapter Slack | 🟡 | Socket Mode dan Web API diuji terhadap server tiruan lokal; event diakui (ack), deduplikasi event ganda, balasan di thread. Belum terhadap ruang kerja Slack sungguhan: F4-T2 |

@@ -400,6 +400,7 @@ class FakeTelegram:
     def __init__(self):
         self.updates, self.sent, self.calls = [], [], []
         self.command_menu_error: str | None = None
+        self.markdown_error: str | None = None
         self.lock = threading.Lock()
         api = self
 
@@ -422,6 +423,8 @@ class FakeTelegram:
                     return self._reply({"ok": True, "result": pending})
                 if method == "sendMessage":
                     api.sent.append(body)
+                    if body.get("parse_mode") == "MarkdownV2" and api.markdown_error:
+                        return self._reply({"ok": False, "description": api.markdown_error}, 400)
                     return self._reply({"ok": True, "result": {"message_id": len(api.sent)}})
                 return self._reply({"ok": True, "result": True})
 
@@ -558,6 +561,44 @@ def test_telegram_starts_when_native_command_menu_registration_fails(clite_home,
         api.httpd.server_close()
 
 
+def test_telegram_sends_model_markdown_as_safe_markdownv2_with_native_blockquotes(telegram):
+    api, runner = telegram
+    adapter = runner.adapters["telegram"]
+
+    source = """Before *stars* and [docs](https://example.test/a_(b)).
+> First quoted line: `literal_*_`.
+> Second quoted line with **bold**.
+
+```python
+print("<literal>_*")
+```
+After!"""
+    result = adapter.send("111", source)
+
+    assert result.success is True
+    payload = api.sent[-1]
+    assert payload["parse_mode"] == "MarkdownV2"
+    assert payload["text"] == (
+        "Before _stars_ and [docs](https://example.test/a_(b\\))\\.\n"
+        "> First quoted line: `literal_*_`\\.\n"
+        "> Second quoted line with *bold*\\.\n\n"
+        "```python\nprint(\"<literal>_*\")\n```\n"
+        "After\\!"
+    )
+
+
+def test_telegram_retries_unparseable_markdown_as_plain_text_without_dropping_the_reply(telegram):
+    api, runner = telegram
+    api.markdown_error = "Bad Request: can't parse entities"
+
+    result = runner.adapters["telegram"].send("111", "unusual <<< text")
+
+    assert result.success is True
+    assert api.sent[-2]["parse_mode"] == "MarkdownV2"
+    assert api.sent[-1]["text"] == "unusual <<< text"
+    assert "parse_mode" not in api.sent[-1]
+
+
 def test_telegram_round_trip(telegram):
     api, runner = telegram
     api.push("hello from telegram")
@@ -667,7 +708,8 @@ def test_telegram_model_with_an_id_keeps_the_text_command_behavior(telegram):
     sent = api.wait_sent(1)
 
     assert runner.sessions["telegram:dm:111"].chat.agent.route.model == "demo-2"
-    assert sent[-1]["text"] == "Model: demo-2 via demo (this session only)"
+    assert sent[-1]["text"] == "Model: demo\\-2 via demo \\(this session only\\)"
+    assert sent[-1]["parse_mode"] == "MarkdownV2"
     assert sent[-1]["reply_parameters"] == {"message_id": 1}
     assert "reply_markup" not in sent[-1]
 

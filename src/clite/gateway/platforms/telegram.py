@@ -39,7 +39,73 @@ TELEGRAM_MAX_BOT_COMMANDS = 100
 TELEGRAM_MAX_COMMAND_NAME_LENGTH = 32
 TELEGRAM_MAX_COMMAND_DESCRIPTION_LENGTH = 256
 _TELEGRAM_COMMAND_NAME = re.compile(r"[a-z0-9_]{1,32}$")
+_MDV2_ESCAPE_RE = re.compile(r"([_*\[\]()~`>#\+\-=|{}.!\\\\])")
 _CHAT_TYPES = {"private": CHAT_DM, "group": CHAT_GROUP, "supergroup": CHAT_GROUP, "channel": CHAT_CHANNEL}
+
+
+def _escape_markdown_v2(text: str) -> str:
+    """Escape text outside Telegram MarkdownV2 entities."""
+    return _MDV2_ESCAPE_RE.sub(r"\\\1", text)
+
+
+def format_telegram_markdown(text: str) -> str:
+    """Render ordinary model Markdown as safe Telegram MarkdownV2.
+
+    Telegram recognizes quote blocks only through MarkdownV2's leading ``>`` syntax.  Stashing
+    constructs before escaping keeps arbitrary prose parseable while preserving code and links.
+    """
+    if not text:
+        return text
+
+    placeholders: dict[str, str] = {}
+
+    def stash(value: str) -> str:
+        key = f"\x00P{len(placeholders)}X\x00"
+        placeholders[key] = value
+        return key
+
+    def inline(value: str, opener: str, closer: str) -> str:
+        return stash(f"{opener}{_escape_markdown_v2(value)}{closer}")
+
+    def fenced(match: re.Match[str]) -> str:
+        opening, body, closing = match.group(1), match.group(2), match.group(3)
+        safe_body = body.replace("\\", "\\\\").replace("`", "\\`")
+        return stash(f"{opening}{safe_body}{closing}")
+
+    # MarkdownV2 permits only backslash and backtick escaping inside code blocks/spans.
+    rendered = re.sub(r"(?ms)^(```[^`\n]*\n)(.*?)(^[ \t]*```)[ \t]*$", fenced, text)
+    def code_span(match: re.Match[str]) -> str:
+        code = match.group(1).replace("\\", "\\\\")
+        return stash(f"`{code}`")
+
+    rendered = re.sub(r"`([^`\n]+)`", code_span, rendered)
+
+    def link(match: re.Match[str]) -> str:
+        label, url = match.group(1), match.group(2)
+        safe_url = url.replace("\\", "\\\\").replace(")", "\\)")
+        return stash(f"[{_escape_markdown_v2(label)}]({safe_url})")
+
+    rendered = re.sub(r"\[([^\]]+)\]\(([^()]*(?:\([^()]*\)[^()]*)*)\)", link, rendered)
+    rendered = re.sub(r"^#{1,6}\s+(.+)$", lambda match: inline(match.group(1).strip(), "*", "*"), rendered, flags=re.MULTILINE)
+    rendered = re.sub(r"\*\*(.+?)\*\*", lambda match: inline(match.group(1), "*", "*"), rendered)
+    rendered = re.sub(r"\*([^*\n]+)\*", lambda match: inline(match.group(1), "_", "_"), rendered)
+    rendered = re.sub(r"~~(.+?)~~", lambda match: inline(match.group(1), "~", "~"), rendered)
+    rendered = re.sub(r"\|\|(.+?)\|\|", lambda match: inline(match.group(1), "||", "||"), rendered)
+
+    # A leading unescaped > is Telegram's documented native blockquote syntax.  Every quote
+    # line is preserved, so consecutive Markdown quote lines become one multiline quote block.
+    rendered = re.sub(
+        r"^> ?(.*)$", lambda match: stash(f"> {_escape_markdown_v2(match.group(1))}"), rendered, flags=re.MULTILINE
+    )
+    rendered = _escape_markdown_v2(rendered)
+    for key, value in reversed(tuple(placeholders.items())):
+        rendered = rendered.replace(key, value)
+    return rendered
+
+
+def _is_markdown_parse_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return "parse" in message or "entity" in message or "markdown" in message
 
 
 def telegram_command_menu() -> list[dict[str, str]]:
@@ -349,7 +415,7 @@ class TelegramAdapter(BasePlatformAdapter):
     def send(
         self, chat_id: str, text: str, *, reply_to: str | None = None, thread_id: str | None = None
     ) -> SendResult:
-        payload: dict[str, Any] = {"chat_id": chat_id, "text": text}
+        payload: dict[str, Any] = {"chat_id": chat_id, "text": format_telegram_markdown(text), "parse_mode": "MarkdownV2"}
         if reply_to:
             payload["reply_parameters"] = {"message_id": int(reply_to)}
         if thread_id:
@@ -357,7 +423,16 @@ class TelegramAdapter(BasePlatformAdapter):
         try:
             result = self._call("sendMessage", payload)
         except Exception as exc:  # noqa: BLE001
-            return SendResult(False, error=str(exc))
+            if not _is_markdown_parse_error(exc):
+                return SendResult(False, error=str(exc))
+            # Formatting must never make a reply disappear. Preserve the original text if Telegram
+            # rejects an edge case its MarkdownV2 parser does not accept.
+            payload.pop("parse_mode")
+            payload["text"] = text
+            try:
+                result = self._call("sendMessage", payload)
+            except Exception as fallback_exc:  # noqa: BLE001
+                return SendResult(False, error=str(fallback_exc))
         return SendResult(True, message_id=str(result.get("message_id", "")))
 
     def send_model_picker(
@@ -447,17 +522,27 @@ class TelegramAdapter(BasePlatformAdapter):
     def edit(self, chat_id: str, message_id: str, text: str) -> bool:
         """Rewrite a sent message. Telegram rejects edits that change nothing, so an identical
         body counts as success; a rate limit answers ``False`` and the answer is sent whole."""
-        payload: dict[str, Any] = {"chat_id": chat_id, "text": text}
-        if str(message_id).isdigit():
-            payload["message_id"] = int(message_id)
-        else:
-            payload["message_id"] = message_id
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "message_id": int(message_id) if str(message_id).isdigit() else message_id,
+            "text": format_telegram_markdown(text),
+            "parse_mode": "MarkdownV2",
+        }
         try:
             self._call("editMessageText", payload, timeout=15)
             return True
         except Exception as exc:  # noqa: BLE001 - a rejected edit is not a failed turn
             if "message is not modified" in str(exc):
                 return True
+            if _is_markdown_parse_error(exc):
+                payload.pop("parse_mode")
+                payload["text"] = text
+                try:
+                    self._call("editMessageText", payload, timeout=15)
+                    return True
+                except Exception as fallback_exc:  # noqa: BLE001
+                    logger.debug("telegram plain-text edit failed for %s: %s", message_id, fallback_exc)
+                    return False
             logger.debug("telegram edit failed for %s: %s", message_id, exc)
             return False
 
