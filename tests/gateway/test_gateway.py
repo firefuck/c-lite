@@ -478,7 +478,7 @@ def telegram(clite_home, monkeypatch):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "good-token")
     (clite_home / "config.yaml").write_text(
         "model: {provider: demo, default: demo-1}\n"
-        "providers:\n  demo: {base_url: 'http://demo.invalid/v1', models: [demo-1, demo-2, demo-3, demo-4, demo-5, demo-6, demo-7, demo-8, demo-9]}\n"
+        "providers:\n  demo: {base_url: 'http://demo.invalid/v1', models: [demo-1, demo-2, demo-3, demo-4, demo-5, demo-6, demo-7, demo-8, demo-9]}\n  alternate: {base_url: 'http://alternate.invalid/v1', models: [alternate-1, alternate-2]}\n"
         "gateway:\n  platforms:\n"
         f"    telegram: {{enabled: true, allowed_users: [111], base_url: '{api.url}', poll_timeout: 1}}\n"
     )
@@ -566,51 +566,73 @@ def test_telegram_round_trip(telegram):
     assert offsets[0] == 0 and offsets[-1] == 2  # the update was acknowledged and is not fetched again
 
 
-def test_telegram_model_picker_switches_the_chat_session_from_an_inline_button(telegram):
+def _wait_for_picker_edits(api, count):
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        edits = [body for method, body in api.calls if method == "editMessageText"]
+        if len(edits) >= count:
+            return edits
+        time.sleep(0.02)
+    raise AssertionError(f"model picker did not produce {count} edit(s): {api.calls}")
+
+
+def test_telegram_model_picker_selects_a_provider_then_switches_the_chat_model(telegram):
     api, runner = telegram
     api.push("/model")
     picker = api.wait_sent(1)[0]
 
-    assert "Choose a model" in picker["text"]
+    assert "Choose a provider" in picker["text"]
     buttons = [button for row in picker["reply_markup"]["inline_keyboard"] for button in row]
-    selection = next(button for button in buttons if button["callback_data"].endswith(":select:1"))
-    assert len(selection["callback_data"].encode()) <= 64
+    provider = next(button for button in buttons if button["text"].removeprefix("✓ ") == "alternate")
+    assert ":provider:" in provider["callback_data"]
+    assert len(provider["callback_data"].encode()) <= 64
+
+    api.push_callback(provider["callback_data"], message_id=1)
+    provider_view = _wait_for_picker_edits(api, 1)[-1]
+    assert "Provider: alternate" in provider_view["text"]
+    assert "Choose a model" in provider_view["text"]
+    model_buttons = [button for row in provider_view["reply_markup"]["inline_keyboard"] for button in row]
+    selection = next(button for button in model_buttons if button["text"] == "alternate-2")
 
     api.push_callback(selection["callback_data"], message_id=1)
-    deadline = time.monotonic() + 5
-    while time.monotonic() < deadline:
-        edits = [body for method, body in api.calls if method == "editMessageText"]
-        if edits:
-            break
-        time.sleep(0.02)
-    else:
-        raise AssertionError(f"model selection did not edit the picker: {api.calls}")
+    edits = _wait_for_picker_edits(api, 2)
 
-    assert runner.sessions["telegram:dm:111"].chat.agent.route.model == "demo-2"
-    assert "Switched to demo-2" in edits[-1]["text"]
+    assert runner.sessions["telegram:dm:111"].chat.agent.route.provider == "alternate"
+    assert runner.sessions["telegram:dm:111"].chat.agent.route.model == "alternate-2"
+    assert "Switched to alternate-2" in edits[-1]["text"]
     assert edits[-1]["reply_markup"] == {"inline_keyboard": []}
     assert any(method == "answerCallbackQuery" for method, _body in api.calls)
 
 
-def test_telegram_model_picker_pages_through_more_than_eight_models(telegram):
+def test_telegram_model_picker_pages_back_and_cancels_after_provider_selection(telegram):
     api, _runner = telegram
     api.push("/model")
     picker = api.wait_sent(1)[0]
     buttons = [button for row in picker["reply_markup"]["inline_keyboard"] for button in row]
+    provider = next(button for button in buttons if button["text"].removeprefix("✓ ") == "demo")
+
+    api.push_callback(provider["callback_data"], message_id=1)
+    model_view = _wait_for_picker_edits(api, 1)[-1]
+    buttons = [button for row in model_view["reply_markup"]["inline_keyboard"] for button in row]
     next_page = next(button for button in buttons if button["callback_data"].endswith(":page:1"))
 
     api.push_callback(next_page["callback_data"], message_id=1)
-    deadline = time.monotonic() + 5
-    while time.monotonic() < deadline:
-        edits = [body for method, body in api.calls if method == "editMessageText"]
-        if edits:
-            break
-        time.sleep(0.02)
-    else:
-        raise AssertionError(f"model picker page did not render: {api.calls}")
+    paged_view = _wait_for_picker_edits(api, 2)[-1]
+    assert "Choose a model (2/2)" in paged_view["text"]
+    assert any(button["text"] == "demo-9" for row in paged_view["reply_markup"]["inline_keyboard"] for button in row)
 
-    assert "Choose a model (2/2)" in edits[-1]["text"]
-    assert any(button["text"] == "demo-9" for row in edits[-1]["reply_markup"]["inline_keyboard"] for button in row)
+    buttons = [button for row in paged_view["reply_markup"]["inline_keyboard"] for button in row]
+    back = next(button for button in buttons if button["callback_data"].endswith(":back:0"))
+    api.push_callback(back["callback_data"], message_id=1)
+    provider_view = _wait_for_picker_edits(api, 3)[-1]
+    assert "Choose a provider" in provider_view["text"]
+
+    buttons = [button for row in provider_view["reply_markup"]["inline_keyboard"] for button in row]
+    cancel = next(button for button in buttons if button["text"] == "Cancel")
+    api.push_callback(cancel["callback_data"], message_id=1)
+    cancelled = _wait_for_picker_edits(api, 4)[-1]
+    assert cancelled["text"] == "Model selection cancelled."
+    assert cancelled["reply_markup"] == {"inline_keyboard": []}
 
 
 def test_telegram_model_with_an_id_keeps_the_text_command_behavior(telegram):
@@ -628,7 +650,7 @@ def test_telegram_model_picker_does_not_let_an_unauthorized_user_switch_the_owne
     api.push("/model")
     picker = api.wait_sent(1)[0]
     buttons = [button for row in picker["reply_markup"]["inline_keyboard"] for button in row]
-    selection = next(button for button in buttons if button["callback_data"].endswith(":select:1"))
+    selection = next(button for button in buttons if ":provider:" in button["callback_data"])
 
     api.push_callback(selection["callback_data"], user=999, message_id=1)
     deadline = time.monotonic() + 5

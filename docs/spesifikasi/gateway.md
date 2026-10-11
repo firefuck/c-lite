@@ -105,11 +105,12 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
   penerbitan menu hanya dicatat; polling dan chat tetap dimulai.
 - Di grup, agent hanya menanggapi perintah, mention, atau balasan ke pesannya sendiri.
   Perintah yang ditujukan ke bot lain (`/cmd@botlain`) diabaikan.
-- `/model` tanpa argumen di chat Telegram yang diizinkan mengirim keyboard inline berhalaman dari
-  model yang tersedia. Tombol memanggil kembali ke runner, yang mengulang pemeriksaan otorisasi,
-  menolak sesi sibuk, lalu mengganti model hanya untuk sesi chat tersebut dan mengganti pesan
-  picker dengan konfirmasi. `/model <id>` tetap memakai jalur perintah teks yang sama di semua
-  surface.
+- `/model` tanpa argumen di chat Telegram yang diizinkan mengirim keyboard inline berhalaman:
+  pilih provider lebih dulu, lalu model provider tersebut. Tampilan model memiliki tombol kembali
+  dan kedua tampilan dapat dibatalkan. Tombol memanggil kembali ke runner, yang mengulang
+  pemeriksaan otorisasi, menolak sesi sibuk, lalu mengganti provider dan model hanya untuk sesi
+  chat tersebut serta mengganti pesan picker dengan konfirmasi. `/model <id>` tetap memakai jalur
+  perintah teks yang sama di semua surface.
 - Galat jaringan dan galat Bot API diredaksi sebelum dilempar atau dicatat: URL permintaan
   memuat token, dan sebagian galat `urllib` mengutip URL itu.
 
@@ -120,7 +121,7 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
 | Runner, kunci sesi, pairing, kebijakan sibuk | ✅ | |
 | Persetujuan dan klarifikasi lewat chat | ✅ | |
 | Adapter `local` | ✅ | |
-| Adapter Telegram | 🟡 | Diuji terhadap Bot API tiruan; token tidak sampai ke log (`test_a_network_error_never_puts_the_bot_token_in_the_log`), menu slash native diterbitkan lewat `setMyCommands` tanpa menggagalkan chat bila Bot API menolaknya (`test_telegram_registers_the_supported_slash_commands_in_the_native_menu`, `test_telegram_starts_when_native_command_menu_registration_fails`), dan `/model` mengirim picker inline berhalaman, mengganti model sesi pada tap terotorisasi, serta menolak tap orang asing (`test_telegram_model_picker_switches_the_chat_session_from_an_inline_button`, `test_telegram_model_picker_pages_through_more_than_eight_models`, `test_telegram_model_picker_does_not_let_an_unauthorized_user_switch_the_owner_session`). Belum terhadap Telegram sungguhan: F1-T3 |
+| Adapter Telegram | 🟡 | Diuji terhadap Bot API tiruan; token tidak sampai ke log (`test_a_network_error_never_puts_the_bot_token_in_the_log`), menu slash native diterbitkan lewat `setMyCommands` tanpa menggagalkan chat bila Bot API menolaknya (`test_telegram_registers_the_supported_slash_commands_in_the_native_menu`, `test_telegram_starts_when_native_command_menu_registration_fails`), dan `/model` memilih provider lalu model, mendukung halaman/kembali/batal, mengganti model sesi pada tap terotorisasi, serta menolak tap orang asing (`test_telegram_model_picker_selects_a_provider_then_switches_the_chat_model`, `test_telegram_model_picker_pages_back_and_cancels_after_provider_selection`, `test_telegram_model_picker_does_not_let_an_unauthorized_user_switch_the_owner_session`). Belum terhadap Telegram sungguhan: F1-T3 |
 | Penjadwal cron di dalam gateway | ✅ | |
 | Adapter Discord | 🟡 | Diuji terhadap WebSocket Gateway v10 dan REST API tiruan; token rahasia terdaftar; thread dan mention kanal ditangani; sambung ulang saat heartbeat terlewat. Belum dicoba terhadap server Discord sungguhan: F4-T1 |
 | Adapter Slack | 🟡 | Socket Mode dan Web API diuji terhadap server tiruan lokal; event diakui (ack), deduplikasi event ganda, balasan di thread. Belum terhadap ruang kerja Slack sungguhan: F4-T2 |

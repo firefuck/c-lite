@@ -96,7 +96,9 @@ class _ModelPicker:
     key: str
     session_key: str
     source: SessionSource
-    models: list[str]
+    providers: list[str]
+    provider: str | None = None
+    models: list[str] = field(default_factory=list)
     page: int = 0
 
 
@@ -357,17 +359,32 @@ class GatewayRunner:
 
     def _model_picker_view(self, picker: _ModelPicker, session: GatewaySession) -> tuple[str, list[list[dict[str, str]]]]:
         page_size = 8
-        total_pages = max(1, (len(picker.models) + page_size - 1) // page_size)
+        selecting_provider = picker.provider is None
+        choices = picker.providers if selecting_provider else picker.models
+        total_pages = max(1, (len(choices) + page_size - 1) // page_size)
         picker.page = min(max(picker.page, 0), total_pages - 1)
         start = picker.page * page_size
         rows: list[list[dict[str, str]]] = []
-        buttons = [
-            {
-                "text": self._model_picker_label(model, current=model == session.chat.agent.route.model),
-                "callback_data": f"mp:{picker.key}:select:{index}",
-            }
-            for index, model in enumerate(picker.models[start : start + page_size], start=start)
-        ]
+        if selecting_provider:
+            buttons = [
+                {
+                    "text": self._model_picker_label(provider, current=provider == session.chat.agent.route.provider),
+                    "callback_data": f"mp:{picker.key}:provider:{index}",
+                }
+                for index, provider in enumerate(choices[start : start + page_size], start=start)
+            ]
+        else:
+            buttons = [
+                {
+                    "text": self._model_picker_label(
+                        model,
+                        current=picker.provider == session.chat.agent.route.provider
+                        and model == session.chat.agent.route.model,
+                    ),
+                    "callback_data": f"mp:{picker.key}:select:{index}",
+                }
+                for index, model in enumerate(choices[start : start + page_size], start=start)
+            ]
         rows.extend([buttons[index : index + 2] for index in range(0, len(buttons), 2)])
         if total_pages > 1:
             navigation: list[dict[str, str]] = []
@@ -377,27 +394,33 @@ class GatewayRunner:
             if picker.page < total_pages - 1:
                 navigation.append({"text": "Next ▶", "callback_data": f"mp:{picker.key}:page:{picker.page + 1}"})
             rows.append(navigation)
+        if not selecting_provider:
+            rows.append([{"text": "◀ Back", "callback_data": f"mp:{picker.key}:back:0"}])
         rows.append([{"text": "Cancel", "callback_data": f"mp:{picker.key}:cancel"}])
-        return f"Model: {session.chat.agent.route.model}\nChoose a model ({picker.page + 1}/{total_pages}).", rows
+        if selecting_provider:
+            text = f"Model: {session.chat.agent.route.model}\nChoose a provider ({picker.page + 1}/{total_pages})."
+        else:
+            text = f"Provider: {picker.provider}\nChoose a model ({picker.page + 1}/{total_pages})."
+        return text, rows
 
     def _send_telegram_model_picker(self, session: GatewaySession) -> bool:
         """Render the Telegram-only interactive form of an argument-less ``/model`` command."""
         adapter = self.adapters.get(session.source.platform)
         if adapter is None:
             return False
-        from clite.providers.models import list_models
+        from clite.providers.registry import list_providers
 
-        models = [model.id for model in list_models(session.chat.agent.route.provider, route=session.chat.agent.route)]
-        current = session.chat.agent.route.model
-        if current not in models:
-            models.insert(0, current)
-        models = list(dict.fromkeys(models))
-        if not models:
+        current = session.chat.agent.route.provider
+        providers = [profile.name for profile in list_providers(session.chat.agent.config) if profile.is_configured()]
+        if current not in providers:
+            providers.insert(0, current)
+        providers = list(dict.fromkeys(providers))
+        if not providers:
             return False
         import secrets
 
         key = secrets.token_hex(4)
-        picker = _ModelPicker(key=key, session_key=session.key, source=session.source, models=models)
+        picker = _ModelPicker(key=key, session_key=session.key, source=session.source, providers=providers)
         text, keyboard = self._model_picker_view(picker, session)
         result = adapter.send_model_picker(session.source.chat_id, text, keyboard, thread_id=session.source.thread_id)
         if not result.success:
@@ -413,11 +436,12 @@ class GatewayRunner:
         adapter = self.adapters.get(source.platform)
         if adapter is None:
             return
-        try:
-            _prefix, key, action, raw_value = data.split(":", 3)
-        except ValueError:
+        parts = data.split(":", 3)
+        if len(parts) not in (3, 4) or parts[0] != "mp":
             adapter.answer_callback(callback_id, "Invalid model selection.")
             return
+        _prefix, key, action = parts[:3]
+        raw_value = parts[3] if len(parts) == 4 else ""
         if not self.is_authorized(source):
             adapter.answer_callback(callback_id, "You are not authorized.")
             return
@@ -450,7 +474,38 @@ class GatewayRunner:
             adapter.edit_model_picker(source.chat_id, message_id, text, keyboard)
             adapter.answer_callback(callback_id)
             return
-        if action != "select":
+        if action == "back":
+            picker.provider = None
+            picker.models = []
+            picker.page = 0
+            text, keyboard = self._model_picker_view(picker, session)
+            adapter.edit_model_picker(source.chat_id, message_id, text, keyboard)
+            adapter.answer_callback(callback_id)
+            return
+        if action == "provider":
+            try:
+                provider = picker.providers[int(raw_value)]
+            except (ValueError, IndexError):
+                adapter.answer_callback(callback_id, "Invalid provider selection.")
+                return
+            from clite.providers.models import list_models
+
+            route = session.chat.agent.route
+            models = [model.id for model in list_models(provider, route=route if provider == route.provider else None)]
+            if provider == route.provider and route.model not in models:
+                models.insert(0, route.model)
+            models = list(dict.fromkeys(models))
+            if not models:
+                adapter.answer_callback(callback_id, "That provider has no models available.")
+                return
+            picker.provider = provider
+            picker.models = models
+            picker.page = 0
+            text, keyboard = self._model_picker_view(picker, session)
+            adapter.edit_model_picker(source.chat_id, message_id, text, keyboard)
+            adapter.answer_callback(callback_id)
+            return
+        if action != "select" or picker.provider is None:
             adapter.answer_callback(callback_id, "Invalid model selection.")
             return
         try:
@@ -458,7 +513,7 @@ class GatewayRunner:
         except (ValueError, IndexError):
             adapter.answer_callback(callback_id, "Invalid model selection.")
             return
-        result = session.chat.switch_model(model)
+        result = session.chat.switch_model(f"{picker.provider}:{model}")
         text = f"Switched to {session.chat.agent.route.model}." if result.success else result.message
         adapter.edit_model_picker(source.chat_id, message_id, text, [])
         if result.success:
