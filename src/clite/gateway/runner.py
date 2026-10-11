@@ -240,12 +240,17 @@ class GatewayRunner:
 
     # ── sending ──────────────────────────────────────────────────────────────────────────
 
-    def reply(self, source: SessionSource, text: str) -> None:
+    def reply(self, source: SessionSource, text: str, *, reply_to: str | None = None) -> None:
         adapter = self.adapters.get(source.platform)
         if adapter is None or not text.strip():
             return
-        for chunk in split_message(text, adapter.max_message_length):
-            result = adapter.send(source.chat_id, chunk, thread_id=source.thread_id)
+        for index, chunk in enumerate(split_message(text, adapter.max_message_length)):
+            result = adapter.send(
+                source.chat_id,
+                chunk,
+                reply_to=reply_to if index == 0 else None,
+                thread_id=source.thread_id,
+            )
             if not result.success:
                 logger.warning("send to %s:%s failed: %s", source.platform, source.chat_id, result.error)
                 return
@@ -837,7 +842,7 @@ class GatewayRunner:
             if result.action == ACTION_NEW:
                 self.session_map.set(session.key, session.chat.session_id, event.source)
             if result.action != ACTION_SUBMIT:
-                self.reply(event.source, result.text)
+                self.reply(event.source, result.text, reply_to=event.reply_to or event.message_id)
                 return
             text = result.text  # a skill command: run it as a turn
         images, notes, transcript = self._collect_attachments(session, event)
@@ -850,7 +855,8 @@ class GatewayRunner:
         payload: dict[str, Any] = {"images": images} if images else {}
         if transcript:
             payload["voice"] = True  # the turn came from a recording; how to answer is a policy
-        self._submit(session, text, payload=payload or None)
+        payload["reply_to"] = event.reply_to or event.message_id
+        self._submit(session, text, payload=payload)
 
     def _collect_attachments(
         self, session: GatewaySession, event: MessageEvent
@@ -1005,11 +1011,16 @@ class GatewayRunner:
         stream: StreamSender | None = None
         progress: ProgressReporter | None = None
         per_tool_message = session.chat.tool_progress == "message"
+        reply_to = str((turn.payload or {}).get("reply_to") or "") or None
         if adapter is not None:
             chat_id, thread_id = session.source.chat_id, session.source.thread_id
+            first_send = True
 
             def send(text: str) -> str | None:
-                result = adapter.send(chat_id, text, thread_id=thread_id)
+                nonlocal first_send
+                result = adapter.send(chat_id, text, reply_to=reply_to if first_send else None, thread_id=thread_id)
+                if result.success:
+                    first_send = False
                 return result.message_id if result.success else None
 
             def edit(message_id: str, text: str) -> bool:
@@ -1042,7 +1053,7 @@ class GatewayRunner:
             result = session.chat.submit(turn.text, images=(turn.payload or {}).get("images"))
         except Exception as exc:  # noqa: BLE001
             logger.exception("gateway turn failed for %s", session.key)
-            self.reply(session.source, f"Something went wrong: {type(exc).__name__}: {exc}")
+            self.reply(session.source, f"Something went wrong: {type(exc).__name__}: {exc}", reply_to=reply_to)
             return
         finally:
             callbacks.on_delta, callbacks.on_tool_complete, callbacks.on_tool_start = (
@@ -1058,7 +1069,7 @@ class GatewayRunner:
         if result.interrupted:
             return  # the user moved on; whatever interrupted this turn runs next
         if stream is None:
-            self.reply(session.source, result.final_response or "(no response)")
+            self.reply(session.source, result.final_response or "(no response)", reply_to=reply_to)
         self._speak_reply(
             session,
             adapter,

@@ -575,9 +575,21 @@ def test_telegram_round_trip(telegram):
         time.sleep(0.02)
     else:
         raise AssertionError(f"the answer never became {expected!r}: {texts}")
+    assert api.sent[0]["reply_parameters"] == {"message_id": 1}
     assert ("sendChatAction", {"chat_id": "111", "action": "typing"}) in api.calls
     offsets = [body["offset"] for method, body in api.calls if method == "getUpdates"]
     assert offsets[0] == 0 and offsets[-1] == 2  # the update was acknowledged and is not fetched again
+
+
+def test_telegram_streamed_reply_quotes_only_the_first_chunk_and_keeps_its_topic(telegram):
+    api, runner = telegram
+    runner.client_factory = lambda: ScriptedClient([text_response("x" * 4_100)])
+    api.push("@clite_bot split this", chat=-100, chat_type="supergroup", message_thread_id=77)
+    sent = api.wait_sent(2)
+
+    assert [message["message_thread_id"] for message in sent] == [77, 77]
+    assert sent[0]["reply_parameters"] == {"message_id": 1}
+    assert "reply_parameters" not in sent[1]
 
 
 def _wait_for_picker_edits(api, count):
@@ -656,6 +668,7 @@ def test_telegram_model_with_an_id_keeps_the_text_command_behavior(telegram):
 
     assert runner.sessions["telegram:dm:111"].chat.agent.route.model == "demo-2"
     assert sent[-1]["text"] == "Model: demo-2 via demo (this session only)"
+    assert sent[-1]["reply_parameters"] == {"message_id": 1}
     assert "reply_markup" not in sent[-1]
 
 
@@ -767,6 +780,7 @@ def test_telegram_group_rules(telegram):
     mentioned = event("@clite_bot what is the status?")
     assert mentioned.text == "what is the status?" and mentioned.source.chat_type == "group"
     assert mentioned.source.user_name == "Ada L" and mentioned.source.chat_name == "Team"
+    assert mentioned.reply_to == "5"
     assert event("/status@clite_bot").text == "/status"
     assert event("/status@other_bot") is None
     assert event("yes do it", reply_to_message={"from": {"username": "clite_bot"}}).text == "yes do it"

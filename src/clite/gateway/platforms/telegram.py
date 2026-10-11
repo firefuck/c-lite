@@ -234,6 +234,7 @@ class TelegramAdapter(BasePlatformAdapter):
             text=text,
             source=source,
             message_id=str(message.get("message_id", "")),
+            reply_to=str(message.get("message_id", "")) or None,
             attachments=attachments,
             raw=update,
         )
