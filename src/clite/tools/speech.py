@@ -30,8 +30,21 @@ class TranscriptionProvider(ABC):
     name: str = ""
     #: When True, the provider only activates if its API key is present in ``.env``.
     requires_api_key: bool = False
-    #: The environment variable that holds the API key (for keyed providers).
+    #: The environment variable that holds the API key (for single-key providers).
     api_key_env: str = ""
+    #: Environment variables that hold compatible API keys (checked in order).
+    api_key_envs: tuple[str, ...] = ()
+
+    def is_available(self) -> bool:
+        """Whether this provider has the credentials or environment it needs."""
+        from clite.core.env import get_secret
+
+        if not self.requires_api_key:
+            return True
+        keys = tuple(self.api_key_envs) if self.api_key_envs else ((self.api_key_env,) if self.api_key_env else ())
+        if not keys:
+            return True
+        return any(bool(get_secret(k)) for k in keys)
 
     @abstractmethod
     def transcribe(self, path: Path, *, model: str = "", language: str = "") -> str:
@@ -49,10 +62,23 @@ class SpeechProvider(ABC):
     name: str = ""
     #: When True, the provider only activates if its API key is present in ``.env``.
     requires_api_key: bool = False
-    #: The environment variable that holds the API key (for keyed providers).
+    #: The environment variable that holds the API key (for single-key providers).
     api_key_env: str = ""
+    #: Environment variables that hold compatible API keys (checked in order).
+    api_key_envs: tuple[str, ...] = ()
     #: The container the provider writes, which decides the extension of the file the user gets.
     output_format: str = "mp3"
+
+    def is_available(self) -> bool:
+        """Whether this provider has the credentials or environment it needs."""
+        from clite.core.env import get_secret
+
+        if not self.requires_api_key:
+            return True
+        keys = tuple(self.api_key_envs) if self.api_key_envs else ((self.api_key_env,) if self.api_key_env else ())
+        if not keys:
+            return True
+        return any(bool(get_secret(k)) for k in keys)
 
     @abstractmethod
     def synthesize(
@@ -114,8 +140,18 @@ class _Registry:
                 provider = factory()
             except Exception:  # noqa: BLE001 - a broken factory is skipped, not fatal
                 continue
-            if provider.requires_api_key and provider.api_key_env and not get_secret(provider.api_key_env):
-                continue
+            if hasattr(provider, "is_available"):
+                try:
+                    if not provider.is_available():
+                        continue
+                except Exception:  # noqa: BLE001
+                    continue
+            elif provider.requires_api_key:
+                keys = getattr(provider, "api_key_envs", ()) or (
+                    (provider.api_key_env,) if getattr(provider, "api_key_env", "") else ()
+                )
+                if keys and not any(get_secret(k) for k in keys):
+                    continue
             return provider
         return None
 

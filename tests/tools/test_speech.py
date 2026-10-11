@@ -201,6 +201,24 @@ def test_a_keyed_provider_without_its_key_is_skipped(clite_home):
         reset_speech_registries()
 
 
+def test_a_multi_keyed_provider_checks_any_available_key(clite_home, monkeypatch):
+    class _MultiKeyed(_FakeTranscriber):
+        name = "multi-keyed"
+        requires_api_key = True
+        api_key_envs = ("CLITE_SPEECH_KEY_1", "CLITE_SPEECH_KEY_2")
+
+    (clite_home / "config.yaml").write_text("speech:\n  transcription:\n    provider: multi-keyed\n")
+    register_transcription_provider("multi-keyed", _MultiKeyed)
+    try:
+        assert get_transcription_provider() is None
+        monkeypatch.setenv("CLITE_SPEECH_KEY_2", "some-key")
+        provider = get_transcription_provider()
+        assert provider is not None
+        assert provider.name == "multi-keyed"
+    finally:
+        reset_speech_registries()
+
+
 def test_a_broken_factory_does_not_take_the_registry_down(clite_home):
     def broken():
         raise RuntimeError("this factory is broken")
@@ -464,3 +482,154 @@ def test_a_provider_error_message_is_carried_through(tmp_path, clite_home, monke
     finally:
         httpd.shutdown()
         httpd.server_close()
+
+
+# ── multi-key discovery, fallback endpoints, and Gemini STT ───────────────────────────────
+
+
+def test_groq_key_enables_transcription_and_routes_to_groq_endpoint(
+    tmp_path, clite_home, monkeypatch
+):
+    from clite.core.brand import PLUGIN_NAMESPACE
+    from clite.plugins import manager as plugins_manager
+
+    reset_speech_registries()
+    monkeypatch.setenv("GROQ_API_KEY", "gsk-synthetic-key")
+    manager = plugins_manager.ensure_plugins_loaded()
+    assert manager.plugins["speech-openai"].status == "loaded"
+
+    provider = get_transcription_provider()
+    assert provider is not None
+    assert provider.name == "openai-transcribe"
+
+    def respond(_body):
+        return 200, "text/plain", b"groq transcript text"
+
+    base, recorded, httpd = _serve(respond)
+    try:
+        # Patch GROQ_TRANSCRIPTIONS_URL in speech_openai module to route to our test server
+        mod = sys.modules[f"{PLUGIN_NAMESPACE}.speech_openai"]
+        monkeypatch.setattr(mod, "GROQ_TRANSCRIPTIONS_URL", f"{base}/openai/v1/audio/transcriptions")
+        text = provider.transcribe(_write_voice_note(tmp_path))
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        reset_speech_registries()
+
+    assert text == "groq transcript text"
+    req = recorded[0]
+    assert req["path"] == "/openai/v1/audio/transcriptions"
+    assert req["auth"] == "Bearer gsk-synthetic-key"
+    assert b'name="model"' in req["body"] and b"whisper-large-v3" in req["body"]
+
+
+def test_custom_key_enables_speech_and_transcription(tmp_path, clite_home, monkeypatch):
+    from clite.plugins import manager as plugins_manager
+
+    reset_speech_registries()
+    monkeypatch.setenv("CUSTOM_API_KEY", "custom-secret-key")
+    plugins_manager.ensure_plugins_loaded()
+
+    stt_provider = get_transcription_provider()
+    tts_provider = get_speech_provider()
+    assert stt_provider is not None
+    assert tts_provider is not None
+
+    def respond_stt(_body):
+        return 200, "text/plain", b"custom transcribed"
+
+    base, recorded_stt, httpd_stt = _serve(respond_stt)
+    try:
+        monkeypatch.setenv("CUSTOM_BASE_URL", base)
+        text = stt_provider.transcribe(_write_voice_note(tmp_path))
+    finally:
+        httpd_stt.shutdown()
+        httpd_stt.server_close()
+
+    assert text == "custom transcribed"
+    assert recorded_stt[0]["path"] == "/audio/transcriptions"
+    assert recorded_stt[0]["auth"] == "Bearer custom-secret-key"
+
+    def respond_tts(_body):
+        return 200, "audio/mpeg", MP3
+
+    base_tts, recorded_tts, httpd_tts = _serve(respond_tts)
+    out_file = tmp_path / "custom_out.mp3"
+    try:
+        monkeypatch.setenv("CUSTOM_BASE_URL", base_tts)
+        written = tts_provider.synthesize("Custom hello", out_file)
+    finally:
+        httpd_tts.shutdown()
+        httpd_tts.server_close()
+        reset_speech_registries()
+
+    assert written.exists() and written.read_bytes() == MP3
+    assert recorded_tts[0]["path"] == "/audio/speech"
+    assert recorded_tts[0]["auth"] == "Bearer custom-secret-key"
+
+
+def test_gemini_key_enables_gemini_transcription(tmp_path, clite_home, monkeypatch):
+    from clite.core.brand import PLUGIN_NAMESPACE
+    from clite.plugins import manager as plugins_manager
+
+    reset_speech_registries()
+    monkeypatch.setenv("GEMINI_API_KEY", "gemini-synthetic-key")
+    (clite_home / "config.yaml").write_text(
+        "speech:\n  transcription:\n    provider: gemini-transcribe\n"
+    )
+    plugins_manager.ensure_plugins_loaded()
+
+    provider = get_transcription_provider()
+    assert provider is not None
+    assert provider.name == "gemini-transcribe"
+
+    gemini_reply = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [{"text": "Hello from Gemini speech transcription!"}],
+                    "role": "model",
+                }
+            }
+        ]
+    }
+
+    def respond(_body):
+        return 200, "application/json", json.dumps(gemini_reply).encode("utf-8")
+
+    base, recorded, httpd = _serve(respond)
+    try:
+        mod = sys.modules[f"{PLUGIN_NAMESPACE}.speech_openai"]
+        gemini_class = mod.GeminiTranscriptionProvider
+        inst = gemini_class(base_url=f"{base}/v1beta/models/{{model}}:generateContent")
+        text = inst.transcribe(_write_voice_note(tmp_path), language="en")
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        reset_speech_registries()
+
+    assert text == "Hello from Gemini speech transcription!"
+    assert len(recorded) == 1
+    req = recorded[0]
+    assert req["path"].startswith("/v1beta/models/gemini-2.0-flash:generateContent?key=gemini-synthetic-key")
+    assert req["content_type"] == "application/json"
+    body = json.loads(req["body"])
+    parts = body["contents"][0]["parts"]
+    assert any("inlineData" in p and p["inlineData"]["mimeType"] == "audio/ogg" for p in parts)
+    assert any("Generate a transcript of the speech." in p.get("text", "") for p in parts)
+
+
+def test_google_api_key_also_activates_gemini_transcription(clite_home, monkeypatch):
+    from clite.plugins import manager as plugins_manager
+
+    reset_speech_registries()
+    monkeypatch.setenv("GOOGLE_API_KEY", "google-synthetic-key")
+    (clite_home / "config.yaml").write_text(
+        "speech:\n  transcription:\n    provider: gemini-transcribe\n"
+    )
+    plugins_manager.ensure_plugins_loaded()
+
+    provider = get_transcription_provider()
+    assert provider is not None
+    assert provider.name == "gemini-transcribe"
+    reset_speech_registries()
