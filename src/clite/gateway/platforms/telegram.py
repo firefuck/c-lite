@@ -159,12 +159,12 @@ class TelegramAdapter(BasePlatformAdapter):
                     self.handle_message(event)
 
     def _handle_callback(self, update: dict[str, Any]) -> bool:
-        """Translate an inline model-picker callback; its policy stays in the runner."""
+        """Translate an inline control callback; its policy stays in the runner."""
         callback = update.get("callback_query")
         if not isinstance(callback, dict):
             return False
         data = str(callback.get("data") or "")
-        if not data.startswith("mp:"):
+        if not (data.startswith("mp:") or data.startswith("ap:")):
             self.answer_callback(str(callback.get("id") or ""), "Unsupported action.")
             return True
         message = callback.get("message") or {}
@@ -183,9 +183,12 @@ class TelegramAdapter(BasePlatformAdapter):
             thread_id=str(thread) if thread else None,
             chat_name=str(chat.get("title") or ""),
         )
-        self.runner.handle_model_picker_callback(
-            source, str(callback.get("id") or ""), data, str(message.get("message_id") or "")
-        )
+        callback_id = str(callback.get("id") or "")
+        message_id = str(message.get("message_id") or "")
+        if data.startswith("ap:"):
+            self.runner.handle_approval_callback(source, callback_id, data, message_id)
+        else:
+            self.runner.handle_model_picker_callback(source, callback_id, data, message_id)
         return True
 
     def to_event(self, update: dict[str, Any]) -> MessageEvent | None:
@@ -386,6 +389,38 @@ class TelegramAdapter(BasePlatformAdapter):
             return True
         except Exception as exc:  # noqa: BLE001
             logger.debug("telegram model picker edit failed for %s: %s", message_id, exc)
+            return False
+
+    def send_approval_prompt(
+        self, chat_id: str, text: str, keyboard: list[list[dict[str, str]]], *, thread_id: str | None = None
+    ) -> SendResult:
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "text": text,
+            "reply_markup": {"inline_keyboard": keyboard},
+        }
+        if thread_id:
+            payload["message_thread_id"] = int(thread_id)
+        try:
+            result = self._call("sendMessage", payload)
+        except Exception as exc:  # noqa: BLE001
+            return SendResult(False, error=str(exc))
+        return SendResult(True, message_id=str(result.get("message_id", "")))
+
+    def edit_approval_prompt(
+        self, chat_id: str, message_id: str, text: str, keyboard: list[list[dict[str, str]]]
+    ) -> bool:
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "message_id": int(message_id) if message_id.isdigit() else message_id,
+            "text": text,
+            "reply_markup": {"inline_keyboard": keyboard},
+        }
+        try:
+            self._call("editMessageText", payload, timeout=15)
+            return True
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("telegram approval prompt edit failed for %s: %s", message_id, exc)
             return False
 
     def answer_callback(self, callback_id: str, text: str = "") -> None:

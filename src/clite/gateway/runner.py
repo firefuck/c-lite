@@ -77,6 +77,15 @@ _APPROVAL_WORDS = {
     "no": "deny",
     "n": "deny",
 }
+_APPROVAL_TRAILING_PUNCTUATION = ".,;:!?"
+_APPROVAL_BUTTONS = (
+    ("Approve once", "once"),
+    ("Approve for session", "session"),
+    ("Always approve", "always"),
+    ("Deny", "deny"),
+)
+
+
 
 
 @dataclass
@@ -100,6 +109,17 @@ class _ModelPicker:
     provider: str | None = None
     models: list[str] = field(default_factory=list)
     page: int = 0
+
+
+@dataclass
+class _ApprovalPrompt:
+    """A Telegram approval keyboard tied to the one pending question that created it."""
+
+    key: str
+    session_key: str
+    source: SessionSource
+    pending: _Pending
+    message_id: str
 
 
 @dataclass
@@ -127,6 +147,7 @@ class GatewayRunner:
         self.now_fn = time.time
         self.pairing = PairingStore()
         self._model_pickers: dict[str, _ModelPicker] = {}
+        self._approval_prompts: dict[str, _ApprovalPrompt] = {}
         self._lock = threading.RLock()
         self._scheduler: Any = None
         self.running = False
@@ -522,6 +543,97 @@ class GatewayRunner:
         else:
             adapter.answer_callback(callback_id, "Could not switch model.")
 
+    # ── Telegram approval controls ───────────────────────────────────────────────────────
+
+    def _send_telegram_approval(
+        self, session: GatewaySession, pending: _Pending, command: str, description: str
+    ) -> bool:
+        """Send a Telegram approval keyboard and bind it to this exact pending question."""
+        adapter = self.adapters.get(session.source.platform)
+        if adapter is None or session.source.platform != "telegram":
+            return False
+        import secrets
+
+        key = secrets.token_urlsafe(8)
+        keyboard = [
+            [
+                {"text": label, "callback_data": f"ap:{key}:{choice}"}
+                for label, choice in _APPROVAL_BUTTONS[index : index + 2]
+            ]
+            for index in range(0, len(_APPROVAL_BUTTONS), 2)
+        ]
+        text = f"This command needs your approval ({description}):\n\n{command}\n\nChoose an approval option."
+        result = adapter.send_approval_prompt(
+            session.source.chat_id, text, keyboard, thread_id=session.source.thread_id
+        )
+        if not result.success or not result.message_id:
+            return False
+        with self._lock:
+            still_pending = session.pending is pending
+            if still_pending:
+                self._approval_prompts[key] = _ApprovalPrompt(
+                    key, session.key, session.source, pending, result.message_id
+                )
+        if not still_pending:
+            # A text reply may arrive between sendMessage returning and this bookkeeping step.
+            # Do not leave a live keyboard for an approval that was already resolved.
+            adapter.edit_approval_prompt(session.source.chat_id, result.message_id, "Approval: expired.", [])
+        return True
+
+    def _remove_telegram_approval(self, prompt: _ApprovalPrompt, text: str) -> None:
+        """Disable a consumed or expired keyboard. A failed cosmetic edit never reopens approval."""
+        with self._lock:
+            if self._approval_prompts.get(prompt.key) is not prompt:
+                return
+            self._approval_prompts.pop(prompt.key, None)
+        adapter = self.adapters.get(prompt.source.platform)
+        if adapter is not None:
+            adapter.edit_approval_prompt(prompt.source.chat_id, prompt.message_id, text, [])
+
+    def _remove_telegram_approval_for_pending(self, pending: _Pending, text: str) -> None:
+        """Remove the keyboard associated with a text answer or a timed-out pending approval."""
+        with self._lock:
+            prompt = next(
+                (candidate for candidate in self._approval_prompts.values() if candidate.pending is pending), None
+            )
+        if prompt is not None:
+            self._remove_telegram_approval(prompt, text)
+
+    def handle_approval_callback(
+        self, source: SessionSource, callback_id: str, data: str, message_id: str
+    ) -> None:
+        """Resolve an approval button only for its authorized owner and live pending session."""
+        adapter = self.adapters.get(source.platform)
+        if adapter is None:
+            return
+        parts = data.split(":", 2)
+        if len(parts) != 3 or parts[0] != "ap" or parts[2] not in _APPROVAL_WORDS.values():
+            adapter.answer_callback(callback_id, "Invalid approval selection.")
+            return
+        _prefix, key, choice = parts
+        if not self.is_authorized(source):
+            adapter.answer_callback(callback_id, "You are not authorized.")
+            return
+        with self._lock:
+            prompt = self._approval_prompts.get(key)
+            if (
+                prompt is None
+                or prompt.message_id != message_id
+                or prompt.source.platform != source.platform
+                or prompt.source.chat_id != source.chat_id
+                or prompt.source.thread_id != source.thread_id
+                or prompt.source.user_id != source.user_id
+                or prompt.pending.answered.is_set()
+                or not (session := self.sessions.get(prompt.session_key))
+                or session.pending is not prompt.pending
+            ):
+                adapter.answer_callback(callback_id, "This approval has expired.")
+                return
+            prompt.pending.answer = choice
+            prompt.pending.answered.set()
+        self._remove_telegram_approval(prompt, f"Approval: {choice}.")
+        adapter.answer_callback(callback_id, "Approval recorded.")
+
     # ── authorization ────────────────────────────────────────────────────────────────────
 
     def is_authorized(self, source: SessionSource) -> bool:
@@ -551,6 +663,23 @@ class GatewayRunner:
     def _callbacks(self, key: str, source: SessionSource) -> AgentCallbacks:
         timeout = float(get_path(self.config, "approvals.timeout", 300) or 300)
 
+        def approve(*, command: str, description: str, pattern_keys: list[str]) -> str:
+            message = (
+                f"This command needs your approval ({description}):\n\n{command}\n\n"
+                "Reply /approve (once), /approve session, /approve always, or /deny."
+            )
+            pending = _Pending("approval")
+            session = self.sessions.get(key)
+            if session is None:
+                return "deny"
+            session.pending = pending
+            if not self._send_telegram_approval(session, pending, command, description):
+                self.reply(source, message)
+            pending.answered.wait(timeout)
+            self._remove_telegram_approval_for_pending(pending, f"Approval: {pending.answer or 'denied'}.")
+            session.pending = None
+            return pending.answer or "deny"  # silence is a no
+
         def ask(pending: _Pending, message: str) -> str:
             session = self.sessions.get(key)
             if session is None:
@@ -560,16 +689,6 @@ class GatewayRunner:
             pending.answered.wait(timeout)
             session.pending = None
             return pending.answer
-
-        def approve(*, command: str, description: str, pattern_keys: list[str]) -> str:
-            answer = ask(
-                _Pending("approval"),
-                (
-                    f"This command needs your approval ({description}):\n\n{command}\n\n"
-                    "Reply /approve (once), /approve session, /approve always, or /deny."
-                ),
-            )
-            return answer or "deny"  # silence is a no
 
         def clarify(question: str, choices: list[str]) -> str:
             options = "".join(f"\n{number}. {choice}" for number, choice in enumerate(choices, start=1))
@@ -846,7 +965,7 @@ class GatewayRunner:
         if pending.kind == "approval":
             words = text.lower().lstrip("/").split()
             word = words[1] if len(words) > 1 and words[0] == "approve" else (words[0] if words else "")
-            choice = _APPROVAL_WORDS.get(word)
+            choice = _APPROVAL_WORDS.get(word.rstrip(_APPROVAL_TRAILING_PUNCTUATION))
             if choice is None:
                 self.reply(
                     session.source, "Please answer /approve, /approve session, /approve always, or /deny."

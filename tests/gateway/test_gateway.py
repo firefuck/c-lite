@@ -293,6 +293,20 @@ def test_deny_and_silence_both_refuse(gateway, tmp_path):
     assert target.exists()
 
 
+@pytest.mark.platforms("posix")
+def test_text_approval_accepts_trailing_punctuation_after_the_scope(gateway, tmp_path):
+    target = tmp_path / "old-build"
+    target.mkdir()
+    runner, local, _ = gateway(
+        [tool_call_response(("terminal", {"command": f"rm -rf {target}"})), text_response("Removed.")]
+    )
+    local.inject("clean the build dir", user_id="owner")
+    local.wait_for_messages(1)
+    local.inject("/approve session,", user_id="owner")
+    local.wait_for_text("Removed.")
+    assert not target.exists()
+
+
 def test_clarifying_question_is_answered_by_number_or_text(gateway):
     ask = tool_call_response(
         ("clarify", {"question": "Which environment?", "choices": ["staging", "production"]})
@@ -665,6 +679,70 @@ def test_telegram_model_picker_does_not_let_an_unauthorized_user_switch_the_owne
     assert runner.sessions["telegram:dm:111"].chat.agent.route.model == "demo-1"
     assert not [body for method, body in api.calls if method == "editMessageText"]
     assert "not authorized" in answers[-1]["text"].lower()
+
+
+@pytest.mark.platforms("posix")
+def test_telegram_approval_buttons_resolve_only_the_owner_pending_approval(telegram, tmp_path):
+    api, runner = telegram
+    target = tmp_path / "build"
+    target.mkdir()
+    runner.client_factory = lambda: ScriptedClient(
+        [tool_call_response(("terminal", {"command": f"rm -rf {target}"})), text_response("Removed.")]
+    )
+
+    api.push("clean the build")
+    prompt = api.wait_sent(1)[-1]
+    session = runner.sessions["telegram:dm:111"]
+    pending = session.pending
+    assert pending is not None and str(target) in prompt["text"]
+    buttons = [button for row in prompt["reply_markup"]["inline_keyboard"] for button in row]
+    assert [button["text"] for button in buttons] == [
+        "Approve once",
+        "Approve for session",
+        "Always approve",
+        "Deny",
+    ]
+    callback = buttons[0]["callback_data"]
+    assert len(callback.encode()) <= 64
+    initial_edits = len([body for method, body in api.calls if method == "editMessageText"])
+
+    runner.config["gateway"]["allow_all_users"] = True
+    api.push_callback(callback, user=999, message_id=1)
+    deadline = time.monotonic() + 5
+    while len([body for method, body in api.calls if method == "answerCallbackQuery"]) < 1 and time.monotonic() < deadline:
+        time.sleep(0.02)
+    assert not pending.answered.is_set()
+    assert len([body for method, body in api.calls if method == "editMessageText"]) == initial_edits
+    rejected = [body for method, body in api.calls if method == "answerCallbackQuery"]
+    assert "expired" in rejected[-1]["text"].lower()
+
+    api.push_callback(callback, message_id=1)
+    edits = _wait_for_picker_edits(api, initial_edits + 1)
+    api.wait_sent(2)
+    assert not target.exists()
+    assert session.pending is None
+    assert edits[-1]["reply_markup"] == {"inline_keyboard": []}
+    answers = [body for method, body in api.calls if method == "answerCallbackQuery"]
+    assert len(answers) >= 2
+
+
+@pytest.mark.platforms("posix")
+def test_telegram_text_approval_fallback_removes_the_inline_keyboard(telegram, tmp_path):
+    api, runner = telegram
+    target = tmp_path / "build"
+    target.mkdir()
+    runner.client_factory = lambda: ScriptedClient(
+        [tool_call_response(("terminal", {"command": f"rm -rf {target}"})), text_response("Removed.")]
+    )
+
+    api.push("clean the build")
+    api.wait_sent(1)
+    api.push("/approve session,")
+    edits = _wait_for_picker_edits(api, 1)
+    api.wait_sent(2)
+
+    assert not target.exists()
+    assert edits[-1]["reply_markup"] == {"inline_keyboard": []}
 
 
 def test_telegram_group_rules(telegram):

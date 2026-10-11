@@ -67,6 +67,18 @@ class BasePlatformAdapter(ABC):
         """Replace a model-picker control. ``keyboard=[]`` removes the buttons."""
         return False
 
+    def send_approval_prompt(
+        self, chat_id: str, text: str, keyboard: list[list[dict[str, str]]], *, thread_id: str | None = None
+    ) -> SendResult:
+        """Send an approval control. Platforms without inline controls return failure."""
+        return SendResult(False, error=f"{self.name} cannot send approval prompts")
+
+    def edit_approval_prompt(
+        self, chat_id: str, message_id: str, text: str, keyboard: list[list[dict[str, str]]]
+    ) -> bool:
+        """Replace an approval control. ``keyboard=[]`` removes the buttons."""
+        return False
+
     def answer_callback(self, callback_id: str, text: str = "") -> None:
         """Acknowledge an inline-control press, where the platform requires it."""
 

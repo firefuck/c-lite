@@ -91,7 +91,11 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
 
 **Persetujuan dan klarifikasi lewat chat**
 - Perintah berbahaya: agent mengirim perintahnya dan menunggu `/approve`, `/approve session`,
-  `/approve always`, atau `/deny`. Diam sampai `approvals.timeout` berarti tolak.
+  `/approve always`, atau `/deny`. Telegram yang diizinkan memakai tombol inline **Approve once**,
+  **Approve for session**, **Always approve**, dan **Deny**; callback diikat ke pending approval,
+  chat, sesi, dan pengguna pemilik, lalu diotorisasi ulang. Setiap pilihan mengakui callback dan
+  mengganti pesan agar keyboard hilang. Perintah teks tetap fallback; tanda baca penutup pada
+  pilihan (misalnya `/approve session,`) diterima. Diam sampai `approvals.timeout` berarti tolak.
 - Klarifikasi dijawab dengan nomor pilihan atau teks bebas.
 
 **Toolset**
