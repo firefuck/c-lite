@@ -65,7 +65,7 @@
     },
     {
       "description": "Voice messages and spoken replies via the OpenAI Audio API (requires OPENAI_API_KEY)",
-      "hash": "sha256:2bc954ff9b095ba67cbfa2ede3d5c072c8cea1781cb604620c38ad310c0164bb",
+      "hash": "sha256:716c26492c9453d098a996de99f1da4c72070e5ec2134c5ed62190ca9ad177d5",
       "identifier": "dragovics/clite/src/clite/bundled/plugins/speech-openai",
       "kind": "backend",
       "name": "speech-openai",
