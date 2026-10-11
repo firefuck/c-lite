@@ -139,7 +139,11 @@ class TelegramAdapter(BasePlatformAdapter):
             try:
                 updates = self._call(
                     "getUpdates",
-                    {"offset": self._offset, "timeout": self.poll_timeout, "allowed_updates": ["message"]},
+                    {
+                        "offset": self._offset,
+                        "timeout": self.poll_timeout,
+                        "allowed_updates": ["message", "callback_query"],
+                    },
                     timeout=self.poll_timeout + 10,
                 )
             except Exception as exc:  # noqa: BLE001 - keep polling through network trouble
@@ -148,9 +152,41 @@ class TelegramAdapter(BasePlatformAdapter):
                 continue
             for update in updates or []:
                 self._offset = max(self._offset, int(update["update_id"]) + 1)
+                if self._handle_callback(update):
+                    continue
                 event = self.to_event(update)
                 if event is not None:
                     self.handle_message(event)
+
+    def _handle_callback(self, update: dict[str, Any]) -> bool:
+        """Translate an inline model-picker callback; its policy stays in the runner."""
+        callback = update.get("callback_query")
+        if not isinstance(callback, dict):
+            return False
+        data = str(callback.get("data") or "")
+        if not data.startswith("mp:"):
+            self.answer_callback(str(callback.get("id") or ""), "Unsupported action.")
+            return True
+        message = callback.get("message") or {}
+        chat, sender = message.get("chat") or {}, callback.get("from") or {}
+        if not chat or not sender:
+            self.answer_callback(str(callback.get("id") or ""), "Invalid model selection.")
+            return True
+        thread = message.get("message_thread_id")
+        source = SessionSource(
+            platform=self.name,
+            chat_id=str(chat.get("id", "")),
+            user_id=str(sender.get("id", "")),
+            user_name=" ".join(part for part in (sender.get("first_name"), sender.get("last_name")) if part)
+            or str(sender.get("username") or ""),
+            chat_type=_CHAT_TYPES.get(str(chat.get("type") or ""), CHAT_GROUP),
+            thread_id=str(thread) if thread else None,
+            chat_name=str(chat.get("title") or ""),
+        )
+        self.runner.handle_model_picker_callback(
+            source, str(callback.get("id") or ""), data, str(message.get("message_id") or "")
+        )
+        return True
 
     def to_event(self, update: dict[str, Any]) -> MessageEvent | None:
         """A Bot API update as a ``MessageEvent``; ``None`` for updates that carry no text or file."""
@@ -319,6 +355,49 @@ class TelegramAdapter(BasePlatformAdapter):
         except Exception as exc:  # noqa: BLE001
             return SendResult(False, error=str(exc))
         return SendResult(True, message_id=str(result.get("message_id", "")))
+
+    def send_model_picker(
+        self, chat_id: str, text: str, keyboard: list[list[dict[str, str]]], *, thread_id: str | None = None
+    ) -> SendResult:
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "text": text,
+            "reply_markup": {"inline_keyboard": keyboard},
+        }
+        if thread_id:
+            payload["message_thread_id"] = int(thread_id)
+        try:
+            result = self._call("sendMessage", payload)
+        except Exception as exc:  # noqa: BLE001
+            return SendResult(False, error=str(exc))
+        return SendResult(True, message_id=str(result.get("message_id", "")))
+
+    def edit_model_picker(
+        self, chat_id: str, message_id: str, text: str, keyboard: list[list[dict[str, str]]]
+    ) -> bool:
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "message_id": int(message_id) if message_id.isdigit() else message_id,
+            "text": text,
+            "reply_markup": {"inline_keyboard": keyboard},
+        }
+        try:
+            self._call("editMessageText", payload, timeout=15)
+            return True
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("telegram model picker edit failed for %s: %s", message_id, exc)
+            return False
+
+    def answer_callback(self, callback_id: str, text: str = "") -> None:
+        if not callback_id:
+            return
+        payload = {"callback_query_id": callback_id}
+        if text:
+            payload["text"] = text[:200]
+        try:
+            self._call("answerCallbackQuery", payload, timeout=10)
+        except Exception:  # noqa: BLE001 - acknowledging a callback is cosmetic
+            logger.debug("telegram callback answer failed", exc_info=True)
 
     def send_typing(self, chat_id: str, *, thread_id: str | None = None) -> None:
         try:

@@ -90,6 +90,17 @@ class _Pending:
 
 
 @dataclass
+class _ModelPicker:
+    """A Telegram model picker owned by one authorized gateway session."""
+
+    key: str
+    session_key: str
+    source: SessionSource
+    models: list[str]
+    page: int = 0
+
+
+@dataclass
 class GatewaySession:
     key: str
     source: SessionSource
@@ -113,6 +124,7 @@ class GatewayRunner:
         self.home_channels = HomeChannels(self.config)
         self.now_fn = time.time
         self.pairing = PairingStore()
+        self._model_pickers: dict[str, _ModelPicker] = {}
         self._lock = threading.RLock()
         self._scheduler: Any = None
         self.running = False
@@ -328,6 +340,133 @@ class GatewayRunner:
         logger.info("send_file delivered %s to %s", path, destination)
         return destination
 
+    # ── Telegram model picker ────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _model_picker_label(model: str, *, current: bool) -> str:
+        """A Telegram-safe label: Bot API button text is limited to 64 UTF-8 bytes."""
+        prefix = "✓ " if current else ""
+        budget = 64 - len(prefix.encode("utf-8"))
+        encoded = model.encode("utf-8")
+        if len(encoded) > budget:
+            encoded = encoded[: max(0, budget - len("…".encode()))]
+            while encoded and (encoded[-1] & 0xC0) == 0x80:
+                encoded = encoded[:-1]
+            model = encoded.decode("utf-8", errors="ignore") + "…"
+        return prefix + model
+
+    def _model_picker_view(self, picker: _ModelPicker, session: GatewaySession) -> tuple[str, list[list[dict[str, str]]]]:
+        page_size = 8
+        total_pages = max(1, (len(picker.models) + page_size - 1) // page_size)
+        picker.page = min(max(picker.page, 0), total_pages - 1)
+        start = picker.page * page_size
+        rows: list[list[dict[str, str]]] = []
+        buttons = [
+            {
+                "text": self._model_picker_label(model, current=model == session.chat.agent.route.model),
+                "callback_data": f"mp:{picker.key}:select:{index}",
+            }
+            for index, model in enumerate(picker.models[start : start + page_size], start=start)
+        ]
+        rows.extend([buttons[index : index + 2] for index in range(0, len(buttons), 2)])
+        if total_pages > 1:
+            navigation: list[dict[str, str]] = []
+            if picker.page:
+                navigation.append({"text": "◀ Prev", "callback_data": f"mp:{picker.key}:page:{picker.page - 1}"})
+            navigation.append({"text": f"{picker.page + 1}/{total_pages}", "callback_data": f"mp:{picker.key}:noop"})
+            if picker.page < total_pages - 1:
+                navigation.append({"text": "Next ▶", "callback_data": f"mp:{picker.key}:page:{picker.page + 1}"})
+            rows.append(navigation)
+        rows.append([{"text": "Cancel", "callback_data": f"mp:{picker.key}:cancel"}])
+        return f"Model: {session.chat.agent.route.model}\nChoose a model ({picker.page + 1}/{total_pages}).", rows
+
+    def _send_telegram_model_picker(self, session: GatewaySession) -> bool:
+        """Render the Telegram-only interactive form of an argument-less ``/model`` command."""
+        adapter = self.adapters.get(session.source.platform)
+        if adapter is None:
+            return False
+        from clite.providers.models import list_models
+
+        models = [model.id for model in list_models(session.chat.agent.route.provider, route=session.chat.agent.route)]
+        current = session.chat.agent.route.model
+        if current not in models:
+            models.insert(0, current)
+        models = list(dict.fromkeys(models))
+        if not models:
+            return False
+        import secrets
+
+        key = secrets.token_hex(4)
+        picker = _ModelPicker(key=key, session_key=session.key, source=session.source, models=models)
+        text, keyboard = self._model_picker_view(picker, session)
+        result = adapter.send_model_picker(session.source.chat_id, text, keyboard, thread_id=session.source.thread_id)
+        if not result.success:
+            logger.warning("could not send Telegram model picker: %s", result.error)
+            return False
+        self._model_pickers[key] = picker
+        return True
+
+    def handle_model_picker_callback(
+        self, source: SessionSource, callback_id: str, data: str, message_id: str
+    ) -> None:
+        """Apply a Telegram picker tap after the runner's usual authorization and busy checks."""
+        adapter = self.adapters.get(source.platform)
+        if adapter is None:
+            return
+        try:
+            _prefix, key, action, raw_value = data.split(":", 3)
+        except ValueError:
+            adapter.answer_callback(callback_id, "Invalid model selection.")
+            return
+        if not self.is_authorized(source):
+            adapter.answer_callback(callback_id, "You are not authorized.")
+            return
+        picker = self._model_pickers.get(key)
+        if picker is None or picker.source.user_id != source.user_id or picker.source.chat_id != source.chat_id:
+            adapter.answer_callback(callback_id, "This model picker has expired. Run /model again.")
+            return
+        session = self._get_session(source)
+        if session.key != picker.session_key:
+            adapter.answer_callback(callback_id, "This model picker has expired. Run /model again.")
+            return
+        if session.busy:
+            adapter.answer_callback(callback_id, "The model change has to wait until the current turn ends.")
+            return
+        if action == "noop":
+            adapter.answer_callback(callback_id)
+            return
+        if action == "cancel":
+            adapter.edit_model_picker(source.chat_id, message_id, "Model selection cancelled.", [])
+            self._model_pickers.pop(key, None)
+            adapter.answer_callback(callback_id)
+            return
+        if action == "page":
+            try:
+                picker.page = int(raw_value)
+            except ValueError:
+                adapter.answer_callback(callback_id, "Invalid model page.")
+                return
+            text, keyboard = self._model_picker_view(picker, session)
+            adapter.edit_model_picker(source.chat_id, message_id, text, keyboard)
+            adapter.answer_callback(callback_id)
+            return
+        if action != "select":
+            adapter.answer_callback(callback_id, "Invalid model selection.")
+            return
+        try:
+            model = picker.models[int(raw_value)]
+        except (ValueError, IndexError):
+            adapter.answer_callback(callback_id, "Invalid model selection.")
+            return
+        result = session.chat.switch_model(model)
+        text = f"Switched to {session.chat.agent.route.model}." if result.success else result.message
+        adapter.edit_model_picker(source.chat_id, message_id, text, [])
+        if result.success:
+            self._model_pickers.pop(key, None)
+            adapter.answer_callback(callback_id, "Model switched.")
+        else:
+            adapter.answer_callback(callback_id, "Could not switch model.")
+
     # ── authorization ────────────────────────────────────────────────────────────────────
 
     def is_authorized(self, source: SessionSource) -> bool:
@@ -506,6 +645,9 @@ class GatewayRunner:
 
         session = self._get_session(event.source)
         if session.pending is not None and self._answer_pending(session, text):
+            return
+
+        if event.source.platform == "telegram" and text == "/model" and not session.busy and self._send_telegram_model_picker(session):
             return
 
         name, _args = split_command(text)

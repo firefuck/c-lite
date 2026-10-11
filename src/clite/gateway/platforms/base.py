@@ -55,6 +55,21 @@ class BasePlatformAdapter(ABC):
         """
         return False
 
+    def send_model_picker(
+        self, chat_id: str, text: str, keyboard: list[list[dict[str, str]]], *, thread_id: str | None = None
+    ) -> SendResult:
+        """Send a model-picker control. Platforms without inline controls return failure."""
+        return SendResult(False, error=f"{self.name} cannot send model pickers")
+
+    def edit_model_picker(
+        self, chat_id: str, message_id: str, text: str, keyboard: list[list[dict[str, str]]]
+    ) -> bool:
+        """Replace a model-picker control. ``keyboard=[]`` removes the buttons."""
+        return False
+
+    def answer_callback(self, callback_id: str, text: str = "") -> None:
+        """Acknowledge an inline-control press, where the platform requires it."""
+
     def send_file(
         self, chat_id: str, path: str, *, caption: str = "", thread_id: str | None = None
     ) -> SendResult:

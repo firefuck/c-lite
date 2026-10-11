@@ -444,6 +444,24 @@ class FakeTelegram:
                 }
             )
 
+    def push_callback(self, data, *, user=111, chat=111, chat_type="private", message_id=1):
+        with self.lock:
+            self.updates.append(
+                {
+                    "update_id": len(self.updates) + 1,
+                    "callback_query": {
+                        "id": f"callback-{len(self.updates) + 1}",
+                        "data": data,
+                        "from": {"id": user, "first_name": "Ada", "is_bot": False},
+                        "message": {
+                            "message_id": message_id,
+                            "chat": {"id": chat, "type": chat_type},
+                            "from": {"username": "clite_bot", "is_bot": True},
+                        },
+                    },
+                }
+            )
+
     def wait_sent(self, count, timeout=5.0):
         deadline = time.monotonic() + timeout
         while len(self.sent) < count and time.monotonic() < deadline:
@@ -454,12 +472,17 @@ class FakeTelegram:
 @pytest.fixture
 def telegram(clite_home, monkeypatch):
     api = FakeTelegram()
+    def echo(messages, **kwargs):
+        return text_response(f"You said: {messages[-1]['content']}")
+
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "good-token")
     (clite_home / "config.yaml").write_text(
-        "model: {provider: mock, default: mock-1}\ngateway:\n  platforms:\n"
+        "model: {provider: demo, default: demo-1}\n"
+        "providers:\n  demo: {base_url: 'http://demo.invalid/v1', models: [demo-1, demo-2, demo-3, demo-4, demo-5, demo-6, demo-7, demo-8, demo-9]}\n"
+        "gateway:\n  platforms:\n"
         f"    telegram: {{enabled: true, allowed_users: [111], base_url: '{api.url}', poll_timeout: 1}}\n"
     )
-    runner = GatewayRunner()
+    runner = GatewayRunner(client_factory=lambda: ScriptedClient([echo]))
     assert runner.start(with_cron=False) == ["telegram"]
     yield api, runner
     runner.stop()
@@ -541,6 +564,85 @@ def test_telegram_round_trip(telegram):
     assert ("sendChatAction", {"chat_id": "111", "action": "typing"}) in api.calls
     offsets = [body["offset"] for method, body in api.calls if method == "getUpdates"]
     assert offsets[0] == 0 and offsets[-1] == 2  # the update was acknowledged and is not fetched again
+
+
+def test_telegram_model_picker_switches_the_chat_session_from_an_inline_button(telegram):
+    api, runner = telegram
+    api.push("/model")
+    picker = api.wait_sent(1)[0]
+
+    assert "Choose a model" in picker["text"]
+    buttons = [button for row in picker["reply_markup"]["inline_keyboard"] for button in row]
+    selection = next(button for button in buttons if button["callback_data"].endswith(":select:1"))
+    assert len(selection["callback_data"].encode()) <= 64
+
+    api.push_callback(selection["callback_data"], message_id=1)
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        edits = [body for method, body in api.calls if method == "editMessageText"]
+        if edits:
+            break
+        time.sleep(0.02)
+    else:
+        raise AssertionError(f"model selection did not edit the picker: {api.calls}")
+
+    assert runner.sessions["telegram:dm:111"].chat.agent.route.model == "demo-2"
+    assert "Switched to demo-2" in edits[-1]["text"]
+    assert edits[-1]["reply_markup"] == {"inline_keyboard": []}
+    assert any(method == "answerCallbackQuery" for method, _body in api.calls)
+
+
+def test_telegram_model_picker_pages_through_more_than_eight_models(telegram):
+    api, _runner = telegram
+    api.push("/model")
+    picker = api.wait_sent(1)[0]
+    buttons = [button for row in picker["reply_markup"]["inline_keyboard"] for button in row]
+    next_page = next(button for button in buttons if button["callback_data"].endswith(":page:1"))
+
+    api.push_callback(next_page["callback_data"], message_id=1)
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        edits = [body for method, body in api.calls if method == "editMessageText"]
+        if edits:
+            break
+        time.sleep(0.02)
+    else:
+        raise AssertionError(f"model picker page did not render: {api.calls}")
+
+    assert "Choose a model (2/2)" in edits[-1]["text"]
+    assert any(button["text"] == "demo-9" for row in edits[-1]["reply_markup"]["inline_keyboard"] for button in row)
+
+
+def test_telegram_model_with_an_id_keeps_the_text_command_behavior(telegram):
+    api, runner = telegram
+    api.push("/model demo-2")
+    sent = api.wait_sent(1)
+
+    assert runner.sessions["telegram:dm:111"].chat.agent.route.model == "demo-2"
+    assert sent[-1]["text"] == "Model: demo-2 via demo (this session only)"
+    assert "reply_markup" not in sent[-1]
+
+
+def test_telegram_model_picker_does_not_let_an_unauthorized_user_switch_the_owner_session(telegram):
+    api, runner = telegram
+    api.push("/model")
+    picker = api.wait_sent(1)[0]
+    buttons = [button for row in picker["reply_markup"]["inline_keyboard"] for button in row]
+    selection = next(button for button in buttons if button["callback_data"].endswith(":select:1"))
+
+    api.push_callback(selection["callback_data"], user=999, message_id=1)
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        answers = [body for method, body in api.calls if method == "answerCallbackQuery"]
+        if answers:
+            break
+        time.sleep(0.02)
+    else:
+        raise AssertionError(f"unauthorized callback was not answered: {api.calls}")
+
+    assert runner.sessions["telegram:dm:111"].chat.agent.route.model == "demo-1"
+    assert not [body for method, body in api.calls if method == "editMessageText"]
+    assert "not authorized" in answers[-1]["text"].lower()
 
 
 def test_telegram_group_rules(telegram):
