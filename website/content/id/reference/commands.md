@@ -36,7 +36,7 @@ Setiap perintah slash dan sub-perintah `clite`, dibaca dari registry di kode.
 | `/config` |  | Configuration | `[key]` | queue |  | Show a setting or the config file path |
 | `/reload` |  | Configuration |  | queue |  | Reload config and plugins |
 | `/profile` |  | Configuration |  | queue |  | Show the active profile and list the others |
-| `/verbose` |  | Configuration | `[off\|new\|all\|verbose]` | queue |  | Set how much tool progress is shown |
+| `/verbose` |  | Configuration | `[off\|new\|all\|verbose\|message]` | queue |  | Set how much tool progress is shown |
 | `/skin` |  | Configuration | `[name]` | queue | ya | Show or change the display skin/theme |
 | `/skills` |  | Tools & Skills | `[filter]` | queue |  | List skills |
 | `/plugins` |  | Tools & Skills |  | queue |  | List plugins and their status |
@@ -53,6 +53,7 @@ Setiap perintah slash dan sub-perintah `clite`, dibaca dari registry di kode.
 | `/copy` |  | Info |  | queue | ya | Copy the last answer to the clipboard |
 | `/insights` |  | Info | `[days]` | queue |  | Show usage insights, tokens and costs |
 | `/sethome` |  | Gateway |  | queue |  | Set this chat as the platform's home channel |
+| `/restart` |  | Gateway |  | allow |  | Restart the gateway service |
 | `/debug` |  | Info |  | queue |  | Show prompt and context internals |
 
 ## Perintah CLI

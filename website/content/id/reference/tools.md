@@ -101,19 +101,31 @@ Apa yang bisa dipanggil model, apa isi tiap toolset, dan apa yang dibawa paket: 
 | Skill | Kategori | Deskripsi |
 | --- | --- | --- |
 | `skill-authoring` | meta | Write or improve a skill (SKILL.md). Use when saving a reusable procedure with skill_manage, or when a skill turned out wrong or incomplete. |
-| `meeting-action-items` | productivity | Turn meeting notes or a transcript into cited decisions, owners and follow-ups. Use when asked to extract action items from a meeting, or to reconcile notes with existing work. |
+| `airtable` | productivity | Airtable REST API: records CRUD, filters, upserts via the bundled stdlib helper. |
+| `box` | productivity | Box manages cloud files, sharing, search, and metadata. |
+| `document-to-action-items` | productivity | Extract cited obligations, deadlines, tasks from documents. |
+| `docx` | productivity | Create, read, edit, template, and review Word .docx files. |
+| `google-workspace` | productivity | Gmail, Calendar, Drive, Docs, Sheets via gws CLI or Python. |
+| `maps` | productivity | Geocode, POIs, routes, timezones via OpenStreetMap/OSRM. |
+| `meeting-action-items` | productivity | Turn meeting notes into cited decisions, owners, tickets. |
+| `notion` | productivity | Notion API + ntn CLI: pages, databases, markdown, Workers. |
+| `pdf` | productivity | PDF files: create, read, merge, fill, OCR, edit text. |
 | `plan-before-acting` | productivity | Break a large or ambiguous task into verifiable steps before starting. Use when a request spans several files or systems, or when the first step is not obvious. |
-| `weekly-review-planning` | productivity | Run a bounded weekly review over the user's notes and tasks, then propose next week's plan. Use when asked what slipped, what is waiting, or to plan the coming week. |
-| `arxiv` | research | Search arXiv and Semantic Scholar for papers by keyword, author, category or id, and read their metadata and citations. Use when the task needs academic papers or citation counts. |
-| `competitor-news-monitor` | research | Watch a fixed set of companies for material news and report cited digests, or stay silent when nothing happened. Use when asked to track competitors, pricing changes or launches on a schedule. |
-| `grounded-citations` | research | Ground an answer or document in numbered citations, with the source list rendered from a ledger instead of memory. Use when a deliverable reports outside facts and the reader will want to check them. |
-| `llm-wiki` | research | Build and maintain a compounding knowledge base of interlinked markdown pages, and answer questions from it. Use when the user keeps a wiki or knowledge base, or asks to ingest a source into one. |
-| `codebase-inspection` | software-development | Measure a codebase with pygount or the shell, to answer how big it is and what it is made of. Use when asked for lines of code, a language breakdown, or code-to-comment ratios. |
-| `github` | software-development | Work GitHub end to end with the gh CLI: auth, issues, the pull-request lifecycle, reviews and repo management. Use when the task touches a GitHub repository's remote state. |
-| `python-debugpy` | software-development | Debug Python with pdb, post-mortem inspection and debugpy remote attach. Use when a traceback does not explain a wrong value, or a long-running process misbehaves. |
-| `requesting-code-review` | software-development | Verify a change before it is committed with a static scan, the test suite and an independent reviewer. Use when finishing a task, or when the user says commit, push, ship or review. |
-| `simplify-code` | software-development | Clean up recent code changes with four focused reviewers running in parallel, then apply only the fixes worth applying. Use when the user says simplify, or asks for a cleanup of what was just written. |
-| `spike` | software-development | Run throwaway experiments to answer feasibility questions before committing to a build. Use when the user wants to see if something works, or to compare two approaches. |
+| `powerpoint` | productivity | Create, read, edit .pptx decks with python-pptx. |
+| `product-price-monitor` | productivity | Watch product, flight, or listing prices; alert on target. |
+| `weekly-review-planning` | productivity | Weekly reset: commitments, stalled work, next-week plan. |
+| `xlsx` | productivity | Create, read, edit Excel .xlsx workbooks and CSVs. |
+| `arxiv` | research | Search arXiv papers by keyword, author, category, or ID. |
+| `competitor-news-monitor` | research | Watch named companies for material news; cited digests. |
+| `grounded-citations` | research | Ground answers and documents in cited, verifiable sources. |
+| `llm-wiki` | research | Karpathy's LLM Wiki: build/query interlinked markdown KB. |
+| `codebase-inspection` | software-development | Inspect codebases w/ pygount: LOC, languages, ratios. |
+| `github` | software-development | GitHub via gh CLI: PRs, issues, reviews, repos, auth. |
+| `node-inspect-debugger` | software-development | Debug Node.js via --inspect + Chrome DevTools Protocol CLI. |
+| `python-debugpy` | software-development | Debug Python: pdb REPL + debugpy remote (DAP). |
+| `requesting-code-review` | software-development | Pre-commit review: security scan, quality gates, auto-fix. |
+| `simplify-code` | software-development | Parallel 4-agent cleanup of recent code changes. |
+| `spike` | software-development | Throwaway experiments to validate an idea before build. |
 | `systematic-debugging` | software-development | Find the root cause of a bug before changing code. Use for any failing test, crash, or behaviour that does not match what the code appears to say. |
 | `test-driven-development` | software-development | Implement a feature or fix by writing a failing test first. Use when adding behaviour to tested code or when a bug needs a regression test. |
 | `working-without-web-search` | web | How to find information when the web_search tool is not available. Use when web_search is not offered and the user asks something that needs current information. |
