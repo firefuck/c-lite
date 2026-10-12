@@ -18,7 +18,7 @@ from clite.runtime.commands import (
     split_command,
 )
 from clite.runtime.factory import default_toolsets
-from clite.runtime.session import ACTION_NEW, ACTION_QUIT, ACTION_SUBMIT, Turn
+from clite.runtime.session import ACTION_NEW, ACTION_QUIT, ACTION_RESTART, ACTION_SUBMIT, Turn
 from clite.runtime.slash import SLASH_HANDLERS
 from clite.state import get_session_db
 
@@ -223,6 +223,9 @@ def test_compress_stop_and_steer_report_when_there_is_nothing_to_do(make_session
     assert session.run_slash("/stop").text == "Nothing is running."
     assert "Nothing is running" in session.run_slash("/steer go faster").text
     assert session.run_slash("/quit").action == ACTION_QUIT
+    restart_result = session.run_slash("/restart")
+    assert restart_result.action == ACTION_RESTART
+    assert "Restarting gateway" in restart_result.text
 
 
 def test_informational_commands(make_session, clite_home):

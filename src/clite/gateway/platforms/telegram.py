@@ -113,23 +113,33 @@ def telegram_command_menu() -> list[dict[str, str]]:
     from clite.runtime.commands import commands_for
 
     menu: list[dict[str, str]] = []
+    seen: set[str] = set()
+
     for command in commands_for("telegram"):
-        name = command.name.lower()
+        names_to_register = [command.name]
+        for alias in command.aliases:
+            if alias not in names_to_register:
+                names_to_register.append(alias)
         description = " ".join(command.description.split())
-        if not _TELEGRAM_COMMAND_NAME.fullmatch(name):
-            logger.warning("Telegram command menu skipped unsupported command name %r", command.name)
-            continue
         if not description:
             logger.warning("Telegram command menu skipped %r because its description is empty", command.name)
             continue
-        menu.append(
-            {
-                "command": name,
-                "description": description[:TELEGRAM_MAX_COMMAND_DESCRIPTION_LENGTH],
-            }
-        )
-        if len(menu) == TELEGRAM_MAX_BOT_COMMANDS:
-            break
+        for name in names_to_register:
+            name_lower = name.lower()
+            if name_lower in seen:
+                continue
+            if not _TELEGRAM_COMMAND_NAME.fullmatch(name_lower):
+                logger.warning("Telegram command menu skipped unsupported command name %r", name)
+                continue
+            seen.add(name_lower)
+            menu.append(
+                {
+                    "command": name_lower,
+                    "description": description[:TELEGRAM_MAX_COMMAND_DESCRIPTION_LENGTH],
+                }
+            )
+            if len(menu) == TELEGRAM_MAX_BOT_COMMANDS:
+                return menu
     return menu
 
 register_secret(

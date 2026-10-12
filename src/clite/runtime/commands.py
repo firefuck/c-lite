@@ -106,6 +106,7 @@ COMMAND_REGISTRY: list[CommandDef] = [
     CommandDef("copy", "Copy the last answer to the clipboard", "Info", cli_only=True),
     CommandDef("insights", "Show usage insights, tokens and costs", "Info", args_hint="[days]"),
     CommandDef("sethome", "Set this chat as the platform's home channel", "Gateway"),
+    CommandDef("restart", "Restart the gateway service", "Gateway", busy_policy=BUSY_ALLOW),
     CommandDef("debug", "Show prompt and context internals", "Info"),
 ]
 

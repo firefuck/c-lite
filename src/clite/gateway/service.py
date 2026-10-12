@@ -133,8 +133,15 @@ class GatewayService:
         self.lock = GatewayLock(home)
         self.drain_timeout = drain_timeout
         self._stop = threading.Event()
+        self._exit_code = 0
+        if hasattr(self.runner, "on_restart"):
+            self.runner.on_restart = self.request_restart
 
     def request_stop(self, *_args: Any) -> None:
+        self._stop.set()
+
+    def request_restart(self, *_args: Any) -> None:
+        self._exit_code = 75  # EX_TEMPFAIL; non-zero exit code triggers Restart=on-failure
         self._stop.set()
 
     def run(self) -> int:
@@ -151,7 +158,7 @@ class GatewayService:
             if self.runner.has_active_turns():
                 self.runner.notify_interrupted_turns()
             self.runner.stop()
-            return 0
+            return self._exit_code
         finally:
             self.lock.release()
 

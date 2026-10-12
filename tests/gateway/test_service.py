@@ -77,3 +77,21 @@ def test_sigterm_drains_an_active_turn_before_exiting_zero(tmp_path):
 
     assert result == [0]
     assert runner.stopped
+
+
+@pytest.mark.platforms("posix")
+def test_gateway_service_request_restart_exits_with_restart_exit_code(tmp_path):
+    runner = _SlowRunner()
+    service = GatewayService(runner=runner, home=tmp_path, drain_timeout=1)
+    result: list[int] = []
+
+    thread = threading.Thread(target=lambda: result.append(service.run()))
+    thread.start()
+    assert runner.started.wait(1)
+    service.request_restart()
+    assert runner.draining.wait(1)
+    runner.busy = False
+    thread.join(1)
+
+    assert result == [75]
+    assert runner.stopped

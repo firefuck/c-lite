@@ -27,7 +27,14 @@ from clite.plugins.shell_hooks import configured_hooks, is_approved
 from clite.providers.models import list_models
 from clite.providers.registry import list_providers
 from clite.runtime.commands import COMMAND_REGISTRY, command_catalog
-from clite.runtime.session import ACTION_CLIPBOARD, ACTION_NEW, ACTION_QUIT, ACTION_SUBMIT, SlashResult
+from clite.runtime.session import (
+    ACTION_CLIPBOARD,
+    ACTION_NEW,
+    ACTION_QUIT,
+    ACTION_RESTART,
+    ACTION_SUBMIT,
+    SlashResult,
+)
 from clite.skills.catalog import discover_skills
 from clite.state.db import get_session_db
 from clite.tools.toolsets import all_toolsets, resolve_toolset, toolset_exists
@@ -692,6 +699,10 @@ def _handle_sethome(session: ChatSession, args: str) -> SlashResult:
     home_channels = HomeChannels()
     home_channels.set(platform, str(chat_id))
     return SlashResult(f"Set this chat as the home channel for {platform}.")
+
+
+def _handle_restart(session: ChatSession, args: str) -> SlashResult:
+    return SlashResult("Restarting gateway…", ACTION_RESTART)
 
 
 def _handle_debug(session: ChatSession, args: str) -> SlashResult:

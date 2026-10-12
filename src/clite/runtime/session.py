@@ -36,6 +36,7 @@ ACTION_QUIT = "quit"
 ACTION_SUBMIT = "submit"  # ``text`` is a prompt to run as the next turn
 ACTION_NEW = "new"  # the session was replaced; the surface should refresh its view
 ACTION_CLIPBOARD = "clipboard"  # ``text`` should be placed on the local clipboard (CLI only)
+ACTION_RESTART = "restart"  # restart the gateway service
 QUICK_COMMAND_TIMEOUT = 30
 # A transcript longer than this is exported as one line per message, not per message body, so
 # neither hand-editing the file nor the export itself turns a long session into a megabyte.

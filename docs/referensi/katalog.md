@@ -102,6 +102,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | `/copy` |  | Info |  | queue | ya | Copy the last answer to the clipboard |
 | `/insights` |  | Info | `[days]` | queue |  | Show usage insights, tokens and costs |
 | `/sethome` |  | Gateway |  | queue |  | Set this chat as the platform's home channel |
+| `/restart` |  | Gateway |  | allow |  | Restart the gateway service |
 | `/debug` |  | Info |  | queue |  | Show prompt and context internals |
 
 ## Perintah CLI
