@@ -84,6 +84,85 @@ def test_message_in_reply_out(gateway):
     assert row["session_key"] == "local:dm:owner" and row["user_id"] == "owner"
 
 
+def test_continuous_typing_heartbeat_during_long_turn(gateway, monkeypatch):
+    import clite.gateway.runner as runner_mod
+
+    monkeypatch.setattr(runner_mod, "DEFAULT_TYPING_INTERVAL", 0.05)
+
+    def slow_model(messages, **kwargs):
+        deadline = time.monotonic() + 1.0
+        while len(local.typing) < 3 and time.monotonic() < deadline:
+            time.sleep(0.01)
+        return text_response("Done after multiple typing refreshes.")
+
+    runner, local, client = gateway([slow_model])
+    local.inject("take your time", user_id="owner")
+    assert local.wait_for_messages(1) == ["Done after multiple typing refreshes."]
+    # The typing keeper should have pulsed at least 3 times
+    assert len(local.typing) >= 3
+    assert all(t == "owner" for t in local.typing)
+    count_after_reply = len(local.typing)
+    time.sleep(0.12)
+    # Once reply is sent, heartbeat must stop and send no further typing indicators
+    assert len(local.typing) == count_after_reply
+
+
+def test_continuous_typing_heartbeat_stops_on_exception(gateway, monkeypatch):
+    import clite.gateway.runner as runner_mod
+
+    monkeypatch.setattr(runner_mod, "DEFAULT_TYPING_INTERVAL", 0.05)
+
+    def failing_submit(*args, **kwargs):
+        deadline = time.monotonic() + 1.0
+        while len(local.typing) < 2 and time.monotonic() < deadline:
+            time.sleep(0.01)
+        raise RuntimeError("turn crashed")
+
+    runner, local, client = gateway()
+    # Replace session.chat.submit before turn runs
+    original_submit = runner._submit
+
+    def custom_submit(session, text, *, payload=None):
+        session.chat.submit = failing_submit
+        original_submit(session, text, payload=payload)
+
+    runner._submit = custom_submit
+    local.inject("will fail", user_id="owner")
+    (reply,) = local.wait_for_messages(1)
+    assert "Something went wrong: RuntimeError: turn crashed" in reply
+    count_after_error = len(local.typing)
+    time.sleep(0.12)
+    assert len(local.typing) == count_after_error
+
+
+def test_continuous_typing_heartbeat_stops_when_first_reply_is_sent(gateway, monkeypatch):
+    import clite.gateway.runner as runner_mod
+
+    monkeypatch.setattr(runner_mod, "DEFAULT_TYPING_INTERVAL", 0.05)
+    typing_stopped_before_or_at_send = threading.Event()
+
+    def check_send(text: str) -> None:
+        pass
+
+    runner, local, client = gateway([text_response("Hello!")])
+
+    orig_send = local.send
+
+    def instrumented_send(chat_id, text, **kwargs):
+        # When first send is called, typing heartbeat must be stopped or stop event set
+        typing_stopped_before_or_at_send.set()
+        return orig_send(chat_id, text, **kwargs)
+
+    local.send = instrumented_send  # type: ignore[method-assign]
+
+    local.inject("fast reply", user_id="owner")
+    assert local.wait_for_messages(1) == ["Hello!"]
+    assert typing_stopped_before_or_at_send.is_set()
+    count_after_reply = len(local.typing)
+    time.sleep(0.12)
+    assert len(local.typing) == count_after_reply
+
+
 def test_each_chat_has_its_own_session_and_restarts_resume_it(gateway, clite_home):
     runner, local, client = gateway(allowed="alice, bob")
     local.inject("I am Alice", user_id="alice")

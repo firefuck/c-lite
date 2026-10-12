@@ -27,6 +27,7 @@ from typing import Any
 from clite.agent import AgentCallbacks
 from clite.core.config import get_path, load_config
 from clite.core.errors import CliteError
+from clite.core.threads import start_thread
 from clite.gateway import media
 from clite.gateway.event import CHAT_DM, MessageEvent, SessionSource
 from clite.gateway.media import MediaError
@@ -48,6 +49,74 @@ logger = logging.getLogger("clite.gateway")
 # cleared on stop, so a stopped runner is never handed to the model.
 _ACTIVE_RUNNERS: list[GatewayRunner] = []
 _ACTIVE_LOCK = threading.Lock()
+
+DEFAULT_TYPING_INTERVAL = 3.5
+
+
+class _TypingKeeper:
+    """Keep a chat typing indicator active until stopped.
+
+    Platforms like Telegram drop the typing action after 4-5 seconds. This helper fires
+    an initial typing indicator and repeats it periodically until closed. Thread-safe:
+    calling :meth:`stop` or exiting the context immediately stops the heartbeat loop.
+    """
+
+    def __init__(
+        self,
+        adapter: BasePlatformAdapter,
+        chat_id: str,
+        *,
+        thread_id: str | None = None,
+        interval: float = DEFAULT_TYPING_INTERVAL,
+    ) -> None:
+        self.adapter = adapter
+        self.chat_id = chat_id
+        self.thread_id = thread_id
+        self.interval = interval
+        self._stop_event = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> _TypingKeeper:
+        self.adapter.send_typing(self.chat_id, thread_id=self.thread_id)
+        self._thread = start_thread(self._run, name=f"clite-typing-{self.chat_id}")
+        return self
+
+    def _run(self) -> None:
+        while not self._stop_event.wait(self.interval):
+            try:
+                self.adapter.send_typing(self.chat_id, thread_id=self.thread_id)
+            except Exception:  # noqa: BLE001 - cosmetic heartbeat failure
+                logger.debug("typing heartbeat failed for %s", self.chat_id, exc_info=True)
+
+    def stop(self) -> None:
+        self._stop_event.set()
+        if self._thread is not None and self._thread is not threading.current_thread():
+            self._thread.join(timeout=1.0)
+
+    def __enter__(self) -> _TypingKeeper:
+        return self.start()
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.stop()
+
+
+def _typing_keeper(
+    adapter: BasePlatformAdapter | None,
+    chat_id: str,
+    *,
+    thread_id: str | None = None,
+    interval: float | None = None,
+) -> _TypingKeeper | None:
+    if adapter is None:
+        return None
+    keeper = _TypingKeeper(
+        adapter,
+        chat_id,
+        thread_id=thread_id,
+        interval=DEFAULT_TYPING_INTERVAL if interval is None else interval,
+    )
+    keeper.start()
+    return keeper
 
 
 def active_runner() -> GatewayRunner | None:
@@ -1001,8 +1070,11 @@ class GatewayRunner:
         if session is None:  # the session was closed while this turn waited
             return
         adapter = self.adapters.get(session.source.platform)
-        if adapter is not None:
-            adapter.send_typing(session.source.chat_id, thread_id=session.source.thread_id)
+        typing_keeper = (
+            _typing_keeper(adapter, session.source.chat_id, thread_id=session.source.thread_id)
+            if adapter is not None
+            else None
+        )
 
         # A chat that can edit a sent message gets the answer as it is written and one status
         # message for tool activity. A chat that cannot keeps the old behaviour: typing
@@ -1018,6 +1090,8 @@ class GatewayRunner:
 
             def send(text: str) -> str | None:
                 nonlocal first_send
+                if typing_keeper is not None:
+                    typing_keeper.stop()
                 result = adapter.send(chat_id, text, reply_to=reply_to if first_send else None, thread_id=thread_id)
                 if result.success:
                     first_send = False
@@ -1052,10 +1126,14 @@ class GatewayRunner:
         try:
             result = session.chat.submit(turn.text, images=(turn.payload or {}).get("images"))
         except Exception as exc:  # noqa: BLE001
+            if typing_keeper is not None:
+                typing_keeper.stop()
             logger.exception("gateway turn failed for %s", session.key)
             self.reply(session.source, f"Something went wrong: {type(exc).__name__}: {exc}", reply_to=reply_to)
             return
         finally:
+            if typing_keeper is not None:
+                typing_keeper.stop()
             callbacks.on_delta, callbacks.on_tool_complete, callbacks.on_tool_start = (
                 saved_on_delta,
                 saved_on_tool,
