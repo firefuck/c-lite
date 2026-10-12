@@ -283,6 +283,42 @@ def test_slash_commands_work_in_chat(gateway):
     local.wait_for_text("Nothing is waiting for approval.")
 
 
+def test_reset_and_restart_commands_in_chat(gateway):
+    restarted = threading.Event()
+    runner, local, client = gateway()
+    runner.on_restart = restarted.set
+
+    local.inject("/restart", user_id="owner")
+    assert "Restarting gateway" in local.wait_for_messages(1)[0]
+    assert restarted.is_set()
+
+
+def test_reset_forces_session_reset_even_when_busy(gateway):
+    release = threading.Event()
+
+    def blocked(**kwargs):
+        release.wait(5)
+        raise InterruptedError
+
+    runner, local, client = gateway([blocked])
+    local.inject("long running turn", user_id="owner")
+    while not client.calls:
+        time.sleep(0.01)
+
+    old_session_id = runner.sessions["local:dm:owner"].chat.session_id
+    assert runner.sessions["local:dm:owner"].busy
+
+    local.inject("/reset", user_id="owner")
+    msgs = local.wait_for_messages(2)
+    assert any("Stopping running turn and resetting session" in m for m in msgs)
+    assert any("Started a new session." in m for m in msgs)
+
+    new_session_id = runner.sessions["local:dm:owner"].chat.session_id
+    assert new_session_id != old_session_id
+    assert runner.session_map.get("local:dm:owner") == new_session_id
+    release.set()
+
+
 def test_a_message_during_a_turn_interrupts_it_by_default(gateway):
     def blocked(cancel, **kwargs):
         cancel.wait(5)
@@ -292,7 +328,7 @@ def test_a_message_during_a_turn_interrupts_it_by_default(gateway):
     local.inject("long task", user_id="owner")
     while not client.calls:  # wait until the model call of the first turn is under way
         time.sleep(0.01)
-    local.inject("/new", user_id="owner")  # a session command has to wait
+    local.inject("/history", user_id="owner")  # a session command has to wait
     assert "has to wait" in local.wait_for_messages(1)[0]
     local.inject("actually, do this instead", user_id="owner")
     assert local.wait_for_messages(2)[1] == "answer to the second message"
@@ -604,15 +640,24 @@ def test_telegram_command_menu_enforces_bot_api_name_description_and_count_limit
 
 
 def test_telegram_registers_the_supported_slash_commands_in_the_native_menu(telegram):
+    from clite.gateway.platforms.telegram import _TELEGRAM_COMMAND_NAME
     from clite.runtime.commands import commands_for
 
     api, _runner = telegram
     registrations = [body for method, body in api.calls if method == "setMyCommands"]
     assert len(registrations) == 1
     commands = registrations[0]["commands"]
-    expected = commands_for("telegram")
-    assert [command["command"] for command in commands] == [command.name for command in expected]
-    assert [command["description"] for command in commands] == [command.description for command in expected]
+    expected_names: list[str] = []
+    seen: set[str] = set()
+    for command in commands_for("telegram"):
+        for name in (command.name, *command.aliases):
+            name_lower = name.lower()
+            if name_lower not in seen and _TELEGRAM_COMMAND_NAME.fullmatch(name_lower):
+                seen.add(name_lower)
+                expected_names.append(name_lower)
+    assert [command["command"] for command in commands] == expected_names
+    assert "reset" in [command["command"] for command in commands]
+    assert "restart" in [command["command"] for command in commands]
     assert len(commands) <= 100
     assert all(1 <= len(command["command"]) <= 32 for command in commands)
     assert all(1 <= len(command["description"]) <= 256 for command in commands)

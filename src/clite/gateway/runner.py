@@ -39,7 +39,15 @@ from clite.gateway.stream import ProgressReporter, StreamSender, tool_line, tool
 from clite.plugins.hooks import has_hook, invoke_hook
 from clite.plugins.manager import ensure_plugins_loaded
 from clite.runtime.commands import BUSY_ALLOW, resolve_command, split_command
-from clite.runtime.session import ACTION_NEW, ACTION_SUBMIT, BUSY_INTERRUPT, ChatSession, Turn, TurnQueue
+from clite.runtime.session import (
+    ACTION_NEW,
+    ACTION_RESTART,
+    ACTION_SUBMIT,
+    BUSY_INTERRUPT,
+    ChatSession,
+    Turn,
+    TurnQueue,
+)
 from clite.tools import speech
 
 logger = logging.getLogger("clite.gateway")
@@ -217,6 +225,7 @@ class GatewayRunner:
         self.pairing = PairingStore()
         self._model_pickers: dict[str, _ModelPicker] = {}
         self._approval_prompts: dict[str, _ApprovalPrompt] = {}
+        self.on_restart: Any = None
         self._lock = threading.RLock()
         self._scheduler: Any = None
         self.running = False
@@ -297,6 +306,24 @@ class GatewayRunner:
             except Exception:  # noqa: BLE001
                 logger.debug("disconnect failed for %s", adapter.name, exc_info=True)
         self.adapters.clear()
+
+    def request_restart(self) -> None:
+        """Trigger a restart of the gateway process or service."""
+        if callable(self.on_restart):
+            self.on_restart()
+        else:
+            # Fallback when running standalone without supervisor callback
+            def _exit() -> None:
+                time.sleep(0.5)
+                import os
+                import signal
+
+                try:
+                    os.kill(os.getpid(), signal.SIGTERM)
+                except Exception:
+                    os._exit(75)
+
+            start_thread(_exit, name="clite-gw-restart")
 
     def _close_session(self, session: GatewaySession, reason: str) -> None:
         if session.pending is not None:
@@ -904,12 +931,23 @@ class GatewayRunner:
             return
         if name:
             definition = resolve_command(name)
-            if session.busy and (definition is None or definition.busy_policy != BUSY_ALLOW):
-                self.reply(event.source, f"/{name} has to wait: I am still working. Send /stop to interrupt.")
-                return
+            is_reset = definition is not None and definition.name == "new"
+            if session.busy:
+                if is_reset:
+                    session.chat.interrupt()
+                    if session.turns is not None:
+                        session.turns.clear()
+                    self.reply(event.source, "Stopping running turn and resetting session…")
+                elif definition is None or definition.busy_policy != BUSY_ALLOW:
+                    self.reply(event.source, f"/{name} has to wait: I am still working. Send /stop to interrupt.")
+                    return
             result = session.chat.run_slash(text)
             if result.action == ACTION_NEW:
                 self.session_map.set(session.key, session.chat.session_id, event.source)
+            if result.action == ACTION_RESTART:
+                self.reply(event.source, result.text, reply_to=event.reply_to or event.message_id)
+                self.request_restart()
+                return
             if result.action != ACTION_SUBMIT:
                 self.reply(event.source, result.text, reply_to=event.reply_to or event.message_id)
                 return
