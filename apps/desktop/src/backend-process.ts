@@ -9,8 +9,8 @@
 //   * once the server is listening it prints one line, `CLITE_BACKEND_READY port=<n>`, to
 //     stdout. With `--port 0` that line is how we learn the port.
 
-import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
+import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 
 export const READY_SENTINEL = "CLITE_BACKEND_READY";
@@ -67,7 +67,7 @@ export function dashboardUrl(port: number, token: string): string {
  *   otherwise              the `clite` executable on PATH
  */
 export function resolveCliCommand(env: NodeJS.ProcessEnv = process.env): BackendCommand {
-  const override = env["CLITE_DESKTOP_BACKEND"]?.trim();
+  const override = env.CLITE_DESKTOP_BACKEND?.trim();
   const [command, ...rest] = override ? override.split(/\s+/) : ["clite"];
   return { command: command ?? "clite", args: rest };
 }
@@ -79,10 +79,7 @@ export function resolveCliCommand(env: NodeJS.ProcessEnv = process.env): Backend
  * chooses. `--profile` is stripped from the arguments by the CLI before argparse sees them, so
  * it does not matter where it sits.
  */
-export function resolveBackendCommand(
-  env: NodeJS.ProcessEnv = process.env,
-  profile?: string | null,
-): BackendCommand {
+export function resolveBackendCommand(env: NodeJS.ProcessEnv = process.env, profile?: string | null): BackendCommand {
   const { command, args } = resolveCliCommand(env);
   const chosen = profile ? ["--profile", profile] : [];
   return {
@@ -97,10 +94,7 @@ export function resolveBackendCommand(
  * This runs the CLI rather than asking a backend, because the choice has to be made before
  * there is a backend to ask. A failure is not fatal: the caller starts on the default profile.
  */
-export function listProfiles(
-  env: NodeJS.ProcessEnv = process.env,
-  timeoutMs = 10_000,
-): Promise<string[]> {
+export function listProfiles(env: NodeJS.ProcessEnv = process.env, timeoutMs = 10_000): Promise<string[]> {
   const { command, args } = resolveCliCommand(env);
   return new Promise((resolve, reject) => {
     const child = spawn(command, [...args, "profile", "list", "--json"], {
@@ -145,8 +139,7 @@ export function listProfiles(
 
 export function startBackend(options: StartOptions = {}): Promise<RunningBackend> {
   const token = createToken();
-  const { command, args } =
-    options.backend ?? resolveBackendCommand(options.env ?? process.env, options.profile);
+  const { command, args } = options.backend ?? resolveBackendCommand(options.env ?? process.env, options.profile);
   const child = spawn(command, args, {
     cwd: options.cwd,
     env: { ...process.env, ...options.env, [TOKEN_ENV]: token, PYTHONUNBUFFERED: "1" },
@@ -182,7 +175,8 @@ export function startBackend(options: StartOptions = {}): Promise<RunningBackend
       reject(new Error(stderr.length ? `${message}\n${stderr.join("\n")}` : message));
     };
     const timer = setTimeout(
-      () => fail(`the backend did not become ready within ${(options.startTimeoutMs ?? DEFAULT_START_TIMEOUT_MS) / 1000}s`),
+      () =>
+        fail(`the backend did not become ready within ${(options.startTimeoutMs ?? DEFAULT_START_TIMEOUT_MS) / 1000}s`),
       options.startTimeoutMs ?? DEFAULT_START_TIMEOUT_MS,
     );
 

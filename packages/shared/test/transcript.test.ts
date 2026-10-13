@@ -5,19 +5,40 @@ import type { EventEnvelope } from "../src/contracts.generated.ts";
 import { EVENT_TYPES, METHOD_NAMES, PROTOCOL_VERSION, SERVER_REQUEST_NAMES } from "../src/contracts.generated.ts";
 import { GatewayClient } from "../src/gateway-client.ts";
 import type { Transport } from "../src/json-rpc-channel.ts";
-import { addUserMessage, emptyTranscript, fromHistory, reduce } from "../src/transcript.ts";
 import type { TranscriptState } from "../src/transcript.ts";
+import { addUserMessage, emptyTranscript, fromHistory, reduce } from "../src/transcript.ts";
 
 let seq = 0;
-function event<T extends EventEnvelope["type"]>(type: T, payload: Extract<EventEnvelope, { type: T }>["payload"]): EventEnvelope {
+function event<T extends EventEnvelope["type"]>(
+  type: T,
+  payload: Extract<EventEnvelope, { type: T }>["payload"],
+): EventEnvelope {
   return { type, session_id: "s1", payload, seq: ++seq } as EventEnvelope;
 }
 
-const usage = { input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0, reasoning_tokens: 0, prompt_tokens: 0, estimated_cost_usd: 0 };
+const usage = {
+  input_tokens: 0,
+  output_tokens: 0,
+  cache_read_tokens: 0,
+  cache_write_tokens: 0,
+  reasoning_tokens: 0,
+  prompt_tokens: 0,
+  estimated_cost_usd: 0,
+};
 const turnComplete = (overrides: Partial<Extract<EventEnvelope, { type: "turn.complete" }>["payload"]> = {}) =>
   event("turn.complete", {
-    turn_id: "t1", final_response: "", completed: true, interrupted: false, error: null, exit_reason: "completed",
-    api_calls: 1, duration: 0.1, usage, cost_usd: 0, estimated_cost_usd: 0, ...overrides,
+    turn_id: "t1",
+    final_response: "",
+    completed: true,
+    interrupted: false,
+    error: null,
+    exit_reason: "completed",
+    api_calls: 1,
+    duration: 0.1,
+    usage,
+    cost_usd: 0,
+    estimated_cost_usd: 0,
+    ...overrides,
   });
 
 function play(events: EventEnvelope[], start: TranscriptState = emptyTranscript): TranscriptState {
@@ -54,7 +75,10 @@ test("an unstreamed answer is taken from message.complete", () => {
   const state = play([event("message.complete", { role: "assistant", text: "All at once.", tool_calls: [] })]);
   assert.deepEqual(state.items, [{ kind: "assistant", text: "All at once.", streaming: false }]);
   // A tool-call message with no text adds nothing.
-  assert.equal(play([event("message.complete", { role: "assistant", text: "", tool_calls: ["terminal"] })]).items.length, 0);
+  assert.equal(
+    play([event("message.complete", { role: "assistant", text: "", tool_calls: ["terminal"] })]).items.length,
+    0,
+  );
 });
 
 test("tools run between pieces of assistant text and settle by call id", () => {
@@ -63,8 +87,22 @@ test("tools run between pieces of assistant text and settle by call id", () => {
     event("message.complete", { role: "assistant", text: "Let me check.", tool_calls: ["read_file", "terminal"] }),
     event("tool.start", { call_id: "c1", name: "read_file", args: { path: "a.txt" }, preview: "a.txt" }),
     event("tool.start", { call_id: "c2", name: "terminal", args: { command: "false" }, preview: "false" }),
-    event("tool.complete", { call_id: "c2", name: "terminal", duration: 0.2, failed: true, result_preview: "", diff: "" }),
-    event("tool.complete", { call_id: "c1", name: "read_file", duration: 0.05, failed: false, result_preview: "", diff: "" }),
+    event("tool.complete", {
+      call_id: "c2",
+      name: "terminal",
+      duration: 0.2,
+      failed: true,
+      result_preview: "",
+      diff: "",
+    }),
+    event("tool.complete", {
+      call_id: "c1",
+      name: "read_file",
+      duration: 0.05,
+      failed: false,
+      result_preview: "",
+      diff: "",
+    }),
     event("message.delta", { text: "Done." }),
   ]);
   assert.deepEqual(state.items, [
@@ -81,8 +119,15 @@ test("reasoning, status, subagent and error events become their own items", () =
     event("reasoning.delta", { text: "ing" }),
     event("status.update", { kind: "retry", text: "retrying in 2s" }),
     event("subagent.update", {
-      event: "tool", index: 1, goal: "g", tool: "search_files", status: "",
-      args: "", iteration: 0, model: "", spawn_id: "",
+      event: "tool",
+      index: 1,
+      goal: "g",
+      tool: "search_files",
+      status: "",
+      args: "",
+      iteration: 0,
+      model: "",
+      spawn_id: "",
     }),
     event("error", { message: "backend error", code: 0 }),
   ]);
@@ -97,8 +142,15 @@ test("reasoning, status, subagent and error events become their own items", () =
 test("a richer subagent event shows the tool, its arguments, the iteration and the model", () => {
   const state = play([
     event("subagent.update", {
-      event: "tool", index: 0, goal: "g", tool: "search_files", status: "",
-      args: "pattern=TODO", iteration: 3, model: "mock-2", spawn_id: "",
+      event: "tool",
+      index: 0,
+      goal: "g",
+      tool: "search_files",
+      status: "",
+      args: "pattern=TODO",
+      iteration: 3,
+      model: "mock-2",
+      spawn_id: "",
     }),
   ]);
   assert.deepEqual(state.items, [
@@ -107,12 +159,17 @@ test("a richer subagent event shows the tool, its arguments, the iteration and t
 });
 
 test("an interrupted or failed turn ends with a notice and no dangling stream", () => {
-  const interrupted = play([event("message.delta", { text: "partial" }), turnComplete({ completed: false, interrupted: true })]);
+  const interrupted = play([
+    event("message.delta", { text: "partial" }),
+    turnComplete({ completed: false, interrupted: true }),
+  ]);
   assert.deepEqual(interrupted.items, [
     { kind: "assistant", text: "partial", streaming: false },
     { kind: "notice", level: "info", text: "(interrupted)" },
   ]);
-  const failed = play([turnComplete({ completed: false, error: "rate_limit", final_response: "The model call failed: rate limit" })]);
+  const failed = play([
+    turnComplete({ completed: false, error: "rate_limit", final_response: "The model call failed: rate limit" }),
+  ]);
   assert.deepEqual(failed.items, [{ kind: "notice", level: "error", text: "The model call failed: rate limit" }]);
 });
 
@@ -131,7 +188,10 @@ test("stored history maps to items", () => {
     { role: "tool", text: "{}", tool_name: "terminal", tool_calls: [], is_summary: false, timestamp: 3 },
     { role: "assistant", text: "One file.", tool_name: "", tool_calls: [], is_summary: false, timestamp: 4 },
   ]);
-  assert.deepEqual(state.items.map((item) => item.kind), ["user", "tool", "assistant"]);
+  assert.deepEqual(
+    state.items.map((item) => item.kind),
+    ["user", "tool", "assistant"],
+  );
 });
 
 test("the generated contracts expose the protocol's names", () => {
@@ -161,15 +221,30 @@ test("GatewayClient types requests, filters events and waits for one", async () 
   client.on("message.delta", (payload, sessionId) => deltas.push(`${sessionId}:${payload.text}`));
   const done = client.waitFor("turn.complete", "s1");
   const send = (type: string, sessionId: string, payload: unknown) =>
-    deliver(JSON.stringify({ jsonrpc: "2.0", method: "event", params: { type, session_id: sessionId, payload, seq: 1 } }));
+    deliver(
+      JSON.stringify({ jsonrpc: "2.0", method: "event", params: { type, session_id: sessionId, payload, seq: 1 } }),
+    );
   send("message.delta", "s1", { text: "hi" });
   send("turn.complete", "other-session", { final_response: "not mine" });
   send("turn.complete", "s1", { final_response: "mine" });
   assert.equal((await done).final_response, "mine");
   assert.deepEqual(deltas, ["s1:hi"]);
 
-  client.onServerRequest("approval.request", (params) => ({ choice: params.command.startsWith("rm") ? "deny" : "once" }));
-  deliver(JSON.stringify({ jsonrpc: "2.0", id: "srq-1", method: "approval.request", params: { session_id: "s1", command: "rm -rf x", description: "d" } }));
+  client.onServerRequest("approval.request", (params) => ({
+    choice: params.command.startsWith("rm") ? "deny" : "once",
+  }));
+  deliver(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      id: "srq-1",
+      method: "approval.request",
+      params: { session_id: "s1", command: "rm -rf x", description: "d" },
+    }),
+  );
   await new Promise((resolve) => setImmediate(resolve));
-  assert.deepEqual(JSON.parse(sent[sent.length - 1] ?? "{}"), { jsonrpc: "2.0", id: "srq-1", result: { choice: "deny" } });
+  assert.deepEqual(JSON.parse(sent[sent.length - 1] ?? "{}"), {
+    jsonrpc: "2.0",
+    id: "srq-1",
+    result: { choice: "deny" },
+  });
 });

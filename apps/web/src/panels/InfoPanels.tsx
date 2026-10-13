@@ -1,7 +1,7 @@
 // Skills, tools, plugins, hooks and profiles: what is installed, and little to change.
 
-import { useEffect, useState } from "react";
 import type { PluginsListResult } from "@clite/shared";
+import { useEffect, useState } from "react";
 
 import { useDashboard, useDashboardState } from "../state/useDashboard.ts";
 import { Actions, PanelError, Row, useAction, useLoad } from "./common.tsx";

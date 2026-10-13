@@ -111,7 +111,7 @@ luar event loop dijaga oleh `tests/server/test_context.py`.
 | Dashboard obrolan | ✅ | Tes browser di `tests/server/test_dashboard_browser.py` |
 | Halaman sesi, config, kredensial, cron, memori, log, hook/MCP | ✅ | F5-T2 |
 | Halaman analitik | ⬜ | Belum ada task-nya |
-| Dashboard React + Vite | ✅ | F5-T3 (F5-T7 sampai F5-T11): 24 tes browser dashboard lama lulus tanpa diubah, 10 tes `apps/web/test/dashboard.test.ts`, kesegaran bundle dijaga `tests/server/test_dashboard_bundle.py` |
+| Dashboard React + Vite | ✅ | F5-T3 (F5-T7 sampai F5-T11): 24 tes browser dashboard lama lulus (selector daftar percakapan disesuaikan sejak tombol tutupnya menjadi tombol tersendiri), 10 tes `apps/web/test/dashboard.test.ts`, kesegaran bundle dijaga `tests/server/test_dashboard_bundle.py` |
 | Token bernama, pembatasan laju, batas ukuran pesan, TLS, daftar host, log audit | ✅ | F5-T6 |
 | Autentikasi pengguna (login, banyak akun) | ⬜ | Belum ada task-nya |
 | Endpoint kompatibel OpenAI (`/v1/chat/completions`) | ✅ | Nonstreaming dan SSE, token API, serta penolakan Host asing pada loopback dijaga `tests/server/test_server.py`: F4-T10 |

@@ -11,7 +11,7 @@ export function paint(text: string, style: Style, color: boolean): string {
 }
 
 export function shouldUseColor(stream: { isTTY?: boolean }, env: NodeJS.ProcessEnv = process.env): boolean {
-  return Boolean(stream.isTTY) && !("NO_COLOR" in env) && env["TERM"] !== "dumb";
+  return Boolean(stream.isTTY) && !("NO_COLOR" in env) && env.TERM !== "dumb";
 }
 
 export function formatToolLine(item: Extract<TranscriptItem, { kind: "tool" }>, color: boolean): string {
@@ -98,9 +98,18 @@ export function markdownStyle(color: boolean, skin?: Record<string, string>): Ma
     return MarkdownStyle.fromCodes(markdownRoleCodes(skin));
   }
   return MarkdownStyle.fromCodes({
-    heading: CODES.bold, code: CODES.cyan, fence: CODES.dim, table: CODES.cyan, marker: CODES.yellow,
-    quote: CODES.cyan, rule: CODES.dim, link: CODES.cyan,
-    diff_add: CODES.green, diff_del: CODES.red, diff_hunk: CODES.cyan, diff_file: CODES.bold,
+    heading: CODES.bold,
+    code: CODES.cyan,
+    fence: CODES.dim,
+    table: CODES.cyan,
+    marker: CODES.yellow,
+    quote: CODES.cyan,
+    rule: CODES.dim,
+    link: CODES.cyan,
+    diff_add: CODES.green,
+    diff_del: CODES.red,
+    diff_hunk: CODES.cyan,
+    diff_file: CODES.bold,
     diff_context: CODES.dim,
   });
 }
@@ -108,7 +117,11 @@ export function markdownStyle(color: boolean, skin?: Record<string, string>): Ma
 export function formatBanner(info: SessionInfo, version: string, color: boolean): string {
   return [
     paint(`C-lite ${version}`, "cyan", color),
-    paint(`${info.model} via ${info.provider} · ${info.tools.length} tools · session ${info.stored_session_id}`, "dim", color),
+    paint(
+      `${info.model} via ${info.provider} · ${info.tools.length} tools · session ${info.stored_session_id}`,
+      "dim",
+      color,
+    ),
     paint(info.cwd, "dim", color),
     paint("Type a message, /help for commands. Ctrl+C interrupts a running turn; Ctrl+D exits.", "dim", color),
   ].join("\n");
@@ -120,10 +133,19 @@ export function formatStatus(info: SessionInfo): string {
 }
 
 const APPROVAL_ANSWERS: Record<string, "once" | "session" | "always" | "deny"> = {
-  o: "once", once: "once", y: "once", yes: "once",
-  s: "session", session: "session",
-  a: "always", always: "always",
-  d: "deny", deny: "deny", n: "deny", no: "deny", "": "deny",
+  o: "once",
+  once: "once",
+  y: "once",
+  yes: "once",
+  s: "session",
+  session: "session",
+  a: "always",
+  always: "always",
+  d: "deny",
+  deny: "deny",
+  n: "deny",
+  no: "deny",
+  "": "deny",
 };
 
 /** What the user typed at an approval prompt, as a protocol choice. Anything unclear is a no. */
@@ -146,8 +168,19 @@ export function parseChoice(answer: string, choices: string[]): string {
 // built from the active skin, and an empty style means plain text.
 
 export type MarkdownRole =
-  | "heading" | "code" | "fence" | "table" | "marker" | "quote" | "rule" | "link"
-  | "diff_add" | "diff_del" | "diff_hunk" | "diff_file" | "diff_context";
+  | "heading"
+  | "code"
+  | "fence"
+  | "table"
+  | "marker"
+  | "quote"
+  | "rule"
+  | "link"
+  | "diff_add"
+  | "diff_del"
+  | "diff_hunk"
+  | "diff_file"
+  | "diff_context";
 
 export class MarkdownStyle {
   private readonly codes: Readonly<Record<string, string>>;
@@ -239,13 +272,14 @@ function unsettledTail(lines: string[]): number {
 }
 
 function visibleLen(text: string): number {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI colour codes start with ESC.
   return text.replace(/\u001b\[[0-9;]*m/g, "").length;
 }
 
 function cut(text: string, limit: number): string {
   if (visibleLen(text) <= limit) return text;
   if (limit <= 1) return "…".slice(0, limit);
-  return text.slice(0, limit - 1) + "…";
+  return `${text.slice(0, limit - 1)}…`;
 }
 
 function padRight(text: string, width: number): string {
@@ -275,10 +309,10 @@ function renderLine(line: string, style: MarkdownStyle, width: number): string {
   const heading = HEADING.exec(line);
   if (heading) return style.paint("heading", inline(heading[2]!, style));
   const quote = QUOTE.exec(line);
-  if (quote) return style.paint("quote", "│ " + inline(quote[1]!, style));
+  if (quote) return style.paint("quote", `│ ${inline(quote[1]!, style)}`);
   if (["---", "***", "___"].includes(line.trim())) return style.paint("rule", RULE.repeat(Math.min(width, RULE_WIDTH)));
   const ordered = ORDERED.exec(line);
-  if (ordered) return `${ordered[1]}  ${style.paint("marker", ordered[2]! + ".")} ${inline(ordered[3]!, style)}`;
+  if (ordered) return `${ordered[1]}  ${style.paint("marker", `${ordered[2]!}.`)} ${inline(ordered[3]!, style)}`;
   const bullet = BULLET.exec(line);
   if (bullet) return `${bullet[1]}  ${style.paint("marker", "•")} ${inline(bullet[2]!, style)}`;
   return inline(line, style);
@@ -372,7 +406,7 @@ export class MarkdownStream {
   }
 
   private flushFence(): string {
-    const rendered = this.fenceBuffer.map((line) => renderFenceLine(line, this.style) + "\n").join("");
+    const rendered = this.fenceBuffer.map((line) => `${renderFenceLine(line, this.style)}\n`).join("");
     this.fenceBuffer = [];
     return rendered;
   }
@@ -404,7 +438,7 @@ export class MarkdownStream {
         run.push(lines[index]!);
         index += 1;
       }
-      out.push(...renderBlocks(run, this.style, this.width).map((line) => line + "\n"));
+      out.push(...renderBlocks(run, this.style, this.width).map((line) => `${line}\n`));
     }
     if (closed && this.inFence && this.fenceBuffer.length > 0) {
       this.inFence = false;
@@ -416,7 +450,10 @@ export class MarkdownStream {
 }
 
 const DIFF_ROLES: Record<string, MarkdownRole> = {
-  "-": "diff_del", "+": "diff_add", "@": "diff_hunk", " ": "diff_context",
+  "-": "diff_del",
+  "+": "diff_add",
+  "@": "diff_hunk",
+  " ": "diff_context",
 };
 
 export interface DiffOptions {
@@ -450,5 +487,5 @@ export function renderDiff(diff: string, options: DiffOptions = {}): string {
     body.length = options.maxLines;
   }
   if (omitted) body.push(style.paint("diff_hunk", `… omitted ${omitted} diff line(s)`));
-  return body.join("\n") + "\n";
+  return `${body.join("\n")}\n`;
 }

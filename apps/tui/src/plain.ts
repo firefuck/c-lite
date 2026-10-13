@@ -13,12 +13,28 @@
 // replacement; it will reuse backend.ts, render.ts and the shared transcript reducer as they
 // are. See docs/roadmap.
 
-import { createInterface } from "node:readline";
 import type { Interface } from "node:readline";
+import { createInterface } from "node:readline";
 import type { Readable, Writable } from "node:stream";
 
-import { RpcError, type EventEnvelope, type GatewayClient, type SessionCreateParams, type SessionInfo } from "@clite/shared";
-import { formatBanner, formatToolLine, markdownStyle, MarkdownStream, paint, parseApproval, parseChoice, renderDiff, renderMarkdown } from "./render.ts";
+import {
+  type EventEnvelope,
+  type GatewayClient,
+  RpcError,
+  type SessionCreateParams,
+  type SessionInfo,
+} from "@clite/shared";
+import {
+  formatBanner,
+  formatToolLine,
+  MarkdownStream,
+  markdownStyle,
+  paint,
+  parseApproval,
+  parseChoice,
+  renderDiff,
+  renderMarkdown,
+} from "./render.ts";
 
 export interface PlainTuiOptions {
   client: GatewayClient;
@@ -160,7 +176,8 @@ export class PlainTui {
           this.markdownPrinted = "";
           this.streamed = true;
         }
-        if (!this.streamed && event.payload.text) this.write(renderMarkdown(event.payload.text, { style: markdownStyle(this.color) }));
+        if (!this.streamed && event.payload.text)
+          this.write(renderMarkdown(event.payload.text, { style: markdownStyle(this.color) }));
         else if (this.midLine) this.line();
         this.streamed = false;
         break;
@@ -173,13 +190,18 @@ export class PlainTui {
         this.line(
           formatToolLine(
             {
-              kind: "tool", callId: event.payload.call_id, name: event.payload.name, preview: started?.preview ?? "",
-              status: event.payload.failed ? "failed" : "ok", duration: event.payload.duration,
+              kind: "tool",
+              callId: event.payload.call_id,
+              name: event.payload.name,
+              preview: started?.preview ?? "",
+              status: event.payload.failed ? "failed" : "ok",
+              duration: event.payload.duration,
             },
             this.color,
           ),
         );
-        if (event.payload.diff) this.write(renderDiff(event.payload.diff, { style: markdownStyle(this.color), maxLines: this.diffLines }));
+        if (event.payload.diff)
+          this.write(renderDiff(event.payload.diff, { style: markdownStyle(this.color), maxLines: this.diffLines }));
         break;
       }
       case "status.update":
@@ -203,7 +225,8 @@ export class PlainTui {
         this.releaseWaiters();
         if (this.midLine) this.line();
         if (event.payload.interrupted) this.line(paint("(interrupted)", "yellow", this.color));
-        else if (event.payload.error) this.line(paint(event.payload.final_response || event.payload.error, "red", this.color));
+        else if (event.payload.error)
+          this.line(paint(event.payload.final_response || event.payload.error, "red", this.color));
         this.prompt();
         break;
       default:
@@ -229,7 +252,7 @@ export class PlainTui {
     });
     this.client.onServerRequest("clarify.request", async (params) => {
       this.line(paint(params.question, "yellow", this.color));
-      params.choices.forEach((choice, index) => this.line(`  ${index + 1}. ${choice}`));
+      for (const [index, choice] of params.choices.entries()) this.line(`  ${index + 1}. ${choice}`);
       return { answer: parseChoice(await this.ask("  answer > "), params.choices) };
     });
   }
@@ -255,7 +278,9 @@ export class PlainTui {
       if (text.startsWith("/")) await this.runSlash(text);
       else this.awaitTurn((await this.client.request("prompt.submit", { session_id: this.sessionId, text })).turn_id);
     } catch (error) {
-      this.line(paint(error instanceof RpcError || error instanceof Error ? error.message : String(error), "red", this.color));
+      this.line(
+        paint(error instanceof RpcError || error instanceof Error ? error.message : String(error), "red", this.color),
+      );
       this.prompt();
     }
   }

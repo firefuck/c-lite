@@ -12,7 +12,8 @@ Butuh Python 3.11 atau lebih baru dan Node 22 atau lebih baru.
 pip install -e ".[dev]"
 npm install
 git config core.hooksPath scripts/hooks   # semua pemeriksaan jalan sebelum setiap push
-scripts/run_tests.sh                      # ruff, mypy, pytest, tes TypeScript
+scripts/run_tests.sh                      # ruff, mypy, biome, pytest, tes TypeScript
+npx biome check --write .                 # format TypeScript sebelum commit
 python -m clite chat -q "halo" --provider mock
 ```
 

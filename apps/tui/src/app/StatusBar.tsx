@@ -4,9 +4,8 @@
 // change) into the shared `StatusBarState`; `turn.start`/`turn.complete` toggle `busy`.
 
 import { Box, Text, useStdout } from "ink";
-
-import { fitStatusLine, formatStatus } from "./status-bar.ts";
 import type { StatusBarState } from "./status-bar.ts";
+import { fitStatusLine, formatStatus } from "./status-bar.ts";
 
 export type { StatusBarState };
 
@@ -17,7 +16,9 @@ export function StatusBar({ state, width }: { state: StatusBarState; width?: num
 
   return (
     <Box height={1} overflow="hidden">
-      <Text dimColor wrap="truncate">{line}</Text>
+      <Text dimColor wrap="truncate">
+        {line}
+      </Text>
     </Box>
   );
 }

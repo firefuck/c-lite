@@ -15,13 +15,14 @@ Electron tidak terpasang di lingkungan itu.
 |---|---|
 | `ruff check src tests scripts` | Bersih, termasuk batas kompleksitas 15 (`C901`) dan `noqa` beralasan (`BLE001`, `S310`, `S603`, `S607`, `RUF100`) sejak 13 Oktober 2026 |
 | `ruff format --check src tests scripts` | Bersih (dijalankan juga di `scripts/run_tests.sh lint` dan workflow CI) |
+| `biome ci` (TypeScript, `biome.jsonc`) | Bersih: format dan lint semua workspace, dijalankan di `scripts/run_tests.sh lint` (13 Oktober 2026) |
 | `mypy` (233 file sumber) | Bersih dalam mode `strict` (anotasi lengkap, generik berparameter, tanpa `Any` yang bocor lewat nilai kembali) sejak 13 Oktober 2026 |
 | Tes Python (`pytest tests`) | 1700 lulus, 43 terlewati (jaringan, Windows, Docker, SSH, paket opsional). Tanpa identitas git (`user.name`, `user.email`), `tests/test_release.py::test_tagging_needs_a_clean_tree_and_creates_the_tag_for_the_version` gagal karena lingkungan |
 | Tes TypeScript `packages/shared` | 22 lulus; `tsc --noEmit` bersih (13 Oktober 2026) |
 | Tes TypeScript `apps/tui` | 60 lulus; `tsc --noEmit` bersih (13 Oktober 2026) |
 | Tes TypeScript `apps/web` (dashboard) | 10 lulus terhadap server tiruan; `tsc --noEmit` bersih (13 Oktober 2026) |
 | Tes TypeScript `apps/desktop` | 15 lulus, tes asap Electron dilewati (tanpa layar dan tanpa biner Electron) pada 13 Oktober 2026; terakhir dijalankan penuh sebelum dashboard React |
-| Tes browser dashboard (`tests/server/test_dashboard_browser.py`) | 24 lulus di Chromium sungguhan terhadap dashboard React, tes yang sama dengan dashboard lama tanpa diubah (butuh `playwright` dan Chromium; tanpa itu dilewati) |
+| Tes browser dashboard (`tests/server/test_dashboard_browser.py`) | 24 lulus di Chromium sungguhan terhadap dashboard React: tes yang sama dengan dashboard lama, dengan selector daftar percakapan disesuaikan sejak tombol tutupnya menjadi tombol tersendiri (butuh `playwright` dan Chromium; tanpa itu dilewati) |
 | Installer Linux (`release/C-lite-0.1.0.AppImage`, versi 0.1.0) | Dibangun dengan `electron-builder` dan dijalankan: jendela memuat dashboard dari backend yang dijalankannya sendiri, dan menutup jendela menghentikan backend. macOS dan Windows belum pernah dibangun |
 | Rujukan ke file Hermes di semua dokumen | Lulus pada sesi pembuatan; belum diulang di sesi ini karena clone rujukan tidak tersedia |
 

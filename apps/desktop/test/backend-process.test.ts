@@ -5,7 +5,14 @@ import { dirname, join, resolve } from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { createToken, dashboardUrl, listProfiles, parseReadyLine, resolveBackendCommand, startBackend } from "../src/backend-process.ts";
+import {
+  createToken,
+  dashboardUrl,
+  listProfiles,
+  parseReadyLine,
+  resolveBackendCommand,
+  startBackend,
+} from "../src/backend-process.ts";
 import { decideNavigation } from "../src/window-policy.ts";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -20,8 +27,16 @@ after(() => rmSync(sandbox, { recursive: true, force: true }));
 test("only a well-formed ready line yields a port", () => {
   assert.equal(parseReadyLine("CLITE_BACKEND_READY port=43123"), 43123);
   assert.equal(parseReadyLine("CLITE_BACKEND_READY port=43123\r"), 43123);
-  for (const line of ["", "starting…", "CLITE_BACKEND_READY", "CLITE_BACKEND_READY port=0", "CLITE_BACKEND_READY port=99999",
-                      "CLITE_BACKEND_READY port=abc", " CLITE_BACKEND_READY port=80", "log: CLITE_BACKEND_READY port=80"]) {
+  for (const line of [
+    "",
+    "starting…",
+    "CLITE_BACKEND_READY",
+    "CLITE_BACKEND_READY port=0",
+    "CLITE_BACKEND_READY port=99999",
+    "CLITE_BACKEND_READY port=abc",
+    " CLITE_BACKEND_READY port=80",
+    "log: CLITE_BACKEND_READY port=80",
+  ]) {
     assert.equal(parseReadyLine(line), null, line);
   }
 });
@@ -34,15 +49,20 @@ test("tokens are long, random and URL-safe; the URL keeps them in the fragment",
 });
 
 test("the backend command can be overridden for development", () => {
-  assert.deepEqual(resolveBackendCommand({}), { command: "clite", args: ["serve", "--host", "127.0.0.1", "--port", "0"] });
+  assert.deepEqual(resolveBackendCommand({}), {
+    command: "clite",
+    args: ["serve", "--host", "127.0.0.1", "--port", "0"],
+  });
   assert.deepEqual(resolveBackendCommand({ CLITE_DESKTOP_BACKEND: "python3 -m clite" }), {
-    command: "python3", args: ["-m", "clite", "serve", "--host", "127.0.0.1", "--port", "0"],
+    command: "python3",
+    args: ["-m", "clite", "serve", "--host", "127.0.0.1", "--port", "0"],
   });
 });
 
 test("a profile is passed through to the backend", () => {
   assert.deepEqual(resolveBackendCommand({}, "work"), {
-    command: "clite", args: ["--profile", "work", "serve", "--host", "127.0.0.1", "--port", "0"],
+    command: "clite",
+    args: ["--profile", "work", "serve", "--host", "127.0.0.1", "--port", "0"],
   });
   assert.deepEqual(resolveBackendCommand({ CLITE_DESKTOP_BACKEND: "python3 -m clite" }, "work"), {
     command: "python3",
@@ -53,9 +73,9 @@ test("a profile is passed through to the backend", () => {
 });
 
 test("the profiles on the machine come back from the CLI", async () => {
-  const pythonPath = [join(repoRoot, "src"), process.env["PYTHONPATH"]].filter(Boolean).join(":");
+  const pythonPath = [join(repoRoot, "src"), process.env.PYTHONPATH].filter(Boolean).join(":");
   const names = await listProfiles({
-    CLITE_DESKTOP_BACKEND: `${process.env["CLITE_PYTHON"] ?? "python3"} -m clite`,
+    CLITE_DESKTOP_BACKEND: `${process.env.CLITE_PYTHON ?? "python3"} -m clite`,
     PYTHONPATH: pythonPath,
     CLITE_HOME: sandbox,
   });
@@ -76,9 +96,9 @@ test("navigation stays on the backend; web links leave the app; the rest is refu
 });
 
 test("starts the real backend, learns the port, and the token opens the API", async () => {
-  const pythonPath = [join(repoRoot, "src"), process.env["PYTHONPATH"]].filter(Boolean).join(":");
+  const pythonPath = [join(repoRoot, "src"), process.env.PYTHONPATH].filter(Boolean).join(":");
   const backend = await startBackend({
-    backend: { command: process.env["CLITE_PYTHON"] ?? "python3", args: ["-m", "clite", "serve", "--port", "0"] },
+    backend: { command: process.env.CLITE_PYTHON ?? "python3", args: ["-m", "clite", "serve", "--port", "0"] },
     env: { CLITE_HOME: sandbox, PYTHONPATH: pythonPath },
   });
   try {
@@ -87,7 +107,9 @@ test("starts the real backend, learns the port, and the token opens the API", as
 
     const denied = await fetch(`${backend.origin}/api/status`);
     assert.equal(denied.status, 401);
-    const allowed = await fetch(`${backend.origin}/api/status`, { headers: { Authorization: `Bearer ${backend.token}` } });
+    const allowed = await fetch(`${backend.origin}/api/status`, {
+      headers: { Authorization: `Bearer ${backend.token}` },
+    });
     assert.equal(allowed.status, 200);
     assert.equal(((await allowed.json()) as { model: string }).model, "mock-1");
 
@@ -110,15 +132,21 @@ test("starts the real backend, learns the port, and the token opens the API", as
 
 test("a backend that exits early is reported with what it printed", async () => {
   await assert.rejects(
-    startBackend({ backend: { command: process.execPath, args: ["-e", "require('node:fs').writeSync(2, 'missing dependency: uvicorn\\n'); process.exit(3)"] } }),
+    startBackend({
+      backend: {
+        command: process.execPath,
+        args: ["-e", "require('node:fs').writeSync(2, 'missing dependency: uvicorn\\n'); process.exit(3)"],
+      },
+    }),
     /exited with code 3 before it was ready\nmissing dependency: uvicorn/,
   );
 });
 
 test("an early exit includes stderr that reaches the pipe after the process exits", async () => {
   const delayedWriter = "setTimeout(() => { require('node:fs').writeSync(2, 'late startup detail\\n'); }, 50)";
-  const script = `require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(delayedWriter)}], `
-    + "{ stdio: ['ignore', 'ignore', 2] }); process.exit(3)";
+  const script =
+    `require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(delayedWriter)}], ` +
+    "{ stdio: ['ignore', 'ignore', 2] }); process.exit(3)";
   await assert.rejects(
     startBackend({ backend: { command: process.execPath, args: ["-e", script] } }),
     /exited with code 3 before it was ready\nlate startup detail/,
@@ -126,9 +154,15 @@ test("an early exit includes stderr that reaches the pipe after the process exit
 });
 
 test("a missing executable and a silent backend both fail clearly", async () => {
-  await assert.rejects(startBackend({ backend: { command: "/no/such/clite", args: [] } }), /could not start the backend/);
   await assert.rejects(
-    startBackend({ backend: { command: process.execPath, args: ["-e", "setTimeout(() => {}, 60000)"] }, startTimeoutMs: 300 }),
+    startBackend({ backend: { command: "/no/such/clite", args: [] } }),
+    /could not start the backend/,
+  );
+  await assert.rejects(
+    startBackend({
+      backend: { command: process.execPath, args: ["-e", "setTimeout(() => {}, 60000)"] },
+      startTimeoutMs: 300,
+    }),
     /did not become ready within 0\.3s/,
   );
 });

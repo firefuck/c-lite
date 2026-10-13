@@ -20,11 +20,11 @@ GitHub-nya (`python scripts/release.py notes`).
   kode etik.
 
 ### Diubah
-- Dashboard web ditulis ulang dengan React dan Vite. Fitur dan perilakunya sama: 24 tes browser
-  dashboard lama lulus tanpa diubah.
+- Dashboard web ditulis ulang dengan React dan Vite. Fitur dan perilakunya sama, dijaga 24 tes
+  browser dashboard lama.
 - Perapian kode tanpa perubahan perilaku: fungsi panjang dipecah dan kompleksitas tiap fungsi
-  dibatasi 15, format kode dan komentar `noqa` beralasan diperiksa di CI, dan mypy berjalan
-  dalam mode `strict`. Empat modul terbesar dipecah menurut tanggung jawab: runner gateway,
+  dibatasi 15, format kode dan komentar `noqa` beralasan diperiksa di CI, mypy berjalan dalam
+  mode `strict`, dan kode TypeScript diformat serta diperiksa Biome. Empat modul terbesar dipecah menurut tanggung jawab: runner gateway,
   gerbang persetujuan perintah, handler RPC (kini paket `clite.rpc.methods`), dan penyimpanan
   sesi.
 - Tata letak monorepo: aplikasi di `apps/` (`apps/tui`, `apps/web`, `apps/desktop`) dan klien
@@ -36,6 +36,9 @@ GitHub-nya (`python scripts/release.py notes`).
   nama platform; Telegram berperilaku seperti sebelumnya.
 
 ### Diperbaiki
+- Tombol tutup percakapan dan tombol hapus lampiran di dashboard kini tombol sungguhan yang bisa
+  dijangkau keyboard dan dibacakan pembaca layar; tombol tutup tidak lagi tersarang di dalam
+  tombol percakapan.
 - Wheel kini menyertakan berkas lisensi skill bawaan `docx`, `pdf`, `powerpoint`, dan `xlsx`;
   sebelumnya tertinggal karena tidak berekstensi, dan pemeriksaan isi wheel menolak rilis.
 - Endpoint token OAuth yang menjawab dengan JSON bukan objek kini dibaca sebagai teks mentah,

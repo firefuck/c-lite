@@ -1,8 +1,8 @@
-import { useState } from "react";
 import type { StoredSession } from "@clite/shared";
+import { useState } from "react";
 
 import { useDashboard } from "../state/useDashboard.ts";
-import { Actions, PanelError, Row, plural, useAction, useLoad } from "./common.tsx";
+import { Actions, PanelError, plural, Row, useAction, useLoad } from "./common.tsx";
 
 /** Save a session's JSON through the browser's download machinery. */
 function download(filename: string, content: string): void {
@@ -22,11 +22,13 @@ export function SessionsPanel() {
   const [query, setQuery] = useState("");
   const [archived, setArchived] = useState(false);
   const text = query.trim();
-  const search = useLoad(() => (text ? dashboard.request("session.search", { query: text }) : Promise.resolve(null)), [
-    text,
-  ]);
+  const search = useLoad(
+    () => (text ? dashboard.request("session.search", { query: text }) : Promise.resolve(null)),
+    [text],
+  );
   const listing = useLoad(
-    () => (text ? Promise.resolve(null) : dashboard.request("session.list", { limit: 100, include_archived: archived })),
+    () =>
+      text ? Promise.resolve(null) : dashboard.request("session.list", { limit: 100, include_archived: archived }),
     [text, archived],
   );
 
@@ -59,7 +61,11 @@ export function SessionsPanel() {
         <h3>{plural(hits.length, "match", "matches")}</h3>
         {hits.length ? (
           hits.map((hit, index) => (
-            <Row key={index} name={hit.title || hit.stored_session_id} desc={`${hit.role} · ${hit.source} · ${hit.snippet}`}>
+            <Row
+              key={index}
+              name={hit.title || hit.stored_session_id}
+              desc={`${hit.role} · ${hit.source} · ${hit.snippet}`}
+            >
               <Actions>
                 <button type="button" onClick={() => run(() => open(hit.stored_session_id))}>
                   Open
@@ -98,7 +104,10 @@ export function SessionsPanel() {
                     data-action="pin"
                     onClick={() =>
                       run(async () => {
-                        await dashboard.request("session.pin", { stored_session_id: session.id, pinned: !session.pinned });
+                        await dashboard.request("session.pin", {
+                          stored_session_id: session.id,
+                          pinned: !session.pinned,
+                        });
                         await after();
                       })
                     }
@@ -123,7 +132,12 @@ export function SessionsPanel() {
                   <button type="button" data-action="export" onClick={() => run(() => exportSession(session))}>
                     Export
                   </button>
-                  <button type="button" data-action="delete" className="danger" onClick={() => run(() => remove(session))}>
+                  <button
+                    type="button"
+                    data-action="delete"
+                    className="danger"
+                    onClick={() => run(() => remove(session))}
+                  >
                     Delete
                   </button>
                 </Actions>

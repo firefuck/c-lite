@@ -1,7 +1,7 @@
 // Configuration and credentials: the two panels that write to the user's home.
 
-import { useRef } from "react";
 import type { ConfigEntry, CredentialEntry } from "@clite/shared";
+import { useRef } from "react";
 
 import { useDashboard } from "../state/useDashboard.ts";
 import { Actions, PanelError, useAction, useLoad } from "./common.tsx";

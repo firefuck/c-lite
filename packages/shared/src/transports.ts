@@ -78,7 +78,10 @@ export class WebSocketTransport implements Transport {
   }
 
   /** Open a socket and resolve once it is connected. */
-  static connect(url: string, create: (url: string) => WebSocketLike = (target) => new WebSocket(target)): Promise<WebSocketTransport> {
+  static connect(
+    url: string,
+    create: (url: string) => WebSocketLike = (target) => new WebSocket(target),
+  ): Promise<WebSocketTransport> {
     return new Promise((resolve, reject) => {
       const socket = create(url);
       let settled = false;

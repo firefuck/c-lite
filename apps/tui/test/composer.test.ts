@@ -1,17 +1,17 @@
 // Real Ink rendering and useInput events, not mocks of the completion helpers.
 // Bundle TSX in memory, adding a test-only export to avoid changing production code.
 import assert from "node:assert/strict";
-import { after, before, test } from "node:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
 import { PassThrough, Writable } from "node:stream";
+import { after, before, test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
+import { fileURLToPath } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 import { build } from "esbuild";
-import React from "react";
 import { render } from "ink";
+import React from "react";
 
-let Composer: React.ComponentType<any>;
+let Composer: React.ComponentType<Record<string, unknown>>;
 let bundleDir: string;
 before(async () => {
   const source = new URL("../src/app/App.tsx", import.meta.url);
@@ -43,7 +43,13 @@ const catalog = [
   ["model", "Choose a model"],
   ["models", "List available models"],
 ].map(([name, description]) => ({
-  name, description, aliases: [], subcommands: [], args_hint: "", category: "test", kind: "builtin",
+  name,
+  description,
+  aliases: [],
+  subcommands: [],
+  args_hint: "",
+  category: "test",
+  kind: "builtin",
 }));
 
 async function mount(t: { after: (fn: () => void) => void }) {
@@ -60,18 +66,24 @@ async function mount(t: { after: (fn: () => void) => void }) {
   });
   Object.assign(stdout, { columns: 100, rows: 30 });
   const submissions: string[] = [];
-  const instance = render(React.createElement(Composer, {
-    prompt: ">", catalog,
-    onSubmit: (text: string) => submissions.push(text),
-    onInterrupt: () => assert.fail("Unexpected interrupt"),
-    onQuit: () => assert.fail("Unexpected quit"),
-  }), {
-    // Ink types require full TTY streams; these implement the stream/TTY subset it uses.
-    stdin: stdin as unknown as NodeJS.ReadStream,
-    stdout: stdout as unknown as NodeJS.WriteStream,
-    stderr: stdout as unknown as NodeJS.WriteStream,
-    debug: true, exitOnCtrlC: false, patchConsole: false,
-  });
+  const instance = render(
+    React.createElement(Composer, {
+      prompt: ">",
+      catalog,
+      onSubmit: (text: string) => submissions.push(text),
+      onInterrupt: () => assert.fail("Unexpected interrupt"),
+      onQuit: () => assert.fail("Unexpected quit"),
+    }),
+    {
+      // Ink types require full TTY streams; these implement the stream/TTY subset it uses.
+      stdin: stdin as unknown as NodeJS.ReadStream,
+      stdout: stdout as unknown as NodeJS.WriteStream,
+      stderr: stdout as unknown as NodeJS.WriteStream,
+      debug: true,
+      exitOnCtrlC: false,
+      patchConsole: false,
+    },
+  );
   t.after(() => {
     instance.unmount();
     instance.cleanup();
@@ -83,14 +95,22 @@ async function mount(t: { after: (fn: () => void) => void }) {
   return {
     submissions,
     frame: () => frame,
-    async key(sequence: string) { stdin.write(sequence); await delay(80); },
-    async type(text: string) { for (const char of text) { stdin.write(char); await delay(80); } },
+    async key(sequence: string) {
+      stdin.write(sequence);
+      await delay(80);
+    },
+    async type(text: string) {
+      for (const char of text) {
+        stdin.write(char);
+        await delay(80);
+      }
+    },
   };
 }
 
 const down = "\u001b[B";
 const up = "\u001b[A";
-const escape = "\u001b";
+const esc = "\u001b";
 const backspace = "\u007f";
 
 test("Composer automatically shows descriptions on slash and narrows while typing", async (t) => {
@@ -143,7 +163,7 @@ test("Composer Escape closes menu; backspace reopens it and resets selection", a
   await ui.type("/mo");
   await ui.key(down);
   assert.match(ui.frame(), /❯ \/models/);
-  await ui.key(escape);
+  await ui.key(esc);
   assert.equal(ui.frame().trimEnd(), "> /mo");
   assert.deepEqual(ui.submissions, []);
   await ui.key(backspace);

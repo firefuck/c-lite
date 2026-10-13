@@ -3,16 +3,45 @@ import { test } from "node:test";
 
 import type { SessionInfo } from "@clite/shared";
 import {
-  formatBanner, formatItem, formatStatus, formatToolLine, MarkdownStream, MarkdownStyle, paint, parseApproval,
-  parseChoice, renderDiff, renderMarkdown, shouldUseColor,
+  formatBanner,
+  formatItem,
+  formatStatus,
+  formatToolLine,
+  MarkdownStream,
+  MarkdownStyle,
+  paint,
+  parseApproval,
+  parseChoice,
+  renderDiff,
+  renderMarkdown,
+  shouldUseColor,
 } from "../src/render.ts";
 
 const info: SessionInfo = {
-  session_id: "rt1", stored_session_id: "20261004_120000_abcd1234", title: "", platform: "tui", model: "mock-1", provider: "mock",
-  cwd: "/work/project", busy: false, yolo: false, message_count: 4, tools: ["terminal", "read_file"], toolsets: ["clite-cli"],
+  session_id: "rt1",
+  stored_session_id: "20261004_120000_abcd1234",
+  title: "",
+  platform: "tui",
+  model: "mock-1",
+  provider: "mock",
+  cwd: "/work/project",
+  busy: false,
+  yolo: false,
+  message_count: 4,
+  tools: ["terminal", "read_file"],
+  toolsets: ["clite-cli"],
   reasoning_effort: "",
-  context: { engine: "compressor", context_length: 32000, threshold_tokens: 24000, last_prompt_tokens: 3200, compression_count: 0,
-             usage_percent: 10, messages: 4, model: "mock-1", provider: "mock" },
+  context: {
+    engine: "compressor",
+    context_length: 32000,
+    threshold_tokens: 24000,
+    last_prompt_tokens: 3200,
+    compression_count: 0,
+    usage_percent: 10,
+    messages: 4,
+    model: "mock-1",
+    provider: "mock",
+  },
 };
 
 test("paint adds colour only when asked", () => {
@@ -44,7 +73,10 @@ test("each transcript item has a rendering", () => {
 
 test("banner and status summarise the session", () => {
   const banner = formatBanner(info, "0.1.0", false);
-  assert.match(banner, /^C-lite 0\.1\.0\nmock-1 via mock · 2 tools · session 20261004_120000_abcd1234\n\/work\/project\n/);
+  assert.match(
+    banner,
+    /^C-lite 0\.1\.0\nmock-1 via mock · 2 tools · session 20261004_120000_abcd1234\n\/work\/project\n/,
+  );
   assert.equal(formatStatus(info), "mock-1 · 4 messages · context 10%");
 });
 
@@ -69,12 +101,23 @@ test("clarify answers: a number picks a choice, text is kept", () => {
 // ── Markdown and diff: the same rules as the Python renderer ──────────────────────────────
 
 const COLOR = MarkdownStyle.fromCodes({
-  heading: "1", code: "36", fence: "2", marker: "33", quote: "36", rule: "2",
-  link: "34", diff_file: "1", diff_hunk: "36", diff_add: "32", diff_del: "31", diff_context: "2",
+  heading: "1",
+  code: "36",
+  fence: "2",
+  marker: "33",
+  quote: "36",
+  rule: "2",
+  link: "34",
+  diff_file: "1",
+  diff_hunk: "36",
+  diff_add: "32",
+  diff_del: "31",
+  diff_context: "2",
 });
 const PLAIN = MarkdownStyle.none();
 const WIDTH = 80;
 
+// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI colour codes start with ESC.
 const strip = (text: string): string => text.replace(/\u001b\[[0-9;]*m/g, "");
 
 function streamIn(text: string, sizes: number[], style: MarkdownStyle = PLAIN): string {
@@ -175,7 +218,7 @@ test("a diff without colour is plain readable text", () => {
 test("a long diff is capped and says how much was left out", () => {
   let body = "";
   for (let i = 0; i < 200; i++) body += `+line ${i}\n`;
-  const diff = "--- a/x\n+++ b/x\n@@ -1 +1 @@\n" + body;
+  const diff = `--- a/x\n+++ b/x\n@@ -1 +1 @@\n${body}`;
   const out = renderDiff(diff, { maxLines: 20 });
   assert.ok(out.split("\n").length <= 22);
   assert.ok(out.includes("omitted") && out.includes("line(s)"));

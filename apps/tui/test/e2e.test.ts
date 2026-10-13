@@ -11,9 +11,8 @@ import { dirname, join, resolve } from "node:path";
 import { PassThrough } from "node:stream";
 import { after, afterEach, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
-
-import { spawnBackend } from "../src/backend.ts";
 import type { Backend, BackendOptions } from "../src/backend.ts";
+import { spawnBackend } from "../src/backend.ts";
 import { PlainTui } from "../src/plain.ts";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -22,7 +21,7 @@ let home = "";
 let workdir = "";
 
 function backendEnv(): NodeJS.ProcessEnv {
-  const pythonPath = [join(repoRoot, "src"), process.env["PYTHONPATH"]].filter(Boolean).join(":");
+  const pythonPath = [join(repoRoot, "src"), process.env.PYTHONPATH].filter(Boolean).join(":");
   return { CLITE_HOME: home, PYTHONPATH: pythonPath, HOME: sandbox };
 }
 
@@ -78,7 +77,12 @@ async function startTui(): Promise<{
     text += chunk.toString();
   });
   const tui = new PlainTui({
-    client: backend.client, input, output: sink, version: ready.version, session: { cwd: workdir }, interactive: true,
+    client: backend.client,
+    input,
+    output: sink,
+    version: ready.version,
+    session: { cwd: workdir },
+    interactive: true,
   });
   const exit = tui.run();
   const waitFor = async (pattern: RegExp, timeoutMs = 15000): Promise<string> => {
@@ -87,10 +91,20 @@ async function startTui(): Promise<{
       if (pattern.test(text)) return text;
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
-    throw new Error(`timed out waiting for ${pattern}; output so far:\n${text}\nbackend stderr:\n${backend.stderrTail()}`);
+    throw new Error(
+      `timed out waiting for ${pattern}; output so far:\n${text}\nbackend stderr:\n${backend.stderrTail()}`,
+    );
   };
   await waitFor(/Type a message/);
-  return { type: (line) => input.write(`${line}\n`), waitFor, output: () => text, tui, backend, exit, version: ready.version };
+  return {
+    type: (line) => input.write(`${line}\n`),
+    waitFor,
+    output: () => text,
+    tui,
+    backend,
+    exit,
+    version: ready.version,
+  };
 }
 
 test("the protocol works over a real child process", async () => {
@@ -105,7 +119,10 @@ test("the protocol works over a real child process", async () => {
     const deltas: string[] = [];
     backend.client.on("message.delta", (payload) => deltas.push(payload.text));
     const done = backend.client.waitFor("turn.complete", session.session_id);
-    const submitted = await backend.client.request("prompt.submit", { session_id: session.session_id, text: "hello from node" });
+    const submitted = await backend.client.request("prompt.submit", {
+      session_id: session.session_id,
+      text: "hello from node",
+    });
     assert.equal(submitted.accepted, true);
     const result = await done;
     assert.equal(result.final_response, "You said: hello from node");
@@ -238,7 +255,10 @@ test("a backend that cannot start is reported, not hung on", { timeout: 15000 },
 
   const broken = start({ env: backendEnv(), args: ["--profile", "missing-startup-profile"], cwd: sandbox });
   // A missing profile fails even when the package is installed in Python's site-packages.
-  await assert.rejects(broken.ready, /exited with code 1 before it was ready[\s\S]*profile 'missing-startup-profile' does not exist/);
+  await assert.rejects(
+    broken.ready,
+    /exited with code 1 before it was ready[\s\S]*profile 'missing-startup-profile' does not exist/,
+  );
 });
 
 test("an unconfigured install explains what to do", async () => {

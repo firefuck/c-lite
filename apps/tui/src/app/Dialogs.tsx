@@ -9,10 +9,20 @@
 import { Box, Text, useInput } from "ink";
 import { useState } from "react";
 
-import { APPROVAL_LABELS, parseApprovalChoice, parseApprovalText, parseClarifyAnswer, type ApprovalChoice } from "./dialogs.ts";
+import {
+  APPROVAL_LABELS,
+  type ApprovalChoice,
+  parseApprovalChoice,
+  parseApprovalText,
+  parseClarifyAnswer,
+} from "./dialogs.ts";
 
 /** The approval dialog: pick once/session/always/deny for a dangerous command. */
-export function ApprovalDialog({ command, description, onChoose }: {
+export function ApprovalDialog({
+  command,
+  description,
+  onChoose,
+}: {
   command: string;
   description: string;
   onChoose: (choice: ApprovalChoice) => void;
@@ -30,7 +40,7 @@ export function ApprovalDialog({ command, description, onChoose }: {
   return (
     <Box flexDirection="column" borderStyle="round" paddingX={1}>
       <Text color="yellow">This command needs your approval ({description}):</Text>
-      <Text>  {command}</Text>
+      <Text> {command}</Text>
       <Box marginTop={1}>
         {APPROVAL_LABELS.map((label, index) => (
           <Text key={label} color={index === selected ? "cyan" : undefined}>
@@ -43,7 +53,11 @@ export function ApprovalDialog({ command, description, onChoose }: {
 }
 
 /** The clarify dialog: a question with numbered choices or free text. */
-export function ClarifyDialog({ question, choices, onAnswer }: {
+export function ClarifyDialog({
+  question,
+  choices,
+  onAnswer,
+}: {
   question: string;
   choices: string[];
   onAnswer: (answer: string) => void;
@@ -65,10 +79,10 @@ export function ClarifyDialog({ question, choices, onAnswer }: {
       <Text color="yellow">{question}</Text>
       {choices.map((choice, index) => (
         <Text key={index} color={index === selected ? "cyan" : undefined}>
-          {index === selected ? "❯" : " "}  {index + 1}. {choice}
+          {index === selected ? "❯" : " "} {index + 1}. {choice}
         </Text>
       ))}
-      <Text>  answer: {text}</Text>
+      <Text> answer: {text}</Text>
     </Box>
   );
 }

@@ -2,12 +2,12 @@
 // queue is not empty, so a question that arrives while another is open waits its turn instead
 // of replacing it.
 
-import { useEffect, useRef, useState } from "react";
 import type { ReactNode, SyntheticEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { errorText } from "../state/dashboard.ts";
-import { dismissal } from "../state/dialogs.ts";
 import type { DialogSpec } from "../state/dialogs.ts";
+import { dismissal } from "../state/dialogs.ts";
 import { useDashboardState } from "../state/useDashboard.ts";
 
 const ids = new WeakMap<DialogSpec, number>();
@@ -248,7 +248,12 @@ function CronDialog({ spec }: { spec: Spec<"cron"> }) {
     <>
       <h2>Schedule a job</h2>
       <label htmlFor="cron-prompt">Prompt</label>
-      <input type="text" id="cron-prompt" placeholder="what to ask, e.g. summarise my open pull requests" ref={prompt} />
+      <input
+        type="text"
+        id="cron-prompt"
+        placeholder="what to ask, e.g. summarise my open pull requests"
+        ref={prompt}
+      />
       <label htmlFor="cron-schedule">Schedule</label>
       <input type="text" id="cron-schedule" placeholder="when, e.g. every morning at 9" ref={schedule} />
       <label htmlFor="cron-name">Name</label>

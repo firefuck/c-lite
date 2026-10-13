@@ -1,5 +1,5 @@
-import { useLayoutEffect, useRef } from "react";
 import type { TranscriptItem } from "@clite/shared";
+import { useLayoutEffect, useRef } from "react";
 
 /** Plain text with fenced code blocks shown as <pre>. Deliberately not a Markdown renderer:
  *  everything the model writes is text, never markup. */
@@ -46,6 +46,7 @@ function Item({ item }: { item: TranscriptItem }) {
 /** The active conversation. It scrolls to the newest line whenever the transcript changes. */
 export function Transcript({ items, banner }: { items: TranscriptItem[]; banner: string }) {
   const element = useRef<HTMLDivElement>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: every new item scrolls the transcript to the bottom.
   useLayoutEffect(() => {
     const transcript = element.current;
     if (transcript) transcript.scrollTop = transcript.scrollHeight;

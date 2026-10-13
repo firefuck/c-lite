@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import type { ComponentType } from "react";
+import { useEffect, useState } from "react";
 
 import { ChatView } from "./components/ChatView.tsx";
 import { Sidebar } from "./components/Sidebar.tsx";
@@ -56,20 +56,22 @@ export function App() {
       <div id="app">
         <Sidebar />
         <main>
-          <nav id="tabs" role="tablist">
-            {[["chat", "Chat"] as const, ...PANELS.map(([name, label]) => [name, label] as const)].map(([name, label]) => (
-              <button
-                key={name}
-                type="button"
-                role="tab"
-                data-tab={name}
-                className={tab === name ? "active" : undefined}
-                onClick={() => select(name)}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
+          <div id="tabs" role="tablist">
+            {[["chat", "Chat"] as const, ...PANELS.map(([name, label]) => [name, label] as const)].map(
+              ([name, label]) => (
+                <button
+                  key={name}
+                  type="button"
+                  role="tab"
+                  data-tab={name}
+                  className={tab === name ? "active" : undefined}
+                  onClick={() => select(name)}
+                >
+                  {label}
+                </button>
+              ),
+            )}
+          </div>
           <ChatView active={tab === "chat"} />
           {PANELS.map(([name, , Panel]) => (
             <section key={name} id={`view-${name}`} className={`view${tab === name ? " active" : ""}`}>

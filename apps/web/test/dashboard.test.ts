@@ -4,9 +4,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { Transport } from "@clite/shared";
-
-import { Dashboard } from "../src/state/dashboard.ts";
 import type { Platform } from "../src/state/dashboard.ts";
+import { Dashboard } from "../src/state/dashboard.ts";
 
 type Handler = (params: Record<string, unknown>) => unknown;
 
@@ -25,18 +24,18 @@ class FakeServer implements Transport {
 
   send(text: string): void {
     const message = JSON.parse(text) as Record<string, unknown>;
-    if (typeof message["method"] !== "string") {
+    if (typeof message.method !== "string") {
       this.answers.push(message); // the client answering a server request
       return;
     }
-    const method = message["method"];
-    const params = (message["params"] ?? {}) as Record<string, unknown>;
+    const method = message.method;
+    const params = (message.params ?? {}) as Record<string, unknown>;
     this.requests.push({ method, params });
     const handler = this.handlers[method];
     queueMicrotask(() => {
       const reply = handler
-        ? { jsonrpc: "2.0", id: message["id"], result: handler(params) }
-        : { jsonrpc: "2.0", id: message["id"], error: { code: -32601, message: `no ${method}` } };
+        ? { jsonrpc: "2.0", id: message.id, result: handler(params) }
+        : { jsonrpc: "2.0", id: message.id, error: { code: -32601, message: `no ${method}` } };
       this.receive(JSON.stringify(reply));
     });
   }
@@ -54,7 +53,9 @@ class FakeServer implements Transport {
   }
 
   event(type: string, sessionId: string, payload: unknown, seq: number): void {
-    this.receive(JSON.stringify({ jsonrpc: "2.0", method: "event", params: { type, session_id: sessionId, payload, seq } }));
+    this.receive(
+      JSON.stringify({ jsonrpc: "2.0", method: "event", params: { type, session_id: sessionId, payload, seq } }),
+    );
   }
 
   ask(id: string, method: string, params: unknown): void {
@@ -94,7 +95,7 @@ function handlers(extra: Record<string, Handler> = {}): Record<string, Handler> 
     "system.info": () => ({ profile: "default", configured: true, notifications: true }),
     "session.create": () => info(`s${++sessions}`),
     "session.list": () => ({ sessions: [] }),
-    "session.info": (params) => info(String(params["session_id"])),
+    "session.info": (params) => info(String(params.session_id)),
     "session.history": () => ({ messages: [] }),
     "prompt.submit": () => ({ accepted: true }),
     ...extra,
@@ -238,10 +239,10 @@ test("a second question waits until the first is answered instead of replacing i
 test("after the socket drops, the dashboard reconnects and replays what it missed", async () => {
   const serverHandlers = handlers({
     "session.attach": (params) => ({
-      session: info(String(params["session_id"])),
+      session: info(String(params.session_id)),
       complete: true,
       last_seq: 5,
-      events: [{ type: "message.delta", session_id: params["session_id"], payload: { text: "while away" }, seq: 5 }],
+      events: [{ type: "message.delta", session_id: params.session_id, payload: { text: "while away" }, seq: 5 }],
     }),
   });
   const { dashboard, servers, tick } = harness(serverHandlers);
@@ -275,7 +276,7 @@ test("a dropped file is uploaded and its path is spelled out; an image rides as 
     handlers({
       "attachment.save": (params) => {
         saved.push(params);
-        return { path: `/cache/${String(params["name"])}`, name: params["name"], bytes: 1, image: false };
+        return { path: `/cache/${String(params.name)}`, name: params.name, bytes: 1, image: false };
       },
     }),
   );
@@ -288,7 +289,7 @@ test("a dropped file is uploaded and its path is spelled out; an image rides as 
   await dashboard.send("read these");
   assert.equal(dashboard.activeView()?.attachments.length, 0);
   assert.deepEqual(
-    saved.map((entry) => [entry["name"], entry["data"]]),
+    saved.map((entry) => [entry.name, entry.data]),
     [
       ["notes.txt", Buffer.from("notes").toString("base64")],
       ["shot.png", Buffer.from("png").toString("base64")],
@@ -310,7 +311,9 @@ test("a slash command runs through slash.exec and its answer is a notice", async
   await dashboard.send("/status");
   assert.ok(servers[0]!.requests.some((request) => request.method === "slash.exec"));
   assert.ok(!servers[0]!.requests.some((request) => request.method === "prompt.submit"));
-  assert.deepEqual(dashboard.activeView()?.transcript.items, [{ kind: "notice", level: "info", text: "mock-1 via mock" }]);
+  assert.deepEqual(dashboard.activeView()?.transcript.items, [
+    { kind: "notice", level: "info", text: "mock-1 via mock" },
+  ]);
 });
 
 test("closing the conversation on screen shows the newest other one, or opens a fresh one", async () => {

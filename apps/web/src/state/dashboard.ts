@@ -4,7 +4,6 @@
 // `session_id`, so each view keeps its own transcript. React components read a snapshot through
 // `subscribe`/`getState` and call the methods here; nothing in this file knows about React.
 
-import { GatewayClient, emptyTranscript, fromHistory, reduce } from "@clite/shared";
 import type {
   EventEnvelope,
   MethodName,
@@ -12,13 +11,14 @@ import type {
   SessionCreateParams,
   SessionInfo,
   StoredSession,
-  Transport,
   TranscriptState,
+  Transport,
 } from "@clite/shared";
+import { emptyTranscript, fromHistory, GatewayClient, reduce } from "@clite/shared";
 
 import type { ApprovalChoice, CronValues, DialogSpec, SetupValues } from "./dialogs.ts";
-import { forgetToken, storeToken, takeToken } from "./token.ts";
 import type { AddressBar, TokenStorage } from "./token.ts";
+import { forgetToken, storeToken, takeToken } from "./token.ts";
 
 /** A file dropped or pasted into the composer, not sent yet. */
 export interface Attachment {
@@ -232,7 +232,10 @@ export class Dashboard {
         // The token is no longer accepted; retrying would hammer the server.
         forgetToken(this.platform.storage);
         this.update({ connection: { online: false, label: "unauthorized" } });
-        this.notice("The session token was refused. Reload the page with the link printed by `clite dashboard`.", "error");
+        this.notice(
+          "The session token was refused. Reload the page with the link printed by `clite dashboard`.",
+          "error",
+        );
         return;
       }
       this.reconnectDelay = Math.min(this.reconnectDelay * 2, MAX_RECONNECT_DELAY_MS);

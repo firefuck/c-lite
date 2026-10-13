@@ -6,15 +6,22 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-
+import {
+  addUserMessage,
+  type CommandEntry,
+  type EventEnvelope,
+  emptyTranscript,
+  type ModelEntry,
+  reduce,
+  type StoredSession,
+} from "@clite/shared";
 import { chooseUi } from "../src/app/choose-ui.ts";
+import { getSlashCandidates, handleTabCompletion } from "../src/app/completion.ts";
+import { parseApprovalChoice, parseApprovalText, parseClarifyAnswer } from "../src/app/dialogs.ts";
+import { formatModelItem, formatSessionItem, resumeSession, switchModel } from "../src/app/pickers.ts";
 import { createTuiSessionParams } from "../src/app/session-params.ts";
 import { fitStatusLine, formatStatus, wrapTranscriptText } from "../src/app/status-bar.ts";
-import { parseApprovalChoice, parseApprovalText, parseClarifyAnswer } from "../src/app/dialogs.ts";
-import { getSlashCandidates, handleTabCompletion } from "../src/app/completion.ts";
-import { formatModelItem, formatSessionItem, resumeSession, switchModel } from "../src/app/pickers.ts";
 import { markdownRoleCodes, markdownStyle } from "../src/render.ts";
-import { addUserMessage, emptyTranscript, reduce, type CommandEntry, type ModelEntry, type StoredSession } from "@clite/shared";
 
 test("the Ink TUI creates a valid session.create payload", () => {
   const params = createTuiSessionParams({ cwd: "/tmp/work", model: "mock-1", provider: "mock", yolo: false });
@@ -58,7 +65,7 @@ test("the Ink transcript uses the same reducer as the plain UI", () => {
   ] as const;
 
   let state = addUserMessage(emptyTranscript, "hi");
-  for (const event of events) state = reduce(state, event as any);
+  for (const event of events) state = reduce(state, event as EventEnvelope);
 
   assert.equal(state.busy, false);
   assert.equal(state.items.length, 2);
@@ -136,7 +143,7 @@ test("the status bar keeps activity, model, and context visible on narrow termin
 });
 
 test("the status bar shortens the home directory to a tilde", () => {
-  const home = process.env["HOME"] ?? "/home/user";
+  const home = process.env.HOME ?? "/home/user";
   const line = formatStatus({ model: "m", provider: "p", cwd: `${home}/projects/clite`, busy: false, usagePercent: 0 });
   assert.ok(line.includes("~/projects/clite"));
   assert.ok(!line.includes(home));
@@ -183,25 +190,74 @@ test("the clarify dialog picks a numbered choice and passes free text through", 
 // ── slash command completion ─────────────────────────────────────────────────────────────
 
 const mockCatalog: CommandEntry[] = [
-  { name: "help", description: "Show help", category: "core", aliases: ["h", "?"], args_hint: "", subcommands: [], kind: "builtin" },
-  { name: "clear", description: "Clear screen", category: "core", aliases: [], args_hint: "", subcommands: [], kind: "builtin" },
-  { name: "history", description: "Show history", category: "core", aliases: [], args_hint: "", subcommands: [], kind: "builtin" },
-  { name: "help", description: "Duplicate help", category: "core", aliases: [], args_hint: "", subcommands: [], kind: "builtin" },
-  { name: "model", description: "Model picker", category: "core", aliases: ["m"], args_hint: "", subcommands: ["list", "set"], kind: "builtin" },
+  {
+    name: "help",
+    description: "Show help",
+    category: "core",
+    aliases: ["h", "?"],
+    args_hint: "",
+    subcommands: [],
+    kind: "builtin",
+  },
+  {
+    name: "clear",
+    description: "Clear screen",
+    category: "core",
+    aliases: [],
+    args_hint: "",
+    subcommands: [],
+    kind: "builtin",
+  },
+  {
+    name: "history",
+    description: "Show history",
+    category: "core",
+    aliases: [],
+    args_hint: "",
+    subcommands: [],
+    kind: "builtin",
+  },
+  {
+    name: "help",
+    description: "Duplicate help",
+    category: "core",
+    aliases: [],
+    args_hint: "",
+    subcommands: [],
+    kind: "builtin",
+  },
+  {
+    name: "model",
+    description: "Model picker",
+    category: "core",
+    aliases: ["m"],
+    args_hint: "",
+    subcommands: ["list", "set"],
+    kind: "builtin",
+  },
 ];
 
 test("a slash prefix produces candidates from commands.catalog, sorted, without duplicates", () => {
   // Bare "/" lists all unique commands sorted alphabetically
   const all = getSlashCandidates(mockCatalog, "/");
-  assert.deepEqual(all.map((c) => c.name), ["clear", "help", "history", "model"]);
+  assert.deepEqual(
+    all.map((c) => c.name),
+    ["clear", "help", "history", "model"],
+  );
 
   // "/h" matches "help" and "history"
   const h = getSlashCandidates(mockCatalog, "/h");
-  assert.deepEqual(h.map((c) => c.name), ["help", "history"]);
+  assert.deepEqual(
+    h.map((c) => c.name),
+    ["help", "history"],
+  );
 
   // Matching via alias (e.g. "/?" matches help via alias)
   const q = getSlashCandidates(mockCatalog, "/?");
-  assert.deepEqual(q.map((c) => c.name), ["help"]);
+  assert.deepEqual(
+    q.map((c) => c.name),
+    ["help"],
+  );
 
   // Non-slash inputs produce no candidates
   assert.deepEqual(getSlashCandidates(mockCatalog, "hello"), []);
@@ -219,7 +275,10 @@ test("Tab on multiple candidates opens the menu and preserves text", () => {
   assert.equal(result.text, "/h");
   assert.equal(result.menuOpen, true);
   assert.equal(result.candidates.length, 2);
-  assert.deepEqual(result.candidates.map((c) => c.name), ["help", "history"]);
+  assert.deepEqual(
+    result.candidates.map((c) => c.name),
+    ["help", "history"],
+  );
 });
 
 test("Tab with no matches keeps text and leaves menu closed", () => {
@@ -284,7 +343,7 @@ test("selecting a session triggers resume via session.create", async () => {
 
   const res = await resumeSession(fakeClient, sampleSession);
   assert.equal(calledMethod, "session.create");
-  assert.equal(calledParams["resume"], "sess-abc-999");
+  assert.equal(calledParams.resume, "sess-abc-999");
   assert.equal(res.session_id, "resumed-sess-abc-999");
 });
 
@@ -323,8 +382,8 @@ test("selecting a model triggers model.set for active session", async () => {
 
   const res = await switchModel(fakeClient, "active-session-1", sampleModel);
   assert.equal(calledMethod, "model.set");
-  assert.equal(calledParams["session_id"], "active-session-1");
-  assert.equal(calledParams["model"], "deepseek-r1");
+  assert.equal(calledParams.session_id, "active-session-1");
+  assert.equal(calledParams.model, "deepseek-r1");
   assert.equal(res.success, true);
 });
 
@@ -341,14 +400,14 @@ test("markdownRoleCodes maps skin role names to ANSI codes matching Python prese
   };
 
   const codes = markdownRoleCodes(sampleSkin);
-  assert.equal(codes["heading"], "93");
-  assert.equal(codes["code"], "96");
-  assert.equal(codes["table"], "36");
-  assert.equal(codes["diff_add"], "92");
-  assert.equal(codes["diff_del"], "91");
-  assert.equal(codes["quote"], "35");
+  assert.equal(codes.heading, "93");
+  assert.equal(codes.code, "96");
+  assert.equal(codes.table, "36");
+  assert.equal(codes.diff_add, "92");
+  assert.equal(codes.diff_del, "91");
+  assert.equal(codes.quote, "35");
   // Roles not in the skin are omitted
-  assert.equal(codes["link"], undefined);
+  assert.equal(codes.link, undefined);
 });
 
 test("markdownStyle uses custom skin codes when provided", () => {
@@ -390,6 +449,3 @@ test("when terminal width changes, transcript wraps and status bar stays on one 
   assert.ok(statusFitNarrow.endsWith("…"));
   assert.ok(!statusFitNarrow.includes("\n"));
 });
-
-
-

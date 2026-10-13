@@ -6,18 +6,34 @@
 // only sends `prompt.submit` and renders events. Dialogs, completion and pickers arrive in
 // later tasks (F3-T11, F3-T12, F3-T13).
 
+import {
+  addUserMessage,
+  type CatalogResult,
+  type CommandEntry,
+  type EventEnvelope,
+  emptyTranscript,
+  type GatewayClient,
+  type ModelEntry,
+  type ModelListResult,
+  type PromptSubmitResult,
+  reduce,
+  type SessionInfo,
+  type SessionListResult,
+  type SlashExecResult,
+  type StoredSession,
+  type TranscriptItem,
+  type TranscriptState,
+} from "@clite/shared";
 import { Box, Text, useApp, useInput, useStdout } from "ink";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-
-import { addUserMessage, emptyTranscript, reduce, type CatalogResult, type CommandEntry, type EventEnvelope, type GatewayClient, type ModelEntry, type ModelListResult, type PromptSubmitResult, type SessionInfo, type SessionListResult, type SlashExecResult, type StoredSession, type TranscriptItem, type TranscriptState } from "@clite/shared";
 import { formatItem } from "../render.ts";
 import { CompletionMenu } from "./CompletionMenu.tsx";
-import { ApprovalDialog, ClarifyDialog } from "./Dialogs.tsx";
-import { ModelPicker, SessionPicker } from "./Pickers.tsx";
-import { StatusBar, type StatusBarState } from "./StatusBar.tsx";
 import { applySlashCompletion, getSlashCandidates, handleTabCompletion } from "./completion.ts";
+import { ApprovalDialog, ClarifyDialog } from "./Dialogs.tsx";
 import type { ApprovalChoice } from "./dialogs.ts";
+import { ModelPicker, SessionPicker } from "./Pickers.tsx";
 import { resumeSession, switchModel } from "./pickers.ts";
+import { StatusBar, type StatusBarState } from "./StatusBar.tsx";
 
 export interface AppProps {
   client: GatewayClient;
@@ -56,7 +72,13 @@ function Transcript({ state, color }: { state: TranscriptState; color: boolean }
 }
 
 /** The composer: one line of input with slash completion. Enter sends, Ctrl+C interrupts, Ctrl+D quits. */
-function Composer({ onSubmit, onInterrupt, onQuit, prompt, catalog }: {
+function Composer({
+  onSubmit,
+  onInterrupt,
+  onQuit,
+  prompt,
+  catalog,
+}: {
   onSubmit: (text: string) => void;
   onInterrupt: () => void;
   onQuit: () => void;
@@ -73,8 +95,14 @@ function Composer({ onSubmit, onInterrupt, onQuit, prompt, catalog }: {
   }, [catalog, value]);
 
   useInput((input, key) => {
-    if (key.ctrl && input === "d") { onQuit(); return; }
-    if (key.ctrl && input === "c") { onInterrupt(); return; }
+    if (key.ctrl && input === "d") {
+      onQuit();
+      return;
+    }
+    if (key.ctrl && input === "c") {
+      onInterrupt();
+      return;
+    }
 
     if (key.escape) {
       if (menuOpen) {
@@ -86,7 +114,7 @@ function Composer({ onSubmit, onInterrupt, onQuit, prompt, catalog }: {
     if (key.tab) {
       const picked = menuOpen ? candidates[selectedIndex] : undefined;
       if (picked) {
-        setValue(applySlashCompletion(value, picked));
+        setValue(applySlashCompletion(picked));
         setMenuOpen(false);
         setSelectedIndex(0);
         return;
@@ -110,7 +138,7 @@ function Composer({ onSubmit, onInterrupt, onQuit, prompt, catalog }: {
       if (key.return) {
         const picked = candidates[selectedIndex];
         if (picked) {
-          setValue(applySlashCompletion(value, picked));
+          setValue(applySlashCompletion(picked));
           setMenuOpen(false);
           return;
         }
@@ -142,9 +170,7 @@ function Composer({ onSubmit, onInterrupt, onQuit, prompt, catalog }: {
 
   return (
     <Box flexDirection="column">
-      {menuOpen && candidates.length > 0 && (
-        <CompletionMenu candidates={candidates} selectedIndex={selectedIndex} />
-      )}
+      {menuOpen && candidates.length > 0 && <CompletionMenu candidates={candidates} selectedIndex={selectedIndex} />}
       <Box>
         <Text color="green">{prompt} </Text>
         <Text>{value}</Text>
@@ -158,7 +184,7 @@ export function App({ client, session }: AppProps) {
   const { exit } = useApp();
   const { stdout } = useStdout();
   const sessionId = session.session_id;
-  const color = stdout.isTTY && !process.env["NO_COLOR"];
+  const color = stdout.isTTY && !process.env.NO_COLOR;
   const [state, dispatch] = useReducer(appReducer, emptyTranscript);
   const prompt = "❯";
   const turnId = useRef<string | null>(null);
@@ -179,7 +205,12 @@ export function App({ client, session }: AppProps) {
 
   // The backend sends `approval.request` and `clarify.request` as server requests; each
   // resolves when the user picks from the dialog. Until then, the composer is hidden.
-  type ApprovalReq = { kind: "approval"; command: string; description: string; resolve: (choice: ApprovalChoice) => void };
+  type ApprovalReq = {
+    kind: "approval";
+    command: string;
+    description: string;
+    resolve: (choice: ApprovalChoice) => void;
+  };
   type ClarifyReq = { kind: "clarify"; question: string; choices: string[]; resolve: (answer: string) => void };
   type PendingReq = ApprovalReq | ClarifyReq;
   const [pending, setPending] = useState<PendingReq | null>(null);
@@ -191,7 +222,8 @@ export function App({ client, session }: AppProps) {
   const [picker, setPicker] = useState<ActivePicker | null>(null);
 
   useEffect(() => {
-    client.request("commands.catalog", { session_id: sessionId })
+    client
+      .request("commands.catalog", { session_id: sessionId })
       .then((res) => {
         const cat = res as CatalogResult;
         if (cat?.commands) setCatalog(cat.commands);
@@ -200,109 +232,147 @@ export function App({ client, session }: AppProps) {
   }, [client, sessionId]);
 
   useEffect(() => {
-    client.onServerRequest("approval.request", (params) => new Promise((resolve) => {
-      setPending({ kind: "approval", command: params.command, description: params.description,
-        resolve: (choice) => resolve({ choice }) });
-    }));
-    client.onServerRequest("clarify.request", (params) => new Promise((resolve) => {
-      setPending({ kind: "clarify", question: params.question, choices: params.choices ?? [],
-        resolve: (answer) => resolve({ answer }) });
-    }));
+    client.onServerRequest(
+      "approval.request",
+      (params) =>
+        new Promise((resolve) => {
+          setPending({
+            kind: "approval",
+            command: params.command,
+            description: params.description,
+            resolve: (choice) => resolve({ choice }),
+          });
+        }),
+    );
+    client.onServerRequest(
+      "clarify.request",
+      (params) =>
+        new Promise((resolve) => {
+          setPending({
+            kind: "clarify",
+            question: params.question,
+            choices: params.choices ?? [],
+            resolve: (answer) => resolve({ answer }),
+          });
+        }),
+    );
   }, [client]);
 
   const closeDialog = useCallback(() => setPending(null), []);
 
   // Forward every event from the backend into the shared reducer, and keep the status bar
   // in step: `session.info` carries model/cwd/context, `turn.start`/`turn.complete` toggle busy.
-  useEffect(() => client.onEvent((event: EventEnvelope) => {
-    dispatch({ kind: "event", event });
-    if (event.type === "session.info") {
-      const info = event.payload as SessionInfo;
-      setStatus((s) => ({
-        ...s,
-        model: info.model || s.model,
-        provider: info.provider || s.provider,
-        cwd: info.cwd || s.cwd,
-        busy: info.busy,
-        usagePercent: info.context?.usage_percent ?? s.usagePercent,
-        contextUsed: info.context?.last_prompt_tokens ?? s.contextUsed,
-        contextTotal: info.context?.context_length ?? s.contextTotal,
-        sessionId: info.stored_session_id || info.session_id || s.sessionId,
-        title: info.title || s.title,
-        activity: info.busy ? "busy" : "idle",
-      }));
-    } else if (event.type === "turn.start") {
-      setStatus((s) => ({ ...s, busy: true, activity: "thinking" }));
-    } else if (event.type === "turn.step") {
-      setStatus((s) => ({ ...s, busy: true, activity: `thinking #${event.payload.iteration}` }));
-    } else if (event.type === "tool.start") {
-      setStatus((s) => ({ ...s, busy: true, activity: `tool ${event.payload.name}` }));
-    } else if (event.type === "tool.complete") {
-      setStatus((s) => ({ ...s, busy: true, activity: "thinking" }));
-    } else if (event.type === "turn.complete") {
-      setStatus((s) => ({
-        ...s,
-        busy: false,
-        activity: "idle",
-        inputTokens: event.payload.usage.input_tokens,
-        outputTokens: event.payload.usage.output_tokens,
-      }));
-    }
-  }), [client]);
+  useEffect(
+    () =>
+      client.onEvent((event: EventEnvelope) => {
+        dispatch({ kind: "event", event });
+        if (event.type === "session.info") {
+          const info = event.payload as SessionInfo;
+          setStatus((s) => ({
+            ...s,
+            model: info.model || s.model,
+            provider: info.provider || s.provider,
+            cwd: info.cwd || s.cwd,
+            busy: info.busy,
+            usagePercent: info.context?.usage_percent ?? s.usagePercent,
+            contextUsed: info.context?.last_prompt_tokens ?? s.contextUsed,
+            contextTotal: info.context?.context_length ?? s.contextTotal,
+            sessionId: info.stored_session_id || info.session_id || s.sessionId,
+            title: info.title || s.title,
+            activity: info.busy ? "busy" : "idle",
+          }));
+        } else if (event.type === "turn.start") {
+          setStatus((s) => ({ ...s, busy: true, activity: "thinking" }));
+        } else if (event.type === "turn.step") {
+          setStatus((s) => ({ ...s, busy: true, activity: `thinking #${event.payload.iteration}` }));
+        } else if (event.type === "tool.start") {
+          setStatus((s) => ({ ...s, busy: true, activity: `tool ${event.payload.name}` }));
+        } else if (event.type === "tool.complete") {
+          setStatus((s) => ({ ...s, busy: true, activity: "thinking" }));
+        } else if (event.type === "turn.complete") {
+          setStatus((s) => ({
+            ...s,
+            busy: false,
+            activity: "idle",
+            inputTokens: event.payload.usage.input_tokens,
+            outputTokens: event.payload.usage.output_tokens,
+          }));
+        }
+      }),
+    [client],
+  );
 
   const quit = useCallback(async () => {
     await client.request("session.close", { session_id: sessionId }).catch(() => {});
     exit();
   }, [client, sessionId, exit]);
 
-  const submit = useCallback(async (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
+  const submit = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
 
-    if (trimmed === "/model" || trimmed === "/models") {
-      try {
-        const res = (await client.request("model.list", {})) as ModelListResult;
-        setPicker({ kind: "model", models: res.models || [], current: res.current || status.model });
-        return;
-      } catch {
-        // Fall back to slash.exec
+      if (trimmed === "/model" || trimmed === "/models") {
+        try {
+          const res = (await client.request("model.list", {})) as ModelListResult;
+          setPicker({ kind: "model", models: res.models || [], current: res.current || status.model });
+          return;
+        } catch {
+          // Fall back to slash.exec
+        }
       }
-    }
 
-    if (trimmed === "/session" || trimmed === "/resume" || trimmed === "/sessions") {
-      try {
-        const res = (await client.request("session.list", {})) as SessionListResult;
-        setPicker({ kind: "session", sessions: res.sessions || [] });
-        return;
-      } catch {
-        // Fall back to slash.exec
+      if (trimmed === "/session" || trimmed === "/resume" || trimmed === "/sessions") {
+        try {
+          const res = (await client.request("session.list", {})) as SessionListResult;
+          setPicker({ kind: "session", sessions: res.sessions || [] });
+          return;
+        } catch {
+          // Fall back to slash.exec
+        }
       }
-    }
 
-    // Any other slash command runs through the backend, exactly as the plain UI does; sending
-    // it as a prompt would leak the command text to the model instead of executing it.
-    if (trimmed.startsWith("/")) {
+      // Any other slash command runs through the backend, exactly as the plain UI does; sending
+      // it as a prompt would leak the command text to the model instead of executing it.
+      if (trimmed.startsWith("/")) {
+        try {
+          const result = (await client.request("slash.exec", {
+            session_id: sessionId,
+            command: trimmed,
+          })) as SlashExecResult;
+          if (result.text) dispatch({ kind: "notice", text: result.text });
+          if (result.action === "quit") {
+            await quit();
+            return;
+          }
+          if (result.action === "submit") {
+            turnId.current = result.turn_id || null;
+            return;
+          }
+          // "new" and the rest need no further action here: the backend emits `session.info`.
+          return;
+        } catch (error) {
+          dispatch({
+            kind: "event",
+            event: { type: "error", payload: { message: String(error) }, session_id: sessionId } as EventEnvelope,
+          });
+          return;
+        }
+      }
+
+      dispatch({ kind: "user", text }); // optimistic: show the user's line at once
       try {
-        const result = (await client.request("slash.exec", { session_id: sessionId, command: trimmed })) as SlashExecResult;
-        if (result.text) dispatch({ kind: "notice", text: result.text });
-        if (result.action === "quit") { await quit(); return; }
-        if (result.action === "submit") { turnId.current = result.turn_id || null; return; }
-        // "new" and the rest need no further action here: the backend emits `session.info`.
-        return;
+        const result = await client.request("prompt.submit", { session_id: sessionId, text });
+        turnId.current = (result as PromptSubmitResult).turn_id;
       } catch (error) {
-        dispatch({ kind: "event", event: { type: "error", payload: { message: String(error) }, session_id: sessionId } as EventEnvelope });
-        return;
+        dispatch({
+          kind: "event",
+          event: { type: "error", payload: { message: String(error) }, session_id: sessionId } as EventEnvelope,
+        });
       }
-    }
-
-    dispatch({ kind: "user", text });  // optimistic: show the user's line at once
-    try {
-      const result = await client.request("prompt.submit", { session_id: sessionId, text });
-      turnId.current = (result as PromptSubmitResult).turn_id;
-    } catch (error) {
-      dispatch({ kind: "event", event: { type: "error", payload: { message: String(error) }, session_id: sessionId } as EventEnvelope });
-    }
-  }, [client, sessionId, status.model, quit]);
+    },
+    [client, sessionId, status.model, quit],
+  );
 
   const interrupt = useCallback(async () => {
     await client.request("session.interrupt", { session_id: sessionId }).catch(() => {});
@@ -315,14 +385,20 @@ export function App({ client, session }: AppProps) {
         <ApprovalDialog
           command={pending.command}
           description={pending.description}
-          onChoose={(choice) => { pending.resolve(choice); closeDialog(); }}
+          onChoose={(choice) => {
+            pending.resolve(choice);
+            closeDialog();
+          }}
         />
       )}
       {pending?.kind === "clarify" && (
         <ClarifyDialog
           question={pending.question}
           choices={pending.choices}
-          onAnswer={(answer) => { pending.resolve(answer); closeDialog(); }}
+          onAnswer={(answer) => {
+            pending.resolve(answer);
+            closeDialog();
+          }}
         />
       )}
       {picker?.kind === "session" && (
@@ -350,8 +426,15 @@ export function App({ client, session }: AppProps) {
       <Box flexDirection="column" flexShrink={0}>
         <StatusBar state={status} />
         {!pending && !picker && (
-          <Box flexDirection="column" borderStyle="single" borderTop borderBottom
-            borderLeft={false} borderRight={false} borderColor="gray">
+          <Box
+            flexDirection="column"
+            borderStyle="single"
+            borderTop
+            borderBottom
+            borderLeft={false}
+            borderRight={false}
+            borderColor="gray"
+          >
             <Composer onSubmit={submit} onInterrupt={interrupt} onQuit={quit} prompt={prompt} catalog={catalog} />
           </Box>
         )}

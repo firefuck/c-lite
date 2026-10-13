@@ -11,10 +11,9 @@
 
 import { join } from "node:path";
 
-import { BrowserWindow, Menu, app, dialog, shell } from "electron";
-
-import { startBackend, listProfiles } from "./backend-process.ts";
+import { app, BrowserWindow, dialog, Menu, shell } from "electron";
 import type { RunningBackend } from "./backend-process.ts";
+import { listProfiles, startBackend } from "./backend-process.ts";
 import { DISPLAY_NAME } from "./brand.ts";
 import { menuTemplate } from "./menu.ts";
 import { decideNavigation } from "./window-policy.ts";

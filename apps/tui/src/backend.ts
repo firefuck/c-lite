@@ -4,8 +4,8 @@
 // over the child's stdin and stdout, and the child exits when its stdin closes. Anything the
 // backend writes to stderr is log output, kept here so a crash can be explained to the user.
 
-import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
+import { spawn } from "node:child_process";
 
 import { GatewayClient, LineTransport, type ReadyPayload } from "@clite/shared";
 
@@ -31,7 +31,7 @@ export interface Backend {
 const STDERR_LINES = 40;
 
 export function resolvePython(env: NodeJS.ProcessEnv = process.env): string {
-  return env["CLITE_PYTHON"] || (process.platform === "win32" ? "python" : "python3");
+  return env.CLITE_PYTHON || (process.platform === "win32" ? "python" : "python3");
 }
 
 export function spawnBackend(options: BackendOptions = {}): Backend {
@@ -57,8 +57,12 @@ export function spawnBackend(options: BackendOptions = {}): Backend {
       stop();
       resolve(payload);
     });
-    child.on("error", (error) => reject(new Error(`could not start the backend (${error.message}). Is Python installed?`)));
-    void exited.then((code) => reject(new Error(`the backend exited with code ${code} before it was ready.\n${stderr.join("\n")}`)));
+    child.on("error", (error) =>
+      reject(new Error(`could not start the backend (${error.message}). Is Python installed?`)),
+    );
+    void exited.then((code) =>
+      reject(new Error(`the backend exited with code ${code} before it was ready.\n${stderr.join("\n")}`)),
+    );
   });
   ready.catch(() => {}); // the caller awaits it; this only prevents an unhandled-rejection crash
 

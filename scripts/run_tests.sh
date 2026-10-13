@@ -35,6 +35,15 @@ run_lint() {
   else
     echo "== mypy is not installed: type check skipped (pip install -e '.[dev]')"
   fi
+  # The same for TypeScript: format and lint every workspace (biome.jsonc).
+  local biome=""
+  command -v node >/dev/null && biome="$(node_resolve @biomejs/biome/bin/biome)"
+  if [ -n "$biome" ]; then
+    echo "== biome"
+    node "$biome" ci --colors=off . || failed=1
+  else
+    echo "== biome is not installed: TypeScript lint skipped (npm install)"
+  fi
 }
 
 run_python() {

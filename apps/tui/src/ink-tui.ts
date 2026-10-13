@@ -4,9 +4,9 @@
 // the shared transcript reducer and sends `prompt.submit`. The `--plain` flag and piped input
 // still go through `PlainTui`; `entry.ts` makes that choice.
 
-import type { Backend } from "./backend.ts";
 import type { SessionCreateParams, SessionInfo } from "@clite/shared";
 import { mountApp } from "./app/mount.tsx";
+import type { Backend } from "./backend.ts";
 
 export interface InkTuiOptions {
   backend: Backend;

@@ -3,10 +3,9 @@
 // Replaces manual typing of session IDs and model identifiers.
 // Navigated via arrow keys, confirmed with Enter, canceled with Esc.
 
+import type { ModelEntry, StoredSession } from "@clite/shared";
 import { Box, Text, useInput } from "ink";
 import { useState } from "react";
-
-import type { ModelEntry, StoredSession } from "@clite/shared";
 import { formatModelItem, formatSessionItem } from "./pickers.ts";
 
 export interface SessionPickerProps {
@@ -43,7 +42,9 @@ export function SessionPicker({ sessions, onSelect, onClose }: SessionPickerProp
 
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1} marginY={1}>
-      <Text bold color="cyan">Select Session to Resume (Esc to cancel):</Text>
+      <Text bold color="cyan">
+        Select Session to Resume (Esc to cancel):
+      </Text>
       {sessions.length === 0 ? (
         <Text dimColor>No previous sessions found.</Text>
       ) : (
@@ -96,7 +97,9 @@ export function ModelPicker({ models, current, onSelect, onClose }: ModelPickerP
 
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="green" paddingX={1} marginY={1}>
-      <Text bold color="green">Select Model (Esc to cancel):</Text>
+      <Text bold color="green">
+        Select Model (Esc to cancel):
+      </Text>
       {models.length === 0 ? (
         <Text dimColor>No models available.</Text>
       ) : (

@@ -5,10 +5,9 @@
 // line-based UI runs instead, with a note on stderr.
 
 import { parseArgs } from "node:util";
-
-import { spawnBackend } from "./backend.ts";
 import { chooseUi } from "./app/choose-ui.ts";
 import { createTuiSessionParams } from "./app/session-params.ts";
+import { spawnBackend } from "./backend.ts";
 import { runInkTui } from "./ink-tui.ts";
 import { PlainTui } from "./plain.ts";
 import { shouldUseColor } from "./render.ts";
@@ -44,7 +43,7 @@ async function main(): Promise<number> {
   }
 
   const backend = spawnBackend({ args: values.profile ? ["-p", values.profile] : [] });
-  let ready;
+  let ready: Awaited<typeof backend.ready>;
   try {
     ready = await backend.ready;
   } catch (error) {
@@ -73,7 +72,9 @@ async function main(): Promise<number> {
       return code;
     } catch (error) {
       // Ink could not run (missing bundle, unsupported terminal): fall back to the plain UI.
-      process.stderr.write(`The full-screen UI could not start (${error instanceof Error ? error.message : String(error)}). Falling back to --plain.\n`);
+      process.stderr.write(
+        `The full-screen UI could not start (${error instanceof Error ? error.message : String(error)}). Falling back to --plain.\n`,
+      );
     }
   }
 

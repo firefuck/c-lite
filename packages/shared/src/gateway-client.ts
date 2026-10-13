@@ -4,9 +4,17 @@
 // compile time: a wrong method name, a missing parameter or a misspelt result field is a
 // type error here, long before it is a runtime error there.
 
-import type { EventEnvelope, EventType, Events, MethodName, Methods, ServerRequestName, ServerRequests } from "./contracts.generated.ts";
-import { JsonRpcChannel } from "./json-rpc-channel.ts";
+import type {
+  EventEnvelope,
+  Events,
+  EventType,
+  MethodName,
+  Methods,
+  ServerRequestName,
+  ServerRequests,
+} from "./contracts.generated.ts";
 import type { ChannelOptions, Transport } from "./json-rpc-channel.ts";
+import { JsonRpcChannel } from "./json-rpc-channel.ts";
 
 type MaybePromise<T> = T | Promise<T>;
 

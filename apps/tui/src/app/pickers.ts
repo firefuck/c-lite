@@ -4,11 +4,7 @@
 // list items and handle user selection via `session.create(resume=id)` and `model.set`.
 // Testable with `node --test` without React or terminal I/O.
 
-import type {
-  ModelEntry,
-  ModelSetResult,
-  StoredSession,
-} from "@clite/shared";
+import type { ModelEntry, ModelSetResult, StoredSession } from "@clite/shared";
 
 export interface GatewayClientLike {
   request(method: string, params: Record<string, unknown>): Promise<unknown>;
@@ -38,11 +34,7 @@ export function formatSessionItem(session: StoredSession, isSelected: boolean = 
 }
 
 /** Render a single model entry line with optional context length and current marker. */
-export function formatModelItem(
-  model: ModelEntry,
-  currentModel: string = "",
-  isSelected: boolean = false
-): string {
+export function formatModelItem(model: ModelEntry, currentModel: string = "", isSelected: boolean = false): string {
   const prefix = isSelected ? "❯ " : "  ";
   const currentTag = model.id === currentModel ? " (current)" : "";
   const ctx = model.context_length ? ` [${Math.round(model.context_length / 1024)}k]` : "";
@@ -54,7 +46,7 @@ export function formatModelItem(
  */
 export async function resumeSession(
   client: GatewayClientLike,
-  session: StoredSession
+  session: StoredSession,
 ): Promise<{ session_id: string }> {
   const result = (await client.request("session.create", {
     resume: session.id,
@@ -68,7 +60,7 @@ export async function resumeSession(
 export async function switchModel(
   client: GatewayClientLike,
   sessionId: string,
-  model: ModelEntry
+  model: ModelEntry,
 ): Promise<ModelSetResult> {
   const result = (await client.request("model.set", {
     session_id: sessionId,

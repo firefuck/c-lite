@@ -1,7 +1,7 @@
 // Scheduled jobs, memory and logs: the panels that look at what the agent did or will do.
 
-import { useState } from "react";
 import type { CronJob } from "@clite/shared";
+import { useState } from "react";
 
 import { useDashboard } from "../state/useDashboard.ts";
 import { Actions, PanelError, Row, useAction, useLoad } from "./common.tsx";
@@ -156,10 +156,10 @@ export function LogsPanel() {
   const dashboard = useDashboard();
   const [source, setSource] = useState<"agent" | "errors">("agent");
   const [level, setLevel] = useState<"all" | "info" | "warning" | "error">("all");
-  const { data, error, reload } = useLoad(() => dashboard.request("logs.tail", { source, level, lines: 300 }), [
-    source,
-    level,
-  ]);
+  const { data, error, reload } = useLoad(
+    () => dashboard.request("logs.tail", { source, level, lines: 300 }),
+    [source, level],
+  );
   const text = !data
     ? ""
     : data.lines.length

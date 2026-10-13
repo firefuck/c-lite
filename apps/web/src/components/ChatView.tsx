@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
 import type { ClipboardEvent, DragEvent, FormEvent, KeyboardEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { askNotificationPermission } from "../state/browser.ts";
 import { errorText } from "../state/dashboard.ts";
@@ -19,6 +19,7 @@ export function ChatView({ active }: { active: boolean }) {
   const prompt = useRef<HTMLTextAreaElement>(null);
   const composer = useRef<HTMLFormElement>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: switching conversations refocuses the prompt.
   useEffect(() => {
     if (active) prompt.current?.focus();
   }, [active, state.activeId]);
@@ -60,6 +61,7 @@ export function ChatView({ active }: { active: boolean }) {
   };
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: dropping anywhere on the chat is a shortcut; the same files can be pasted into the prompt.
     <section
       id="view-chat"
       className={`view${active ? " active" : ""}`}
@@ -76,9 +78,15 @@ export function ChatView({ active }: { active: boolean }) {
             <span className="chip" data-name={entry.name} key={`${index}:${entry.name}`}>
               {entry.image ? "image · " : "file · "}
               {entry.name}
-              <span className="remove" role="button" data-remove={index} onClick={() => dashboard.removeAttachment(index)}>
+              <button
+                type="button"
+                className="remove"
+                data-remove={index}
+                aria-label={`Remove ${entry.name}`}
+                onClick={() => dashboard.removeAttachment(index)}
+              >
                 ×
-              </span>
+              </button>
             </span>
           ))}
         </div>

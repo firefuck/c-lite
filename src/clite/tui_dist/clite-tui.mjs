@@ -28214,6 +28214,18 @@ var require_jsx_runtime = __commonJS({
 // src/entry.ts
 import { parseArgs } from "node:util";
 
+// src/app/choose-ui.ts
+function chooseUi(options) {
+  if (options.plain) return "plain";
+  if (!options.stdinIsTTY || !options.stdoutIsTTY) return "plain";
+  return "ink";
+}
+
+// src/app/session-params.ts
+function createTuiSessionParams(session) {
+  return { ...session, platform: "tui" };
+}
+
 // src/backend.ts
 import { spawn } from "node:child_process";
 
@@ -28287,23 +28299,23 @@ var JsonRpcChannel = class {
     } catch {
       return;
     }
-    if (message["method"] === "event") {
-      const event = message["params"];
+    if (message.method === "event") {
+      const event = message.params;
       for (const handler of this.eventHandlers) handler(event);
       return;
     }
-    if (typeof message["method"] === "string") {
-      void this.answer(message["id"], message["method"], message["params"]);
+    if (typeof message.method === "string") {
+      void this.answer(message.id, message.method, message.params);
       return;
     }
-    const id = message["id"];
+    const id = message.id;
     const waiting = typeof id === "number" ? this.pending.get(id) : void 0;
     if (!waiting || typeof id !== "number") return;
     this.pending.delete(id);
     if (waiting.timer) clearTimeout(waiting.timer);
-    const error = message["error"];
+    const error = message.error;
     if (error) waiting.reject(new RpcError(error.code ?? 0, error.message ?? "error", error.data));
-    else waiting.resolve(message["result"]);
+    else waiting.resolve(message.result);
   }
   async answer(id, method, params) {
     if (id === void 0 || id === null) return;
@@ -28406,7 +28418,14 @@ function reduce(state, event) {
         ...state,
         items: [
           ...items,
-          { kind: "tool", callId: event.payload.call_id, name: event.payload.name, preview: event.payload.preview, status: "running", duration: null }
+          {
+            kind: "tool",
+            callId: event.payload.call_id,
+            name: event.payload.name,
+            preview: event.payload.preview,
+            status: "running",
+            duration: null
+          }
         ]
       };
     case "tool.complete":
@@ -28417,7 +28436,10 @@ function reduce(state, event) {
         )
       };
     case "status.update":
-      return { ...state, items: [...items, { kind: "notice", level: "info", text: `[${event.payload.kind}] ${event.payload.text}` }] };
+      return {
+        ...state,
+        items: [...items, { kind: "notice", level: "info", text: `[${event.payload.kind}] ${event.payload.text}` }]
+      };
     case "subagent.update": {
       const { event: kind, index, tool, status, args, iteration, model } = event.payload;
       const detail = kind === "tool" && args ? `${tool}(${args})` : tool || status;
@@ -28425,15 +28447,21 @@ function reduce(state, event) {
       const on = model ? ` on ${model}` : "";
       return {
         ...state,
-        items: [...items, { kind: "notice", level: "info", text: `subagent ${index + 1}${on}: ${kind} ${detail}${where}`.trim() }]
+        items: [
+          ...items,
+          { kind: "notice", level: "info", text: `subagent ${index + 1}${on}: ${kind} ${detail}${where}`.trim() }
+        ]
       };
     }
     case "error":
       return { ...state, items: [...items, { kind: "notice", level: "error", text: event.payload.message }] };
     case "turn.complete": {
-      const settled = items.map((item) => item.kind === "assistant" && item.streaming ? { ...item, streaming: false } : item);
+      const settled = items.map(
+        (item) => item.kind === "assistant" && item.streaming ? { ...item, streaming: false } : item
+      );
       if (event.payload.interrupted) settled.push({ kind: "notice", level: "info", text: "(interrupted)" });
-      else if (event.payload.error) settled.push({ kind: "notice", level: "error", text: event.payload.final_response || event.payload.error });
+      else if (event.payload.error)
+        settled.push({ kind: "notice", level: "error", text: event.payload.final_response || event.payload.error });
       return { items: settled, busy: false };
     }
     default:
@@ -28495,7 +28523,7 @@ var LineTransport = class {
 // src/backend.ts
 var STDERR_LINES = 40;
 function resolvePython(env3 = process.env) {
-  return env3["CLITE_PYTHON"] || (process.platform === "win32" ? "python" : "python3");
+  return env3.CLITE_PYTHON || (process.platform === "win32" ? "python" : "python3");
 }
 function spawnBackend(options = {}) {
   const env3 = { ...process.env, ...options.env, CLITE_RPC_PLATFORM: "tui", PYTHONUNBUFFERED: "1" };
@@ -28517,9 +28545,14 @@ function spawnBackend(options = {}) {
       stop();
       resolve(payload);
     });
-    child.on("error", (error) => reject(new Error(`could not start the backend (${error.message}). Is Python installed?`)));
-    void exited.then((code) => reject(new Error(`the backend exited with code ${code} before it was ready.
-${stderr.join("\n")}`)));
+    child.on(
+      "error",
+      (error) => reject(new Error(`could not start the backend (${error.message}). Is Python installed?`))
+    );
+    void exited.then(
+      (code) => reject(new Error(`the backend exited with code ${code} before it was ready.
+${stderr.join("\n")}`))
+    );
   });
   ready.catch(() => {
   });
@@ -28538,17 +28571,8 @@ ${stderr.join("\n")}`)));
   };
 }
 
-// src/app/choose-ui.ts
-function chooseUi(options) {
-  if (options.plain) return "plain";
-  if (!options.stdinIsTTY || !options.stdoutIsTTY) return "plain";
-  return "ink";
-}
-
-// src/app/session-params.ts
-function createTuiSessionParams(session) {
-  return { ...session, platform: "tui" };
-}
+// src/app/mount.tsx
+import { stdin, stdout } from "node:process";
 
 // ../../node_modules/ink/build/render.js
 import { Stream } from "node:stream";
@@ -34164,9 +34188,6 @@ var import_react20 = __toESM(require_react(), 1);
 // ../../node_modules/ink/build/hooks/use-focus-manager.js
 var import_react21 = __toESM(require_react(), 1);
 
-// src/app/mount.tsx
-import { stdin, stdout } from "node:process";
-
 // src/app/App.tsx
 var import_react24 = __toESM(require_react(), 1);
 
@@ -34176,7 +34197,7 @@ function paint(text, style, color) {
   return color ? `\x1B[${CODES[style]}m${text}\x1B[0m` : text;
 }
 function shouldUseColor(stream, env3 = process.env) {
-  return Boolean(stream.isTTY) && !("NO_COLOR" in env3) && env3["TERM"] !== "dumb";
+  return Boolean(stream.isTTY) && !("NO_COLOR" in env3) && env3.TERM !== "dumb";
 }
 function formatToolLine(item, color) {
   const mark = item.status === "failed" ? "\u2717" : item.status === "ok" ? "\u2713" : "\u2026";
@@ -34267,7 +34288,11 @@ function markdownStyle(color, skin) {
 function formatBanner(info, version, color) {
   return [
     paint(`C-lite ${version}`, "cyan", color),
-    paint(`${info.model} via ${info.provider} \xB7 ${info.tools.length} tools \xB7 session ${info.stored_session_id}`, "dim", color),
+    paint(
+      `${info.model} via ${info.provider} \xB7 ${info.tools.length} tools \xB7 session ${info.stored_session_id}`,
+      "dim",
+      color
+    ),
     paint(info.cwd, "dim", color),
     paint("Type a message, /help for commands. Ctrl+C interrupts a running turn; Ctrl+D exits.", "dim", color)
   ].join("\n");
@@ -34371,7 +34396,7 @@ function visibleLen(text) {
 function cut(text, limit) {
   if (visibleLen(text) <= limit) return text;
   if (limit <= 1) return "\u2026".slice(0, limit);
-  return text.slice(0, limit - 1) + "\u2026";
+  return `${text.slice(0, limit - 1)}\u2026`;
 }
 function padRight(text, width) {
   return text + " ".repeat(Math.max(0, width - text.length));
@@ -34398,10 +34423,10 @@ function renderLine(line, style, width) {
   const heading = HEADING.exec(line);
   if (heading) return style.paint("heading", inline(heading[2], style));
   const quote = QUOTE.exec(line);
-  if (quote) return style.paint("quote", "\u2502 " + inline(quote[1], style));
+  if (quote) return style.paint("quote", `\u2502 ${inline(quote[1], style)}`);
   if (["---", "***", "___"].includes(line.trim())) return style.paint("rule", RULE.repeat(Math.min(width, RULE_WIDTH)));
   const ordered = ORDERED.exec(line);
-  if (ordered) return `${ordered[1]}  ${style.paint("marker", ordered[2] + ".")} ${inline(ordered[3], style)}`;
+  if (ordered) return `${ordered[1]}  ${style.paint("marker", `${ordered[2]}.`)} ${inline(ordered[3], style)}`;
   const bullet = BULLET.exec(line);
   if (bullet) return `${bullet[1]}  ${style.paint("marker", "\u2022")} ${inline(bullet[2], style)}`;
   return inline(line, style);
@@ -34478,7 +34503,8 @@ var MarkdownStream = class {
     return out;
   }
   flushFence() {
-    const rendered = this.fenceBuffer.map((line) => renderFenceLine(line, this.style) + "\n").join("");
+    const rendered = this.fenceBuffer.map((line) => `${renderFenceLine(line, this.style)}
+`).join("");
     this.fenceBuffer = [];
     return rendered;
   }
@@ -34509,7 +34535,8 @@ var MarkdownStream = class {
         run.push(lines[index]);
         index += 1;
       }
-      out.push(...renderBlocks(run, this.style, this.width).map((line2) => line2 + "\n"));
+      out.push(...renderBlocks(run, this.style, this.width).map((line2) => `${line2}
+`));
     }
     if (closed && this.inFence && this.fenceBuffer.length > 0) {
       this.inFence = false;
@@ -34550,7 +34577,8 @@ function renderDiff(diff2, options = {}) {
     body.length = options.maxLines;
   }
   if (omitted) body.push(style.paint("diff_hunk", `\u2026 omitted ${omitted} diff line(s)`));
-  return body.join("\n") + "\n";
+  return `${body.join("\n")}
+`;
 }
 
 // src/app/CompletionMenu.tsx
@@ -34585,6 +34613,78 @@ function CompletionMenu({ candidates, selectedIndex }) {
   ] });
 }
 
+// src/app/completion.ts
+function getSlashCandidates(catalog, input) {
+  if (!input.startsWith("/")) {
+    return [];
+  }
+  const parts = input.slice(1).split(/\s+/);
+  const commandWord = (parts[0] ?? "").toLowerCase();
+  if (parts.length > 2) return [];
+  if (parts.length > 1) {
+    const argWord = (parts[1] ?? "").toLowerCase();
+    const parentCmd = catalog.find(
+      (c) => c.name.toLowerCase() === commandWord || c.aliases.some((a) => a.toLowerCase() === commandWord)
+    );
+    if (parentCmd?.subcommands && parentCmd.subcommands.length > 0) {
+      const matchingSubs = parentCmd.subcommands.filter((sub) => sub.toLowerCase().startsWith(argWord)).sort((a, b) => a.localeCompare(b));
+      return matchingSubs.map((sub) => ({
+        name: `${parentCmd.name} ${sub}`,
+        description: `Subcommand of /${parentCmd.name}`,
+        category: parentCmd.category,
+        aliases: [],
+        args_hint: "",
+        subcommands: [],
+        kind: parentCmd.kind
+      }));
+    }
+    return [];
+  }
+  const seen = /* @__PURE__ */ new Set();
+  const nameMatches = [];
+  const aliasMatches = [];
+  for (const cmd of catalog) {
+    if (seen.has(cmd.name)) continue;
+    const nameMatch = cmd.name.toLowerCase().startsWith(commandWord);
+    const aliasMatch = !nameMatch && cmd.aliases.some((a) => a.toLowerCase().startsWith(commandWord));
+    if (nameMatch) {
+      seen.add(cmd.name);
+      nameMatches.push(cmd);
+    } else if (aliasMatch) {
+      seen.add(cmd.name);
+      aliasMatches.push(cmd);
+    }
+  }
+  nameMatches.sort((a, b) => a.name.localeCompare(b.name));
+  aliasMatches.sort((a, b) => a.name.localeCompare(b.name));
+  return [...nameMatches, ...aliasMatches];
+}
+function applySlashCompletion(candidate) {
+  return `/${candidate.name} `;
+}
+function handleTabCompletion(input, catalog) {
+  const candidates = getSlashCandidates(catalog, input);
+  if (candidates.length === 1) {
+    return {
+      text: applySlashCompletion(candidates[0]),
+      menuOpen: false,
+      candidates
+    };
+  }
+  if (candidates.length > 1) {
+    return {
+      text: input,
+      menuOpen: true,
+      candidates
+    };
+  }
+  return {
+    text: input,
+    menuOpen: false,
+    candidates: []
+  };
+}
+
 // src/app/Dialogs.tsx
 var import_react22 = __toESM(require_react(), 1);
 
@@ -34611,7 +34711,11 @@ function parseClarifyAnswer(input, choices) {
 
 // src/app/Dialogs.tsx
 var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
-function ApprovalDialog({ command, description, onChoose }) {
+function ApprovalDialog({
+  command,
+  description,
+  onChoose
+}) {
   const [selected, setSelected] = (0, import_react22.useState)(0);
   use_input_default((input, key) => {
     if (key.leftArrow) setSelected((i) => Math.max(0, i - 1));
@@ -34629,7 +34733,7 @@ function ApprovalDialog({ command, description, onChoose }) {
       "):"
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { children: [
-      "  ",
+      " ",
       command
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Box_default, { marginTop: 1, children: APPROVAL_LABELS.map((label, index) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: index === selected ? "cyan" : void 0, children: [
@@ -34641,7 +34745,11 @@ function ApprovalDialog({ command, description, onChoose }) {
     ] }, label)) })
   ] });
 }
-function ClarifyDialog({ question, choices, onAnswer }) {
+function ClarifyDialog({
+  question,
+  choices,
+  onAnswer
+}) {
   const [selected, setSelected] = (0, import_react22.useState)(0);
   const [text, setText] = (0, import_react22.useState)("");
   use_input_default((input, key) => {
@@ -34658,13 +34766,13 @@ function ClarifyDialog({ question, choices, onAnswer }) {
     /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: "yellow", children: question }),
     choices.map((choice, index) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: index === selected ? "cyan" : void 0, children: [
       index === selected ? "\u276F" : " ",
-      "  ",
+      " ",
       index + 1,
       ". ",
       choice
     ] }, index)),
     /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { children: [
-      "  answer: ",
+      " answer: ",
       text
     ] })
   ] });
@@ -34815,7 +34923,7 @@ function formatStatus(state, width) {
   const outputTokens = state.outputTokens ?? 0;
   const tokens = inputTokens || outputTokens ? `${tokenCount(inputTokens)} in/${tokenCount(outputTokens)} out` : "";
   const session = sessionLabel(state);
-  const cwd2 = state.cwd ? state.cwd.replace(process.env["HOME"] ?? "", "~") : "";
+  const cwd2 = state.cwd ? state.cwd.replace(process.env.HOME ?? "", "~") : "";
   const known = (state.contextTotal ?? 0) > 0 || state.usagePercent > 0;
   const percent = Math.max(0, Math.min(100, state.usagePercent || 0));
   const filled = known ? Math.round(percent / 10) : 0;
@@ -34835,7 +34943,7 @@ function fitStatusLine(line, width) {
   if (!width || width <= 0 || line.length <= width) {
     return line;
   }
-  return line.slice(0, Math.max(0, width - 1)) + "\u2026";
+  return `${line.slice(0, Math.max(0, width - 1))}\u2026`;
 }
 
 // src/app/StatusBar.tsx
@@ -34845,76 +34953,6 @@ function StatusBar({ state, width }) {
   const columns = width ?? stdout2?.columns ?? 80;
   const line = fitStatusLine(formatStatus(state, columns), columns);
   return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Box_default, { height: 1, overflow: "hidden", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { dimColor: true, wrap: "truncate", children: line }) });
-}
-
-// src/app/completion.ts
-function getSlashCandidates(catalog, input) {
-  if (!input.startsWith("/")) {
-    return [];
-  }
-  const parts = input.slice(1).split(/\s+/);
-  const commandWord = (parts[0] ?? "").toLowerCase();
-  if (parts.length > 2) return [];
-  if (parts.length > 1) {
-    const argWord = (parts[1] ?? "").toLowerCase();
-    const parentCmd = catalog.find((c) => c.name.toLowerCase() === commandWord || c.aliases.some((a) => a.toLowerCase() === commandWord));
-    if (parentCmd && parentCmd.subcommands && parentCmd.subcommands.length > 0) {
-      const matchingSubs = parentCmd.subcommands.filter((sub) => sub.toLowerCase().startsWith(argWord)).sort((a, b) => a.localeCompare(b));
-      return matchingSubs.map((sub) => ({
-        name: `${parentCmd.name} ${sub}`,
-        description: `Subcommand of /${parentCmd.name}`,
-        category: parentCmd.category,
-        aliases: [],
-        args_hint: "",
-        subcommands: [],
-        kind: parentCmd.kind
-      }));
-    }
-    return [];
-  }
-  const seen = /* @__PURE__ */ new Set();
-  const nameMatches = [];
-  const aliasMatches = [];
-  for (const cmd of catalog) {
-    if (seen.has(cmd.name)) continue;
-    const nameMatch = cmd.name.toLowerCase().startsWith(commandWord);
-    const aliasMatch = !nameMatch && cmd.aliases.some((a) => a.toLowerCase().startsWith(commandWord));
-    if (nameMatch) {
-      seen.add(cmd.name);
-      nameMatches.push(cmd);
-    } else if (aliasMatch) {
-      seen.add(cmd.name);
-      aliasMatches.push(cmd);
-    }
-  }
-  nameMatches.sort((a, b) => a.name.localeCompare(b.name));
-  aliasMatches.sort((a, b) => a.name.localeCompare(b.name));
-  return [...nameMatches, ...aliasMatches];
-}
-function applySlashCompletion(input, candidate) {
-  return `/${candidate.name} `;
-}
-function handleTabCompletion(input, catalog) {
-  const candidates = getSlashCandidates(catalog, input);
-  if (candidates.length === 1) {
-    return {
-      text: applySlashCompletion(input, candidates[0]),
-      menuOpen: false,
-      candidates
-    };
-  }
-  if (candidates.length > 1) {
-    return {
-      text: input,
-      menuOpen: true,
-      candidates
-    };
-  }
-  return {
-    text: input,
-    menuOpen: false,
-    candidates: []
-  };
 }
 
 // src/app/App.tsx
@@ -34935,7 +34973,13 @@ function Transcript({ state, color }) {
     state.busy && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { dimColor: true, children: "\u2026" })
   ] });
 }
-function Composer({ onSubmit, onInterrupt, onQuit, prompt, catalog }) {
+function Composer({
+  onSubmit,
+  onInterrupt,
+  onQuit,
+  prompt,
+  catalog
+}) {
   const [value, setValue] = (0, import_react24.useState)("");
   const [menuOpen, setMenuOpen] = (0, import_react24.useState)(false);
   const [selectedIndex, setSelectedIndex] = (0, import_react24.useState)(0);
@@ -34961,7 +35005,7 @@ function Composer({ onSubmit, onInterrupt, onQuit, prompt, catalog }) {
     if (key.tab) {
       const picked = menuOpen ? candidates[selectedIndex] : void 0;
       if (picked) {
-        setValue(applySlashCompletion(value, picked));
+        setValue(applySlashCompletion(picked));
         setMenuOpen(false);
         setSelectedIndex(0);
         return;
@@ -34984,7 +35028,7 @@ function Composer({ onSubmit, onInterrupt, onQuit, prompt, catalog }) {
       if (key.return) {
         const picked = candidates[selectedIndex];
         if (picked) {
-          setValue(applySlashCompletion(value, picked));
+          setValue(applySlashCompletion(picked));
           setMenuOpen(false);
           return;
         }
@@ -35025,7 +35069,7 @@ function App2({ client, session }) {
   const { exit } = use_app_default();
   const { stdout: stdout2 } = use_stdout_default();
   const sessionId = session.session_id;
-  const color = stdout2.isTTY && !process.env["NO_COLOR"];
+  const color = stdout2.isTTY && !process.env.NO_COLOR;
   const [state, dispatch] = (0, import_react24.useReducer)(appReducer, emptyTranscript);
   const prompt = "\u276F";
   const turnId = (0, import_react24.useRef)(null);
@@ -35052,109 +35096,130 @@ function App2({ client, session }) {
     });
   }, [client, sessionId]);
   (0, import_react24.useEffect)(() => {
-    client.onServerRequest("approval.request", (params) => new Promise((resolve) => {
-      setPending({
-        kind: "approval",
-        command: params.command,
-        description: params.description,
-        resolve: (choice) => resolve({ choice })
-      });
-    }));
-    client.onServerRequest("clarify.request", (params) => new Promise((resolve) => {
-      setPending({
-        kind: "clarify",
-        question: params.question,
-        choices: params.choices ?? [],
-        resolve: (answer) => resolve({ answer })
-      });
-    }));
+    client.onServerRequest(
+      "approval.request",
+      (params) => new Promise((resolve) => {
+        setPending({
+          kind: "approval",
+          command: params.command,
+          description: params.description,
+          resolve: (choice) => resolve({ choice })
+        });
+      })
+    );
+    client.onServerRequest(
+      "clarify.request",
+      (params) => new Promise((resolve) => {
+        setPending({
+          kind: "clarify",
+          question: params.question,
+          choices: params.choices ?? [],
+          resolve: (answer) => resolve({ answer })
+        });
+      })
+    );
   }, [client]);
   const closeDialog = (0, import_react24.useCallback)(() => setPending(null), []);
-  (0, import_react24.useEffect)(() => client.onEvent((event) => {
-    dispatch({ kind: "event", event });
-    if (event.type === "session.info") {
-      const info = event.payload;
-      setStatus((s) => ({
-        ...s,
-        model: info.model || s.model,
-        provider: info.provider || s.provider,
-        cwd: info.cwd || s.cwd,
-        busy: info.busy,
-        usagePercent: info.context?.usage_percent ?? s.usagePercent,
-        contextUsed: info.context?.last_prompt_tokens ?? s.contextUsed,
-        contextTotal: info.context?.context_length ?? s.contextTotal,
-        sessionId: info.stored_session_id || info.session_id || s.sessionId,
-        title: info.title || s.title,
-        activity: info.busy ? "busy" : "idle"
-      }));
-    } else if (event.type === "turn.start") {
-      setStatus((s) => ({ ...s, busy: true, activity: "thinking" }));
-    } else if (event.type === "turn.step") {
-      setStatus((s) => ({ ...s, busy: true, activity: `thinking #${event.payload.iteration}` }));
-    } else if (event.type === "tool.start") {
-      setStatus((s) => ({ ...s, busy: true, activity: `tool ${event.payload.name}` }));
-    } else if (event.type === "tool.complete") {
-      setStatus((s) => ({ ...s, busy: true, activity: "thinking" }));
-    } else if (event.type === "turn.complete") {
-      setStatus((s) => ({
-        ...s,
-        busy: false,
-        activity: "idle",
-        inputTokens: event.payload.usage.input_tokens,
-        outputTokens: event.payload.usage.output_tokens
-      }));
-    }
-  }), [client]);
+  (0, import_react24.useEffect)(
+    () => client.onEvent((event) => {
+      dispatch({ kind: "event", event });
+      if (event.type === "session.info") {
+        const info = event.payload;
+        setStatus((s) => ({
+          ...s,
+          model: info.model || s.model,
+          provider: info.provider || s.provider,
+          cwd: info.cwd || s.cwd,
+          busy: info.busy,
+          usagePercent: info.context?.usage_percent ?? s.usagePercent,
+          contextUsed: info.context?.last_prompt_tokens ?? s.contextUsed,
+          contextTotal: info.context?.context_length ?? s.contextTotal,
+          sessionId: info.stored_session_id || info.session_id || s.sessionId,
+          title: info.title || s.title,
+          activity: info.busy ? "busy" : "idle"
+        }));
+      } else if (event.type === "turn.start") {
+        setStatus((s) => ({ ...s, busy: true, activity: "thinking" }));
+      } else if (event.type === "turn.step") {
+        setStatus((s) => ({ ...s, busy: true, activity: `thinking #${event.payload.iteration}` }));
+      } else if (event.type === "tool.start") {
+        setStatus((s) => ({ ...s, busy: true, activity: `tool ${event.payload.name}` }));
+      } else if (event.type === "tool.complete") {
+        setStatus((s) => ({ ...s, busy: true, activity: "thinking" }));
+      } else if (event.type === "turn.complete") {
+        setStatus((s) => ({
+          ...s,
+          busy: false,
+          activity: "idle",
+          inputTokens: event.payload.usage.input_tokens,
+          outputTokens: event.payload.usage.output_tokens
+        }));
+      }
+    }),
+    [client]
+  );
   const quit = (0, import_react24.useCallback)(async () => {
     await client.request("session.close", { session_id: sessionId }).catch(() => {
     });
     exit();
   }, [client, sessionId, exit]);
-  const submit = (0, import_react24.useCallback)(async (text) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    if (trimmed === "/model" || trimmed === "/models") {
-      try {
-        const res = await client.request("model.list", {});
-        setPicker({ kind: "model", models: res.models || [], current: res.current || status.model });
-        return;
-      } catch {
+  const submit = (0, import_react24.useCallback)(
+    async (text) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      if (trimmed === "/model" || trimmed === "/models") {
+        try {
+          const res = await client.request("model.list", {});
+          setPicker({ kind: "model", models: res.models || [], current: res.current || status.model });
+          return;
+        } catch {
+        }
       }
-    }
-    if (trimmed === "/session" || trimmed === "/resume" || trimmed === "/sessions") {
-      try {
-        const res = await client.request("session.list", {});
-        setPicker({ kind: "session", sessions: res.sessions || [] });
-        return;
-      } catch {
+      if (trimmed === "/session" || trimmed === "/resume" || trimmed === "/sessions") {
+        try {
+          const res = await client.request("session.list", {});
+          setPicker({ kind: "session", sessions: res.sessions || [] });
+          return;
+        } catch {
+        }
       }
-    }
-    if (trimmed.startsWith("/")) {
-      try {
-        const result = await client.request("slash.exec", { session_id: sessionId, command: trimmed });
-        if (result.text) dispatch({ kind: "notice", text: result.text });
-        if (result.action === "quit") {
-          await quit();
+      if (trimmed.startsWith("/")) {
+        try {
+          const result = await client.request("slash.exec", {
+            session_id: sessionId,
+            command: trimmed
+          });
+          if (result.text) dispatch({ kind: "notice", text: result.text });
+          if (result.action === "quit") {
+            await quit();
+            return;
+          }
+          if (result.action === "submit") {
+            turnId.current = result.turn_id || null;
+            return;
+          }
+          return;
+        } catch (error) {
+          dispatch({
+            kind: "event",
+            event: { type: "error", payload: { message: String(error) }, session_id: sessionId }
+          });
           return;
         }
-        if (result.action === "submit") {
-          turnId.current = result.turn_id || null;
-          return;
-        }
-        return;
+      }
+      dispatch({ kind: "user", text });
+      try {
+        const result = await client.request("prompt.submit", { session_id: sessionId, text });
+        turnId.current = result.turn_id;
       } catch (error) {
-        dispatch({ kind: "event", event: { type: "error", payload: { message: String(error) }, session_id: sessionId } });
-        return;
+        dispatch({
+          kind: "event",
+          event: { type: "error", payload: { message: String(error) }, session_id: sessionId }
+        });
       }
-    }
-    dispatch({ kind: "user", text });
-    try {
-      const result = await client.request("prompt.submit", { session_id: sessionId, text });
-      turnId.current = result.turn_id;
-    } catch (error) {
-      dispatch({ kind: "event", event: { type: "error", payload: { message: String(error) }, session_id: sessionId } });
-    }
-  }, [client, sessionId, status.model, quit]);
+    },
+    [client, sessionId, status.model, quit]
+  );
   const interrupt = (0, import_react24.useCallback)(async () => {
     await client.request("session.interrupt", { session_id: sessionId }).catch(() => {
     });
@@ -35380,7 +35445,8 @@ var PlainTui = class {
           this.markdownPrinted = "";
           this.streamed = true;
         }
-        if (!this.streamed && event.payload.text) this.write(renderMarkdown(event.payload.text, { style: markdownStyle(this.color) }));
+        if (!this.streamed && event.payload.text)
+          this.write(renderMarkdown(event.payload.text, { style: markdownStyle(this.color) }));
         else if (this.midLine) this.line();
         this.streamed = false;
         break;
@@ -35403,7 +35469,8 @@ var PlainTui = class {
             this.color
           )
         );
-        if (event.payload.diff) this.write(renderDiff(event.payload.diff, { style: markdownStyle(this.color), maxLines: this.diffLines }));
+        if (event.payload.diff)
+          this.write(renderDiff(event.payload.diff, { style: markdownStyle(this.color), maxLines: this.diffLines }));
         break;
       }
       case "status.update":
@@ -35427,7 +35494,8 @@ var PlainTui = class {
         this.releaseWaiters();
         if (this.midLine) this.line();
         if (event.payload.interrupted) this.line(paint("(interrupted)", "yellow", this.color));
-        else if (event.payload.error) this.line(paint(event.payload.final_response || event.payload.error, "red", this.color));
+        else if (event.payload.error)
+          this.line(paint(event.payload.final_response || event.payload.error, "red", this.color));
         this.prompt();
         break;
       default:
@@ -35450,7 +35518,7 @@ var PlainTui = class {
     });
     this.client.onServerRequest("clarify.request", async (params) => {
       this.line(paint(params.question, "yellow", this.color));
-      params.choices.forEach((choice, index) => this.line(`  ${index + 1}. ${choice}`));
+      for (const [index, choice] of params.choices.entries()) this.line(`  ${index + 1}. ${choice}`);
       return { answer: parseChoice(await this.ask("  answer > "), params.choices) };
     });
   }
@@ -35474,7 +35542,9 @@ var PlainTui = class {
       if (text.startsWith("/")) await this.runSlash(text);
       else this.awaitTurn((await this.client.request("prompt.submit", { session_id: this.sessionId, text })).turn_id);
     } catch (error) {
-      this.line(paint(error instanceof RpcError || error instanceof Error ? error.message : String(error), "red", this.color));
+      this.line(
+        paint(error instanceof RpcError || error instanceof Error ? error.message : String(error), "red", this.color)
+      );
       this.prompt();
     }
   }
@@ -35609,8 +35679,10 @@ async function main() {
       await backend.stop();
       return code2;
     } catch (error) {
-      process.stderr.write(`The full-screen UI could not start (${error instanceof Error ? error.message : String(error)}). Falling back to --plain.
-`);
+      process.stderr.write(
+        `The full-screen UI could not start (${error instanceof Error ? error.message : String(error)}). Falling back to --plain.
+`
+      );
     }
   }
   const tui = new PlainTui({

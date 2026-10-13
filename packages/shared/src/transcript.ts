@@ -10,7 +10,14 @@ export type TranscriptItem =
   | { kind: "user"; text: string }
   | { kind: "assistant"; text: string; streaming: boolean }
   | { kind: "reasoning"; text: string }
-  | { kind: "tool"; callId: string; name: string; preview: string; status: "running" | "ok" | "failed"; duration: number | null }
+  | {
+      kind: "tool";
+      callId: string;
+      name: string;
+      preview: string;
+      status: "running" | "ok" | "failed";
+      duration: number | null;
+    }
   | { kind: "notice"; level: "info" | "error"; text: string };
 
 export interface TranscriptState {
@@ -77,7 +84,14 @@ export function reduce(state: TranscriptState, event: EventEnvelope): Transcript
         ...state,
         items: [
           ...items,
-          { kind: "tool", callId: event.payload.call_id, name: event.payload.name, preview: event.payload.preview, status: "running", duration: null },
+          {
+            kind: "tool",
+            callId: event.payload.call_id,
+            name: event.payload.name,
+            preview: event.payload.preview,
+            status: "running",
+            duration: null,
+          },
         ],
       };
 
@@ -92,7 +106,10 @@ export function reduce(state: TranscriptState, event: EventEnvelope): Transcript
       };
 
     case "status.update":
-      return { ...state, items: [...items, { kind: "notice", level: "info", text: `[${event.payload.kind}] ${event.payload.text}` }] };
+      return {
+        ...state,
+        items: [...items, { kind: "notice", level: "info", text: `[${event.payload.kind}] ${event.payload.text}` }],
+      };
 
     case "subagent.update": {
       const { event: kind, index, tool, status, args, iteration, model } = event.payload;
@@ -101,7 +118,10 @@ export function reduce(state: TranscriptState, event: EventEnvelope): Transcript
       const on = model ? ` on ${model}` : "";
       return {
         ...state,
-        items: [...items, { kind: "notice", level: "info", text: `subagent ${index + 1}${on}: ${kind} ${detail}${where}`.trim() }],
+        items: [
+          ...items,
+          { kind: "notice", level: "info", text: `subagent ${index + 1}${on}: ${kind} ${detail}${where}`.trim() },
+        ],
       };
     }
 
@@ -109,9 +129,12 @@ export function reduce(state: TranscriptState, event: EventEnvelope): Transcript
       return { ...state, items: [...items, { kind: "notice", level: "error", text: event.payload.message }] };
 
     case "turn.complete": {
-      const settled = items.map((item) => (item.kind === "assistant" && item.streaming ? { ...item, streaming: false } : item));
+      const settled = items.map((item) =>
+        item.kind === "assistant" && item.streaming ? { ...item, streaming: false } : item,
+      );
       if (event.payload.interrupted) settled.push({ kind: "notice", level: "info", text: "(interrupted)" });
-      else if (event.payload.error) settled.push({ kind: "notice", level: "error", text: event.payload.final_response || event.payload.error });
+      else if (event.payload.error)
+        settled.push({ kind: "notice", level: "error", text: event.payload.final_response || event.payload.error });
       return { items: settled, busy: false };
     }
 

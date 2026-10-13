@@ -1,7 +1,7 @@
 // What every management panel shares: loading its data over RPC, rows, and error reporting.
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { errorText } from "../state/dashboard.ts";
 import { useDashboard } from "../state/useDashboard.ts";
@@ -40,7 +40,7 @@ export function useLoad<T>(load: () => Promise<T>, deps: unknown[] = []): Loaded
     }
   }, []);
 
-  // The caller lists what its load reads; `reload` itself never changes.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the caller lists what its load reads; `reload` itself never changes.
   useEffect(() => void reload(), deps);
   return { data, error, reload, version };
 }

@@ -31,6 +31,9 @@ Tes browser ada di `tests/server/test_dashboard_browser.py` (butuh `playwright` 
 6. **Pertanyaan ke pengguna adalah data.** Dialog baru ditambahkan sebagai varian
    `DialogSpec` (`src/state/dialogs.ts`) beserta arti menutupnya dengan Escape (`dismissal`),
    lalu digambar di `src/dialogs/DialogHost.tsx`.
+7. **Yang bisa diklik adalah `<button>`, dan tidak pernah tersarang di dalam tombol lain.**
+   Dengan begitu keyboard dan pembaca layar menjangkaunya. Aturan a11y Biome (`biome.jsonc`)
+   menolak `<span role="button">` dan elemen statis yang diberi handler klik.
 
 ## Resep
 

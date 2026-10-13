@@ -28,8 +28,10 @@ export function getSlashCandidates(catalog: CommandEntry[], input: string): Comm
 
   if (parts.length > 1) {
     const argWord = (parts[1] ?? "").toLowerCase();
-    const parentCmd = catalog.find((c) => c.name.toLowerCase() === commandWord || c.aliases.some((a) => a.toLowerCase() === commandWord));
-    if (parentCmd && parentCmd.subcommands && parentCmd.subcommands.length > 0) {
+    const parentCmd = catalog.find(
+      (c) => c.name.toLowerCase() === commandWord || c.aliases.some((a) => a.toLowerCase() === commandWord),
+    );
+    if (parentCmd?.subcommands && parentCmd.subcommands.length > 0) {
       const matchingSubs = parentCmd.subcommands
         .filter((sub) => sub.toLowerCase().startsWith(argWord))
         .sort((a, b) => a.localeCompare(b));
@@ -73,7 +75,7 @@ export function getSlashCandidates(catalog: CommandEntry[], input: string): Comm
 }
 
 /** Complete the input with the selected candidate. */
-export function applySlashCompletion(input: string, candidate: CommandEntry): string {
+export function applySlashCompletion(candidate: CommandEntry): string {
   return `/${candidate.name} `;
 }
 
@@ -93,7 +95,7 @@ export function handleTabCompletion(input: string, catalog: CommandEntry[]): Tab
   const candidates = getSlashCandidates(catalog, input);
   if (candidates.length === 1) {
     return {
-      text: applySlashCompletion(input, candidates[0]!),
+      text: applySlashCompletion(candidates[0]!),
       menuOpen: false,
       candidates,
     };

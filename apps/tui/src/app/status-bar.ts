@@ -65,11 +65,9 @@ export function formatStatus(state: StatusBarState, width?: number): string {
   const contextCompact = contextLabel(state, true);
   const inputTokens = state.inputTokens ?? 0;
   const outputTokens = state.outputTokens ?? 0;
-  const tokens = inputTokens || outputTokens
-    ? `${tokenCount(inputTokens)} in/${tokenCount(outputTokens)} out`
-    : "";
+  const tokens = inputTokens || outputTokens ? `${tokenCount(inputTokens)} in/${tokenCount(outputTokens)} out` : "";
   const session = sessionLabel(state);
-  const cwd = state.cwd ? state.cwd.replace(process.env["HOME"] ?? "", "~") : "";
+  const cwd = state.cwd ? state.cwd.replace(process.env.HOME ?? "", "~") : "";
   // No timer or update fields are invented: these are existing backend metrics only.
   const known = (state.contextTotal ?? 0) > 0 || state.usagePercent > 0;
   const percent = Math.max(0, Math.min(100, state.usagePercent || 0));
@@ -97,7 +95,7 @@ export function fitStatusLine(line: string, width?: number): string {
   if (!width || width <= 0 || line.length <= width) {
     return line;
   }
-  return line.slice(0, Math.max(0, width - 1)) + "…";
+  return `${line.slice(0, Math.max(0, width - 1))}…`;
 }
 
 /**
@@ -117,4 +115,3 @@ export function wrapTranscriptText(text: string, width: number): string[] {
   }
   return out;
 }
-

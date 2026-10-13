@@ -119,24 +119,24 @@ export class JsonRpcChannel {
       return; // a line that is not JSON is not protocol; ignore it rather than die
     }
 
-    if (message["method"] === "event") {
-      const event = message["params"] as Parameters<EventHandler>[0];
+    if (message.method === "event") {
+      const event = message.params as Parameters<EventHandler>[0];
       for (const handler of this.eventHandlers) handler(event);
       return;
     }
-    if (typeof message["method"] === "string") {
-      void this.answer(message["id"], message["method"], message["params"]);
+    if (typeof message.method === "string") {
+      void this.answer(message.id, message.method, message.params);
       return;
     }
 
-    const id = message["id"];
+    const id = message.id;
     const waiting = typeof id === "number" ? this.pending.get(id) : undefined;
     if (!waiting || typeof id !== "number") return;
     this.pending.delete(id);
     if (waiting.timer) clearTimeout(waiting.timer);
-    const error = message["error"] as { code?: number; message?: string; data?: unknown } | undefined;
+    const error = message.error as { code?: number; message?: string; data?: unknown } | undefined;
     if (error) waiting.reject(new RpcError(error.code ?? 0, error.message ?? "error", error.data));
-    else waiting.resolve(message["result"]);
+    else waiting.resolve(message.result);
   }
 
   private async answer(id: unknown, method: string, params: unknown): Promise<void> {

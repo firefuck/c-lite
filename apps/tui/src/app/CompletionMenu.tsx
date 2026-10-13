@@ -3,8 +3,8 @@
 // Appears right above the composer when typing `/` or pressing Tab with multiple candidates.
 // Arrow keys navigate up/down, Enter selects, Esc dismisses.
 
-import { Box, Text } from "ink";
 import type { CommandEntry } from "@clite/shared";
+import { Box, Text } from "ink";
 
 export interface CompletionMenuProps {
   candidates: CommandEntry[];
@@ -29,13 +29,13 @@ export function CompletionMenu({ candidates, selectedIndex }: CompletionMenuProp
             <Text color={isSelected ? "cyan" : undefined} bold={isSelected}>
               {isSelected ? "❯ " : "  "}/{cmd.name}
             </Text>
-            {cmd.description ? (
-              <Text dimColor> — {cmd.description.slice(0, 50)}</Text>
-            ) : null}
+            {cmd.description ? <Text dimColor> — {cmd.description.slice(0, 50)}</Text> : null}
           </Box>
         );
       })}
-      <Text dimColor>↑↓ pilih · Tab/Enter lengkapi · Esc tutup · {selectedIndex + 1}/{candidates.length}</Text>
+      <Text dimColor>
+        ↑↓ pilih · Tab/Enter lengkapi · Esc tutup · {selectedIndex + 1}/{candidates.length}
+      </Text>
     </Box>
   );
 }

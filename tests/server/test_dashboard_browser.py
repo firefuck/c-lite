@@ -333,7 +333,7 @@ def test_two_sessions_run_at_once_without_mixing_events(dashboard):
 
     # A second conversation, open at the same time in the same connection.
     dashboard.click("#new-chat")
-    dashboard.wait_for_function("document.querySelectorAll('#open-sessions button').length === 2")
+    dashboard.wait_for_function("document.querySelectorAll('#open-sessions [data-open]').length === 2")
     dashboard.wait_for_function("document.querySelectorAll('#transcript .message').length === 0")
     _send(dashboard, "the second conversation")
     dashboard.wait_for_function(
@@ -344,7 +344,7 @@ def test_two_sessions_run_at_once_without_mixing_events(dashboard):
     assert "the first conversation" not in dashboard.inner_text("#transcript")
 
     # Back to the first one (the sidebar keeps them in the order they were opened).
-    dashboard.locator("#open-sessions button").nth(0).click()
+    dashboard.locator("#open-sessions [data-open]").nth(0).click()
     dashboard.wait_for_function(
         "document.querySelector('.message.user')?.textContent === 'the first conversation'"
     )
@@ -352,8 +352,8 @@ def test_two_sessions_run_at_once_without_mixing_events(dashboard):
     assert dashboard.inner_text(".message.assistant") == first
 
     # The sidebar lists both open conversations, and switching keeps working both ways.
-    assert dashboard.locator("#open-sessions button").count() == 2
-    dashboard.locator("#open-sessions button").nth(1).click()
+    assert dashboard.locator("#open-sessions [data-open]").count() == 2
+    dashboard.locator("#open-sessions [data-open]").nth(1).click()
     dashboard.wait_for_function(
         "document.querySelector('.message.user')?.textContent === 'the second conversation'"
     )
@@ -364,15 +364,15 @@ def test_closing_an_open_session_keeps_the_other_one(dashboard):
     _send(dashboard, "keep me")
     dashboard.wait_for_selector(".message.assistant")
     dashboard.click("#new-chat")
-    dashboard.wait_for_function("document.querySelectorAll('#open-sessions button').length === 2")
+    dashboard.wait_for_function("document.querySelectorAll('#open-sessions [data-open]').length === 2")
     _send(dashboard, "throw me away")
     dashboard.wait_for_function(
         "document.querySelector('.message.assistant')?.textContent === 'You said: throw me away'"
     )
 
     # Close the active one; the other stays open and becomes active.
-    dashboard.click("#open-sessions button.current .close")
-    dashboard.wait_for_function("document.querySelectorAll('#open-sessions button').length === 1")
+    dashboard.click("#open-sessions [data-open].current + .close")
+    dashboard.wait_for_function("document.querySelectorAll('#open-sessions [data-open]').length === 1")
     dashboard.wait_for_function("document.querySelector('.message.user')?.textContent === 'keep me'")
     assert dashboard.inner_text(".message.assistant") == "You said: keep me"
 

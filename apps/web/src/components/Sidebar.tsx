@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import type { MouseEvent } from "react";
 
 import { errorText } from "../state/dashboard.ts";
 import { useDashboard, useDashboardState } from "../state/useDashboard.ts";
@@ -15,8 +14,7 @@ export function Sidebar() {
     document.title = info?.title ? `${info.title} · C-lite` : "C-lite";
   }, [info?.title]);
 
-  const close = (event: MouseEvent, sessionId: string) => {
-    event.stopPropagation();
+  const close = (sessionId: string) => {
     dashboard.closeSession(sessionId).catch(report);
   };
 
@@ -31,6 +29,7 @@ export function Sidebar() {
       <ul id="open-sessions" aria-label="Open conversations">
         {state.views.map((view) => {
           const busy = view.transcript.busy;
+          const title = view.info.title || "(new chat)";
           return (
             <li key={view.id}>
               <button
@@ -40,14 +39,21 @@ export function Sidebar() {
                 onClick={() => dashboard.activate(view.id)}
               >
                 <span className="dot" />
-                {view.info.title || "(new chat)"}
+                {title}
                 {busy ? <span className="meta">working</span> : null}
-                {state.views.length > 1 ? (
-                  <span className="close" role="button" data-close={view.id} onClick={(event) => close(event, view.id)}>
-                    ×
-                  </span>
-                ) : null}
               </button>
+              {/* A sibling, not a child: a button cannot hold another control. */}
+              {state.views.length > 1 ? (
+                <button
+                  type="button"
+                  className="close"
+                  data-close={view.id}
+                  aria-label={`Close ${title}`}
+                  onClick={() => close(view.id)}
+                >
+                  ×
+                </button>
+              ) : null}
             </li>
           );
         })}
