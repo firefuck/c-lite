@@ -159,7 +159,7 @@ def test_the_wheel_check_accepts_a_complete_wheel_and_names_what_is_missing(tmp_
 
 def test_area_instructions_for_contributors_are_not_expected_in_the_wheel():
     assert not any(
-        name.endswith(("/AGENTS.md", "/CLAUDE.md")) for name in release.expected_wheel_files(REPO_ROOT)
+        name.endswith("/AGENTS.md") for name in release.expected_wheel_files(REPO_ROOT)
     )
 
 

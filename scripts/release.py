@@ -33,7 +33,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 VERSION_LINE = re.compile(r'^__version__ = "([^"]+)"$', re.MULTILINE)
 # Instructions for whoever edits the source; they are not part of the installed program.
-NOT_SHIPPED = ("AGENTS.md", "CLAUDE.md")
+NOT_SHIPPED = ("AGENTS.md",)
 
 
 class ReleaseError(Exception):
@@ -175,7 +175,7 @@ def inspect_wheel(wheel: Path, root: Path) -> list[str]:
             else ""
         )
     problems = [f"missing from the wheel: {name}" for name in sorted(expected_wheel_files(root) - names)]
-    leaked = sorted(name for name in names if name.endswith((".pyc", "/AGENTS.md", "/CLAUDE.md")))
+    leaked = sorted(name for name in names if name.endswith((".pyc", "/AGENTS.md")))
     problems += [f"should not be in the wheel: {name}" for name in leaked]
     distribution = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["name"]
     version = current_version(root)

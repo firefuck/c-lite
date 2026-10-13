@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -363,11 +364,18 @@ def test_kill_process_tree_is_reused_from_local():
 # ── SSH live tests (local loopback; opt in with -m ssh) ───────────────────────────────
 
 
-_LIVE_SSH_KEY = "/root/.ssh/id_ed25519_test"
+_LIVE_SSH_KEY = Path("/root/.ssh/id_ed25519_test")
 
 
 def _configure_live_ssh(clite_home) -> None:
     import clite.core.config as config
+
+    try:
+        if not _LIVE_SSH_KEY.is_file():
+            pytest.skip(f"live SSH key {_LIVE_SSH_KEY} not present")
+        _LIVE_SSH_KEY.read_bytes()
+    except (PermissionError, OSError):
+        pytest.skip(f"live SSH key {_LIVE_SSH_KEY} not accessible by current user")
 
     (clite_home / "config.yaml").write_text(
         "terminal:\n"

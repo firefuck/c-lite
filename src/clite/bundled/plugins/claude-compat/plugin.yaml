@@ -1,0 +1,6 @@
+name: claude-compat
+version: 1.0.0
+description: Auto-detect and adapt CLAUDE.md guidelines and Claude Code project conventions into C-lite
+author: C-lite
+kind: standalone
+provides_hooks: [system_prompt]

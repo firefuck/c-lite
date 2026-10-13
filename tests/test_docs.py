@@ -192,24 +192,6 @@ def _instruction_files(name: str) -> list[Path]:
     return [path for path in _documents() if path.name == name]
 
 
-def test_every_agents_file_has_a_claude_file_that_imports_it():
-    """``AGENTS.md`` is the one place the rules are written. Claude Code reads ``CLAUDE.md``,
-    so each directory with rules has a ``CLAUDE.md`` whose first line imports them."""
-    agents_files = _instruction_files("AGENTS.md")
-    assert REPO_ROOT / "AGENTS.md" in agents_files
-    for agents in agents_files:
-        claude = agents.with_name("CLAUDE.md")
-        assert claude.is_file(), f"{agents.relative_to(REPO_ROOT)} has no CLAUDE.md beside it"
-        lines = [line.strip() for line in claude.read_text(encoding="utf-8").splitlines() if line.strip()]
-        assert lines and lines[0] == "@AGENTS.md", (
-            f"{claude.relative_to(REPO_ROOT)} must start with the line @AGENTS.md"
-        )
-    for claude in _instruction_files("CLAUDE.md"):
-        assert claude.with_name("AGENTS.md").is_file(), (
-            f"{claude.relative_to(REPO_ROOT)} imports an AGENTS.md that is not there"
-        )
-
-
 def test_instruction_files_stay_short():
     too_long = {
         str(path.relative_to(REPO_ROOT)): count

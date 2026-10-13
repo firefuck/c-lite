@@ -293,6 +293,7 @@ Semua yang terdaftar di sebuah instalasi baru, dibaca langsung dari registry di 
 | Plugin | Jenis | Deskripsi |
 | --- | --- | --- |
 | `audit-log` | standalone | Record every tool call to logs/tool-audit.jsonl and show recent ones with /audit |
+| `claude-compat` | standalone | Auto-detect and adapt CLAUDE.md guidelines and Claude Code project conventions into C-lite |
 | `context-sliding-window` | backend | Sliding-window context engine: drop the middle, keep a protected head and tail (no summariser call) |
 | `email` | platform | Receive allowed email senders over IMAP and reply over SMTP |
 | `image-gen-openai` | backend | Image generation via the OpenAI Images API (requires OPENAI_API_KEY) |

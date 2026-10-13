@@ -10,6 +10,15 @@
       "version": "1.0.0"
     },
     {
+      "description": "Auto-detect and adapt CLAUDE.md guidelines and Claude Code project conventions into C-lite",
+      "hash": "sha256:a7b1bb6c90de8621038887b3cfe30d7dff02ce3bc7cf654ca541fa243b3dce3f",
+      "identifier": "dragovics/clite/src/clite/bundled/plugins/claude-compat",
+      "kind": "standalone",
+      "name": "claude-compat",
+      "source": "github",
+      "version": "1.0.0"
+    },
+    {
       "description": "Sliding-window context engine: drop the middle, keep a protected head and tail (no summariser call)",
       "hash": "sha256:0a14c2c424bfa0b6a489865a8ba7c01464538a3a6288b03a25d085493457eea2",
       "identifier": "dragovics/clite/src/clite/bundled/plugins/context-sliding-window",

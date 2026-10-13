@@ -66,7 +66,7 @@ oleh suite:
 | Nama tes yang dikutip sebagai penjaga | `test_tests_named_in_the_docs_exist` |
 | Nomor task roadmap, dan kelengkapan bagian tiap task | `test_roadmap_tasks_cited_in_the_docs_are_defined`, `test_every_roadmap_task_is_in_the_index_and_has_the_standard_fields` |
 | Halaman hasil generate masih sama dengan kodenya | `test_generated_reference_pages_are_current` |
-| Setiap `AGENTS.md` punya `CLAUDE.md` yang mengimpornya, dan tetap pendek | `test_every_agents_file_has_a_claude_file_that_imports_it`, `test_instruction_files_stay_short` |
+| Setiap `AGENTS.md` tetap pendek | `test_instruction_files_stay_short` |
 | Nama proyek bisa diganti: tidak ada file, termasuk dokumen, yang mengejanya dengan cara yang tidak terlihat skrip pengganti nama | `test_renaming_leaves_no_trace_of_the_old_name_and_the_program_still_runs` |
 
 Path ke repositori Hermes tidak bisa diperiksa suite, karena suite tidak boleh bergantung pada
