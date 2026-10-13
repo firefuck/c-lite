@@ -18,9 +18,11 @@ A turn runs on its own thread, so one long task never blocks another chat.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import threading
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -127,6 +129,77 @@ def _typing_keeper(
     return keeper
 
 
+class _LiveReply:
+    """How one turn's answer reaches a chat while it is being written.
+
+    A chat that can edit a sent message gets the answer as it is written and one status
+    message for tool activity. A chat that cannot keeps the old behaviour: typing indicator,
+    then the whole answer. ``message`` mode instead gets one separate chat message per tool
+    call, sent as the call starts.
+    """
+
+    def __init__(
+        self,
+        adapter: BasePlatformAdapter,
+        source: SessionSource,
+        *,
+        reply_to: str | None,
+        typing_keeper: _TypingKeeper | None,
+        tool_progress: str,
+    ) -> None:
+        self.adapter = adapter
+        self.chat_id, self.thread_id = source.chat_id, source.thread_id
+        self.reply_to = reply_to
+        self.typing_keeper = typing_keeper
+        self._first_send = True
+        self.stream: StreamSender | None = None
+        self.progress: ProgressReporter | None = None
+        self.per_tool_message = False
+        if adapter.can_edit():
+            self.stream = StreamSender(self.send, self.edit, max_length=adapter.max_message_length)
+            if tool_progress not in ("off", "message"):
+                self.progress = ProgressReporter(self.send, self.edit)
+            self.per_tool_message = tool_progress == "message"
+
+    def send(self, text: str) -> str | None:
+        if self.typing_keeper is not None:
+            self.typing_keeper.stop()
+        result = self.adapter.send(
+            self.chat_id,
+            text,
+            reply_to=self.reply_to if self._first_send else None,
+            thread_id=self.thread_id,
+        )
+        if result.success:
+            self._first_send = False
+        return result.message_id if result.success else None
+
+    def edit(self, message_id: str, text: str) -> bool:
+        return self.adapter.edit(self.chat_id, message_id, text)
+
+    @contextlib.contextmanager
+    def wired(self, callbacks: AgentCallbacks) -> Iterator[None]:
+        """Point the session's streaming callbacks at this chat for the turn, then restore them."""
+        saved = (callbacks.on_delta, callbacks.on_tool_complete, callbacks.on_tool_start)
+        stream, progress = self.stream, self.progress
+        if stream is not None:
+            callbacks.on_delta = stream.push
+        if progress is not None:
+            callbacks.on_tool_complete = lambda _call_id, name, args, result, seconds: progress.note(
+                tool_line(name, args, result, seconds)
+            )
+        if self.per_tool_message:
+
+            def on_tool_start(_call_id: str, name: str, args: dict[str, Any]) -> None:
+                self.send(tool_message(name, args))
+
+            callbacks.on_tool_start = on_tool_start
+        try:
+            yield
+        finally:
+            callbacks.on_delta, callbacks.on_tool_complete, callbacks.on_tool_start = saved
+
+
 def active_runner() -> GatewayRunner | None:
     """The first running gateway in this process, or ``None`` when there is none."""
     with _ACTIVE_LOCK:
@@ -184,6 +257,17 @@ class _ModelPicker:
     provider: str | None = None
     models: list[str] = field(default_factory=list)
     page: int = 0
+
+
+@dataclass
+class _PickerTap:
+    """One tap on a model picker button, with what is needed to answer it."""
+
+    adapter: BasePlatformAdapter
+    source: SessionSource
+    callback_id: str
+    message_id: str
+    value: str
 
 
 @dataclass
@@ -575,93 +659,119 @@ class GatewayRunner:
             adapter.answer_callback(callback_id, "Invalid model selection.")
             return
         _prefix, key, action = parts[:3]
-        raw_value = parts[3] if len(parts) == 4 else ""
-        if not self.is_authorized(source):
-            adapter.answer_callback(callback_id, "You are not authorized.")
+        tap = _PickerTap(
+            adapter=adapter,
+            source=source,
+            callback_id=callback_id,
+            message_id=message_id,
+            value=parts[3] if len(parts) == 4 else "",
+        )
+        found = self._picker_for_tap(tap, key)
+        if found is None:
             return
-        picker = self._model_pickers.get(key)
-        if (
-            picker is None
-            or picker.source.user_id != source.user_id
-            or picker.source.chat_id != source.chat_id
-        ):
-            adapter.answer_callback(callback_id, "This model picker has expired. Run /model again.")
-            return
-        session = self._get_session(source)
-        if session.key != picker.session_key:
-            adapter.answer_callback(callback_id, "This model picker has expired. Run /model again.")
-            return
-        if session.busy:
-            adapter.answer_callback(callback_id, "The model change has to wait until the current turn ends.")
-            return
+        picker, session = found
         if action == "noop":
             adapter.answer_callback(callback_id)
             return
-        if action == "cancel":
-            adapter.edit_model_picker(source.chat_id, message_id, "Model selection cancelled.", [])
-            self._model_pickers.pop(key, None)
-            adapter.answer_callback(callback_id)
-            return
-        if action == "page":
-            try:
-                picker.page = int(raw_value)
-            except ValueError:
-                adapter.answer_callback(callback_id, "Invalid model page.")
-                return
-            text, keyboard = self._model_picker_view(picker, session)
-            adapter.edit_model_picker(source.chat_id, message_id, text, keyboard)
-            adapter.answer_callback(callback_id)
-            return
-        if action == "back":
-            picker.provider = None
-            picker.models = []
-            picker.page = 0
-            text, keyboard = self._model_picker_view(picker, session)
-            adapter.edit_model_picker(source.chat_id, message_id, text, keyboard)
-            adapter.answer_callback(callback_id)
-            return
-        if action == "provider":
-            try:
-                provider = picker.providers[int(raw_value)]
-            except (ValueError, IndexError):
-                adapter.answer_callback(callback_id, "Invalid provider selection.")
-                return
-            from clite.providers.models import list_models
-
-            route = session.chat.agent.route
-            models = [
-                model.id
-                for model in list_models(provider, route=route if provider == route.provider else None)
-            ]
-            if provider == route.provider and route.model not in models:
-                models.insert(0, route.model)
-            models = list(dict.fromkeys(models))
-            if not models:
-                adapter.answer_callback(callback_id, "That provider has no models available.")
-                return
-            picker.provider = provider
-            picker.models = models
-            picker.page = 0
-            text, keyboard = self._model_picker_view(picker, session)
-            adapter.edit_model_picker(source.chat_id, message_id, text, keyboard)
-            adapter.answer_callback(callback_id)
-            return
-        if action != "select" or picker.provider is None:
+        handler = {
+            "cancel": self._picker_cancel,
+            "page": self._picker_page,
+            "back": self._picker_back,
+            "provider": self._picker_provider,
+            "select": self._picker_select,
+        }.get(action)
+        if handler is None:
             adapter.answer_callback(callback_id, "Invalid model selection.")
+            return
+        handler(tap, picker, session)
+
+    def _picker_for_tap(self, tap: _PickerTap, key: str) -> tuple[_ModelPicker, GatewaySession] | None:
+        """The picker a tap belongs to, once the tapper may use it and the session is idle."""
+        adapter, callback_id = tap.adapter, tap.callback_id
+        if not self.is_authorized(tap.source):
+            adapter.answer_callback(callback_id, "You are not authorized.")
+            return None
+        picker = self._model_pickers.get(key)
+        if (
+            picker is None
+            or picker.source.user_id != tap.source.user_id
+            or picker.source.chat_id != tap.source.chat_id
+        ):
+            adapter.answer_callback(callback_id, "This model picker has expired. Run /model again.")
+            return None
+        session = self._get_session(tap.source)
+        if session.key != picker.session_key:
+            adapter.answer_callback(callback_id, "This model picker has expired. Run /model again.")
+            return None
+        if session.busy:
+            adapter.answer_callback(callback_id, "The model change has to wait until the current turn ends.")
+            return None
+        return picker, session
+
+    def _redraw_picker(self, tap: _PickerTap, picker: _ModelPicker, session: GatewaySession) -> None:
+        text, keyboard = self._model_picker_view(picker, session)
+        tap.adapter.edit_model_picker(tap.source.chat_id, tap.message_id, text, keyboard)
+        tap.adapter.answer_callback(tap.callback_id)
+
+    def _picker_cancel(self, tap: _PickerTap, picker: _ModelPicker, session: GatewaySession) -> None:
+        tap.adapter.edit_model_picker(tap.source.chat_id, tap.message_id, "Model selection cancelled.", [])
+        self._model_pickers.pop(picker.key, None)
+        tap.adapter.answer_callback(tap.callback_id)
+
+    def _picker_page(self, tap: _PickerTap, picker: _ModelPicker, session: GatewaySession) -> None:
+        try:
+            picker.page = int(tap.value)
+        except ValueError:
+            tap.adapter.answer_callback(tap.callback_id, "Invalid model page.")
+            return
+        self._redraw_picker(tap, picker, session)
+
+    def _picker_back(self, tap: _PickerTap, picker: _ModelPicker, session: GatewaySession) -> None:
+        picker.provider = None
+        picker.models = []
+        picker.page = 0
+        self._redraw_picker(tap, picker, session)
+
+    def _picker_provider(self, tap: _PickerTap, picker: _ModelPicker, session: GatewaySession) -> None:
+        try:
+            provider = picker.providers[int(tap.value)]
+        except (ValueError, IndexError):
+            tap.adapter.answer_callback(tap.callback_id, "Invalid provider selection.")
+            return
+        from clite.providers.models import list_models
+
+        route = session.chat.agent.route
+        models = [
+            model.id for model in list_models(provider, route=route if provider == route.provider else None)
+        ]
+        if provider == route.provider and route.model not in models:
+            models.insert(0, route.model)
+        models = list(dict.fromkeys(models))
+        if not models:
+            tap.adapter.answer_callback(tap.callback_id, "That provider has no models available.")
+            return
+        picker.provider = provider
+        picker.models = models
+        picker.page = 0
+        self._redraw_picker(tap, picker, session)
+
+    def _picker_select(self, tap: _PickerTap, picker: _ModelPicker, session: GatewaySession) -> None:
+        if picker.provider is None:
+            tap.adapter.answer_callback(tap.callback_id, "Invalid model selection.")
             return
         try:
-            model = picker.models[int(raw_value)]
+            model = picker.models[int(tap.value)]
         except (ValueError, IndexError):
-            adapter.answer_callback(callback_id, "Invalid model selection.")
+            tap.adapter.answer_callback(tap.callback_id, "Invalid model selection.")
             return
         result = session.chat.switch_model(f"{picker.provider}:{model}")
         text = f"Switched to {session.chat.agent.route.model}." if result.success else result.message
-        adapter.edit_model_picker(source.chat_id, message_id, text, [])
+        tap.adapter.edit_model_picker(tap.source.chat_id, tap.message_id, text, [])
         if result.success:
-            self._model_pickers.pop(key, None)
-            adapter.answer_callback(callback_id, "Model switched.")
+            self._model_pickers.pop(picker.key, None)
+            tap.adapter.answer_callback(tap.callback_id, "Model switched.")
         else:
-            adapter.answer_callback(callback_id, "Could not switch model.")
+            tap.adapter.answer_callback(tap.callback_id, "Could not switch model.")
 
     # ── Telegram approval controls ───────────────────────────────────────────────────────
 
@@ -925,14 +1035,8 @@ class GatewayRunner:
     def _dispatch(self, event: MessageEvent) -> None:
         if not self.accepting:
             return
-        text = event.text.strip()
-        if has_hook("pre_gateway_dispatch"):
-            for directive in invoke_hook("pre_gateway_dispatch", event=event, gateway=self):
-                if isinstance(directive, dict) and directive.get("action") == "skip":
-                    return
-                if isinstance(directive, dict) and directive.get("action") == "rewrite":
-                    text = str(directive.get("text") or "").strip()
-        if not text and not event.attachments:
+        text = self._apply_dispatch_hooks(event)
+        if text is None or (not text and not event.attachments):
             return
         if not self.is_authorized(event.source):
             self._handle_unauthorized(event.source)
@@ -950,35 +1054,57 @@ class GatewayRunner:
         ):
             return
 
+        if split_command(text)[0]:
+            submitted = self._run_command(session, event, text)
+            if submitted is None:
+                return
+            text = submitted  # a skill command: run it as a turn
+        self._submit_message(session, event, text)
+
+    def _apply_dispatch_hooks(self, event: MessageEvent) -> str | None:
+        """The message text after plugins had their say; ``None`` when one dropped it."""
+        text = event.text.strip()
+        if not has_hook("pre_gateway_dispatch"):
+            return text
+        for directive in invoke_hook("pre_gateway_dispatch", event=event, gateway=self):
+            if isinstance(directive, dict) and directive.get("action") == "skip":
+                return None
+            if isinstance(directive, dict) and directive.get("action") == "rewrite":
+                text = str(directive.get("text") or "").strip()
+        return text
+
+    def _run_command(self, session: GatewaySession, event: MessageEvent, text: str) -> str | None:
+        """Run a slash command. Returns the text to submit as a turn, or ``None`` when the
+        command was answered (or refused) here."""
         name, _args = split_command(text)
+        reply_to = event.reply_to or event.message_id
         if name in ("approve", "deny"):
             self.reply(event.source, "Nothing is waiting for approval.")
-            return
-        if name:
-            definition = resolve_command(name)
-            is_reset = definition is not None and definition.name == "new"
-            if session.busy:
-                if is_reset:
-                    session.chat.interrupt()
-                    if session.turns is not None:
-                        session.turns.clear()
-                    self.reply(event.source, "Stopping running turn and resetting session…")
-                elif definition is None or definition.busy_policy != BUSY_ALLOW:
-                    self.reply(
-                        event.source, f"/{name} has to wait: I am still working. Send /stop to interrupt."
-                    )
-                    return
-            result = session.chat.run_slash(text)
-            if result.action == ACTION_NEW:
-                self.session_map.set(session.key, session.chat.session_id, event.source)
-            if result.action == ACTION_RESTART:
-                self.reply(event.source, result.text, reply_to=event.reply_to or event.message_id)
-                self.request_restart()
-                return
-            if result.action != ACTION_SUBMIT:
-                self.reply(event.source, result.text, reply_to=event.reply_to or event.message_id)
-                return
-            text = result.text  # a skill command: run it as a turn
+            return None
+        definition = resolve_command(name)
+        if session.busy:
+            if definition is not None and definition.name == "new":
+                session.chat.interrupt()
+                if session.turns is not None:
+                    session.turns.clear()
+                self.reply(event.source, "Stopping running turn and resetting session…")
+            elif definition is None or definition.busy_policy != BUSY_ALLOW:
+                self.reply(event.source, f"/{name} has to wait: I am still working. Send /stop to interrupt.")
+                return None
+        result = session.chat.run_slash(text)
+        if result.action == ACTION_NEW:
+            self.session_map.set(session.key, session.chat.session_id, event.source)
+        if result.action == ACTION_RESTART:
+            self.reply(event.source, result.text, reply_to=reply_to)
+            self.request_restart()
+            return None
+        if result.action != ACTION_SUBMIT:
+            self.reply(event.source, result.text, reply_to=reply_to)
+            return None
+        return result.text
+
+    def _submit_message(self, session: GatewaySession, event: MessageEvent, text: str) -> None:
+        """Turn the message and its attachments into the next turn."""
         images, notes, transcript = self._collect_attachments(session, event)
         if transcript:
             text = f"{text}\n\n{transcript}".strip() if text else transcript
@@ -1140,58 +1266,22 @@ class GatewayRunner:
             if adapter is not None
             else None
         )
-
-        # A chat that can edit a sent message gets the answer as it is written and one status
-        # message for tool activity. A chat that cannot keeps the old behaviour: typing
-        # indicator, then the whole answer. ``message`` mode instead gets one separate chat
-        # message per tool call, sent as the call starts.
-        stream: StreamSender | None = None
-        progress: ProgressReporter | None = None
-        per_tool_message = session.chat.tool_progress == "message"
         reply_to = str((turn.payload or {}).get("reply_to") or "") or None
-        if adapter is not None:
-            chat_id, thread_id = session.source.chat_id, session.source.thread_id
-            first_send = True
-
-            def send(text: str) -> str | None:
-                nonlocal first_send
-                if typing_keeper is not None:
-                    typing_keeper.stop()
-                result = adapter.send(
-                    chat_id, text, reply_to=reply_to if first_send else None, thread_id=thread_id
-                )
-                if result.success:
-                    first_send = False
-                return result.message_id if result.success else None
-
-            def edit(message_id: str, text: str) -> bool:
-                return adapter.edit(chat_id, message_id, text)
-
-            if adapter.can_edit():
-                stream = StreamSender(send, edit, max_length=adapter.max_message_length)
-                if session.chat.tool_progress not in ("off", "message"):
-                    progress = ProgressReporter(send, edit)
-
-        callbacks = session.chat.callbacks
-        saved_on_delta, saved_on_tool, saved_on_start = (
-            callbacks.on_delta,
-            callbacks.on_tool_complete,
-            callbacks.on_tool_start,
-        )
-        if stream is not None:
-            callbacks.on_delta = stream.push
-        if progress is not None:
-            callbacks.on_tool_complete = lambda _call_id, name, args, result, seconds: progress.note(
-                tool_line(name, args, result, seconds)
+        live = (
+            _LiveReply(
+                adapter,
+                session.source,
+                reply_to=reply_to,
+                typing_keeper=typing_keeper,
+                tool_progress=session.chat.tool_progress,
             )
-        if per_tool_message and stream is not None:
-
-            def on_tool_start(_call_id: str, name: str, args: dict[str, Any]) -> None:
-                send(tool_message(name, args))
-
-            callbacks.on_tool_start = on_tool_start
+            if adapter is not None
+            else None
+        )
+        stream = live.stream if live is not None else None
         try:
-            result = session.chat.submit(turn.text, images=(turn.payload or {}).get("images"))
+            with live.wired(session.chat.callbacks) if live is not None else contextlib.nullcontext():
+                result = session.chat.submit(turn.text, images=(turn.payload or {}).get("images"))
         except Exception as exc:
             if typing_keeper is not None:
                 typing_keeper.stop()
@@ -1203,11 +1293,6 @@ class GatewayRunner:
         finally:
             if typing_keeper is not None:
                 typing_keeper.stop()
-            callbacks.on_delta, callbacks.on_tool_complete, callbacks.on_tool_start = (
-                saved_on_delta,
-                saved_on_tool,
-                saved_on_start,
-            )
         session.last_used = time.monotonic()
         if stream is not None:
             # Settle whatever is already on screen. An interrupted turn has no final answer, so
