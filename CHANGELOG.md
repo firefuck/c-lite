@@ -18,7 +18,9 @@ GitHub-nya (`python scripts/release.py notes`).
 ### Diubah
 - Perapian kode tanpa perubahan perilaku: fungsi panjang dipecah dan kompleksitas tiap fungsi
   dibatasi 15, format kode dan komentar `noqa` beralasan diperiksa di CI, dan mypy berjalan
-  dalam mode `strict`.
+  dalam mode `strict`. Empat modul terbesar dipecah menurut tanggung jawab: runner gateway,
+  gerbang persetujuan perintah, handler RPC (kini paket `clite.rpc.methods`), dan penyimpanan
+  sesi.
 - Backend eksekusi `local`, `docker`, dan `ssh` memakai satu loop yang sama untuk menunggu
   perintah (batas output, timeout, interupsi).
 - Gateway menawarkan pemilih `/model` dan tombol persetujuan menurut kemampuan adapter, bukan
