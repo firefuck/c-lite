@@ -386,6 +386,22 @@ def test_setup_without_questions(clite_home, capsys, assert_private_file):
     assert main(["setup"]) == 1  # not a terminal: the interactive wizard refuses to guess
 
 
+def test_setup_wizard_stores_the_toolsets_and_approval_mode_picked_from_the_lists(clite_home, monkeypatch):
+    from clite.providers.registry import list_providers
+
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    mock_idx = str([p.name for p in list_providers()].index("mock") + 1)
+    # Provider: mock, model: first, toolsets: third entry, approvals: second entry, no Telegram.
+    answers = iter([mock_idx, "1", "3", "2", ""])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(answers))
+    monkeypatch.setattr("getpass.getpass", lambda prompt="": "test-key")
+
+    assert main(["setup"]) == 0
+    cfg = load_config()
+    assert cfg["toolsets"] == ["file", "terminal"]
+    assert cfg["approvals"]["mode"] == "smart"
+
+
 def test_setup_interactive_wizard_and_verification(clite_home, monkeypatch, capsys):
     from clite.providers.registry import list_providers
 
