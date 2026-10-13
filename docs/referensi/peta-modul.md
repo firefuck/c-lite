@@ -278,7 +278,7 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `commands.py` | Skills as slash commands: ``/<skill-name> [instruction]``. | `skill_slug()`, `skill_commands()`, `build_skill_message()` |
 | `curator.py` | Curator: keep the agent's own skill library from growing without bound. | `archive_dir()`, `find_stale_skills()`, `archive_skill()`, `restore_skill()`, `run_curator()` |
 | `frontmatter.py` | SKILL.md parsing and validation. | `SkillFormatError`, `SkillMeta`, `validate_skill_name()`, `split_frontmatter()`, `parse_skill_text()`, `platform_matches()`, `render_skill()` |
-| `hub.py` | Skill installation from outside sources. | `SkillBundle`, `SkillSource`, `LocalDirSource`, `GitHubSource`, `register_skill_source()`, `installed_skills()`, `install_skill()`, `bundle_digest()`, `directory_digest()`, `bundled_index_path()`, … (+13) |
+| `hub.py` | Skill installation from outside sources. | `SkillBundle`, `SkillSource`, `LocalDirSource`, `GitHubSource`, `register_skill_source()`, `installed_skills()`, `install_skill()`, `bundle_digest()`, `skill_files()`, `directory_digest()`, … (+14) |
 | `index.py` | The skills index: the only part of the skill system that costs tokens on every request. | `visible_skills()`, `build_skills_index()` |
 | `manager.py` | Skill writes: create, patch, rewrite, delete, and supporting files. | `SkillError`, `create_skill()`, `edit_skill()`, `patch_skill()`, `delete_skill()`, `write_skill_file()`, `remove_skill_file()` |
 | `scanner.py` | Deeper scan for a skill that came from outside. | `ScanReport`, `looks_binary()`, `extract_commands()`, `scan_bundle()` |

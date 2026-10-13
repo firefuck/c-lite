@@ -95,11 +95,7 @@ class LocalDirSource(SkillSource):
         directory = Path(identifier).expanduser().resolve()
         if not (directory / "SKILL.md").is_file():
             raise SkillError(f"{directory} has no SKILL.md")
-        files = {
-            path.relative_to(directory).as_posix(): path.read_bytes()
-            for path in sorted(directory.rglob("*"))
-            if path.is_file() and not any(part.startswith(".") for part in path.relative_to(directory).parts)
-        }
+        files = skill_files(directory)
         return SkillBundle(directory.name, files, self.source_id, str(directory))
 
 
@@ -325,15 +321,26 @@ def bundle_digest(files: Mapping[str, bytes]) -> str:
     return "sha256:" + digest.hexdigest()
 
 
+# Never part of a skill: hidden files (version control, editor state) and the byte caches the
+# interpreter writes next to a skill's scripts when its tests run.
+_IGNORED_PARTS = frozenset({"__pycache__"})
+
+
+def skill_files(directory: Path) -> dict[str, bytes]:
+    """The files that make up a skill directory, by path relative to it."""
+    return {
+        path.relative_to(directory).as_posix(): path.read_bytes()
+        for path in sorted(directory.rglob("*"))
+        if path.is_file()
+        and not any(
+            part.startswith(".") or part in _IGNORED_PARTS for part in path.relative_to(directory).parts
+        )
+    }
+
+
 def directory_digest(directory: Path) -> str:
     """The digest of the files a skill directory holds now, as the lock would record them."""
-    return bundle_digest(
-        {
-            path.relative_to(directory).as_posix(): path.read_bytes()
-            for path in sorted(directory.rglob("*"))
-            if path.is_file() and not any(part.startswith(".") for part in path.relative_to(directory).parts)
-        }
-    )
+    return bundle_digest(skill_files(directory))
 
 
 # ── the index ────────────────────────────────────────────────────────────────────────────
@@ -531,11 +538,7 @@ def build_index(root: str | Path, *, source: str = "github", identifier_prefix: 
     for skill_md in sorted(root_path.rglob("SKILL.md")):
         directory = skill_md.parent
         relative = directory.relative_to(root_path).as_posix() if directory != root_path else ""
-        files = {
-            path.relative_to(directory).as_posix(): path.read_bytes()
-            for path in sorted(directory.rglob("*"))
-            if path.is_file() and not any(part.startswith(".") for part in path.relative_to(directory).parts)
-        }
+        files = skill_files(directory)
         try:
             meta, _ = parse_skill_text(files["SKILL.md"].decode("utf-8"))
         except (SkillFormatError, UnicodeDecodeError, KeyError) as exc:
@@ -619,11 +622,7 @@ def plan_update(name: str) -> UpdatePlan:
         directory = _find_installed_dir(name) or directory
     bundle = chosen.fetch(str(record.get("identifier") or ""))
     report = scan_bundle(bundle.files)
-    local = {
-        path.relative_to(directory).as_posix(): path.read_bytes()
-        for path in sorted(directory.rglob("*"))
-        if path.is_file() and not any(part.startswith(".") for part in path.relative_to(directory).parts)
-    }
+    local = skill_files(directory)
     recorded = str(record.get("hash") or "")
     edited_locally = bool(recorded) and directory_digest(directory) != recorded
     return UpdatePlan(

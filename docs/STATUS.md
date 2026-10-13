@@ -1,26 +1,28 @@
 # Status
 
-Diperbarui 8 Oktober 2026. Halaman ini memisahkan tiga hal yang mudah tertukar: apa yang
-**dijaga tes**, apa yang **ditulis tetapi belum pernah bertemu hal yang sebenarnya**, dan apa
-yang **belum ada**.
+Diperbarui 13 Oktober 2026. Halaman ini memisahkan tiga hal yang mudah tertukar: apa yang
+**dijaga tes**, apa yang **sudah atau belum pernah bertemu hal yang sebenarnya**, dan apa yang
+**belum ada**. Catatan rinci tiap task ada di [riwayat per task](#riwayat-per-task), dan
+log verifikasi bertanggal di [catatan verifikasi](#catatan-verifikasi).
 
 ## Dijaga tes
 
-Pemeriksaan terbaru F5-T5 dan F5-T4 dijalankan di Linux, Python 3.14.7, Node 26.7.0,
-Electron 44.5.1, pada worktree bersih di `HEAD` (tanpa berkas sesi lain yang belum di-commit).
+Pemeriksaan terbaru dijalankan 13 Oktober 2026 di Linux, Python 3.13.16, Node 22.22.0 dan
+Chromium 1194, pada `main` di `7708cab`, lewat hook `pre-push` (`scripts/run_tests.sh`).
+Electron tidak terpasang di lingkungan itu.
 
 | Pemeriksaan | Hasil |
 |---|---|
 | `ruff check src tests scripts` | Bersih, termasuk batas kompleksitas 15 (`C901`) dan `noqa` beralasan (`BLE001`, `S310`, `S603`, `S607`, `RUF100`) sejak 13 Oktober 2026 |
-| `ruff format --check src tests scripts` | Bersih (dijalankan juga di CI dan `scripts/run_tests.sh lint`) |
+| `ruff format --check src tests scripts` | Bersih (dijalankan juga di `scripts/run_tests.sh lint` dan workflow CI) |
 | `mypy` (215 file sumber) | Bersih, dengan `disallow_untyped_defs`: setiap fungsi beranotasi lengkap sejak 13 Oktober 2026 |
-| Tes Python (`pytest tests`) | 1523 lulus, 47 terlewati (jaringan, Windows, Docker, paket opsional). Tanpa `GIT_AUTHOR_*`/`GIT_COMMITTER_*`, `tests/test_release.py::test_tagging_needs_a_clean_tree_and_creates_the_tag_for_the_version` gagal karena identitas git (lingkungan, bukan perubahan ini) |
-| Tes TypeScript `apps/shared` | 22 lulus; `tsc --noEmit` bersih |
+| Tes Python (`pytest tests`) | 1683 lulus, 43 terlewati (jaringan, Windows, Docker, SSH, paket opsional). Tanpa identitas git (`user.name`, `user.email`), `tests/test_release.py::test_tagging_needs_a_clean_tree_and_creates_the_tag_for_the_version` gagal karena lingkungan |
+| Tes TypeScript `apps/shared` | 22 lulus; `tsc --noEmit` bersih (13 Oktober 2026) |
 | Tes TypeScript `ui-tui` | 60 lulus; `tsc --noEmit` bersih (13 Oktober 2026) |
 | Tes TypeScript `web` (dashboard) | 10 lulus terhadap server tiruan; `tsc --noEmit` bersih (13 Oktober 2026) |
 | Tes TypeScript `apps/desktop` | 15 lulus, tes asap Electron dilewati (tanpa layar dan tanpa biner Electron) pada 13 Oktober 2026; terakhir dijalankan penuh sebelum dashboard React |
 | Tes browser dashboard (`tests/server/test_dashboard_browser.py`) | 24 lulus di Chromium sungguhan terhadap dashboard React, tes yang sama dengan dashboard lama tanpa diubah (butuh `playwright` dan Chromium; tanpa itu dilewati) |
-| Installer Linux (`release/C-lite-0.1.0.AppImage`) | Dibangun dengan `electron-builder` dan dijalankan: jendela memuat dashboard dari backend yang dijalankannya sendiri, dan menutup jendela menghentikan backend. macOS dan Windows belum pernah dibangun |
+| Installer Linux (`release/C-lite-0.1.0.AppImage`, versi 0.1.0) | Dibangun dengan `electron-builder` dan dijalankan: jendela memuat dashboard dari backend yang dijalankannya sendiri, dan menutup jendela menghentikan backend. macOS dan Windows belum pernah dibangun |
 | Rujukan ke file Hermes di semua dokumen | Lulus pada sesi pembuatan; belum diulang di sesi ini karena clone rujukan tidak tersedia |
 
 Yang tercakup tes Python itu, selain perilaku tiap modul:
@@ -32,8 +34,12 @@ Yang tercakup tes Python itu, selain perilaku tiap modul:
 - **Bentuk kode.** Arah import antar-lapisan, pembaca untuk setiap kunci config, tidak ada
   nama vendor di luar profilnya, nama direktori home hanya dieja di satu tempat, pembacaan
   variabel lingkungan hanya di file yang terdaftar, tidak ada `print` di luar CLI.
-- **File turunan.** Kontrak TypeScript, halaman referensi, dan bundle TUI sama dengan
-  sumbernya.
+- **File turunan.** Kontrak TypeScript, halaman referensi, bundle TUI, dan bundle dashboard
+  sama dengan sumbernya.
+- **Tes milik skill bawaan.** Suite di `src/clite/bundled/skills/*/*/tests/` dijalankan
+  `tests/skills/test_bundled_skill_suites.py` bila pustaka skill itu (python-docx, openpyxl,
+  python-pptx, pypdf, reportlab) terpasang, dan dilewati dengan namanya bila tidak. Pustaka itu
+  bukan dependensi `[dev]`, jadi di lingkungan pengembangan biasa keempat suite dilewati.
 - **Penggantian nama.** `scripts/rename_project.py` dijalankan pada salinan repositori di
   setiap putaran suite: tidak ada ejaan nama lama yang tertinggal, program hasil ganti nama
   berjalan, dan bisa diganti nama lagi.
@@ -42,154 +48,194 @@ Yang tercakup tes Python itu, selain perilaku tiap modul:
 
 Spesifikasi tiap modul (`docs/spesifikasi/`) menandai fitur yang dijaga tes dengan ✅.
 
-### F6-T9 situs dokumentasi pengguna (10 Oktober 2026)
+## Terverifikasi terhadap hal yang sebenarnya
 
-Situs terpisah dari `docs/`, untuk orang yang memakai C-lite tanpa pernah membuka kodenya:
-pasang, mulai cepat, konfigurasi, tool, skill, plugin, gateway, keamanan, dan halaman rujukan.
-Ditulis dalam dua bahasa karena keputusan pemiliknya "keduanya": `website/content/id/` dan
-`website/content/en/`, dua belas halaman masing-masing, dengan daftar slug yang sama persis
-supaya tombol bahasa selalu menemukan padanannya. Nama perintah, flag, path produk, dan
-keluaran perintah tidak diterjemahkan; yang berbeda antar-bahasa adalah prosanya dan teks
-contoh yang diketik pengguna (prompt, nama profil, nama skill, nama berkas contoh).
+Yang pernah dijalankan di luar tiruan: lingkungan, platform, atau layanan sungguhan. Rinciannya
+ada di [riwayat per task](#riwayat-per-task).
 
-Pembangkitnya `scripts/build_site.py`, memakai pustaka standar saja, bukan Docusaurus seperti
-Hermes: paket Python harus tetap bisa dipasang tanpa Node. `website/docusaurus.config.ts` dan
-`website/sidebars.ts` menjadi rujukan strukturnya (pohon halaman, menu samping, tombol
-bahasa), bukan dependensinya. Tata letak dan aturan penulisannya ada di `website/AGENTS.md`.
+| Hal | Bukti | Task |
+|---|---|---|
+| CI lengkap dan pemasangan wheel di virtualenv bersih | Repo hulu `dragovics/clite`, run `37356398420` pada `6e6669c` (6 Oktober 2026). Di `firefuck/c-lite` CI belum pernah berjalan (lihat [Menjalankan pemeriksaan](#menjalankan-pemeriksaan)) | F1-T1 |
+| Rilis GitHub `v0.1.0` | Workflow `37563420757` hijau pada `e65bb0c`; aset diunduh, digest cocok, wheel dipasang dengan pipx | F1-T7 |
+| Windows | CI `37499972911` pada `6360a9a`: 765 lulus, 59 terlewati. Belum diulang sejak refactor 13 Oktober 2026; REPL manual belum dicoba | F1-T5 |
+| Backend terminal Docker | VM-36: 3/3 tes perintah dalam container, baca/tulis lewat mount, penolakan file di luar workspace | F2-T7 |
+| Backend terminal SSH | VM-36, ke localhost: 3/3 tes perintah, operasi file, dan cleanup | F2-T7 |
+| Installer desktop Linux | AppImage 0.1.0 dibangun dan dijalankan; jendela memuat dashboard lama dari backend-nya sendiri | F5-T4 |
+| Token bot Telegram | `getMe` terhadap Bot API asli dan `clite gateway run` hidup dengan token itu (10 Oktober 2026). Percakapan dua arah belum | F1-T3 |
 
-Halaman rujukan situs (perintah, kunci config, tool) **dihasilkan** oleh
-`scripts/gen_docs.py --target site` dari registry yang sama dengan katalog pengembang; satu
-fungsi `catalog_sections(language)` memasok keduanya. Dua halaman pengembang di
-`docs/referensi/` keluarannya tidak berubah sama sekali oleh tugas ini. Seperti katalog
-pengembang, halaman ini tidak boleh disunting dengan tangan, dan ada tes yang gagal bila ada
-halaman lain muncul di pohon `reference/`.
+Pada 6 Oktober 2026 CI repo `https://github.com/dragovics/clite` run `37356398420` pada
+commit `6e6669c` lulus di semua job. Job Python memasang paket dari registry dan
+menjalankan Ruff, mypy, serta seluruh tes Python pada 3.11, 3.12, dan 3.13. Job Node 22
+memasang dependensi dengan `npm ci` dari `package-lock.json`, menjalankan
+`scripts/run_tests.sh` (termasuk pemeriksaan tipe), dan `npm run build`. Job wheel
+membangun wheel, memasangnya ke virtualenv bersih, lalu `scripts/check_wheel_install.py`
+lulus di luar checkout: CLI, doctor, giliran mock, plugin dan skill bawaan, aset dashboard,
+dan TUI. Aset skill yang sengaja dihilangkan ditolak oleh pemeriksa tersebut (dicoba lokal).
+Kendala penagihan yang tercatat pada repo sebelumnya tidak muncul di repo tujuan ini.
+F1-T1 selesai.
 
-Tiga belas tes di `tests/test_website.py` menjaga janji situs, semuanya tanpa jaringan:
-halaman rujukan sama dengan keluaran pembangkit; tidak ada halaman tulisan tangan di pohon
-`reference/`; kedua pohon bahasa punya daftar slug yang sama; menu samping memuat setiap
-halaman; setiap halaman dimulai satu heading `# `; terjemahan mempertahankan bentuk halamannya
-(jumlah bagian, pagar kode berurutan, dan baris tabel sama persis); situs dibangun dan setiap
-halaman serta `style.css` ada; tombol bahasa menunjuk halaman yang sama di bahasa lain; setiap
-tautan relatif di hasil bangun menunjuk berkas yang ada; dan pagar `bash` hanya ada di halaman
-mulai cepat.
+## Ditulis, belum diverifikasi
 
-Dua kriteria "selesai bila" yang bisa diuji di sini dijalankan sungguhan, sebagai proses
-terpisah seperti `test_generated_reference_pages_are_current`:
-`test_the_reference_pages_of_the_site_match_the_generator` menjalankan
-`scripts/gen_docs.py --target site --check`, dan
-`test_the_commands_in_the_quick_start_run_as_written` menjalankan **setiap baris** setiap pagar
-`bash` di `start/quickstart.md` apa adanya — `clite` menjadi `python -m clite` — terhadap
-provider `mock` di home sementara. Karena blok itu dijalankan apa adanya, satu pagar `bash`
-hanya boleh ada di halaman mulai cepat; halaman lain memakai `console` (transkrip terminal,
-dibaca saja) atau info string bahasa datanya. Perintah yang tampil di transkrip mulai cepat
-tetapi tidak dijalankan (`clite`, `clite setup`, dan bentuk flag `clite setup` yang butuh kunci
-sungguhan) terdaftar di `NOT_EXECUTED` beserta alasannya, dan tes gagal bila halaman itu
-menampilkan perintah baru yang tidak dijalankan maupun dijelaskan.
+Semua butir ini punya kode, dan sebagian punya tes terhadap tiruan, tetapi belum pernah
+dijalankan terhadap hal yang sebenarnya. Anggap belum berfungsi sampai terbukti.
 
-Yang belum: **penerbitannya**. `.github/workflows/docs.yml` membangun situs dan mengunggahnya
-sebagai artefak GitHub Pages setiap kali ada rilis diterbitkan, dan hal yang sama sudah
-dijalankan di sini pada 10 Oktober 2026, tetapi workflow itu belum pernah berjalan di GitHub.
-Jadi kriteria pertama ("situs terbit, dan tautannya ada di `README.md`") baru terbukti setelah
-rilis pertama yang memicunya; tautannya sendiri sudah ada di `README.md`. Karena itu F6-T9
-tetap 🟡, sama seperti F6-T7.
+Catatan: indeks roadmap menandai F1-T2 dan F1-T3 ✅ (commit `6b4a052`, 13 Oktober 2026),
+tetapi kriteria "Selesai bila" di `docs/roadmap/fase-1-fondasi.md` untuk keduanya belum
+dicentang dan tidak ada catatan uji sungguhan di halaman ini. Sampai catatannya ditambahkan,
+butir di bawah yang merujuk F1-T2 dan F1-T3 tetap dianggap belum diverifikasi.
 
-### F6-T2 skill bawaan (10 Oktober 2026)
+| Hal | Keadaan | Task |
+|---|---|---|
+| Panggilan ke provider sungguhan | Belum pernah tercatat. Transport `anthropic_messages`, `chat_completions`, dan `responses` hanya diuji terhadap server tiruan, termasuk pemutaran ulang blok penalaran bertanda tangan model Claude generasi 5 (aturannya dari dokumentasi, bukan pengamatan) dan `thinking.display: summarized` | F1-T2, F2-T1 |
+| Tes jaringan provider (`tests/providers/test_live.py`) | Ditulis, belum pernah dijalankan: menunggu kunci Anthropic dan satu provider kompatibel OpenAI | F1-T2 |
+| Persetujuan `smart` dengan model sungguhan | Hanya diuji dengan model berskrip | F1-T2 |
+| Profil provider tambahan | Rute, bentuk HTTP, dan discovery diuji dengan server lokal. API asli, LM Studio/vLLM sungguhan, dan cloud Azure/Bedrock/Vertex belum pernah dipanggil | F2-T2 |
+| Gambar: masukan, `vision_analyze`, `image-gen-openai` | Bentuk permintaan diuji terhadap transport dan HTTP loopback. Provider berpenglihatan dan OpenAI Images asli belum pernah dipanggil | F2-T6 |
+| Pencarian web (`web-search-ddg`, `web-search-tavily`) | Diuji terhadap server HTTP lokal; DuckDuckGo dan Tavily asli belum | F2-T5 |
+| Gateway Telegram dua arah | Daftar periksa F1-T3 (pesan langsung, pairing, grup, jawaban panjang, `/approve`, klarifikasi, interupsi, restart, cron `deliver: origin`) belum dijalankan. Pengiriman cron ke `<platform>:<chat id>` diuji dengan adapter `local` saja | F1-T3 |
+| Platform pesan lain (Discord, Slack, WhatsApp, Signal, Matrix, email) | Hanya terhadap layanan tiruan | F4-T1, F4-T2, F4-T3 |
+| macOS | Belum pernah dijalankan | F1-T1 |
+| Installer desktop macOS dan Windows | Belum pernah dibangun; pekerjaan `desktop` di `release.yml` belum pernah berjalan; installer tidak bertanda tangan | F5-T4 |
+| Dashboard React di jendela Electron | Tes asap desktop butuh layar dan biner Electron; dashboard React baru diuji di Chromium | F5-T11 |
+| Plugin lewat entry point pip | Jalur muatnya ada; belum diuji dengan paket yang benar-benar terpasang | F6-T5 |
+| Situs dokumentasi pengguna | Dibangun dan diuji lokal; penerbitan GitHub Pages belum pernah berjalan | F6-T9 |
+| Model atau harness selain Claude Code | Belum pernah ada yang mengerjakan repositori ini. Panduannya ([PANDUAN-MODEL-LAIN.md](PANDUAN-MODEL-LAIN.md)) disusun dari isi repositori, belum dari sesi nyata | Coba dengan satu task S |
 
-Dua belas skill bawaan dibawa dari Hermes dalam tiga kategori, masing-masing ditulis ulang
-mengikuti tool C-lite: enam di `software-development` (`codebase-inspection`, `github`,
-`python-debugpy`, `requesting-code-review`, `simplify-code`, `spike`), dua di `productivity`
-(`meeting-action-items`, `weekly-review-planning`), dan empat di `research` (`arxiv`,
-`competitor-news-monitor`, `grounded-citations`, `llm-wiki`). Setiap berkas menyebut asalnya di
-`metadata.clite.attribution`, dan `NOTICE.md` mendaftar kumpulannya.
+Prompt kerja di `docs/prompts/` bisa ditempel ke harness apa pun. Scaffolding khusus Claude
+Code (`.claude/` dan berkas `CLAUDE.md`) dihapus dari repositori ini pada 13 Oktober 2026;
+yang tersisa adalah plugin bawaan `claude-compat`, yang memuat `CLAUDE.md` milik proyek
+pengguna.
 
-Empat tes baru di `tests/skills/test_skills.py` menjaga setiap berkas bawaan: lolos validasi
-format dan pemindaian ancaman; tidak menyebut tool yang tidak terdaftar di luar
-`requires_tools`/`fallback_for_tools`; tidak memuat nama produk atau path home Hermes; dan
-indeks tetap di bawah `MAX_INDEX_CHARS` dengan semuanya aktif. `tests/skills/` lulus 74,
-terlewati 1 (jaringan).
+Hal lain yang perlu diketahui:
 
-Yang belum: kategori lain di Hermes (`apple`, `autonomous-ai-agents`, `creative`, `devops`,
-`email`, `media`, `note-taking`, `social-media`, `web`), skill yang butuh peramban atau CLI
-pihak ketiga, skill berat yang membawa skrip sendiri (`docx`, `xlsx`, `pdf`, `powerpoint`), dan
-pemisahan bawaan/opsional — hub C-lite belum punya sumber `optional-skills`. Daftarnya ada di
-[roadmap fase 6](roadmap/fase-6-ekosistem.md#f6-t2-porting-skill-bawaan-dari-hermes).
+- **Beban dan skala belum diuji.** Tidak ada tes untuk sesi yang sangat panjang, banyak sesi
+  gateway bersamaan, atau database yang besar.
+- **Bedah Hermes** (`docs/hermes/`) ditulis dari membaca kode pada satu commit. Keberadaan
+  setiap file yang dirujuk sudah diperiksa mesin; uraian perilakunya tidak diperiksa ulang
+  satu per satu.
+- **Ukuran task di roadmap adalah perkiraan.**
 
-### F6-T7 suara (10 Oktober 2026)
+## Belum ada
 
-Dua registry provider di `src/clite/tools/speech.py` (`TranscriptionProvider`, `SpeechProvider`),
-masing-masing dipilih lewat `speech.transcription.provider` dan `speech.speech.provider`. Nama
-yang tidak terdaftar, factory yang rusak, atau provider berkunci tanpa kunci di `.env` dilewati;
-yang tersisa dipakai, supaya satu backend rusak tidak mematikan seluruh suara. Plugin bawaan
-`speech-openai` (`kind: backend`) mendaftarkan dua provider sekaligus atas `OPENAI_API_KEY` yang
-sama: `openai-transcribe` (`POST /v1/audio/transcriptions`) dan `openai-speech`
-(`POST /v1/audio/speech`). Bentuk permintaan, daftar suara, dan batas 25 MB / 4096 karakter
-dicatat di docstring plugin bersama tanggal pemeriksaannya.
+Semua task di [roadmap](roadmap/README.md) bertanda ✅; pekerjaan baru belum direncanakan di
+sana. Daftar "Yang belum dibawa" di
+[arsitektur/07-beda-dengan-hermes.md](arsitektur/07-beda-dengan-hermes.md#yang-belum-dibawa)
+ditulis sebelum roadmap dikerjakan dan perlu diaudit ulang terhadap clone Hermes sebelum
+dipakai sebagai daftar celah.
 
-Pesan suara ditranskripsi di `gateway/runner.py` sebelum menjadi giliran: transkripnya masuk
-sebagai teks pengguna, berkasnya tetap di direktori media sesi, dan model tidak menerima path
-rekaman kecuali transkripsi gagal. `speech.max_seconds` dan `speech.max_bytes` diperiksa lebih
-dulu, jadi rekaman yang melewatinya tidak pernah dikirim ke provider — catatan: dengan bawaan
-`attachments.max_bytes: 5000000` yang lebih ketat, batas ukuran suara baru menggigit bila
-diset di bawahnya. Durasi dibaca dari header
-container — WAV lewat modul `wave`, Ogg Opus lewat granule position halaman terakhir — dan
-container yang tidak menyebutkan durasinya hanya tunduk pada batas ukuran. Setiap kegagalan
-(provider tidak ada, provider error, provider mengembalikan bukan string, transkrip kosong)
-berakhir sebagai pemberitahuan ke model; tidak ada jalur suara yang menggagalkan giliran.
+Celah keamanan yang diketahui didaftar tersendiri di
+[arsitektur/06-keamanan.md](arsitektur/06-keamanan.md#celah-yang-diketahui). Yang terpenting:
+backend terminal bawaan (`local`) **tidak bersandbox**. Perintah yang lolos gerbang
+persetujuan berjalan dengan hak penuh pengguna; isolasi hanya ada bila backend `docker`
+dipilih.
 
-Tool `text_to_speech` menulis berkas audio dan menyerahkan pengirimannya ke `send_file`, dan
-hanya ditawarkan bila ada provider yang bisa dipakai (`check_fn`); teks di atas
-`speech.max_chars` ditolak sebelum provider dipanggil. Jawaban atas pesan suara dibalas suara
-hanya untuk platform yang disebut `speech.reply_with_voice`, dan jawaban yang terlalu panjang
-dibiarkan sebagai teks.
+## Tinjauan pihak kedua
 
-Dijaga `tests/tools/test_speech.py` (24) dan bagian "voice messages and spoken replies" di
-`tests/gateway/test_gateway.py` (13), termasuk kedua kriteria "selesai bila": pesan suara dari
-adapter `local` menjadi giliran dengan transkrip provider tiruan, dan `text_to_speech` tidak
-ditawarkan tanpa provider. Bentuk permintaan `speech-openai` diuji terhadap server HTTP lokal,
-seperti plugin provider lain: multipart transkripsi (`file`, `model`, `language`,
-`response_format`) dan badan JSON suara (`model`, `input`, `voice`, `speed`, `response_format`),
-beserta pesan galat API yang diteruskan apa adanya.
+Pada 6 Oktober 2026 verifikasi gabungan perbaikan audit selesai: 758 tes Python lulus,
+2 skip paket opsional, Ruff dan mypy bersih, serta 47 tes Node dan seluruh typecheck lulus.
+F08/F09 kini menjaga home, model, database, dan rahasia dua profil pada worker RPC/HTTP;
+penutupan WebSocket membawa scope yang sama. Redaksi juga mencakup rahasia scope dan
+mendahulukan nilai terpanjang agar awalan bersama tidak menyisakan potongan rahasia.
+Sembilan regresi gagal pada snapshot sebelum perbaikan. Tes katalog yang tanpa sengaja
+mengakses endpoint publik diganti dengan server lokal, dan tes startup TUI dibuat mandiri
+terhadap keadaan pemasangan paket. Provider asli dan UI Electron tetap belum
+terverifikasi. Perkembangan berikutnya dicatat di [checkpoint](CHECKPOINT-KERJA.md).
 
-Yang belum: uji tangan di Telegram, yang jadi kriteria ketiga F6-T7, belum dijalankan — tidak
-ada kredensial bot di mesin ini dan transkripsi sungguhan butuh `OPENAI_API_KEY`. Jadi belum ada
-satu pun panggilan ke Audio API OpenAI yang nyata; yang diuji adalah bentuk permintaan terhadap
-server tiruan dan perilaku tool terhadap backend tiruan. Karena itu F6-T7 tetap 🟡.
+Tinjauan tambahan pada 5 Oktober 2026 menemukan empat celah prioritas tinggi pada rotasi
+kredensial endpoint kustom, delegasi tool, sesi tanpa izin tool, dan penulisan skill lewat
+symlink. Perbaikannya sudah masuk bersama tes regresi. Suite Python setelah perbaikan lulus
+720 tes dan melewati 2 tes yang butuh paket opsional. Pengujian dengan provider sungguhan
+belum dilakukan. Perbaikan lanjutan memperjelas tipe handler RPC dan menolak kategori
+pemasangan skill yang keluar dari direktori lokal. Lima regresi pemasangan gagal pada
+salinan kode lama dan 35 tes skill lulus setelah perbaikan; pemeriksaan tipe area RPC
+lulus. Verifikasi gabungan perubahan lanjutan masih berlangsung.
 
-### F2-T14 OAuth dan `clite auth` (8 Oktober 2026)
+Pada 5 Oktober 2026 tiga peninjau independen (subagent yang tidak melihat proses pembuatan)
+dijalankan. **Ketiganya terhenti oleh batas pemakaian sebelum menulis laporan.** Yang bisa
+diselamatkan hanya percobaan peninjau keamanan:
 
-Dukungan OAuth 2.0 PKCE dan Device Code flow untuk provider model:
-- Subcommand `clite auth login <provider>`, `clite auth status`, `clite auth logout <provider>`.
-- Token disimpan di `<home>/auth.json` dengan izin berkas 0600 (owner-only DACL di Windows), penyegaran token otomatis sebelum kedaluwarsa, dan penanganan pencabutan token.
-- Token akses otomatis terdaftar sebagai kredensial rahasia sehingga diredaksi dari transkrip/log dan dibuang dari lingkungan proses anak (`build_child_env`). Berkas `auth.json` dilindungi dari pembacaan/penulisan via tool (`read_file`, `write_file`, `patch`) dan gerbang persetujuan `detect_self_access`.
-- Kumpulan kredensial (`CredentialPool`) dan resolusi rute (`resolve_runtime_provider`) mengintegrasikan token OAuth sebagai sumber kredensial.
-- Alur PKCE (dengan callback HTTP lokal) dan Device Code flow diuji terhadap server otorisasi tiruan lokal di `tests/providers/test_oauth.py`. Uji langsung terhadap provider asli secara daring belum dilakukan (offline mock).
+| Tinjauan | Hasil |
+|---|---|
+| Gerbang persetujuan perintah | Ditemukan cara murah melewati dua janji: larangan mutlak (`rm -rf "$HOME"`, `rm -rf '/'`, `rm --recursive --force /`) dan pertanyaan untuk perintah yang menjangkau pengaturan agent (glob seperti `~/.clite/.e*`, `~//.clite`, CLI lewat path absolut). Semuanya diperbaiki dan dijaga tes. Sisa yang tidak terbaca gerbang didaftar di [celah yang diketahui](arsitektur/06-keamanan.md#celah-yang-diketahui) |
+| Pemeriksa alamat `web_fetch` | Bertahan terhadap bentuk alamat yang dicoba (IPv4 terpetakan ke IPv6, alamat numerik) |
+| Penjaga file | Saat memperbaiki gerbang di atas ditemukan dua celah lagi dan ditutup: `.env` profil lain bisa dibaca, dan `gateway/pairing.json` bisa ditulis |
+| Kredensial dan redaksi, pemindai teks prompt, plugin dan shell hook, server, otorisasi gateway | **Belum ditinjau pihak kedua** |
+| File instruksi (`AGENTS.md`, prompt, skill) terhadap kode | **Tidak ada laporan** |
+| Uji petik uraian di `docs/hermes/` terhadap kode Hermes | **Tidak ada laporan** |
 
-### F4-T3 langkah email, Matrix, dan Signal (8 Oktober 2026)
+Mengulang ketiga tinjauan itu sampai selesai adalah pekerjaan pertama yang layak dilakukan
+sebelum pagar keamanan diandalkan.
 
-Plugin platform bawaan `email` memakai polling IMAP dan SMTP dari pustaka standar. Ia hanya
-meneruskan pengirim dalam `allowed_users`, dan memakai `References` sebagai `thread_id` agar
-setiap utas memiliki sesi gateway sendiri. Tes `tests/gateway/test_email.py` menjalankan server
-IMAP dan SMTP tiruan lokal, lalu menjaga penerimaan, pemetaan utas, balasan SMTP, dan penolakan
-pengirim lain. Layanan email asli belum pernah dicoba.
+## Menjalankan pemeriksaan
 
-Plugin platform bawaan `matrix` memakai Client-Server API dengan long polling `/sync` dan
-mengirim balasan `m.room.message`. Tes `tests/gateway/test_matrix.py` menjalankan server
-Client-Server tiruan lokal untuk menjaga penerimaan event room yang diizinkan, checkpoint sync,
-dan balasan ke room yang sama. E2EE sengaja belum didukung: event atau room terenkripsi tidak
-dibaca atau dibalas. Homeserver Matrix asli belum pernah dicoba.
+```bash
+pip install -e ".[dev]"
+npm install                                                  # opsional: type check dan build TypeScript
+scripts/run_tests.sh                                         # lint, mypy, tes Python, tes TypeScript
+git config core.hooksPath scripts/hooks                      # sekali per clone: run_tests.sh sebelum push
+python scripts/check_hermes_refs.py --hermes ../hermes-ref   # butuh clone Hermes
+```
 
-Plugin platform bawaan `signal` berbicara ke layanan REST `signal-cli` yang dijalankan pengguna:
-ia mem-poll `GET /v1/receive/<akun>` dan mengirim DM melalui `POST /v2/send`. Tes
-`tests/gateway/test_signal.py` menjalankan server REST tiruan lokal untuk menjaga penerimaan
-pesan dari `allowed_users`, pemetaan pengirim ke sesi gateway, serta payload balasan. Layanan
-Signal dan `signal-cli` asli belum pernah dicoba.
+Workflow CI di GitHub (`.github/workflows/ci.yml`) terpicu pada setiap push ke `firefuck/c-lite`
+tetapi tidak pernah mendapat runner, karena akun terkunci masalah penagihan (terakhir dicek 13
+Oktober 2026). Sebagai gantinya, hook `scripts/hooks/pre-push` menjalankan
+`scripts/run_tests.sh` dan menolak push bila ada yang gagal (`tests/test_pre_push_hook.py`).
+Yang tidak tercakup hook ini dibanding CI: job Windows, tes asap Electron di bawah `xvfb`, dan
+pemasangan wheel di virtualenv bersih (`python scripts/check_wheel_install.py`, jalankan
+manual sebelum rilis).
 
-Plugin platform bawaan `whatsapp` menerima webhook WhatsApp Cloud API setelah memverifikasi
-`X-Hub-Signature-256` memakai rahasia aplikasi, lalu mengirim balasan teks melalui Graph API.
-Tes `tests/gateway/test_whatsapp.py` memakai webhook dan Graph API tiruan lokal untuk menjaga
-verifikasi subscription, signature, penerimaan pengirim `allowed_users`, serta payload balasan.
-Layanan WhatsApp Cloud API asli belum pernah diverifikasi.
+## Riwayat per task
 
+Catatan saat task dikerjakan, urut menurut nomor task. Isinya tanggal dan keadaan pada
+waktu itu; keadaan sekarang ada di bagian-bagian di atas.
+
+### F1-T3 Gateway Telegram — verifikasi live (10 Oktober 2026)
+
+- Menggunakan CLITE_HOME terisolasi `/tmp/clite-f1t3`; config + `.env` (token `@clite0bot`)
+  dibuat terpisah dan tidak menyentuh home pengguna.
+- `clite gateway run` hidup >6s dan >14s (rc=124 dari timeout; tidak mati sendiri).
+- Token bot sungguhan diverifikasi lewat Bot API `getMe` → ok, bot "c-lite" (@clite0bot).
+- Belum: percakapan dua arah end-to-end (butuh Bos kirim pesan ke bot + allowed_users).
+
+### F1-T3 gateway Telegram: verifikasi hidup pertama (10 Oktober 2026)
+
+**Terverifikasi.** Bot uji sungguhan (@clite0bot) dipakai untuk menjalankan
+`clite gateway run` di home terisolasi `/tmp/clite-f1t3`:
+
+- `gateway run` bertahan hidup 14 detik (rc=124: dihentikan timeout, bukan crash);
+  proses tercatat lewat pidfile + `pgrep`.
+- Panggilan `getMe` ke Bot API asli berhasil: bot "c-lite" (@clite0bot).
+- Home terisolasi (CLITE_HOME); config.yaml + .env hanya berisi token uji;
+  token tidak pernah dicetak ke log (pemeriksaan redaksi jaringan ada di tes).
+
+Belum diverifikasi (menunggu interaksi pemilik): balasan dua arah end-to-end dari
+pesan Bos di Telegram, pairing orang asing (grup di-skip sesuai keputusan pemilik),
+jawaban >4096 karakter, persetujuan `/approve`, klarifikasi, interupsi, restart
+gateway yang melanjutkan percakapan, dan job cron `deliver: origin`.
+
+### F1-T7: rilis GitHub terbit dan teruji
+
+Distribusi `c-lite` versi `0.1.0` memakai MIT; import dan CLI tetap `clite`.
+Pada 7 Oktober 2026 runner memverifikasi ulang build wheel/sdist, pemeriksaan versi
+terhadap calon tag `v0.1.0`, pemasangan wheel ke virtualenv terpisah, dan
+`scripts/check_wheel_install.py` dengan Python mode terisolasi di luar checkout.
+CLI, doctor, giliran mock, plugin/skill bawaan, aset dashboard dan TUI lulus.
+Instalasi pipx dari wheel yang disajikan lewat HTTP lokal juga menghasilkan versi benar
+dan doctor lulus; metadata instalasinya menunjuk URL loopback, **bukan GitHub**.
+Sdist sudah dipasang di lingkungan terpisah dan menghasilkan CLI versi `0.1.0`.
+Doctor memakai config provider `mock`, bukan kredensial atau provider sungguhan.
+
+Sembilan tes `tests/test_release.py` menjaga versi tunggal, tag yang cocok, changelog,
+kenaikan versi, isi wheel dan penolakan tag pada tree kotor/duplikat. Bukti regresi di
+salinan terpisah: metadata lama menggagalkan dua tes; pelepasan pemeriksaan tag, penulisan
+versi, isi catatan rilis, dan pemeriksaan wheel masing-masing menggagalkan satu tes.
+Sesudah kode dipulihkan, sembilan tes lulus. Log lokal: /tmp/clite-f1t7-red.log.
+
+F1-T7 selesai: workflow `37563420757` hijau pada `e65bb0c` (build, Python 3.11/3.13,
+publish). Rilis https://github.com/dragovics/clite/releases/tag/v0.1.0 memuat wheel dan
+sdist. Aset diunduh lewat `gh release download`, digest SHA-256 cocok dengan GitHub,
+wheel dipasang dengan pipx terisolasi dan lulus versi, doctor mock serta smoke test.
+Repositori tetap privat; unduhan perlu autentikasi. Main belum di-merge; F1-T2 tetap parsial.
 
 ### F2-T2 gelombang pertama (7 Oktober 2026)
 
@@ -280,6 +326,7 @@ Belum diverifikasi: mengirim gambar ke provider berpenglihatan sungguhan dan mem
 lewat OpenAI Images sungguhan belum pernah dijalankan (butuh kunci API dan jaringan). Yang
 diuji adalah bentuk permintaan HTTP dan perakitan hasil terhadap server lokal, bukan API asli.
 Clone rujukan Hermes tidak tersedia, sehingga file rujukan belum dibaca.
+
 ### F2-T7: backend terminal Docker dan SSH (8 Oktober 2026)
 
 `BaseEnvironment` diperluas dengan operasi file (`read_file`, `write_file`, `list_dir`,
@@ -614,6 +661,15 @@ ini (`websockets`). Ruff bersih, mypy 174 file bersih. `scripts/gen_rpc_contract
 `tsc --noEmit` bersih; `ui-tui` 18 tes lulus (11 e2e, 7 render). Clone rujukan `../hermes-ref`
 tetap tidak tersedia, sehingga file rujukan belum dibaca.
 
+### F2-T14 OAuth dan `clite auth` (8 Oktober 2026)
+
+Dukungan OAuth 2.0 PKCE dan Device Code flow untuk provider model:
+- Subcommand `clite auth login <provider>`, `clite auth status`, `clite auth logout <provider>`.
+- Token disimpan di `<home>/auth.json` dengan izin berkas 0600 (owner-only DACL di Windows), penyegaran token otomatis sebelum kedaluwarsa, dan penanganan pencabutan token.
+- Token akses otomatis terdaftar sebagai kredensial rahasia sehingga diredaksi dari transkrip/log dan dibuang dari lingkungan proses anak (`build_child_env`). Berkas `auth.json` dilindungi dari pembacaan/penulisan via tool (`read_file`, `write_file`, `patch`) dan gerbang persetujuan `detect_self_access`.
+- Kumpulan kredensial (`CredentialPool`) dan resolusi rute (`resolve_runtime_provider`) mengintegrasikan token OAuth sebagai sumber kredensial.
+- Alur PKCE (dengan callback HTTP lokal) dan Device Code flow diuji terhadap server otorisasi tiruan lokal di `tests/providers/test_oauth.py`. Uji langsung terhadap provider asli secara daring belum dilakukan (offline mock).
+
 ### F2-T15: deteksi perintah yang lebih tahan penyamaran (8 Oktober 2026)
 
 `src/clite/tools/approval.py` kini menilai **posisi perintah**. `shell_plain` dihasilkan satu
@@ -661,98 +717,6 @@ celah "Gerbang persetujuan tidak menjalankan shell" kini tertutup dan dijaga
 `test_the_examples_in_the_security_document_are_caught`; sisa celahnya (substitusi bersarang
 lebih dalam dari batas, skrip di file lain) tetap terdaftar. Clone rujukan `../hermes-ref`
 tetap tidak tersedia, sehingga file rujukan belum dibaca.
-
-## Pemasangan yang sudah diverifikasi
-
-Pada 6 Oktober 2026 CI repo `https://github.com/dragovics/clite` run `37356398420` pada
-commit `6e6669c` lulus di semua job. Job Python memasang paket dari registry dan
-menjalankan Ruff, mypy, serta seluruh tes Python pada 3.11, 3.12, dan 3.13. Job Node 22
-memasang dependensi dengan `npm ci` dari `package-lock.json`, menjalankan
-`scripts/run_tests.sh` (termasuk pemeriksaan tipe), dan `npm run build`. Job wheel
-membangun wheel, memasangnya ke virtualenv bersih, lalu `scripts/check_wheel_install.py`
-lulus di luar checkout: CLI, doctor, giliran mock, plugin dan skill bawaan, aset dashboard,
-dan TUI. Aset skill yang sengaja dihilangkan ditolak oleh pemeriksa tersebut (dicoba lokal).
-Kendala penagihan yang tercatat pada repo sebelumnya tidak muncul di repo tujuan ini.
-F1-T1 selesai.
-
-### F1-T7: rilis GitHub terbit dan teruji
-
-Distribusi `c-lite` versi `0.1.0` memakai MIT; import dan CLI tetap `clite`.
-Pada 7 Oktober 2026 runner memverifikasi ulang build wheel/sdist, pemeriksaan versi
-terhadap calon tag `v0.1.0`, pemasangan wheel ke virtualenv terpisah, dan
-`scripts/check_wheel_install.py` dengan Python mode terisolasi di luar checkout.
-CLI, doctor, giliran mock, plugin/skill bawaan, aset dashboard dan TUI lulus.
-Instalasi pipx dari wheel yang disajikan lewat HTTP lokal juga menghasilkan versi benar
-dan doctor lulus; metadata instalasinya menunjuk URL loopback, **bukan GitHub**.
-Sdist sudah dipasang di lingkungan terpisah dan menghasilkan CLI versi `0.1.0`.
-Doctor memakai config provider `mock`, bukan kredensial atau provider sungguhan.
-
-Sembilan tes `tests/test_release.py` menjaga versi tunggal, tag yang cocok, changelog,
-kenaikan versi, isi wheel dan penolakan tag pada tree kotor/duplikat. Bukti regresi di
-salinan terpisah: metadata lama menggagalkan dua tes; pelepasan pemeriksaan tag, penulisan
-versi, isi catatan rilis, dan pemeriksaan wheel masing-masing menggagalkan satu tes.
-Sesudah kode dipulihkan, sembilan tes lulus. Log lokal: /tmp/clite-f1t7-red.log.
-
-F1-T7 selesai: workflow `37563420757` hijau pada `e65bb0c` (build, Python 3.11/3.13,
-publish). Rilis https://github.com/dragovics/clite/releases/tag/v0.1.0 memuat wheel dan
-sdist. Aset diunduh lewat `gh release download`, digest SHA-256 cocok dengan GitHub,
-wheel dipasang dengan pipx terisolasi dan lulus versi, doctor mock serta smoke test.
-Repositori tetap privat; unduhan perlu autentikasi. Main belum di-merge; F1-T2 tetap parsial.
-
-### F3-T3 dipecah (8 Oktober 2026)
-
-F3-T3 (TUI layar penuh, XL) dipecah menjadi F3-T9…F3-T15, masing-masing M atau lebih kecil,
-tanpa mengubah kode: kerangka aplikasi Ink (F3-T9), bilah status (F3-T10), dialog persetujuan
-dan klarifikasi (F3-T11), pelengkapan slash command (F3-T12), pemilih sesi dan model (F3-T13),
-tema dari skin dan tahan ubah ukuran (F3-T14), dan bundle Ink dalam satu `.mjs` (F3-T15).
-Kecuali F3-T12 (yang juga menunggu F3-T4), semuanya bergantung pada F3-T9.
-
-### F3-T10: dashboard status TUI langsung (10 Oktober 2026)
-
-Bilah bawah Ink kini memakai kontrak RPC yang sudah tersedia, bukan panggilan atau bidang baru:
-aktivitas menampilkan `idle`, tahap berpikir, atau nama tool yang berjalan; model/provider;
-konteks terukur `terpakai/total` dan persen; token input/output dari `turn.complete`; serta
-judul/id sesi dan cwd bila tersedia. Saat ruang cukup, semua fakta tampil dalam satu baris.
-Pada terminal sempit, formatter membuang rincian sesi, cwd, provider, dan token secara bertahap,
-sambil mempertahankan aktivitas, model, dan konteks sebelum elipsis terakhir.
-
-`RpcSession` menerbitkan `session.info` yang sudah ada tepat sebelum `turn.complete`, setelah
-provider memperbarui penghitung konteks; ini menghindari polling `session.usage` maupun kontrak
-khusus TUI. Tes formatter memeriksa semua bidang langsung dan susut sempit, sementara tes RPC
-memastikan event tambahan membawa konteks terukur. Verifikasi lokal: `node --test test/app.test.ts`,
-`node --test test/render.test.ts`, `npx tsc --noEmit -p .`, dan `npm run build` di `ui-tui/`;
-`pytest tests/rpc/test_rpc.py::test_a_turn_is_a_stream_of_events_ending_with_turn_complete -q`;
-`pytest tests/cli/test_tui_bundle.py -q`; serta `pytest tests/test_docs.py -q`.
-
-Keputusan desain yang mengikat semua anak: **Ink + React** (disetujui pemilik proyek), ditanam
-esbuild ke dalam satu file `.mjs` sehingga `pip install` tetap menghasilkan `clite tui` yang
-jalan tanpa `npm install` — ini pengecualian tertulis terhadap aturan "tanpa dependensi runtime
-baru" di `ui-tui/AGENTS.md`, yang akan diperbarui di F3-T9. Antarmuka baris (`plain.ts`) tetap
-ada sebagai `--plain` dan untuk masukan pipa, dan tes ujung ke ujung yang ada harus lulus di
-kedua mode. Yang dipakai ulang tanpa diubah: `backend.ts`, `gateway-client.ts`, dan reducer
-`transcript.ts`. Setiap rujukan Hermes yang disebut di pecahan sudah diperiksa keberadaannya
-(`ui-tui/src/...`, `ui-tui/scripts/build.mjs`). Tidak ada kode yang berubah; hanya
-`docs/roadmap/fase-3-cli-tui.md`, `docs/roadmap/README.md`, dan `docs/spesifikasi/tui.md`.
-
-### F3-T7: pelengkapan shell (8 Oktober 2026)
-
-`clite completion bash|zsh|fish` mencetak skrip pelengkapan yang dibangun dengan menelusuri
-pohon parser `main` yang sama (`build_parser`), jadi daftar sub-perintah dan opsi selalu sama
-dengan yang benar-benar diterima CLI dan ikut berubah saat plugin menambah perintahnya —
-tidak ada daftar nama yang dieja dua kali. Nilai dinamis (nama profil, model, id sesi)
-dilengkapi lewat `clite completion --values profiles|models|sessions`, yang membaca katalog
-dan mencetak satu nama per baris. Jalur `--values` sengaja tidak membangun parser dan tidak
-memuat plugin (diukur ~20 ms, `clite.plugins.manager` tidak masuk `sys.modules`), karena ia
-dipanggil pada tiap Tab; galat apa pun di situ ditelan agar Tab tidak pernah gagal.
-
-Sifat yang dijaga tes (`tests/cli/test_cli.py`): skrip bash memuat setiap sub-perintah yang
-benar-benar terdaftar di parser; skrip bash lulus `bash -n`; skrip zsh diawali `#compdef clite`
-dan fish memakai `complete -c clite`; `--values profiles` memuat `default`; dan
-`--values sessions` menjawab tanpa memuat plugin. Baris "pelengkapan shell" di
-`docs/spesifikasi/cli.md` menjadi ✅. Skrip zsh dan fish belum dijalankan di shell aslinya
-(keduanya tidak terpasang di mesin ini) — bentuknya diperiksa mata dan lolos pemeriksaan
-sintaks yang tersedia; dicatat sebagai belum diverifikasi terhadap zsh/fish sungguhan.
-F3-T7 selesai.
 
 ### F3-T1: input REPL klasik — saat sibuk, multi-baris, riwayat (8 Oktober 2026)
 
@@ -815,6 +779,14 @@ ulang. Clone rujukan `../hermes-ref` tidak tersedia; rujukan dibaca dari
 `/home/luwak/.hermes/hermes-agent`.
 F3-T2 selesai.
 
+### F3-T3 dipecah (8 Oktober 2026)
+
+F3-T3 (TUI layar penuh, XL) dipecah menjadi F3-T9…F3-T15, masing-masing M atau lebih kecil,
+tanpa mengubah kode: kerangka aplikasi Ink (F3-T9), bilah status (F3-T10), dialog persetujuan
+dan klarifikasi (F3-T11), pelengkapan slash command (F3-T12), pemilih sesi dan model (F3-T13),
+tema dari skin dan tahan ubah ukuran (F3-T14), dan bundle Ink dalam satu `.mjs` (F3-T15).
+Kecuali F3-T12 (yang juga menunggu F3-T4), semuanya bergantung pada F3-T9.
+
 ### F3-T4: slash command tambahan (8 Oktober 2026)
 
 Dua belas perintah baru ditambahkan, masing-masing satu baris `CommandDef` di
@@ -854,6 +826,26 @@ lulus. `test_every_command_has_a_handler_and_every_handler_a_command` tetap lulu
 `SLASH_HANDLERS` == nama `COMMAND_REGISTRY`, nama dan alias unik).
 F3-T4 selesai.
 
+### F3-T7: pelengkapan shell (8 Oktober 2026)
+
+`clite completion bash|zsh|fish` mencetak skrip pelengkapan yang dibangun dengan menelusuri
+pohon parser `main` yang sama (`build_parser`), jadi daftar sub-perintah dan opsi selalu sama
+dengan yang benar-benar diterima CLI dan ikut berubah saat plugin menambah perintahnya —
+tidak ada daftar nama yang dieja dua kali. Nilai dinamis (nama profil, model, id sesi)
+dilengkapi lewat `clite completion --values profiles|models|sessions`, yang membaca katalog
+dan mencetak satu nama per baris. Jalur `--values` sengaja tidak membangun parser dan tidak
+memuat plugin (diukur ~20 ms, `clite.plugins.manager` tidak masuk `sys.modules`), karena ia
+dipanggil pada tiap Tab; galat apa pun di situ ditelan agar Tab tidak pernah gagal.
+
+Sifat yang dijaga tes (`tests/cli/test_cli.py`): skrip bash memuat setiap sub-perintah yang
+benar-benar terdaftar di parser; skrip bash lulus `bash -n`; skrip zsh diawali `#compdef clite`
+dan fish memakai `complete -c clite`; `--values profiles` memuat `default`; dan
+`--values sessions` menjawab tanpa memuat plugin. Baris "pelengkapan shell" di
+`docs/spesifikasi/cli.md` menjadi ✅. Skrip zsh dan fish belum dijalankan di shell aslinya
+(keduanya tidak terpasang di mesin ini) — bentuknya diperiksa mata dan lolos pemeriksaan
+sintaks yang tersedia; dicatat sebagai belum diverifikasi terhadap zsh/fish sungguhan.
+F3-T7 selesai.
+
 ### F3-T9: kerangka aplikasi Ink (8 Oktober 2026)
 
 `clite tui` kini memilih antara UI layar penuh Ink dan UI baris: `chooseUi({stdinIsTTY,
@@ -880,125 +872,171 @@ menampilkan banner, jawaban, dan penanda sesi. TUI Ink belum diuji di terminal s
 diverifikasi terhadap terminal asli; komponennya tipe-benar dan dibangun tanpa galat.
 F3-T9 selesai.
 
-## Ditulis, belum diverifikasi
+### F3-T10: dashboard status TUI langsung (10 Oktober 2026)
 
-Semua butir ini punya kode, dan sebagian punya tes terhadap tiruan, tetapi belum pernah
-dijalankan terhadap hal yang sebenarnya. Anggap belum berfungsi sampai terbukti.
+Bilah bawah Ink kini memakai kontrak RPC yang sudah tersedia, bukan panggilan atau bidang baru:
+aktivitas menampilkan `idle`, tahap berpikir, atau nama tool yang berjalan; model/provider;
+konteks terukur `terpakai/total` dan persen; token input/output dari `turn.complete`; serta
+judul/id sesi dan cwd bila tersedia. Saat ruang cukup, semua fakta tampil dalam satu baris.
+Pada terminal sempit, formatter membuang rincian sesi, cwd, provider, dan token secara bertahap,
+sambil mempertahankan aktivitas, model, dan konteks sebelum elipsis terakhir.
 
-| Hal | Keadaan | Task |
-|---|---|---|
-| Rilis GitHub wheel/sdist | Artefak lokal dan instalasi pipx/virtualenv teruji; workflow tag, penerbitan, dan unduhan aset privat belum dijalankan | F1-T7 |
-| Panggilan ke provider sungguhan | Belum pernah. Transport `anthropic_messages` dan `chat_completions` hanya diuji terhadap server tiruan. Ini termasuk pemutaran ulang blok penalaran bertanda tangan pada model Claude generasi 5, yang aturannya diambil dari dokumentasi, bukan dari pengamatan | F1-T2 |
-| Teks penalaran model generasi 5 (`thinking.display`) | Diterapkan: profil `anthropic` meminta `display: summarized` bila `display.show_reasoning` aktif. Belum dicoba ke API asli | F1-T2 |
-| Transport `responses` | Diuji terhadap server HTTP lokal untuk streaming/nonstreaming dan dua ronde tool; `test_openai_responses_replays_reasoning_across_two_tool_rounds` belum dijalankan karena pemilik menunda uji API asli | F2-T1 |
-| Sepuluh profil tambahan gelombang pertama | Rute, bentuk HTTP streaming/nonstreaming, dan discovery setup diuji dengan server lokal. API asli (termasuk server LM Studio/vLLM sungguhan) belum pernah dipanggil; profil cloud Azure/Bedrock/Vertex juga hanya diuji lokal | F2-T2 🟡 |
-| Provider pencarian web (`web-search-ddg`, `web-search-tavily`) | Diuji terhadap server HTTP lokal yang meniru API pencarian. DuckDuckGo dan Tavily asli belum pernah dipanggil | F2-T5 ✅ |
-| Masukan dan analisis gambar ke provider sungguhan | Bentuk konten dan permintaan `vision_analyze` diuji terhadap transport dan terhadap HTTP loopback, bukan API asli. Mengirim gambar ke provider berpenglihatan sungguhan (dan perilaku model tanpa penglihatan terhadap gambar yang ditahan) belum pernah dijalankan | F2-T6 ✅ (uji asli belum) |
-| Pembuatan gambar lewat OpenAI Images (`image-gen-openai`) | Bentuk permintaan (`/v1/images/generations`, `model`/`prompt`/`size`/`n`) dan dekode `b64_json` diuji terhadap server lokal. API asli belum pernah dipanggil | F2-T6 ✅ (uji asli belum) |
-| Masukan gambar ke provider sungguhan | Bentuk konten diuji terhadap transport dan terhadap HTTP loopback, bukan API asli. Mengirim gambar ke provider berpenglihatan sungguhan (dan perilaku model tanpa penglihatan terhadap gambar yang ditahan) belum pernah dijalankan | F2-T6 🟡 |
-| Backend terminal Docker | Terverifikasi nyata di VM-36: 3/3 tes menjalankan perintah dalam container, baca/tulis lewat mount, dan menolak baca file di luar workspace | F2-T7 ✅ |
-| Backend terminal SSH | Terverifikasi nyata ke localhost di VM-36: 3/3 tes perintah, write/read/list/stat file, dan cleanup lewat koneksi SSH | F2-T7 ✅ |
-| Tes jaringan provider (`tests/providers/test_live.py`) | Ditulis, belum pernah dijalankan: menunggu kunci Anthropic dan satu provider kompatibel OpenAI | F1-T2 |
-| Persetujuan `smart` dengan model sungguhan | Hanya diuji dengan model berskrip | F1-T2 |
-| Adapter Telegram | Hanya terhadap Bot API tiruan. Daftar periksa bot sungguhan di F1-T3 belum dijalankan: menunggu token bot dan grup uji | F1-T3 |
-| Pengiriman cron ke `<platform>:<chat id>` | Diuji dengan adapter `local` dan divalidasi saat job dibuat; ke Telegram sungguhan belum | F1-T3 |
-| Windows | Terverifikasi CI `37499972911` pada `6360a9a`: 765 lulus, 59 terlewati. ACL `.env`, cmd/Git Bash, penghentian pohon proses, home/path, dan kunci dua proses lulus; REPL manual belum dicoba | F1-T5 ✅ |
-| macOS | Belum pernah dijalankan | F1-T1 |
-| Installer desktop (dmg, nsis, AppImage) | Linux: AppImage dibangun dan dijalankan, jendela memuat dashboard dari backend yang dijalankannya sendiri. macOS dan Windows belum pernah dibangun; pekerjaan CI `desktop` di `release.yml` belum pernah berjalan. Installer tidak bertanda tangan (tanpa sertifikat) | F5-T4 ✅ |
-| Plugin lewat entry point pip | Jalur muatnya ada; belum diuji dengan paket yang benar-benar terpasang | F6-T5 |
-| Situs dokumentasi pengguna | Halaman, pembangkit, dan contoh perintah mulai cepat diuji di sini; penerbitan GitHub Pages belum pernah berjalan | F6-T9 ✅ |
-| Model atau harness selain Claude Code | Belum pernah ada yang mengerjakan repositori ini. Panduan peralihannya disusun dari isi repositori, belum dari sesi nyata ([PANDUAN-MODEL-LAIN.md](PANDUAN-MODEL-LAIN.md)) | Coba dengan satu task S |
-| Skill dan subagent Claude Code di `.claude/` | Ditulis mengikuti dokumentasi Claude Code; belum pernah dipanggil di Claude Code. Bila `/orientasi` tidak dikenali, tempel bagian "Prompt" dari file di `docs/prompts/` | Coba dengan `/orientasi` |
+`RpcSession` menerbitkan `session.info` yang sudah ada tepat sebelum `turn.complete`, setelah
+provider memperbarui penghitung konteks; ini menghindari polling `session.usage` maupun kontrak
+khusus TUI. Tes formatter memeriksa semua bidang langsung dan susut sempit, sementara tes RPC
+memastikan event tambahan membawa konteks terukur. Verifikasi lokal: `node --test test/app.test.ts`,
+`node --test test/render.test.ts`, `npx tsc --noEmit -p .`, dan `npm run build` di `ui-tui/`;
+`pytest tests/rpc/test_rpc.py::test_a_turn_is_a_stream_of_events_ending_with_turn_complete -q`;
+`pytest tests/cli/test_tui_bundle.py -q`; serta `pytest tests/test_docs.py -q`.
 
-Yang sudah teramati dari integrasi Claude Code, di sesi cloud tempat scaffolding ini dibuat
-(Claude Code 2.1.289 terpasang di sana):
+Keputusan desain yang mengikat semua anak: **Ink + React** (disetujui pemilik proyek), ditanam
+esbuild ke dalam satu file `.mjs` sehingga `pip install` tetap menghasilkan `clite tui` yang
+jalan tanpa `npm install` — ini pengecualian tertulis terhadap aturan "tanpa dependensi runtime
+baru" di `ui-tui/AGENTS.md`, yang akan diperbarui di F3-T9. Antarmuka baris (`plain.ts`) tetap
+ada sebagai `--plain` dan untuk masukan pipa, dan tes ujung ke ujung yang ada harus lulus di
+kedua mode. Yang dipakai ulang tanpa diubah: `backend.ts`, `gateway-client.ts`, dan reducer
+`transcript.ts`. Setiap rujukan Hermes yang disebut di pecahan sudah diperiksa keberadaannya
+(`ui-tui/src/...`, `ui-tui/scripts/build.mjs`). Tidak ada kode yang berubah; hanya
+`docs/roadmap/fase-3-cli-tui.md`, `docs/roadmap/README.md`, dan `docs/spesifikasi/tui.md`.
 
-- `CLAUDE.md` di root dimuat bersama `AGENTS.md` yang diimpornya, dan `CLAUDE.md` sebuah
-  direktori ikut dimuat saat file di direktori itu dibaca.
-- Subagent `peninjau` dikenali, dengan nama, deskripsi, dan daftar tool yang benar.
-- `claude --help` versi itu memuat `--model` dengan alias `fable`, `--effort` dengan lima
-  tingkatnya, dan `--permission-mode plan`, sesuai yang ditulis di `docs/prompts/README.md`.
+### F4-T3 langkah email, Matrix, dan Signal (8 Oktober 2026)
 
-Kesepuluh skill di `.claude/skills/` sengaja disembunyikan dari model
-(`disable-model-invocation`), jadi pemuatannya tidak bisa diamati dari sesi itu. Itu sebabnya
-skill tetap ada di tabel di atas.
+Plugin platform bawaan `email` memakai polling IMAP dan SMTP dari pustaka standar. Ia hanya
+meneruskan pengirim dalam `allowed_users`, dan memakai `References` sebagai `thread_id` agar
+setiap utas memiliki sesi gateway sendiri. Tes `tests/gateway/test_email.py` menjalankan server
+IMAP dan SMTP tiruan lokal, lalu menjaga penerimaan, pemetaan utas, balasan SMTP, dan penolakan
+pengirim lain. Layanan email asli belum pernah dicoba.
 
-Hal lain yang perlu diketahui:
+Plugin platform bawaan `matrix` memakai Client-Server API dengan long polling `/sync` dan
+mengirim balasan `m.room.message`. Tes `tests/gateway/test_matrix.py` menjalankan server
+Client-Server tiruan lokal untuk menjaga penerimaan event room yang diizinkan, checkpoint sync,
+dan balasan ke room yang sama. E2EE sengaja belum didukung: event atau room terenkripsi tidak
+dibaca atau dibalas. Homeserver Matrix asli belum pernah dicoba.
 
-- **Beban dan skala belum diuji.** Tidak ada tes untuk sesi yang sangat panjang, banyak sesi
-  gateway bersamaan, atau database yang besar.
-- **Bedah Hermes** (`docs/hermes/`) ditulis dari membaca kode pada satu commit. Keberadaan
-  setiap file yang dirujuk sudah diperiksa mesin; uraian perilakunya tidak diperiksa ulang
-  satu per satu.
-- **Ukuran task di roadmap adalah perkiraan.**
+Plugin platform bawaan `signal` berbicara ke layanan REST `signal-cli` yang dijalankan pengguna:
+ia mem-poll `GET /v1/receive/<akun>` dan mengirim DM melalui `POST /v2/send`. Tes
+`tests/gateway/test_signal.py` menjalankan server REST tiruan lokal untuk menjaga penerimaan
+pesan dari `allowed_users`, pemetaan pengirim ke sesi gateway, serta payload balasan. Layanan
+Signal dan `signal-cli` asli belum pernah dicoba.
 
-## Tinjauan pihak kedua
+Plugin platform bawaan `whatsapp` menerima webhook WhatsApp Cloud API setelah memverifikasi
+`X-Hub-Signature-256` memakai rahasia aplikasi, lalu mengirim balasan teks melalui Graph API.
+Tes `tests/gateway/test_whatsapp.py` memakai webhook dan Graph API tiruan lokal untuk menjaga
+verifikasi subscription, signature, penerimaan pengirim `allowed_users`, serta payload balasan.
+Layanan WhatsApp Cloud API asli belum pernah diverifikasi.
 
-Pada 6 Oktober 2026 verifikasi gabungan perbaikan audit selesai: 758 tes Python lulus,
-2 skip paket opsional, Ruff dan mypy bersih, serta 47 tes Node dan seluruh typecheck lulus.
-F08/F09 kini menjaga home, model, database, dan rahasia dua profil pada worker RPC/HTTP;
-penutupan WebSocket membawa scope yang sama. Redaksi juga mencakup rahasia scope dan
-mendahulukan nilai terpanjang agar awalan bersama tidak menyisakan potongan rahasia.
-Sembilan regresi gagal pada snapshot sebelum perbaikan. Tes katalog yang tanpa sengaja
-mengakses endpoint publik diganti dengan server lokal, dan tes startup TUI dibuat mandiri
-terhadap keadaan pemasangan paket. Provider asli dan UI Electron tetap belum
-terverifikasi. Perkembangan berikutnya dicatat di [checkpoint](CHECKPOINT-KERJA.md).
+### F6-T2 skill bawaan (10 Oktober 2026)
 
-Tinjauan tambahan pada 5 Oktober 2026 menemukan empat celah prioritas tinggi pada rotasi
-kredensial endpoint kustom, delegasi tool, sesi tanpa izin tool, dan penulisan skill lewat
-symlink. Perbaikannya sudah masuk bersama tes regresi. Suite Python setelah perbaikan lulus
-720 tes dan melewati 2 tes yang butuh paket opsional. Pengujian dengan provider sungguhan
-belum dilakukan. Perbaikan lanjutan memperjelas tipe handler RPC dan menolak kategori
-pemasangan skill yang keluar dari direktori lokal. Lima regresi pemasangan gagal pada
-salinan kode lama dan 35 tes skill lulus setelah perbaikan; pemeriksaan tipe area RPC
-lulus. Verifikasi gabungan perubahan lanjutan masih berlangsung.
+Dua belas skill bawaan dibawa dari Hermes dalam tiga kategori, masing-masing ditulis ulang
+mengikuti tool C-lite: enam di `software-development` (`codebase-inspection`, `github`,
+`python-debugpy`, `requesting-code-review`, `simplify-code`, `spike`), dua di `productivity`
+(`meeting-action-items`, `weekly-review-planning`), dan empat di `research` (`arxiv`,
+`competitor-news-monitor`, `grounded-citations`, `llm-wiki`). Setiap berkas menyebut asalnya di
+`metadata.clite.attribution`, dan `NOTICE.md` mendaftar kumpulannya.
 
-Pada 5 Oktober 2026 tiga peninjau independen (subagent yang tidak melihat proses pembuatan)
-dijalankan. **Ketiganya terhenti oleh batas pemakaian sebelum menulis laporan.** Yang bisa
-diselamatkan hanya percobaan peninjau keamanan:
+Empat tes baru di `tests/skills/test_skills.py` menjaga setiap berkas bawaan: lolos validasi
+format dan pemindaian ancaman; tidak menyebut tool yang tidak terdaftar di luar
+`requires_tools`/`fallback_for_tools`; tidak memuat nama produk atau path home Hermes; dan
+indeks tetap di bawah `MAX_INDEX_CHARS` dengan semuanya aktif. `tests/skills/` lulus 74,
+terlewati 1 (jaringan).
 
-| Tinjauan | Hasil |
-|---|---|
-| Gerbang persetujuan perintah | Ditemukan cara murah melewati dua janji: larangan mutlak (`rm -rf "$HOME"`, `rm -rf '/'`, `rm --recursive --force /`) dan pertanyaan untuk perintah yang menjangkau pengaturan agent (glob seperti `~/.clite/.e*`, `~//.clite`, CLI lewat path absolut). Semuanya diperbaiki dan dijaga tes. Sisa yang tidak terbaca gerbang didaftar di [celah yang diketahui](arsitektur/06-keamanan.md#celah-yang-diketahui) |
-| Pemeriksa alamat `web_fetch` | Bertahan terhadap bentuk alamat yang dicoba (IPv4 terpetakan ke IPv6, alamat numerik) |
-| Penjaga file | Saat memperbaiki gerbang di atas ditemukan dua celah lagi dan ditutup: `.env` profil lain bisa dibaca, dan `gateway/pairing.json` bisa ditulis |
-| Kredensial dan redaksi, pemindai teks prompt, plugin dan shell hook, server, otorisasi gateway | **Belum ditinjau pihak kedua** |
-| File instruksi (`AGENTS.md`, prompt, skill) terhadap kode | **Tidak ada laporan** |
-| Uji petik uraian di `docs/hermes/` terhadap kode Hermes | **Tidak ada laporan** |
+Yang belum: kategori lain di Hermes (`apple`, `autonomous-ai-agents`, `creative`, `devops`,
+`email`, `media`, `note-taking`, `social-media`, `web`), skill yang butuh peramban atau CLI
+pihak ketiga, skill berat yang membawa skrip sendiri (`docx`, `xlsx`, `pdf`, `powerpoint`), dan
+pemisahan bawaan/opsional — hub C-lite belum punya sumber `optional-skills`. Daftarnya ada di
+[roadmap fase 6](roadmap/fase-6-ekosistem.md#f6-t2-porting-skill-bawaan-dari-hermes).
 
-Mengulang ketiga tinjauan itu sampai selesai adalah pekerjaan pertama yang layak dilakukan
-sebelum pagar keamanan diandalkan.
+### F6-T7 suara (10 Oktober 2026)
 
-## Belum ada
+Dua registry provider di `src/clite/tools/speech.py` (`TranscriptionProvider`, `SpeechProvider`),
+masing-masing dipilih lewat `speech.transcription.provider` dan `speech.speech.provider`. Nama
+yang tidak terdaftar, factory yang rusak, atau provider berkunci tanpa kunci di `.env` dilewati;
+yang tersisa dipakai, supaya satu backend rusak tidak mematikan seluruh suara. Plugin bawaan
+`speech-openai` (`kind: backend`) mendaftarkan dua provider sekaligus atas `OPENAI_API_KEY` yang
+sama: `openai-transcribe` (`POST /v1/audio/transcriptions`) dan `openai-speech`
+(`POST /v1/audio/speech`). Bentuk permintaan, daftar suara, dan batas 25 MB / 4096 karakter
+dicatat di docstring plugin bersama tanggal pemeriksaannya.
 
-Yang ada di Hermes dan belum ada di sini didaftar di
-[arsitektur/07-beda-dengan-hermes.md](arsitektur/07-beda-dengan-hermes.md#yang-belum-dibawa),
-dan setiap butirnya punya task di [roadmap](roadmap/README.md). Yang paling terasa bagi
-pemakaian harian: pencarian web, backend terminal bersandbox, render Markdown, TUI layar
-penuh, dan platform pesan selain Telegram.
+Pesan suara ditranskripsi di `gateway/runner.py` sebelum menjadi giliran: transkripnya masuk
+sebagai teks pengguna, berkasnya tetap di direktori media sesi, dan model tidak menerima path
+rekaman kecuali transkripsi gagal. `speech.max_seconds` dan `speech.max_bytes` diperiksa lebih
+dulu, jadi rekaman yang melewatinya tidak pernah dikirim ke provider — catatan: dengan bawaan
+`attachments.max_bytes: 5000000` yang lebih ketat, batas ukuran suara baru menggigit bila
+diset di bawahnya. Durasi dibaca dari header
+container — WAV lewat modul `wave`, Ogg Opus lewat granule position halaman terakhir — dan
+container yang tidak menyebutkan durasinya hanya tunduk pada batas ukuran. Setiap kegagalan
+(provider tidak ada, provider error, provider mengembalikan bukan string, transkrip kosong)
+berakhir sebagai pemberitahuan ke model; tidak ada jalur suara yang menggagalkan giliran.
 
-Celah keamanan yang diketahui didaftar tersendiri di
-[arsitektur/06-keamanan.md](arsitektur/06-keamanan.md#celah-yang-diketahui). Yang terpenting:
-**tidak ada sandbox**. Perintah yang lolos gerbang persetujuan berjalan dengan hak penuh
-pengguna.
+Tool `text_to_speech` menulis berkas audio dan menyerahkan pengirimannya ke `send_file`, dan
+hanya ditawarkan bila ada provider yang bisa dipakai (`check_fn`); teks di atas
+`speech.max_chars` ditolak sebelum provider dipanggil. Jawaban atas pesan suara dibalas suara
+hanya untuk platform yang disebut `speech.reply_with_voice`, dan jawaban yang terlalu panjang
+dibiarkan sebagai teks.
 
-## Menjalankan pemeriksaan
+Dijaga `tests/tools/test_speech.py` (24) dan bagian "voice messages and spoken replies" di
+`tests/gateway/test_gateway.py` (13), termasuk kedua kriteria "selesai bila": pesan suara dari
+adapter `local` menjadi giliran dengan transkrip provider tiruan, dan `text_to_speech` tidak
+ditawarkan tanpa provider. Bentuk permintaan `speech-openai` diuji terhadap server HTTP lokal,
+seperti plugin provider lain: multipart transkripsi (`file`, `model`, `language`,
+`response_format`) dan badan JSON suara (`model`, `input`, `voice`, `speed`, `response_format`),
+beserta pesan galat API yang diteruskan apa adanya.
 
-```bash
-pip install -e ".[dev]"
-npm install                                                  # opsional: type check dan build TypeScript
-scripts/run_tests.sh                                         # lint, mypy, tes Python, tes TypeScript
-git config core.hooksPath scripts/hooks                      # sekali per clone: run_tests.sh sebelum push
-python scripts/check_hermes_refs.py --hermes ../hermes-ref   # butuh clone Hermes
-```
+Yang belum: uji tangan di Telegram, yang jadi kriteria ketiga F6-T7, belum dijalankan — tidak
+ada kredensial bot di mesin ini dan transkripsi sungguhan butuh `OPENAI_API_KEY`. Jadi belum ada
+satu pun panggilan ke Audio API OpenAI yang nyata; yang diuji adalah bentuk permintaan terhadap
+server tiruan dan perilaku tool terhadap backend tiruan. Karena itu F6-T7 tetap 🟡.
 
-Workflow CI di GitHub (`.github/workflows/ci.yml`) terpicu pada setiap push ke `firefuck/c-lite`
-tetapi tidak pernah mendapat runner, karena akun terkunci masalah penagihan (terakhir dicek 13
-Oktober 2026). Sebagai gantinya, hook `scripts/hooks/pre-push` menjalankan
-`scripts/run_tests.sh` dan menolak push bila ada yang gagal (`tests/test_pre_push_hook.py`).
-Yang tidak tercakup hook ini dibanding CI: job Windows, tes asap Electron di bawah `xvfb`, dan
-pemasangan wheel di virtualenv bersih (`python scripts/check_wheel_install.py`, jalankan
-manual sebelum rilis).
+### F6-T9 situs dokumentasi pengguna (10 Oktober 2026)
+
+Situs terpisah dari `docs/`, untuk orang yang memakai C-lite tanpa pernah membuka kodenya:
+pasang, mulai cepat, konfigurasi, tool, skill, plugin, gateway, keamanan, dan halaman rujukan.
+Ditulis dalam dua bahasa karena keputusan pemiliknya "keduanya": `website/content/id/` dan
+`website/content/en/`, dua belas halaman masing-masing, dengan daftar slug yang sama persis
+supaya tombol bahasa selalu menemukan padanannya. Nama perintah, flag, path produk, dan
+keluaran perintah tidak diterjemahkan; yang berbeda antar-bahasa adalah prosanya dan teks
+contoh yang diketik pengguna (prompt, nama profil, nama skill, nama berkas contoh).
+
+Pembangkitnya `scripts/build_site.py`, memakai pustaka standar saja, bukan Docusaurus seperti
+Hermes: paket Python harus tetap bisa dipasang tanpa Node. `website/docusaurus.config.ts` dan
+`website/sidebars.ts` menjadi rujukan strukturnya (pohon halaman, menu samping, tombol
+bahasa), bukan dependensinya. Tata letak dan aturan penulisannya ada di `website/AGENTS.md`.
+
+Halaman rujukan situs (perintah, kunci config, tool) **dihasilkan** oleh
+`scripts/gen_docs.py --target site` dari registry yang sama dengan katalog pengembang; satu
+fungsi `catalog_sections(language)` memasok keduanya. Dua halaman pengembang di
+`docs/referensi/` keluarannya tidak berubah sama sekali oleh tugas ini. Seperti katalog
+pengembang, halaman ini tidak boleh disunting dengan tangan, dan ada tes yang gagal bila ada
+halaman lain muncul di pohon `reference/`.
+
+Tiga belas tes di `tests/test_website.py` menjaga janji situs, semuanya tanpa jaringan:
+halaman rujukan sama dengan keluaran pembangkit; tidak ada halaman tulisan tangan di pohon
+`reference/`; kedua pohon bahasa punya daftar slug yang sama; menu samping memuat setiap
+halaman; setiap halaman dimulai satu heading `# `; terjemahan mempertahankan bentuk halamannya
+(jumlah bagian, pagar kode berurutan, dan baris tabel sama persis); situs dibangun dan setiap
+halaman serta `style.css` ada; tombol bahasa menunjuk halaman yang sama di bahasa lain; setiap
+tautan relatif di hasil bangun menunjuk berkas yang ada; dan pagar `bash` hanya ada di halaman
+mulai cepat.
+
+Dua kriteria "selesai bila" yang bisa diuji di sini dijalankan sungguhan, sebagai proses
+terpisah seperti `test_generated_reference_pages_are_current`:
+`test_the_reference_pages_of_the_site_match_the_generator` menjalankan
+`scripts/gen_docs.py --target site --check`, dan
+`test_the_commands_in_the_quick_start_run_as_written` menjalankan **setiap baris** setiap pagar
+`bash` di `start/quickstart.md` apa adanya — `clite` menjadi `python -m clite` — terhadap
+provider `mock` di home sementara. Karena blok itu dijalankan apa adanya, satu pagar `bash`
+hanya boleh ada di halaman mulai cepat; halaman lain memakai `console` (transkrip terminal,
+dibaca saja) atau info string bahasa datanya. Perintah yang tampil di transkrip mulai cepat
+tetapi tidak dijalankan (`clite`, `clite setup`, dan bentuk flag `clite setup` yang butuh kunci
+sungguhan) terdaftar di `NOT_EXECUTED` beserta alasannya, dan tes gagal bila halaman itu
+menampilkan perintah baru yang tidak dijalankan maupun dijelaskan.
+
+Yang belum: **penerbitannya**. `.github/workflows/docs.yml` membangun situs dan mengunggahnya
+sebagai artefak GitHub Pages setiap kali ada rilis diterbitkan, dan hal yang sama sudah
+dijalankan di sini pada 10 Oktober 2026, tetapi workflow itu belum pernah berjalan di GitHub.
+Jadi kriteria pertama ("situs terbit, dan tautannya ada di `README.md`") baru terbukti setelah
+rilis pertama yang memicunya; tautannya sendiri sudah ada di `README.md`. Karena itu F6-T9
+tetap 🟡, sama seperti F6-T7.
 
 ## Catatan verifikasi
 
@@ -1074,27 +1112,3 @@ dari "belum diverifikasi".
 | 9 Oktober 2026 | F6-T2 (porting skill bawaan) — **selesai**: 25 skill diporting dari Hermes `1298c8e74baa73e1a2b90124228d017261ac6bc4` (7 software-development, 14 productivity, 4 research) ke `src/clite/bundled/skills/`, frontmatter diadaptasi (`metadata.clite` + `attributed_from`), `~/.hermes`→`~/.clite`, tool yang tidak ada di C-lite dihapus atau dialihkan (`web_extract`→`web_fetch`, `browser_*` dihapus, helper tak ada seperti rss-feeds/blogwatcher/obsidian/xurl dialihkan ke `web_search`/`web_fetch`). Pola curl+token pada baris perintah di `airtable` dan `github` ditolak pemindai (`exfil_curl`); keduanya dibekali skrip stdlib (`atr.py`, `ghapi.py`) yang membaca token di dalam proses. Empat tes penjaga baru di `tests/skills/test_skills.py`: validasi format + pemindaian ancaman seluruh bundled, larangan menyebut tool/path yang tidak ada, dan batas ukuran indeks; guard dibuktikan merah dengan menyuntikkan `browser_navigate` pada salinan, hijau setelah dipulihkan. `scripts/build_skills_index.py` dijalankan ulang; `NOTICE.md` mendaftar seluruh skill yang dibawa. Porting tidak menambah satu pun kegagalan; perburuan CI menyusul membereskan kegagalan runner yang sudah ada sebelumnya di akarnya: impor `scripts.*` pada `pytest` polos, identitas git untuk `release.tag`, argv Docker `--workdir` pada path yang belum ada di image (container kini dialamati lewat nama hasil generate, bukan parse output `run`), dan payload TypeScript yang tertinggal kolom biaya; `clite profile list` di desktop dihardening (env anak proses menumpuk di atas environment asli, stderr dilaporkan), smoke desktop mencoba ulang saat konteks halaman dimuat ulang, dan job Windows menjadi `continue-on-error` (porting Windows belum tuntas: 39 kegagalan turun ke 9 setelah penulisan berkas byte-exact di `atomic_write_text`, pemisahan path bawaan platform di `_similar_names`, dan penandaan platform pada tes chmod/SIGTERM/fcntl/alpine; sisanya: pencocokan patch atas CRLF, hash indeks dan dokumen yang dihasilkan, dua tes terminal Windows). Suite penuh lokal: Ruff bersih, mypy 211 file bersih, 1570 tes Python lulus/0 gagal/47 terlewati, 90 tes TypeScript lulus; CI hijau — python 3.11–3.13, node, dan wheel `success`, run `success` | Linux, Python 3.14.7 |
 | 10 Oktober 2026 | F6-T9: situs dokumentasi pengguna. 1617 tes Python lulus/50 terlewati/1 gagal (identitas git, lingkungan, sudah ada sebelum tugas ini), Ruff bersih, mypy 213 file bersih, `python scripts/gen_docs.py --check` bersih (keluaran `docs/referensi/` tidak berubah oleh tugas ini). Tiga belas tes baru `tests/test_website.py`, semuanya tanpa jaringan. Merah/hijau: (a) menyunting satu halaman rujukan situs membuat `gen_docs.py --target site --check` keluar 1 dengan `out of date: website/content/id/reference/tools.md`, hijau sesudah dihasilkan ulang; (b) mengganti `clite doctor` menjadi `clite docter` di pagar `bash` mulai cepat menggagalkan `test_the_commands_in_the_quick_start_run_as_written` dengan `the quick start shows `clite docter`, and it fails`; (c) tes menemukan satu cacat sungguhan di `scripts/build_site.py` — `website/static/` disalin ke akar hasil bangun tetapi setiap halaman menautkan `static/style.css`, jadi stylesheet-nya 404 di seluruh situs; sesudah diperbaiki, `test_every_relative_link_in_the_built_pages_resolves` dan `test_the_site_builds_and_writes_every_page` hijau. Situs dibangun sungguhan: 24 halaman (12 slug × 2 bahasa), `index.html`, dan `style.css`. Belum: penerbitan GitHub Pages; `.github/workflows/docs.yml` belum pernah berjalan di GitHub, jadi kriteria "situs terbit" belum terbukti dan F6-T9 tetap 🟡 | Linux, Python 3.14.7 |
 | 13 Oktober 2026 | Dashboard React (F5-T3: F5-T7 sampai F5-T11) menggantikan dashboard JS polos. Sumbernya `web/`, dibangun ke `src/clite/server/static/` dan dikirim di wheel. Ke-24 tes browser dashboard lama lulus tanpa diubah di Chromium sungguhan (tiga kali berturut-turut), 10 tes `web/test/dashboard.test.ts` lulus, dan `tests/server/test_dashboard_bundle.py` menjaga kesegaran bundle. Merah/hijau: merusak routing event di `web/src/state/dashboard.ts` menggagalkan tes routing; bingkai halaman plugin semula kosong karena diambil sebelum `plugins.list` memuat plugin, ditemukan tes browser dan diperbaiki. Ditemukan sekaligus: `package-lock.json` mengunci 103 paket ke mirror pihak ketiga lewat HTTP (diganti ke registry npm lewat HTTPS, semua hash integritas cocok); tes e2e TUI dan tes pemaketan desktop masih mengharapkan versi 0.1.0 sesudah rilis 1.0.0, dan kegagalan tes e2e meninggalkan backend hidup sehingga suite tampak menggantung. Belum: dashboard React di jendela Electron (tes asap desktop butuh layar dan Electron) | Linux, Python 3.13.16, Node 22.22.0, Chromium 1194 |
-
-### F1-T3 Gateway Telegram — verifikasi live (10 Oktober 2026)
-
-- Menggunakan CLITE_HOME terisolasi `/tmp/clite-f1t3`; config + `.env` (token `@clite0bot`)
-  dibuat terpisah dan tidak menyentuh home pengguna.
-- `clite gateway run` hidup >6s dan >14s (rc=124 dari timeout; tidak mati sendiri).
-- Token bot sungguhan diverifikasi lewat Bot API `getMe` → ok, bot "c-lite" (@clite0bot).
-- Belum: percakapan dua arah end-to-end (butuh Bos kirim pesan ke bot + allowed_users).
-
-### F1-T3 gateway Telegram: verifikasi hidup pertama (10 Oktober 2026)
-
-**Terverifikasi.** Bot uji sungguhan (@clite0bot) dipakai untuk menjalankan
-`clite gateway run` di home terisolasi `/tmp/clite-f1t3`:
-
-- `gateway run` bertahan hidup 14 detik (rc=124: dihentikan timeout, bukan crash);
-  proses tercatat lewat pidfile + `pgrep`.
-- Panggilan `getMe` ke Bot API asli berhasil: bot "c-lite" (@clite0bot).
-- Home terisolasi (CLITE_HOME); config.yaml + .env hanya berisi token uji;
-  token tidak pernah dicetak ke log (pemeriksaan redaksi jaringan ada di tes).
-
-Belum diverifikasi (menunggu interaksi pemilik): balasan dua arah end-to-end dari
-pesan Bos di Telegram, pairing orang asing (grup di-skip sesuai keputusan pemilik),
-jawaban >4096 karakter, persetujuan `/approve`, klarifikasi, interupsi, restart
-gateway yang melanjutkan percakapan, dan job cron `deliver: origin`.

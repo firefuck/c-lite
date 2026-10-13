@@ -52,6 +52,9 @@ Tes dan pemeriksaan (dari direktori ini):
 
 - Tes ujung ke ujung menjalankan backend Python sungguhan. Ia menaruh `src/` repositori di
   `PYTHONPATH`; dependensi Python (pydantic, PyYAML, dan lain-lain) harus terpasang.
+- Di `test/e2e.test.ts`, backend dijalankan lewat `start(...)`, bukan `spawnBackend(...)`
+  langsung. `start` mencatatnya supaya `afterEach` menghentikan backend yang ditinggal tes
+  gagal; backend yang masih hidup membuat Node tidak pernah selesai dan suite tampak menggantung.
 - `PlainTui` punya dua mode masukan. Tes yang meniru orang mengetik harus mengirim
   `interactive: true`; tanpa itu stream uji dianggap skrip dan tiap baris menunggu giliran.
 - Respons dan event berbagi satu aliran. Event giliran bisa tiba sebelum respons

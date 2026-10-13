@@ -1,0 +1,25 @@
+name: Usulan fitur
+description: Kemampuan baru, atau cara yang lebih baik untuk sesuatu yang sudah ada.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Masalah yang ingin diselesaikan
+      description: Apa yang sekarang sulit atau tidak mungkin dilakukan, dan untuk siapa.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Usulan
+      description: Bentuk yang Anda bayangkan. Di C-lite kemampuan baru biasanya berupa tool, skill, plugin, profil provider, atau fase giliran (lihat docs/arsitektur/01-lapisan.md).
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatif yang sudah dipertimbangkan
+  - type: input
+    id: hermes
+    attributes:
+      label: Padanan di Hermes Agent (bila ada)
+      description: Nama berkas atau fitur di Hermes yang serupa.

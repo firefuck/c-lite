@@ -1,0 +1,19 @@
+# Line endings are LF in the repository and on every checkout, Windows included: tests hash
+# file contents and the shell scripts must run under Git Bash.
+* text=auto eol=lf
+
+# Binary files are never normalized or diffed as text.
+*.png binary
+*.jpg binary
+*.ico binary
+*.icns binary
+*.woff2 binary
+
+# Generated from source; collapsed in pull request diffs. See the derived-files table in AGENTS.md.
+apps/shared/src/contracts.generated.ts linguist-generated=true
+src/clite/tui_dist/** linguist-generated=true
+src/clite/server/static/** linguist-generated=true
+src/clite/bundled/skills-index.json linguist-generated=true
+src/clite/bundled/plugins-index.json linguist-generated=true
+docs/referensi/katalog.md linguist-generated=true
+docs/referensi/peta-modul.md linguist-generated=true
