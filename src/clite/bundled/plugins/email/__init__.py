@@ -54,7 +54,11 @@ class EmailAdapter:
         return {str(user).casefold() for user in self.config.get("allowed_users") or []}
 
     def connect(self) -> None:
-        if not self.config.get("imap_host") or not self.config.get("smtp_host") or not self.config.get("from_address"):
+        if (
+            not self.config.get("imap_host")
+            or not self.config.get("smtp_host")
+            or not self.config.get("from_address")
+        ):
             raise RuntimeError("email requires imap_host, smtp_host, and from_address")
         if not get_secret(IMAP_PASSWORD_ENV):
             raise RuntimeError(f"{IMAP_PASSWORD_ENV} is not set; add it to .env")
@@ -87,7 +91,10 @@ class EmailAdapter:
     def _receive_once(self) -> None:
         client = self._imap()
         try:
-            client.login(str(self.config.get("imap_username") or self.config["from_address"]), get_secret(IMAP_PASSWORD_ENV) or "")
+            client.login(
+                str(self.config.get("imap_username") or self.config["from_address"]),
+                get_secret(IMAP_PASSWORD_ENV) or "",
+            )
             client.select(str(self.config.get("imap_mailbox") or "INBOX"))
             status, data = client.search(None, "UNSEEN")
             if status != "OK":
@@ -97,7 +104,10 @@ class EmailAdapter:
                 status, parts = client.fetch(number_text, "(RFC822)")
                 if status != "OK":
                     continue
-                raw = next((part[1] for part in parts if isinstance(part, tuple) and isinstance(part[1], bytes)), None)
+                raw = next(
+                    (part[1] for part in parts if isinstance(part, tuple) and isinstance(part[1], bytes)),
+                    None,
+                )
                 if raw is None:
                     continue
                 event = self.to_event(raw)
@@ -121,7 +131,9 @@ class EmailAdapter:
         if not text:
             return None
         references = message.get("References", "").split()
-        thread_id = references[0] if references else message.get("In-Reply-To") or message.get("Message-ID") or ""
+        thread_id = (
+            references[0] if references else message.get("In-Reply-To") or message.get("Message-ID") or ""
+        )
         return self.ctx.gateway_message_event(
             text=text,
             source=self.ctx.gateway_session_source(

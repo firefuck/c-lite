@@ -66,7 +66,9 @@ def _parse_catalog(payload: dict[str, Any]) -> list[ModelInfo]:
         pricing = None
         if isinstance(entry.get("pricing"), dict):
             pricing = ModelPricing.from_dict(entry["pricing"])
-        models.append(ModelInfo(model_id, length, str(entry.get("display_name") or entry.get("name") or ""), pricing))
+        models.append(
+            ModelInfo(model_id, length, str(entry.get("display_name") or entry.get("name") or ""), pricing)
+        )
     return models
 
 

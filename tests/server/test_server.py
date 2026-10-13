@@ -259,7 +259,9 @@ def test_a_message_over_the_limit_is_refused(clite_home):
             assert json.loads(socket.recv(timeout=5))["result"]["pong"] is True
             # One over the cap closes the connection instead of being parsed.
             with pytest.raises(ConnectionClosed):
-                socket.send(json.dumps({"jsonrpc": "2.0", "id": 2, "method": "ping", "params": {"x": "y" * 8000}}))
+                socket.send(
+                    json.dumps({"jsonrpc": "2.0", "id": 2, "method": "ping", "params": {"x": "y" * 8000}})
+                )
                 socket.recv(timeout=5)
     finally:
         server.should_exit = True
@@ -431,22 +433,37 @@ def test_openai_routes_return_openai_objects_and_sse_when_enabled(clite_home):
     )
     instance, server, thread = start_backend(token="test-token-123")
     try:
+
         def post(path, body, headers=None):
-            request = urllib.request.Request(instance.base + path, data=json.dumps(body).encode(), method="POST")
+            request = urllib.request.Request(
+                instance.base + path, data=json.dumps(body).encode(), method="POST"
+            )
             request.add_header("Authorization", f"Bearer {instance.token}")
             request.add_header("Content-Type", "application/json")
             for key, value in (headers or {}).items():
                 request.add_header(key, value)
             with urllib.request.urlopen(request, timeout=10) as response:
                 return response.read().decode()
+
         with pytest.raises(urllib.error.HTTPError) as missing:
             urllib.request.urlopen(instance.base + "/v1/models", timeout=5)
         assert missing.value.code == 401
         models = instance.get("/v1/models", token=instance.token)
-        assert models == (200, {"object": "list", "data": [{"id": "mock-1", "object": "model", "owned_by": "clite"}]})
-        normal = json.loads(post("/v1/chat/completions", {"model": "mock-1", "messages": [{"role": "user", "content": "hi"}]}))
-        assert normal["object"] == "chat.completion" and normal["choices"][0]["message"]["content"] == "You said: hi"
-        sse = post("/v1/chat/completions", {"model": "mock-1", "stream": True, "messages": [{"role": "user", "content": "hi"}]})
+        assert models == (
+            200,
+            {"object": "list", "data": [{"id": "mock-1", "object": "model", "owned_by": "clite"}]},
+        )
+        normal = json.loads(
+            post("/v1/chat/completions", {"model": "mock-1", "messages": [{"role": "user", "content": "hi"}]})
+        )
+        assert (
+            normal["object"] == "chat.completion"
+            and normal["choices"][0]["message"]["content"] == "You said: hi"
+        )
+        sse = post(
+            "/v1/chat/completions",
+            {"model": "mock-1", "stream": True, "messages": [{"role": "user", "content": "hi"}]},
+        )
         assert "data: [DONE]" in sse and '"object": "chat.completion.chunk"' in sse
     finally:
         server.should_exit = True
@@ -512,16 +529,15 @@ def test_a_socket_that_comes_back_gets_what_it_missed(clite_home):
 
         with instance.connect() as socket:
             rpc = Rpc(socket)
-            attached = rpc.call(
-                "session.attach", {"session_id": session["session_id"], "last_seq": last_seq}
-            )
+            attached = rpc.call("session.attach", {"session_id": session["session_id"], "last_seq": last_seq})
             assert attached["complete"] is True
             finished = next(e for e in attached["events"] if e["type"] == "turn.complete")
             assert finished["payload"]["final_response"] == "done while you were away"
             # The session answers on the new socket.
-            assert rpc.call("session.info", {"session_id": session["session_id"]})[
-                "stored_session_id"
-            ] == session["stored_session_id"]
+            assert (
+                rpc.call("session.info", {"session_id": session["session_id"]})["stored_session_id"]
+                == session["stored_session_id"]
+            )
 
 
 @contextlib.contextmanager

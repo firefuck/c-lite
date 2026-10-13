@@ -41,9 +41,7 @@ def repair_tool_pairs(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if message.get("role") == "tool" and message.get("tool_call_id") not in call_ids:
             continue
         repaired.append(message)
-    answered = {
-        message.get("tool_call_id") for message in repaired if message.get("role") == "tool"
-    }
+    answered = {message.get("tool_call_id") for message in repaired if message.get("role") == "tool"}
     result: list[dict[str, Any]] = []
     for message in repaired:
         result.append(message)

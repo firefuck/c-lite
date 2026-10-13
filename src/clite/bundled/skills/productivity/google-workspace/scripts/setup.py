@@ -130,6 +130,7 @@ def check_auth_live():
     try:
         from google.oauth2.credentials import Credentials
         from googleapiclient.discovery import build
+
         creds = Credentials.from_authorized_user_file(str(TOKEN_PATH))
         service = build("calendar", "v3", credentials=creds)
         service.calendarList().list(maxResults=1).execute()
@@ -185,7 +186,8 @@ def check_auth(quiet: bool = False):
                 json.dumps(
                     _normalize_authorized_user_payload(json.loads(creds.to_json())),
                     indent=2,
-                ), encoding="utf-8"
+                ),
+                encoding="utf-8",
             )
             missing_scopes = _missing_scopes_from_payload(_load_token_payload(TOKEN_PATH))
             if missing_scopes:
@@ -203,7 +205,9 @@ def check_auth(quiet: bool = False):
                 print("  Steps to resolve:")
                 print("    1. Check your Google Cloud Console — verify the OAuth client is not disabled")
                 print("    2. Check if your Google account itself has been disabled at myaccount.google.com")
-                print("    3. If the account is disabled, you can appeal at accounts.google.com/signin/recovery")
+                print(
+                    "    3. If the account is disabled, you can appeal at accounts.google.com/signin/recovery"
+                )
                 print("    4. Do NOT retry API calls with a disabled account — this may worsen the situation")
                 print("    5. If the OAuth client is disabled, create a new one in Google Cloud Console")
             elif "token_revoked" in err_str or "invalid_grant" in err_str:
@@ -249,7 +253,8 @@ def _save_pending_auth(*, state: str, code_verifier: str):
                 "redirect_uri": REDIRECT_URI,
             },
             indent=2,
-        ), encoding="utf-8"
+        ),
+        encoding="utf-8",
     )
 
 
@@ -364,7 +369,9 @@ def exchange_auth_code(code: str):
     # Store only the scopes actually granted by the user, not what was requested.
     # creds.to_json() writes the requested scopes, which causes refresh to fail
     # with invalid_scope if the user only authorized a subset.
-    actually_granted = list(creds.granted_scopes or []) if hasattr(creds, "granted_scopes") and creds.granted_scopes else []
+    actually_granted = (
+        list(creds.granted_scopes or []) if hasattr(creds, "granted_scopes") and creds.granted_scopes else []
+    )
     if actually_granted:
         token_payload["scopes"] = actually_granted
     elif granted_scopes != SCOPES:
@@ -398,6 +405,7 @@ def revoke():
             creds.refresh(Request())
 
         import urllib.request
+
         urllib.request.urlopen(
             urllib.request.Request(
                 f"https://oauth2.googleapis.com/revoke?token={creds.token}",
@@ -419,7 +427,9 @@ def main():
     parser = argparse.ArgumentParser(description="Google Workspace OAuth setup for C-lite")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--check", action="store_true", help="Check if auth is valid (exit 0=yes, 1=no)")
-    group.add_argument("--check-live", action="store_true", help="Check auth with a real API call (detects disabled_client)")
+    group.add_argument(
+        "--check-live", action="store_true", help="Check auth with a real API call (detects disabled_client)"
+    )
     group.add_argument("--client-secret", metavar="PATH", help="Store OAuth client_secret.json")
     group.add_argument("--auth-url", action="store_true", help="Print OAuth URL for user to visit")
     group.add_argument("--auth-code", metavar="CODE", help="Exchange auth code for token")

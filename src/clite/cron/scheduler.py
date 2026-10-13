@@ -264,7 +264,11 @@ def tick(
             dispatched_jobs.append(store.mark_dispatched(job["id"], current))  # before running: at-most-once
         workers = max(1, int(config_get("cron.max_concurrent_jobs", 4) or 1))
         with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="clite-cron-tick") as executor:
-            return list(executor.map(lambda job: run_job(job, store=store, client=client, deliver=deliver), dispatched_jobs))
+            return list(
+                executor.map(
+                    lambda job: run_job(job, store=store, client=client, deliver=deliver), dispatched_jobs
+                )
+            )
     finally:
         lock.release()
 

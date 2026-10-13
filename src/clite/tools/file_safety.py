@@ -73,7 +73,14 @@ def protected_path(path: str | os.PathLike[str]) -> str | None:
     if _is_within(target, get_profiles_root()):
         inside.append(target.relative_to(get_profiles_root().resolve(strict=False)).parts[1:])
     names = {"/".join(parts).lower() for parts in inside}
-    return next((name for name in PROTECTED_PATHS if any(value == name or value.startswith(f"{name}/") for value in names)), None)
+    return next(
+        (
+            name
+            for name in PROTECTED_PATHS
+            if any(value == name or value.startswith(f"{name}/") for value in names)
+        ),
+        None,
+    )
 
 
 def write_denied_reason(path: str | os.PathLike[str]) -> str | None:

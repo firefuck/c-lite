@@ -108,8 +108,14 @@ def test_matrix_plugin_long_polls_local_sync_and_sends_a_room_message(monkeypatc
         assert sent is not None
         method, path, body = sent
         assert method == "PUT"
-        assert unquote(urlparse(path).path).startswith("/_matrix/client/v3/rooms/!room:example.test/send/m.room.message/")
-        assert body == {"msgtype": "m.text", "body": "The answer", "m.relates_to": {"m.in_reply_to": {"event_id": "$question"}}}
+        assert unquote(urlparse(path).path).startswith(
+            "/_matrix/client/v3/rooms/!room:example.test/send/m.room.message/"
+        )
+        assert body == {
+            "msgtype": "m.text",
+            "body": "The answer",
+            "m.relates_to": {"m.in_reply_to": {"event_id": "$question"}},
+        }
     finally:
         if "adapter" in locals():
             adapter.disconnect()

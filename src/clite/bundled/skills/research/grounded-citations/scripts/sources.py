@@ -305,7 +305,9 @@ def render_sources(
             key = f"source{s['id']}"
             title = s.get("title") or s["url"]
             lines.append(
-                "@misc{{{},\n  title = {{{}}},\n  howpublished = {{\\url{{{}}}}},\n  note = {{Accessed {}}}\n}}".format(key, title, s["url"], s.get("accessed", ""))
+                "@misc{{{},\n  title = {{{}}},\n  howpublished = {{\\url{{{}}}}},\n  note = {{Accessed {}}}\n}}".format(
+                    key, title, s["url"], s.get("accessed", "")
+                )
             )
         return "\n".join(lines)
     if style == "footnotes":
@@ -347,7 +349,7 @@ def _split_draft(text: str) -> tuple[str, dict[int, str]]:
             header_idx = i
     listed: dict[int, str] = {}
     if header_idx >= 0:
-        for line in lines[header_idx + 1:]:
+        for line in lines[header_idx + 1 :]:
             m = _SOURCE_LINE_RE.match(line)
             if m:
                 url_match = _URL_IN_TEXT_RE.search(line)
@@ -430,8 +432,7 @@ def verify_draft(
     missing_from_block = sorted(cited_set - set(listed)) if listed else []
     if missing_from_block:
         errors.append(
-            "cited but absent from the Sources block: "
-            + ", ".join(f"[{i}]" for i in missing_from_block)
+            "cited but absent from the Sources block: " + ", ".join(f"[{i}]" for i in missing_from_block)
         )
 
     for sid, url in sorted(listed.items()):
@@ -448,8 +449,7 @@ def verify_draft(
     extra_in_block = sorted(set(listed) - cited_set)
     if extra_in_block:
         warnings.append(
-            "listed in Sources but never cited inline: "
-            + ", ".join(f"[{i}]" for i in extra_in_block)
+            "listed in Sources but never cited inline: " + ", ".join(f"[{i}]" for i in extra_in_block)
         )
 
     registered_uncited = sorted(set(by_id) - cited_set)
@@ -471,9 +471,7 @@ def verify_draft(
         )
 
     if require_evidence:
-        unevidenced = sorted(
-            i for i in cited_set if i in by_id and not by_id[i].get("quotes")
-        )
+        unevidenced = sorted(i for i in cited_set if i in by_id and not by_id[i].get("quotes"))
         if unevidenced:
             errors.append(
                 "cited sources carry no verbatim evidence quote (run `quote` with the "
@@ -605,11 +603,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "quote":
-        raw = (
-            sys.stdin.read()
-            if args.evidence == "-"
-            else Path(args.evidence).read_text(encoding="utf-8")
-        )
+        raw = sys.stdin.read() if args.evidence == "-" else Path(args.evidence).read_text(encoding="utf-8")
         entry = attach_quote(path, args.id, args.text, raw)
         print(f"[{entry['id']}] evidence attached ({len(entry.get('quotes', []))} quote(s))")
         return 0

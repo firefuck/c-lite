@@ -74,6 +74,7 @@ def format_telegram_markdown(text: str) -> str:
 
     # MarkdownV2 permits only backslash and backtick escaping inside code blocks/spans.
     rendered = re.sub(r"(?ms)^(```[^`\n]*\n)(.*?)(^[ \t]*```)[ \t]*$", fenced, text)
+
     def code_span(match: re.Match[str]) -> str:
         code = match.group(1).replace("\\", "\\\\")
         return stash(f"`{code}`")
@@ -86,7 +87,12 @@ def format_telegram_markdown(text: str) -> str:
         return stash(f"[{_escape_markdown_v2(label)}]({safe_url})")
 
     rendered = re.sub(r"\[([^\]]+)\]\(([^()]*(?:\([^()]*\)[^()]*)*)\)", link, rendered)
-    rendered = re.sub(r"^#{1,6}\s+(.+)$", lambda match: inline(match.group(1).strip(), "*", "*"), rendered, flags=re.MULTILINE)
+    rendered = re.sub(
+        r"^#{1,6}\s+(.+)$",
+        lambda match: inline(match.group(1).strip(), "*", "*"),
+        rendered,
+        flags=re.MULTILINE,
+    )
     rendered = re.sub(r"\*\*(.+?)\*\*", lambda match: inline(match.group(1), "*", "*"), rendered)
     rendered = re.sub(r"\*([^*\n]+)\*", lambda match: inline(match.group(1), "_", "_"), rendered)
     rendered = re.sub(r"~~(.+?)~~", lambda match: inline(match.group(1), "~", "~"), rendered)
@@ -95,7 +101,10 @@ def format_telegram_markdown(text: str) -> str:
     # A leading unescaped > is Telegram's documented native blockquote syntax.  Every quote
     # line is preserved, so consecutive Markdown quote lines become one multiline quote block.
     rendered = re.sub(
-        r"^> ?(.*)$", lambda match: stash(f"> {_escape_markdown_v2(match.group(1))}"), rendered, flags=re.MULTILINE
+        r"^> ?(.*)$",
+        lambda match: stash(f"> {_escape_markdown_v2(match.group(1))}"),
+        rendered,
+        flags=re.MULTILINE,
     )
     rendered = _escape_markdown_v2(rendered)
     for key, value in reversed(tuple(placeholders.items())):
@@ -141,6 +150,7 @@ def telegram_command_menu() -> list[dict[str, str]]:
             if len(menu) == TELEGRAM_MAX_BOT_COMMANDS:
                 return menu
     return menu
+
 
 register_secret(
     SecretSpec(
@@ -425,7 +435,11 @@ class TelegramAdapter(BasePlatformAdapter):
     def send(
         self, chat_id: str, text: str, *, reply_to: str | None = None, thread_id: str | None = None
     ) -> SendResult:
-        payload: dict[str, Any] = {"chat_id": chat_id, "text": format_telegram_markdown(text), "parse_mode": "MarkdownV2"}
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "text": format_telegram_markdown(text),
+            "parse_mode": "MarkdownV2",
+        }
         if reply_to:
             payload["reply_parameters"] = {"message_id": int(reply_to)}
         if thread_id:

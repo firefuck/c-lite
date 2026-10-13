@@ -7,6 +7,7 @@ Modes:
   --notes        JSON list of speaker notes per slide.
   --images DIR   Export every embedded picture to DIR as files.
 """
+
 import argparse
 import json
 import os
@@ -27,41 +28,44 @@ def iter_shapes(shapes):
 
 
 def chart_info(chart):
-    info = {"type": str(chart.chart_type),
-            "categories": [str(c) for c in chart.plots[0].categories],
-            "series": []}
+    info = {
+        "type": str(chart.chart_type),
+        "categories": [str(c) for c in chart.plots[0].categories],
+        "series": [],
+    }
     for plot in chart.plots:
         for series in plot.series:
             try:
                 name = series.name
             except (AttributeError, KeyError):
                 name = None
-            info["series"].append({"name": name,
-                                   "values": list(series.values)})
+            info["series"].append({"name": name, "values": list(series.values)})
     return info
 
 
 def slide_record(index, slide):
-    rec = {"index": index, "layout": slide.slide_layout.name,
-           "texts": [], "tables": [], "images": [], "charts": [],
-           "notes": None}
+    rec = {
+        "index": index,
+        "layout": slide.slide_layout.name,
+        "texts": [],
+        "tables": [],
+        "images": [],
+        "charts": [],
+        "notes": None,
+    }
     for shape in iter_shapes(slide.shapes):
         if shape.has_text_frame and shape.text_frame.text.strip():
             rec["texts"].append(shape.text_frame.text)
         if shape.has_table:
-            rec["tables"].append(
-                [[cell.text for cell in row.cells]
-                 for row in shape.table.rows])
+            rec["tables"].append([[cell.text for cell in row.cells] for row in shape.table.rows])
         if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
             try:
                 img = shape.image
-                rec["images"].append({"filename": img.filename,
-                                      "ext": img.ext,
-                                      "size_bytes": len(img.blob)})
+                rec["images"].append({"filename": img.filename, "ext": img.ext, "size_bytes": len(img.blob)})
             except (KeyError, ValueError):
-                rec["images"].append({"filename": None, "ext": None,
-                                      "size_bytes": None,
-                                      "note": "linked or unreadable"})
+                rec["images"].append(
+                    {"filename": None, "ext": None, "size_bytes": None, "note": "linked or unreadable"}
+                )
         if shape.has_chart:
             rec["charts"].append(chart_info(shape.chart))
     if slide.has_notes_slide:
@@ -90,15 +94,11 @@ def export_images(prs, out_dir):
 def main(argv=None):
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    parser = argparse.ArgumentParser(
-        description="Read a .pptx: outline/notes as JSON, export images.")
+    parser = argparse.ArgumentParser(description="Read a .pptx: outline/notes as JSON, export images.")
     parser.add_argument("pptx", help="path to the .pptx file")
-    parser.add_argument("--outline", action="store_true",
-                        help="print full JSON outline (default)")
-    parser.add_argument("--notes", action="store_true",
-                        help="print speaker notes only")
-    parser.add_argument("--images", metavar="DIR",
-                        help="export embedded images into DIR")
+    parser.add_argument("--outline", action="store_true", help="print full JSON outline (default)")
+    parser.add_argument("--notes", action="store_true", help="print speaker notes only")
+    parser.add_argument("--images", metavar="DIR", help="export embedded images into DIR")
     args = parser.parse_args(argv)
 
     prs = Presentation(args.pptx)
@@ -108,17 +108,15 @@ def main(argv=None):
         print(json.dumps({"ok": True, "exported": written}, indent=2))
         return 0
     if args.notes:
-        notes = [slide.notes_slide.notes_text_frame.text
-                 if slide.has_notes_slide else None
-                 for slide in prs.slides]
-        print(json.dumps({"ok": True, "notes": notes},
-                         indent=2, ensure_ascii=True))
+        notes = [
+            slide.notes_slide.notes_text_frame.text if slide.has_notes_slide else None for slide in prs.slides
+        ]
+        print(json.dumps({"ok": True, "notes": notes}, indent=2, ensure_ascii=True))
         return 0
 
     outline = {
         "ok": True,
-        "slide_size_inches": [round(Emu(prs.slide_width).inches, 3),
-                              round(Emu(prs.slide_height).inches, 3)],
+        "slide_size_inches": [round(Emu(prs.slide_width).inches, 3), round(Emu(prs.slide_height).inches, 3)],
         "slide_count": len(prs.slides._sldIdLst),
         "layouts_available": [lay.name for lay in prs.slide_layouts],
         "slides": [slide_record(i, s) for i, s in enumerate(prs.slides)],

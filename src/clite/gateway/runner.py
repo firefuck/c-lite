@@ -163,8 +163,6 @@ _APPROVAL_BUTTONS = (
 )
 
 
-
-
 @dataclass
 class _Pending:
     """A question the agent asked that the next message from this chat answers."""
@@ -479,7 +477,9 @@ class GatewayRunner:
             model = encoded.decode("utf-8", errors="ignore") + "…"
         return prefix + model
 
-    def _model_picker_view(self, picker: _ModelPicker, session: GatewaySession) -> tuple[str, list[list[dict[str, str]]]]:
+    def _model_picker_view(
+        self, picker: _ModelPicker, session: GatewaySession
+    ) -> tuple[str, list[list[dict[str, str]]]]:
         page_size = 8
         selecting_provider = picker.provider is None
         choices = picker.providers if selecting_provider else picker.models
@@ -490,7 +490,9 @@ class GatewayRunner:
         if selecting_provider:
             buttons = [
                 {
-                    "text": self._model_picker_label(provider, current=provider == session.chat.agent.route.provider),
+                    "text": self._model_picker_label(
+                        provider, current=provider == session.chat.agent.route.provider
+                    ),
                     "callback_data": f"mp:{picker.key}:provider:{index}",
                 }
                 for index, provider in enumerate(choices[start : start + page_size], start=start)
@@ -511,10 +513,16 @@ class GatewayRunner:
         if total_pages > 1:
             navigation: list[dict[str, str]] = []
             if picker.page:
-                navigation.append({"text": "◀ Prev", "callback_data": f"mp:{picker.key}:page:{picker.page - 1}"})
-            navigation.append({"text": f"{picker.page + 1}/{total_pages}", "callback_data": f"mp:{picker.key}:noop"})
+                navigation.append(
+                    {"text": "◀ Prev", "callback_data": f"mp:{picker.key}:page:{picker.page - 1}"}
+                )
+            navigation.append(
+                {"text": f"{picker.page + 1}/{total_pages}", "callback_data": f"mp:{picker.key}:noop"}
+            )
             if picker.page < total_pages - 1:
-                navigation.append({"text": "Next ▶", "callback_data": f"mp:{picker.key}:page:{picker.page + 1}"})
+                navigation.append(
+                    {"text": "Next ▶", "callback_data": f"mp:{picker.key}:page:{picker.page + 1}"}
+                )
             rows.append(navigation)
         if not selecting_provider:
             rows.append([{"text": "◀ Back", "callback_data": f"mp:{picker.key}:back:0"}])
@@ -533,7 +541,9 @@ class GatewayRunner:
         from clite.providers.registry import list_providers
 
         current = session.chat.agent.route.provider
-        providers = [profile.name for profile in list_providers(session.chat.agent.config) if profile.is_configured()]
+        providers = [
+            profile.name for profile in list_providers(session.chat.agent.config) if profile.is_configured()
+        ]
         if current not in providers:
             providers.insert(0, current)
         providers = list(dict.fromkeys(providers))
@@ -544,7 +554,9 @@ class GatewayRunner:
         key = secrets.token_hex(4)
         picker = _ModelPicker(key=key, session_key=session.key, source=session.source, providers=providers)
         text, keyboard = self._model_picker_view(picker, session)
-        result = adapter.send_model_picker(session.source.chat_id, text, keyboard, thread_id=session.source.thread_id)
+        result = adapter.send_model_picker(
+            session.source.chat_id, text, keyboard, thread_id=session.source.thread_id
+        )
         if not result.success:
             logger.warning("could not send Telegram model picker: %s", result.error)
             return False
@@ -568,7 +580,11 @@ class GatewayRunner:
             adapter.answer_callback(callback_id, "You are not authorized.")
             return
         picker = self._model_pickers.get(key)
-        if picker is None or picker.source.user_id != source.user_id or picker.source.chat_id != source.chat_id:
+        if (
+            picker is None
+            or picker.source.user_id != source.user_id
+            or picker.source.chat_id != source.chat_id
+        ):
             adapter.answer_callback(callback_id, "This model picker has expired. Run /model again.")
             return
         session = self._get_session(source)
@@ -613,7 +629,10 @@ class GatewayRunner:
             from clite.providers.models import list_models
 
             route = session.chat.agent.route
-            models = [model.id for model in list_models(provider, route=route if provider == route.provider else None)]
+            models = [
+                model.id
+                for model in list_models(provider, route=route if provider == route.provider else None)
+            ]
             if provider == route.provider and route.model not in models:
                 models.insert(0, route.model)
             models = list(dict.fromkeys(models))
@@ -695,7 +714,8 @@ class GatewayRunner:
         """Remove the keyboard associated with a text answer or a timed-out pending approval."""
         with self._lock:
             prompt = next(
-                (candidate for candidate in self._approval_prompts.values() if candidate.pending is pending), None
+                (candidate for candidate in self._approval_prompts.values() if candidate.pending is pending),
+                None,
             )
         if prompt is not None:
             self._remove_telegram_approval(prompt, text)
@@ -922,7 +942,12 @@ class GatewayRunner:
         if session.pending is not None and self._answer_pending(session, text):
             return
 
-        if event.source.platform == "telegram" and text == "/model" and not session.busy and self._send_telegram_model_picker(session):
+        if (
+            event.source.platform == "telegram"
+            and text == "/model"
+            and not session.busy
+            and self._send_telegram_model_picker(session)
+        ):
             return
 
         name, _args = split_command(text)
@@ -939,7 +964,9 @@ class GatewayRunner:
                         session.turns.clear()
                     self.reply(event.source, "Stopping running turn and resetting session…")
                 elif definition is None or definition.busy_policy != BUSY_ALLOW:
-                    self.reply(event.source, f"/{name} has to wait: I am still working. Send /stop to interrupt.")
+                    self.reply(
+                        event.source, f"/{name} has to wait: I am still working. Send /stop to interrupt."
+                    )
                     return
             result = session.chat.run_slash(text)
             if result.action == ACTION_NEW:
@@ -1130,7 +1157,9 @@ class GatewayRunner:
                 nonlocal first_send
                 if typing_keeper is not None:
                     typing_keeper.stop()
-                result = adapter.send(chat_id, text, reply_to=reply_to if first_send else None, thread_id=thread_id)
+                result = adapter.send(
+                    chat_id, text, reply_to=reply_to if first_send else None, thread_id=thread_id
+                )
                 if result.success:
                     first_send = False
                 return result.message_id if result.success else None
@@ -1167,7 +1196,9 @@ class GatewayRunner:
             if typing_keeper is not None:
                 typing_keeper.stop()
             logger.exception("gateway turn failed for %s", session.key)
-            self.reply(session.source, f"Something went wrong: {type(exc).__name__}: {exc}", reply_to=reply_to)
+            self.reply(
+                session.source, f"Something went wrong: {type(exc).__name__}: {exc}", reply_to=reply_to
+            )
             return
         finally:
             if typing_keeper is not None:
@@ -1217,9 +1248,7 @@ class GatewayRunner:
             return
         max_chars = speech.speech_limits()["max_chars"]
         if max_chars and len(text) > max_chars:
-            logger.info(
-                "session %s: a %d character answer is too long to speak", session.key, len(text)
-            )
+            logger.info("session %s: a %d character answer is too long to speak", session.key, len(text))
             return
         settings = speech.speech_settings()
         directory = media.media_dir(session.key) / "spoken"
@@ -1227,9 +1256,7 @@ class GatewayRunner:
         try:
             directory.mkdir(parents=True, exist_ok=True)
             provider.synthesize(text, target, voice=settings["voice"], model=settings["model"])
-            sent = adapter.send_file(
-                session.source.chat_id, str(target), thread_id=session.source.thread_id
-            )
+            sent = adapter.send_file(session.source.chat_id, str(target), thread_id=session.source.thread_id)
         except Exception:  # noqa: BLE001 - the text answer already landed; the voice copy is a bonus
             logger.warning("session %s: could not speak the reply", session.key, exc_info=True)
             try:  # a half-written file is worse than none, but failing to remove it is not a turn

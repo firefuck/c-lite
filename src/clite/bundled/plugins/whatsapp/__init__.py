@@ -71,7 +71,9 @@ class WhatsAppAdapter:
 
     def handle_webhook_verification(self, query: dict[str, str]) -> str | None:
         """Return Meta's challenge only for this adapter's configured verification token."""
-        if query.get("hub.mode") == "subscribe" and hmac.compare_digest(query.get("hub.verify_token", ""), self.verify_token):
+        if query.get("hub.mode") == "subscribe" and hmac.compare_digest(
+            query.get("hub.verify_token", ""), self.verify_token
+        ):
             return query.get("hub.challenge", "")
         return None
 
@@ -121,7 +123,13 @@ class WhatsAppAdapter:
         phone_number_id, names, message = item
         sender = str(message.get("from") or "")
         text = str((message.get("text") or {}).get("body") or "").strip()
-        if not phone_number_id or message.get("type") != "text" or not sender or sender not in self.allowed_users() or not text:
+        if (
+            not phone_number_id
+            or message.get("type") != "text"
+            or not sender
+            or sender not in self.allowed_users()
+            or not text
+        ):
             return None
         return self.ctx.gateway_message_event(
             text=text,
@@ -146,7 +154,12 @@ class WhatsAppAdapter:
         phone_number_id = str(self.config.get("phone_number_id") or "")
         if not phone_number_id:
             return self.ctx.gateway_send_result(False, error="whatsapp requires phone_number_id")
-        body: dict[str, Any] = {"messaging_product": "whatsapp", "to": chat_id, "type": "text", "text": {"body": text}}
+        body: dict[str, Any] = {
+            "messaging_product": "whatsapp",
+            "to": chat_id,
+            "type": "text",
+            "text": {"body": text},
+        }
         if reply_to:
             body["context"] = {"message_id": reply_to}
         request = urllib.request.Request(  # noqa: S310 - Graph endpoint may be a local test fake
@@ -156,12 +169,18 @@ class WhatsAppAdapter:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=float(self.config.get("request_timeout", 30))) as response:  # noqa: S310
+            with urllib.request.urlopen(
+                request, timeout=float(self.config.get("request_timeout", 30))
+            ) as response:  # noqa: S310
                 result = json.loads(response.read())
         except Exception as exc:  # noqa: BLE001 - runner receives a result rather than an adapter exception
             return self.ctx.gateway_send_result(False, error=f"WhatsApp send failed: {exc}")
         messages = result.get("messages") if isinstance(result, dict) else None
-        message_id = str(messages[0].get("id") or "") if isinstance(messages, list) and messages and isinstance(messages[0], dict) else ""
+        message_id = (
+            str(messages[0].get("id") or "")
+            if isinstance(messages, list) and messages and isinstance(messages[0], dict)
+            else ""
+        )
         return self.ctx.gateway_send_result(True, message_id=message_id)
 
     def send_typing(self, chat_id: str, *, thread_id: str | None = None) -> None:

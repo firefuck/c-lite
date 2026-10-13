@@ -42,7 +42,9 @@ def plugins_dir(clite_home):
 
 
 def test_a_manifest_may_declare_a_dashboard_page():
-    manifest = parse_manifest({"name": "board", "dashboard": {"title": "Deploy board", "page": "d/index.html"}})
+    manifest = parse_manifest(
+        {"name": "board", "dashboard": {"title": "Deploy board", "page": "d/index.html"}}
+    )
     assert (manifest.dashboard_title, manifest.dashboard_page) == ("Deploy board", "d/index.html")
     # A bare string is the page, and the title falls back to the plugin's name.
     shorthand = parse_manifest({"name": "board", "dashboard": "d/index.html"})

@@ -41,7 +41,11 @@ class TranscriptionProvider(ABC):
 
         if not self.requires_api_key:
             return True
-        keys = tuple(self.api_key_envs) if self.api_key_envs else ((self.api_key_env,) if self.api_key_env else ())
+        keys = (
+            tuple(self.api_key_envs)
+            if self.api_key_envs
+            else ((self.api_key_env,) if self.api_key_env else ())
+        )
         if not keys:
             return True
         return any(bool(get_secret(k)) for k in keys)
@@ -75,7 +79,11 @@ class SpeechProvider(ABC):
 
         if not self.requires_api_key:
             return True
-        keys = tuple(self.api_key_envs) if self.api_key_envs else ((self.api_key_env,) if self.api_key_env else ())
+        keys = (
+            tuple(self.api_key_envs)
+            if self.api_key_envs
+            else ((self.api_key_env,) if self.api_key_env else ())
+        )
         if not keys:
             return True
         return any(bool(get_secret(k)) for k in keys)

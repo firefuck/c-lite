@@ -85,9 +85,7 @@ def dig(value: object, dotted: str) -> object:
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="ghapi.py", description=__doc__.splitlines()[0])
-    parser.add_argument(
-        "action", choices=["user", "rate-limit", "get", "post", "patch", "delete"]
-    )
+    parser.add_argument("action", choices=["user", "rate-limit", "get", "post", "patch", "delete"])
     parser.add_argument("path", nargs="?", default="")
     parser.add_argument("--json-file", default="")
     parser.add_argument("--field", default="", help="print a dotted field path of the JSON object")

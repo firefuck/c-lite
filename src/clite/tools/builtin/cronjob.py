@@ -104,7 +104,9 @@ def cronjob_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
 
             max_jobs = int(config_get("cron.max_jobs_from_tool", 20) or 0)
             if max_jobs and len(store.list()) >= max_jobs:
-                return tool_error(f"cron job limit reached ({max_jobs}); remove or pause an existing job first")
+                return tool_error(
+                    f"cron job limit reached ({max_jobs}); remove or pause an existing job first"
+                )
             deliver = str(args.get("deliver") or "local")
             job = store.create(
                 str(args.get("prompt") or ""),

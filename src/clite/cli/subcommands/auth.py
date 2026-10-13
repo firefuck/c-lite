@@ -89,9 +89,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     login_parser.add_argument(
         "--flow", choices=("pkce", "device_code", "device-code"), default=None, help="OAuth flow to use"
     )
-    login_parser.add_argument(
-        "--no-browser", action="store_true", help="do not open browser automatically"
-    )
+    login_parser.add_argument("--no-browser", action="store_true", help="do not open browser automatically")
     login_parser.set_defaults(handler=run_login)
 
     status_parser = actions.add_parser("status", help="show OAuth authentication status")

@@ -60,11 +60,27 @@ def test_whatsapp_plugin_verifies_local_webhook_dispatches_allowed_message_and_s
 
     payload = {
         "object": "whatsapp_business_account",
-        "entry": [{"changes": [{"field": "messages", "value": {
-            "metadata": {"phone_number_id": "12345"},
-            "contacts": [{"wa_id": "15550001111", "profile": {"name": "Allowed sender"}}],
-            "messages": [{"from": "15550001111", "id": "wamid.question", "type": "text", "text": {"body": "Please reply."}}],
-        }}]}],
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "field": "messages",
+                        "value": {
+                            "metadata": {"phone_number_id": "12345"},
+                            "contacts": [{"wa_id": "15550001111", "profile": {"name": "Allowed sender"}}],
+                            "messages": [
+                                {
+                                    "from": "15550001111",
+                                    "id": "wamid.question",
+                                    "type": "text",
+                                    "text": {"body": "Please reply."},
+                                }
+                            ],
+                        },
+                    }
+                ]
+            }
+        ],
     }
     raw = json.dumps(payload).encode()
     signature = "sha256=" + hmac.new(b"app-secret", raw, hashlib.sha256).hexdigest()
@@ -79,8 +95,18 @@ def test_whatsapp_plugin_verifies_local_webhook_dispatches_allowed_message_and_s
             },
             runner,
         )
-        assert adapter.handle_webhook_verification({"hub.mode": "subscribe", "hub.verify_token": "verify-secret", "hub.challenge": "challenge"}) == "challenge"
-        assert adapter.handle_webhook_verification({"hub.mode": "subscribe", "hub.verify_token": "wrong", "hub.challenge": "challenge"}) is None
+        assert (
+            adapter.handle_webhook_verification(
+                {"hub.mode": "subscribe", "hub.verify_token": "verify-secret", "hub.challenge": "challenge"}
+            )
+            == "challenge"
+        )
+        assert (
+            adapter.handle_webhook_verification(
+                {"hub.mode": "subscribe", "hub.verify_token": "wrong", "hub.challenge": "challenge"}
+            )
+            is None
+        )
         assert adapter.handle_webhook(raw, signature)
         assert _wait_for(lambda: len(_GraphHandler.requests) == 1)
         assert len(runner.events) == 1
@@ -91,7 +117,16 @@ def test_whatsapp_plugin_verifies_local_webhook_dispatches_allowed_message_and_s
         assert event.source.user_id == "15550001111"
         assert event.source.user_name == "Allowed sender"
         assert _GraphHandler.requests == [
-            ("/v21.0/12345/messages", {"messaging_product": "whatsapp", "to": "15550001111", "type": "text", "text": {"body": "The answer"}, "context": {"message_id": "wamid.question"}})
+            (
+                "/v21.0/12345/messages",
+                {
+                    "messaging_product": "whatsapp",
+                    "to": "15550001111",
+                    "type": "text",
+                    "text": {"body": "The answer"},
+                    "context": {"message_id": "wamid.question"},
+                },
+            )
         ]
     finally:
         server.shutdown()

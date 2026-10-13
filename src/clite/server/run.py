@@ -137,9 +137,7 @@ def serve(
     sock = bind_socket(host, port)
     bound_port = sock.getsockname()[1]
 
-    app = create_app(
-        token, client_factory=client_factory, bind_host=host, throttle=throttle
-    )
+    app = create_app(token, client_factory=client_factory, bind_host=host, throttle=throttle)
     server = uvicorn.Server(
         uvicorn.Config(
             app,

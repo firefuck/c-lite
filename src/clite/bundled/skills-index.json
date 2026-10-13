@@ -12,7 +12,7 @@
     {
       "category": "productivity",
       "description": "Airtable REST API: records CRUD, filters, upserts via the bundled stdlib helper.",
-      "hash": "sha256:6bd79ac8e0f16ba060d3ec0dd4ced4312fb8158bd329826dbba16686be108207",
+      "hash": "sha256:b848b936bfd8b913a9f61f927fe5215e02210d5b7dc37c26347a6abdc3096650",
       "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/airtable",
       "name": "airtable",
       "source": "github",
@@ -39,7 +39,7 @@
     {
       "category": "productivity",
       "description": "Create, read, edit, template, and review Word .docx files.",
-      "hash": "sha256:27aa06d90cc0e978a79af23b43cd2aaafcbbece2067db3cd234795a8fc5094c5",
+      "hash": "sha256:503faeebe41b1102fc89f15b86ae5eb12a764c4fa7e9ec14802a0fbe749296ee",
       "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/docx",
       "name": "docx",
       "source": "github",
@@ -48,7 +48,7 @@
     {
       "category": "productivity",
       "description": "Gmail, Calendar, Drive, Docs, Sheets via gws CLI or Python.",
-      "hash": "sha256:2d0f601348fcf2d4cb1ca86fcc55c78a6145e240696323dc060c871859b33fd5",
+      "hash": "sha256:63abfe4cd05d0e58f30d18828fe6fbe984399bf1de066a59107ebe4b12c3cfe5",
       "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/google-workspace",
       "name": "google-workspace",
       "source": "github",
@@ -57,7 +57,7 @@
     {
       "category": "productivity",
       "description": "Geocode, POIs, routes, timezones via OpenStreetMap/OSRM.",
-      "hash": "sha256:53eeba8f64c83745c3f7315cf34dd2c762d79d6a0649d0b721c523cf06e00b3b",
+      "hash": "sha256:b97fabc5870a4fac9b769d29d2d2012d52bb7761f995530af5c6870029c5126f",
       "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/maps",
       "name": "maps",
       "source": "github",
@@ -84,7 +84,7 @@
     {
       "category": "productivity",
       "description": "PDF files: create, read, merge, fill, OCR, edit text.",
-      "hash": "sha256:7e4a1a4cbbfa9831dc6c7ba23c906feea5f714b40cb47d7da9d13dcbcc45dce7",
+      "hash": "sha256:c0d577f99fb40a1f46489803f3a3c698304dce777a3635b32fed7f5940a6a4d8",
       "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/pdf",
       "name": "pdf",
       "source": "github",
@@ -102,7 +102,7 @@
     {
       "category": "productivity",
       "description": "Create, read, edit .pptx decks with python-pptx.",
-      "hash": "sha256:36a87e33f49ebbfa2ddd6d06f312e0ad9ff45a4c79b607821a6e6e0c578326a9",
+      "hash": "sha256:8d916b8380661857bde7611696846ed1a88256fa7a0d5a1d8e45f5204ff9aebd",
       "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/powerpoint",
       "name": "powerpoint",
       "source": "github",
@@ -129,7 +129,7 @@
     {
       "category": "productivity",
       "description": "Create, read, edit Excel .xlsx workbooks and CSVs.",
-      "hash": "sha256:49caa3e70eb2557ba0b168c3653924940143fb450aeac160b4ab2600573683e1",
+      "hash": "sha256:16da1a730f2f5639b7ae42a9e0f1c264de6b1a8f6b2d9941045df74d00fb6fd2",
       "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/xlsx",
       "name": "xlsx",
       "source": "github",
@@ -138,7 +138,7 @@
     {
       "category": "research",
       "description": "Search arXiv papers by keyword, author, category, or ID.",
-      "hash": "sha256:cd9588e04dd6a7a4738e64916ed66f91708e95c0141eb945eedf1a62c242f083",
+      "hash": "sha256:2448ff4d84711a5c350cbab76748019575a79e273ba01b936673f84792b24693",
       "identifier": "dragovics/clite/src/clite/bundled/skills/research/arxiv",
       "name": "arxiv",
       "source": "github",
@@ -156,7 +156,7 @@
     {
       "category": "research",
       "description": "Ground answers and documents in cited, verifiable sources.",
-      "hash": "sha256:fac7640485e6ca017c20e7fd9037c29e91207cdfb69b832536b7d7acbff24c89",
+      "hash": "sha256:5055683806fd3e37e47d16865c572bccf2405ab0760b26ad7196493db1c05421",
       "identifier": "dragovics/clite/src/clite/bundled/skills/research/grounded-citations",
       "name": "grounded-citations",
       "source": "github",
@@ -165,7 +165,7 @@
     {
       "category": "research",
       "description": "Karpathy's LLM Wiki: build/query interlinked markdown KB.",
-      "hash": "sha256:2d8223c787ac978d1e77027a3603928df7552098702cfffc52ca813e2c8c10cc",
+      "hash": "sha256:b5d0f1b98fba925d11453a887d5089b0082d8bb98a28e5d346a149d87da61415",
       "identifier": "dragovics/clite/src/clite/bundled/skills/research/llm-wiki",
       "name": "llm-wiki",
       "source": "github",
@@ -183,7 +183,7 @@
     {
       "category": "software-development",
       "description": "GitHub via gh CLI: PRs, issues, reviews, repos, auth.",
-      "hash": "sha256:cfd34d95222b7c4d6f574787dbfc5a852769387ed44f5aa0f2e4b0320fd6fec4",
+      "hash": "sha256:dab2efdbfbed808f260909fb84dd8c5e1381906452596156e9dd223c0b2bcfd0",
       "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/github",
       "name": "github",
       "source": "github",
@@ -201,7 +201,7 @@
     {
       "category": "software-development",
       "description": "Debug Python: pdb REPL + debugpy remote (DAP).",
-      "hash": "sha256:996c5f4d5a471010c80fa72725eea4970fa146813b85756aac97696e6ff94af3",
+      "hash": "sha256:511e77be3f55e0e5bbd7e9d06662501301364391e3183d3a2ad3818ceddcf475",
       "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/python-debugpy",
       "name": "python-debugpy",
       "source": "github",
@@ -210,7 +210,7 @@
     {
       "category": "software-development",
       "description": "Pre-commit review: security scan, quality gates, auto-fix.",
-      "hash": "sha256:2f8e2ef70e49263372a50dc08390875e3151913e3dbad3a0d310815efc33460d",
+      "hash": "sha256:711e1a6e2d422065f7046947aefaa1bc4e8083397ba9596f71a24d59d8d4af17",
       "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/requesting-code-review",
       "name": "requesting-code-review",
       "source": "github",

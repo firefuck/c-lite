@@ -102,17 +102,17 @@ class Client:
     def wait_update(self, name: str, timeout: float = 5.0) -> dict:
         """Block until an update of that kind arrives and hand back its params."""
         message = self.transport.wait_for(
-            lambda message: message.get("method") == "session/update"
-            and message["params"]["update"]["sessionUpdate"] == name,
+            lambda message: (
+                message.get("method") == "session/update"
+                and message["params"]["update"]["sessionUpdate"] == name
+            ),
             timeout,
         )
         return message["params"]
 
     def answer_text(self) -> str:
         """Everything the agent said as message text, joined."""
-        return "".join(
-            update["update"]["content"]["text"] for update in self.updates("agent_message_chunk")
-        )
+        return "".join(update["update"]["content"]["text"] for update in self.updates("agent_message_chunk"))
 
     def initialize(self) -> dict:
         return self.call(
@@ -147,8 +147,10 @@ class Client:
         editor behaves: the question arrives in the middle of the request it belongs to.
         """
         request = self.transport.wait_for(
-            lambda message: message.get("method") == "session/request_permission"
-            and message.get("id") not in self.answered
+            lambda message: (
+                message.get("method") == "session/request_permission"
+                and message.get("id") not in self.answered
+            )
         )
         self.answered.add(request["id"])
         outcome = answer if isinstance(answer, dict) else {"outcome": "selected", "optionId": answer}
@@ -320,7 +322,13 @@ def test_session_new_accepts_the_clients_mcp_servers_without_taking_them(client)
 
 
 def test_the_method_table_is_the_protocol_we_implement():
-    assert set(ACP_METHODS) == {"initialize", "session/new", "session/load", "session/prompt", "session/cancel"}
+    assert set(ACP_METHODS) == {
+        "initialize",
+        "session/new",
+        "session/load",
+        "session/prompt",
+        "session/cancel",
+    }
     # Cancel is read on the thread that reads the socket, not on the pool: it has to be acted
     # on while the prompt it cancels is still occupying a worker.
     assert ACP_METHODS["session/cancel"].inline is True
@@ -389,7 +397,9 @@ def test_a_command_the_terminal_keeps_to_itself_is_not_offered(client):
     """``quit`` and the rest read the terminal or move its state; an editor has no such thing."""
     acp = client()
     acp.new_session()
-    names = {entry["name"] for entry in acp.wait_update("available_commands_update")["update"]["availableCommands"]}
+    names = {
+        entry["name"] for entry in acp.wait_update("available_commands_update")["update"]["availableCommands"]
+    }
     assert {"quit", "skin", "logs", "copy"}.isdisjoint(names)
 
 
@@ -421,9 +431,7 @@ def test_a_terminal_only_command_typed_at_an_editor_is_refused(client):
 def test_a_message_that_only_looks_like_a_command_goes_to_the_model(client):
     acp = client([text_response("yes, / is the root directory")])
     session_id = acp.new_session()
-    assert acp.prompt(session_id, "/ is the root directory, right?")["result"] == {
-        "stopReason": "end_turn"
-    }
+    assert acp.prompt(session_id, "/ is the root directory, right?")["result"] == {"stopReason": "end_turn"}
     assert len(acp.scripted.calls) == 1  # "/ " is text, not a command
 
 
@@ -486,9 +494,7 @@ def test_session_load_replays_the_stored_conversation(client, clite_home):
 def test_a_replayed_result_is_clipped_like_a_live_one(client, clite_home):
     """A replay is not a way around the limit that keeps a huge file off the wire."""
     (clite_home / "big.txt").write_text("x" * 4000 + "\n")
-    writer = client(
-        [tool_call_response(("read_file", {"path": "big.txt"})), text_response("that is a lot")]
-    )
+    writer = client([tool_call_response(("read_file", {"path": "big.txt"})), text_response("that is a lot")])
     stored = writer.new_session(str(clite_home))
     writer.prompt(stored, "read the big file")
 
@@ -576,7 +582,9 @@ def test_a_prompt_answers_with_the_end_of_a_turn_and_streams_the_text_first(clie
     session_id = acp.new_session()
     assert acp.prompt(session_id, "a question")["result"] == {"stopReason": "end_turn"}
     chunks = [update["update"] for update in acp.updates("agent_message_chunk")]
-    assert chunks == [{"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": "the answer"}}]
+    assert chunks == [
+        {"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": "the answer"}}
+    ]
     thoughts = [update["update"] for update in acp.updates("agent_thought_chunk")]
     assert [thought["content"]["text"] for thought in thoughts] == ["thinking it over"]
     # Every update belongs to the session the prompt named.
@@ -670,7 +678,10 @@ def test_a_prompt_needs_a_session_id(client):
     ("result", "expected"),
     [
         (TurnResult(final_response="hi", completed=True, exit_reason="completed"), "end_turn"),
-        (TurnResult(final_response="", completed=False, interrupted=True, exit_reason="interrupted"), "cancelled"),
+        (
+            TurnResult(final_response="", completed=False, interrupted=True, exit_reason="interrupted"),
+            "cancelled",
+        ),
         (TurnResult(final_response="no", completed=False, exit_reason="refusal"), "refusal"),
         (TurnResult(final_response="", completed=False, exit_reason="budget_exhausted"), "max_turn_requests"),
     ],
@@ -682,7 +693,9 @@ def test_the_stop_reason_comes_from_the_turn_the_agent_reported(result, expected
 def test_a_turn_that_ended_without_an_answer_is_an_error_not_a_stop_reason():
     """An empty reply shown as ``end_turn`` would look like the agent had nothing to say."""
     with pytest.raises(AcpError) as raised:
-        stop_reason(TurnResult(final_response="", completed=False, error="boom", exit_reason="api_error:server"))
+        stop_reason(
+            TurnResult(final_response="", completed=False, error="boom", exit_reason="api_error:server")
+        )
     assert raised.value.code == 4003 and "boom" in raised.value.message
 
 
@@ -782,7 +795,10 @@ def test_a_tool_call_that_fails_is_reported_as_failed(client, clite_home):
         # A status from nowhere (an old file, a hand-written list) gets the same treatment.
         ([{"content": "someday", "status": "later"}], []),
         # Nothing in the task list is a priority, so everything is the middle one.
-        ([{"content": "one", "status": "pending", "priority": "high"}], [{"content": "one", "priority": "medium", "status": "pending"}]),
+        (
+            [{"content": "one", "status": "pending", "priority": "high"}],
+            [{"content": "one", "priority": "medium", "status": "pending"}],
+        ),
     ],
 )
 def test_the_plan_is_the_task_list_in_the_protocols_own_words(todos, entries):
@@ -994,7 +1010,9 @@ def test_approval_outside_a_tool_call_still_has_a_call_to_point_at(client, clite
     waiter = threading.Thread(target=answer)
     waiter.start()
     choice = session.chat.callbacks.approve(
-        command="chmod 777 /tmp/x", description="make it world-writable", pattern_keys=["chmod_world_writable"]
+        command="chmod 777 /tmp/x",
+        description="make it world-writable",
+        pattern_keys=["chmod_world_writable"],
     )
     waiter.join(timeout=5)
     assert choice == "once"
@@ -1135,9 +1153,7 @@ def test_a_turn_with_a_tool_call_and_a_permission_request_over_real_pipes(clite_
     assert len(requests) == 1  # asked once, not again for the tool result that followed
     assert requests[0]["params"]["toolCall"]["rawInput"] == {"command": command}
     assert requests[0]["params"]["toolCall"]["kind"] == "execute"
-    updates = [
-        message["params"]["update"] for message in seen if message.get("method") == "session/update"
-    ]
+    updates = [message["params"]["update"] for message in seen if message.get("method") == "session/update"]
     names = [update["sessionUpdate"] for update in updates]
     assert names.index("tool_call") < names.index("tool_call_update")
     assert updates[names.index("tool_call_update")]["status"] == "completed"

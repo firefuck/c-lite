@@ -25,9 +25,7 @@ class OpenRouterProfile(ProviderProfile):
         # vendors cache automatically and reject or ignore the marker.
         return model.startswith("anthropic/") or "claude" in model
 
-    def build_oauth_authorize_url(
-        self, *, redirect_uri: str, code_challenge: str, state: str
-    ) -> str:
+    def build_oauth_authorize_url(self, *, redirect_uri: str, code_challenge: str, state: str) -> str:
         from urllib.parse import urlencode
 
         params = {

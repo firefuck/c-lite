@@ -555,7 +555,9 @@ def credentials_set(server: RpcServer, params: schema.CredentialSetParams) -> sc
 
 
 @rpc_method("credentials.delete")
-def credentials_delete(server: RpcServer, params: schema.CredentialNameParams) -> schema.CredentialsListResult:
+def credentials_delete(
+    server: RpcServer, params: schema.CredentialNameParams
+) -> schema.CredentialsListResult:
     from clite.core.env import remove_secret
 
     name = params.name.strip()
@@ -791,7 +793,10 @@ def cron_history(server: RpcServer, params: schema.CronHistoryParams) -> schema.
 
     store = get_job_store()
     return schema.CronHistoryResult(
-        entries=[schema.CronHistoryEntry.model_validate(entry) for entry in CronHistory(store.directory).list(params.job_id)]
+        entries=[
+            schema.CronHistoryEntry.model_validate(entry)
+            for entry in CronHistory(store.directory).list(params.job_id)
+        ]
     )
 
 

@@ -18,9 +18,15 @@ def run_add(args: argparse.Namespace) -> int:
         print("Webhook name may contain only letters, numbers, hyphens, and underscores.")
         return 2
     secret = secrets.token_urlsafe(32)
+
     def update(document: dict) -> None:
-        document.setdefault("webhooks", {})[args.name] = {"enabled": True, "prompt": args.prompt, "deliver": args.deliver}
+        document.setdefault("webhooks", {})[args.name] = {
+            "enabled": True,
+            "prompt": args.prompt,
+            "deliver": args.deliver,
+        }
         document.setdefault("server", {})["webhooks_enabled"] = True
+
     atomic_config_update(update)
     save_secret(webhook_secret_name(args.name), secret)
     print(f"Webhook {args.name!r} added. HMAC secret: {secret}")
@@ -38,12 +44,14 @@ def run_list(args: argparse.Namespace) -> int:
 
 def run_remove(args: argparse.Namespace) -> int:
     removed = False
+
     def update(document: dict) -> None:
         nonlocal removed
         hooks = document.get("webhooks", {})
         if args.name in hooks:
             del hooks[args.name]
             removed = True
+
     atomic_config_update(update)
     remove_secret(webhook_secret_name(args.name))
     print(f"Removed webhook {args.name!r}." if removed else "No such webhook.")

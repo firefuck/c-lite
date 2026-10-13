@@ -49,7 +49,8 @@ WantedBy=default.target
 def render_launch_agent(executable: str, profile: str) -> str:
     """Render the LaunchAgent plist for one profile."""
     args = "\n".join(
-        f"        <string>{item}</string>" for item in [executable, "-m", "clite", *_profile_args(profile), "gateway", "run"]
+        f"        <string>{item}</string>"
+        for item in [executable, "-m", "clite", *_profile_args(profile), "gateway", "run"]
     )
     label = f"com.{APP_NAME}.gateway{'' if profile == 'default' else '.' + profile}"
     return f"""<?xml version=\"1.0\" encoding=\"UTF-8\"?>
@@ -85,7 +86,11 @@ def install(executable: str) -> Path:
     profile = get_active_profile_name()
     path = service_path(profile)
     ensure_dir(path.parent)
-    content = render_launch_agent(executable, profile) if sys.platform == "darwin" else render_systemd_unit(executable, profile)
+    content = (
+        render_launch_agent(executable, profile)
+        if sys.platform == "darwin"
+        else render_systemd_unit(executable, profile)
+    )
     path.write_text(content, encoding="utf-8")
     return path
 
@@ -114,7 +119,9 @@ class GatewayLock:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:
             os.close(fd)
-            raise RuntimeError("A gateway is already running for this home; use `clite gateway status`.") from None
+            raise RuntimeError(
+                "A gateway is already running for this home; use `clite gateway status`."
+            ) from None
         os.ftruncate(fd, 0)
         os.write(fd, str(os.getpid()).encode())
         self._fd = fd

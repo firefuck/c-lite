@@ -169,7 +169,9 @@ def _similar_names(path: str, ctx: ToolContext) -> list[str]:
     except OSError:
         return []
     name = os.path.basename(path)
-    return [os.path.join(parent, match) for match in difflib.get_close_matches(name, siblings, n=3, cutoff=0.6)]
+    return [
+        os.path.join(parent, match) for match in difflib.get_close_matches(name, siblings, n=3, cutoff=0.6)
+    ]
 
 
 # ── write_file ───────────────────────────────────────────────────────────────────────────

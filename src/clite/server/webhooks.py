@@ -22,7 +22,7 @@ def webhook_secret_name(name: str) -> str:
 
 
 def _config(config: dict[str, Any], name: str) -> dict[str, Any] | None:
-    hooks = (config.get("webhooks") or {})
+    hooks = config.get("webhooks") or {}
     item = hooks.get(name) if isinstance(hooks, dict) else None
     return item if isinstance(item, dict) and item.get("enabled", True) else None
 
@@ -41,7 +41,11 @@ def routes(config: dict[str, Any], client_factory: Callable[[], Any] | None) -> 
                 return JSONResponse({"error": "not found"}, status_code=404)
             if request.method == "GET":
                 challenge = verify(dict(request.query_params))
-                return JSONResponse({"error": "forbidden"}, status_code=403) if challenge is None else PlainTextResponse(challenge)
+                return (
+                    JSONResponse({"error": "forbidden"}, status_code=403)
+                    if challenge is None
+                    else PlainTextResponse(challenge)
+                )
             accepted = receive_whatsapp(await request.body(), request.headers.get("x-hub-signature-256", ""))
             return JSONResponse({"ok": accepted}, status_code=200 if accepted else 401)
         spec = _config(config, name)
@@ -60,6 +64,7 @@ def routes(config: dict[str, Any], client_factory: Callable[[], Any] | None) -> 
         prompt = str(spec.get("prompt") or "Process this webhook payload.")
         untrusted = json.dumps(payload, ensure_ascii=False)
         message = f"{prompt}\n\n<untrusted_webhook_payload name={name!r}>\n{untrusted}\n</untrusted_webhook_payload>"
+
         def run() -> None:
             agent = build_agent(platform="api", client=client_factory() if client_factory else None)
             try:
@@ -70,6 +75,8 @@ def routes(config: dict[str, Any], client_factory: Callable[[], Any] | None) -> 
             runner = active_runner()
             if target and runner is not None:
                 runner.send_to(target, answer)
+
         asyncio.create_task(asyncio.to_thread(run))
         return JSONResponse({"ok": True}, status_code=202)
+
     return receive

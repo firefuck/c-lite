@@ -134,7 +134,9 @@ def websocket_host_allowed(websocket: WebSocket, bind_host: str) -> bool:
     """
     if bind_host.strip("[]").lower() not in _LOOPBACK_HOSTS:
         return True
-    hosts = [value.decode("latin-1") for key, value in websocket.scope.get("headers", []) if key.lower() == b"host"]
+    hosts = [
+        value.decode("latin-1") for key, value in websocket.scope.get("headers", []) if key.lower() == b"host"
+    ]
     return bool(hosts) and all(_authority(value)[0] in _LOOPBACK_HOSTS for value in hosts)
 
 
@@ -319,7 +321,12 @@ def create_app(
         from clite.server.openai_api import routes as openai_routes
 
         models, completions = openai_routes(config, client_factory)
-        routes.extend([Route("/v1/models", guarded(models)), Route("/v1/chat/completions", guarded(completions), methods=["POST"])])
+        routes.extend(
+            [
+                Route("/v1/models", guarded(models)),
+                Route("/v1/chat/completions", guarded(completions), methods=["POST"]),
+            ]
+        )
     if bool(get_path(config, "server.webhooks_enabled", False)):
         from clite.server.webhooks import routes as webhook_routes
 
@@ -328,7 +335,8 @@ def create_app(
         # server token; the handler rejects it unless an active WhatsApp adapter verifies it.
         routes.append(Route("/api/webhooks/whatsapp", webhook_handler, methods=["GET", "POST"]))
         routes.append(Route("/api/webhooks/{name}", guarded(webhook_handler), methods=["POST"]))
-    routes.extend([
+    routes.extend(
+        [
             Route("/api/status", guarded(status)),
             Route("/api/sessions", guarded(sessions)),
             Route("/api/sessions/{session_id}/messages", guarded(session_messages)),
@@ -336,8 +344,13 @@ def create_app(
             WebSocketRoute("/api/ws", websocket_endpoint),
             Route("/", index),
             Mount("/static", StaticFiles(directory=STATIC_DIR), name="static"),
-            Mount("/assets", StaticFiles(directory=DIST_DIR / "assets" if (DIST_DIR / "assets").exists() else STATIC_DIR), name="assets"),
-        ])
+            Mount(
+                "/assets",
+                StaticFiles(directory=DIST_DIR / "assets" if (DIST_DIR / "assets").exists() else STATIC_DIR),
+                name="assets",
+            ),
+        ]
+    )
     return Starlette(routes=routes)
 
 

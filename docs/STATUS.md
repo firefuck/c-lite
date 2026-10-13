@@ -12,6 +12,7 @@ Electron 44.5.1, pada worktree bersih di `HEAD` (tanpa berkas sesi lain yang bel
 | Pemeriksaan | Hasil |
 |---|---|
 | `ruff check src tests scripts` | Bersih |
+| `ruff format --check src tests scripts` | Bersih (dijalankan juga di CI dan `scripts/run_tests.sh lint`) |
 | `mypy` (200 file sumber) | Bersih |
 | Tes Python (`pytest tests`) | 1523 lulus, 47 terlewati (jaringan, Windows, Docker, paket opsional). Tanpa `GIT_AUTHOR_*`/`GIT_COMMITTER_*`, `tests/test_release.py::test_tagging_needs_a_clean_tree_and_creates_the_tag_for_the_version` gagal karena identitas git (lingkungan, bukan perubahan ini) |
 | Tes TypeScript `apps/shared` | 22 lulus; `tsc --noEmit` bersih |

@@ -604,6 +604,7 @@ class FakeTelegram:
 @pytest.fixture
 def telegram(clite_home, monkeypatch):
     api = FakeTelegram()
+
     def echo(messages, **kwargs):
         return text_response(f"You said: {messages[-1]['content']}")
 
@@ -706,7 +707,7 @@ After!"""
         "Before _stars_ and [docs](https://example.test/a_(b\\))\\.\n"
         "> First quoted line: `literal_*_`\\.\n"
         "> Second quoted line with *bold*\\.\n\n"
-        "```python\nprint(\"<literal>_*\")\n```\n"
+        '```python\nprint("<literal>_*")\n```\n'
         "After\\!"
     )
 
@@ -810,7 +811,9 @@ def test_telegram_model_picker_pages_back_and_cancels_after_provider_selection(t
     api.push_callback(next_page["callback_data"], message_id=1)
     paged_view = _wait_for_picker_edits(api, 2)[-1]
     assert "Choose a model (2/2)" in paged_view["text"]
-    assert any(button["text"] == "demo-9" for row in paged_view["reply_markup"]["inline_keyboard"] for button in row)
+    assert any(
+        button["text"] == "demo-9" for row in paged_view["reply_markup"]["inline_keyboard"] for button in row
+    )
 
     buttons = [button for row in paged_view["reply_markup"]["inline_keyboard"] for button in row]
     back = next(button for button in buttons if button["callback_data"].endswith(":back:0"))
@@ -888,7 +891,10 @@ def test_telegram_approval_buttons_resolve_only_the_owner_pending_approval(teleg
     runner.config["gateway"]["allow_all_users"] = True
     api.push_callback(callback, user=999, message_id=1)
     deadline = time.monotonic() + 5
-    while len([body for method, body in api.calls if method == "answerCallbackQuery"]) < 1 and time.monotonic() < deadline:
+    while (
+        len([body for method, body in api.calls if method == "answerCallbackQuery"]) < 1
+        and time.monotonic() < deadline
+    ):
         time.sleep(0.02)
     assert not pending.answered.is_set()
     assert len([body for method, body in api.calls if method == "editMessageText"]) == initial_edits
@@ -1835,9 +1841,7 @@ def test_text_to_speech_is_offered_to_a_chat_agent_only_when_it_can_speak(gatewa
     register_speech_provider("fake-tts", _FakeSpeech)
     try:
         registry.reset_check_cache()  # the availability answer is cached for 30 seconds
-        names = [
-            definition["function"]["name"] for definition in get_tool_definitions(["clite-gateway"])
-        ]
+        names = [definition["function"]["name"] for definition in get_tool_definitions(["clite-gateway"])]
         assert "text_to_speech" in names
     finally:
         reset_speech_registries()

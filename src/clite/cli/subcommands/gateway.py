@@ -69,7 +69,12 @@ def run_logs(args: argparse.Namespace) -> int:
     from clite.core.profiles import get_active_profile_name
     from clite.gateway.service import service_name
 
-    command = ["journalctl", "--user-unit", f"{service_name(get_active_profile_name())}.service", "--no-pager"]
+    command = [
+        "journalctl",
+        "--user-unit",
+        f"{service_name(get_active_profile_name())}.service",
+        "--no-pager",
+    ]
     if shutil.which(command[0]) is None:
         print("journalctl is not available on this system.")
         return 1

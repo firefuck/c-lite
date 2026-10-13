@@ -32,7 +32,9 @@ def run_history(args: argparse.Namespace) -> int:
     store = get_job_store()
     entries = CronHistory(store.directory).list(args.job_id)
     for entry in entries:
-        print(f"{entry['job_id']}  {entry['status']:<7} {entry['duration_seconds']:.3f}s {entry.get('output_path') or '-'}")
+        print(
+            f"{entry['job_id']}  {entry['status']:<7} {entry['duration_seconds']:.3f}s {entry.get('output_path') or '-'}"
+        )
     if not entries:
         print("No cron execution history.")
     return 0

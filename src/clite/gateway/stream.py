@@ -207,7 +207,11 @@ def _terminal_progress_message(args: dict[str, Any]) -> str:
 
     command = " ".join(str(args.get("command", "")).split())
     text = f"💻 terminal: {redact(command)}" if command else "💻 terminal"
-    return text if len(text) <= TERMINAL_PROGRESS_PREVIEW_WIDTH else text[: TERMINAL_PROGRESS_PREVIEW_WIDTH - 1] + "…"
+    return (
+        text
+        if len(text) <= TERMINAL_PROGRESS_PREVIEW_WIDTH
+        else text[: TERMINAL_PROGRESS_PREVIEW_WIDTH - 1] + "…"
+    )
 
 
 def tool_line(name: str, args: dict[str, Any], result: str, seconds: float) -> str:

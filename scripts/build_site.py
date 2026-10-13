@@ -250,7 +250,9 @@ def title_of(markdown: str, *, source: str) -> str:
     raise ValueError(f"{source}: a page must start with a '# ' heading")
 
 
-def page_html(*, language: str, slug: str, body: str, title: str, navigation: list[tuple[str, str, str]]) -> str:
+def page_html(
+    *, language: str, slug: str, body: str, title: str, navigation: list[tuple[str, str, str]]
+) -> str:
     """One page, wrapped in the site chrome. ``navigation`` is ``(href, label, section)``."""
     site = SITE[language]
     depth = 1 + slug.count("/")

@@ -11,7 +11,7 @@
     },
     {
       "description": "Auto-detect and adapt CLAUDE.md guidelines and Claude Code project conventions into C-lite",
-      "hash": "sha256:a7b1bb6c90de8621038887b3cfe30d7dff02ce3bc7cf654ca541fa243b3dce3f",
+      "hash": "sha256:4423dd766c0411e184e5934f6d435936b1d42c7ba661d9e4cb098d326cab62c0",
       "identifier": "dragovics/clite/src/clite/bundled/plugins/claude-compat",
       "kind": "standalone",
       "name": "claude-compat",
@@ -29,7 +29,7 @@
     },
     {
       "description": "Receive allowed email senders over IMAP and reply over SMTP",
-      "hash": "sha256:585eb95d3541b674fa9efdac60351e0d4120f316a998172ada9803630ef208aa",
+      "hash": "sha256:413a91ee6608d5ebdd8171b79b7edc48cc9ebc61a310a48e0f334d741b315daf",
       "identifier": "dragovics/clite/src/clite/bundled/plugins/email",
       "kind": "platform",
       "name": "email",
@@ -47,7 +47,7 @@
     },
     {
       "description": "Receive and send Matrix room messages through the Client-Server API",
-      "hash": "sha256:139d2cb4368a33db2dee08a225fb8c31391f137756485042ba9d90b670a70b53",
+      "hash": "sha256:0599f390e8ec89ba8e7254b633ca9fd9bbd639f7d5772604792002f90a49c02d",
       "identifier": "dragovics/clite/src/clite/bundled/plugins/matrix",
       "kind": "platform",
       "name": "matrix",
@@ -56,7 +56,7 @@
     },
     {
       "description": "Long-term memory in SQLite: facts saved with a tool, found again with FTS5 search in later sessions",
-      "hash": "sha256:afcde7f4b1b642e89b31126c98110f5565012e995c970804c5945ac5e884191e",
+      "hash": "sha256:c10815015618d4150f941beecd222fc5764945b9ef04175dc3fbf033bdb4770c",
       "identifier": "dragovics/clite/src/clite/bundled/plugins/memory-sqlite",
       "kind": "backend",
       "name": "memory-sqlite",
@@ -65,7 +65,7 @@
     },
     {
       "description": "Receive and send Signal messages through a user-run signal-cli REST service",
-      "hash": "sha256:230df38edbac43f867643d2ebf70fc90e9a7a8b6f00cbf0e581f8bbdfe3fd497",
+      "hash": "sha256:a5ba931ac029aec1d959b910f41a570310c6a0e3c33943c295e932f124dc9b15",
       "identifier": "dragovics/clite/src/clite/bundled/plugins/signal",
       "kind": "platform",
       "name": "signal",
@@ -74,7 +74,7 @@
     },
     {
       "description": "Voice messages and spoken replies via the OpenAI Audio API (requires OPENAI_API_KEY)",
-      "hash": "sha256:716c26492c9453d098a996de99f1da4c72070e5ec2134c5ed62190ca9ad177d5",
+      "hash": "sha256:b261a8d238dcda3090358689465869a063fab75ae4702a04228d646e119de538",
       "identifier": "dragovics/clite/src/clite/bundled/plugins/speech-openai",
       "kind": "backend",
       "name": "speech-openai",
@@ -101,7 +101,7 @@
     },
     {
       "description": "Receive WhatsApp Cloud API webhooks and send replies through the Graph API",
-      "hash": "sha256:9e155a3b64dab6db7b29ecc8678c69ee111828e5531a8185d72c69040d75a69a",
+      "hash": "sha256:635e93505ea231dd97dae66e28b619e011cd3877e8dcd46d093881c0c74c91da",
       "identifier": "dragovics/clite/src/clite/bundled/plugins/whatsapp",
       "kind": "platform",
       "name": "whatsapp",

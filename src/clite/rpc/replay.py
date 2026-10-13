@@ -166,9 +166,7 @@ class DetachedSessions:
         if self._reaper is not None and self._reaper.is_alive():
             return
         self._stop.clear()
-        self._reaper = threading.Thread(
-            target=self._reap_loop, name="clite-session-reaper", daemon=True
-        )
+        self._reaper = threading.Thread(target=self._reap_loop, name="clite-session-reaper", daemon=True)
         self._reaper.start()
 
     def _reap_loop(self) -> None:
@@ -199,7 +197,9 @@ def get_detached_sessions() -> DetachedSessions:
     return _DETACHED
 
 
-def configure(per_session: int | None = None, sessions: int | None = None, grace_seconds: float | None = None) -> None:
+def configure(
+    per_session: int | None = None, sessions: int | None = None, grace_seconds: float | None = None
+) -> None:
     """Apply ``server.replay_*`` / ``server.resume_grace_seconds`` to the process-wide objects."""
     if per_session is not None:
         _LOG.per_session = max(1, int(per_session))
