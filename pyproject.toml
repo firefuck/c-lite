@@ -30,6 +30,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Typing :: Typed",
 ]
 dependencies = [
   # Only packages every session needs belong here; anything provider- or platform-specific
@@ -87,6 +88,8 @@ where = ["src"]
 # packages (their names contain hyphens), so they are listed as data. The dashboard's static
 # files and the prebuilt terminal UI ship the same way.
 clite = [
+  # PEP 561: plugins that import clite get its types (mypy checks it in strict mode).
+  "py.typed",
   "bundled/**/*.py",
   "bundled/**/*.yaml",
   "bundled/**/*.md",

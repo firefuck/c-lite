@@ -18,6 +18,7 @@ GitHub-nya (`python scripts/release.py notes`).
   serta klasifikasi PyPI.
 - Kebijakan keamanan (`SECURITY.md`) dengan saluran pelaporan privat, panduan kontribusi, dan
   kode etik.
+- Penanda `py.typed`: plugin yang mengimpor `clite` ikut mendapat tipenya.
 
 ### Diubah
 - Dashboard web ditulis ulang dengan React dan Vite. Fitur dan perilakunya sama, dijaga 24 tes
