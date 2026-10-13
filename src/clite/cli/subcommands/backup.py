@@ -57,12 +57,42 @@ def restore_backup(archive_path: Path | str, *, force: bool = False) -> None:
         raise CliteError(f"home directory {home} is not empty; use --force to overwrite")
 
     with tarfile.open(path, "r:gz") as tar:
-        # Safe extraction
-        for member in tar.getmembers():
-            # Disallow absolute paths or parent directory traversal
-            if member.name.startswith("/") or ".." in Path(member.name).parts:
-                raise CliteError(f"unsafe member path in archive: {member.name}")
-        tar.extractall(path=home)
+        _refuse_unsafe_members(tar, home)
+        if _HAS_EXTRACTION_FILTERS:
+            tar.extractall(path=home, filter="data")
+        else:
+            tar.extractall(path=home)
+
+
+# Python 3.11.4 and later can vet each member as it is extracted (``filter="data"``).
+_HAS_EXTRACTION_FILTERS = hasattr(tarfile, "data_filter")
+
+
+def _refuse_unsafe_members(tar: tarfile.TarFile, home: Path) -> None:
+    """Check every member before anything is written, so a refused restore leaves no trace.
+
+    A backup made by ``create_backup`` holds files and directories under the home. An archive
+    from anywhere else may hold a member that escapes it: an absolute path, ``..``, or a link
+    whose target lies outside the home, which a later member of the same name is then written
+    through. The ``data`` filter rejects all of those; a Python without filters accepts plain
+    files and directories only.
+    """
+    for member in tar.getmembers():
+        if member.name.startswith("/") or ".." in Path(member.name).parts:
+            raise CliteError(f"unsafe member path in archive: {member.name}")
+        if _HAS_EXTRACTION_FILTERS:
+            try:
+                tarfile.data_filter(member, str(home))
+            except tarfile.FilterError as exc:
+                raise CliteError(
+                    f"unsafe member in archive: {member.name} ({exc}); nothing was restored. "
+                    "Restore only archives made by `clite backup create`."
+                ) from exc
+        elif not (member.isfile() or member.isdir()):
+            raise CliteError(
+                f"unsafe member in archive: {member.name} is a link or special file; nothing was "
+                "restored. Restore only archives made by `clite backup create`."
+            )
 
 
 def run_backup(args: argparse.Namespace) -> int:

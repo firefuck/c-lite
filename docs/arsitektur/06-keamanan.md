@@ -190,6 +190,17 @@ semua yang dibaca model dikirim ke provider dan disimpan di database sesi.
 `test_credentials_are_redacted_from_what_the_model_reads`,
 `test_the_allowlist_cannot_be_written_with_the_file_tools`.
 
+### Arsip backup
+
+`clite backup restore` membongkar arsip ke home, dan arsip itu bisa datang dari mana saja.
+Sebelum satu file pun ditulis, setiap anggotanya diperiksa (`src/clite/cli/subcommands/backup.py`):
+path absolut, `..`, dan tautan (symlink atau hardlink) yang menuju ke luar home ditolak, karena
+anggota berikutnya dengan nama yang sama akan ditulis menembus tautan itu. Pemeriksaannya memakai
+filter `data` milik `tarfile`; Python tanpa filter (sebelum 3.11.4) hanya menerima file dan
+direktori biasa.
+
+**Tes**: `test_a_backup_with_a_link_out_of_the_home_is_refused_and_writes_nothing`.
+
 ### Kredensial
 
 - Kredensial hanya di `<home>/.env` (izin 0600), dibaca lewat `get_secret`.

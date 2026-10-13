@@ -7,6 +7,10 @@ GitHub-nya (`python scripts/release.py notes`).
 
 ## [Unreleased]
 
+### Keamanan
+- `clite backup restore` menolak arsip yang anggotanya berupa tautan ke luar home. Sebelumnya
+  arsip buatan orang lain bisa menulis file di luar home lewat symlink atau hardlink.
+
 ### Ditambah
 - Metadata paket: penulis, tautan ke repositori, isu, dokumentasi, dan catatan perubahan,
   serta klasifikasi PyPI.
