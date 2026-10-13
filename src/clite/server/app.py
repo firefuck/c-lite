@@ -58,6 +58,7 @@ from clite.state.db import get_session_db
 logger = logging.getLogger("clite.server")
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+DIST_DIR = Path(__file__).resolve().parent / "static_dist"
 WS_UNAUTHORIZED = 4401
 WS_MESSAGE_TOO_BIG = 1009  # RFC 6455 "message too big"
 WS_TOKEN_REVOKED = 4403
@@ -335,6 +336,7 @@ def create_app(
             WebSocketRoute("/api/ws", websocket_endpoint),
             Route("/", index),
             Mount("/static", StaticFiles(directory=STATIC_DIR), name="static"),
+            Mount("/assets", StaticFiles(directory=DIST_DIR / "assets" if (DIST_DIR / "assets").exists() else STATIC_DIR), name="assets"),
         ])
     return Starlette(routes=routes)
 

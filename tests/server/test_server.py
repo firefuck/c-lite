@@ -136,7 +136,7 @@ def test_health_is_public_and_everything_else_needs_the_token(backend):
 def test_static_dashboard_is_served_without_the_token(backend):
     with urllib.request.urlopen(backend.base + "/", timeout=5) as response:
         html = response.read().decode()
-    assert "<title>C-lite</title>" in html and "/static/app.js" in html
+    assert "<title>C-lite</title>" in html and ("/static/app.js" in html or "/assets/" in html)
     with urllib.request.urlopen(backend.base + "/static/rpc.js", timeout=5) as response:
         assert "class RpcClient" in response.read().decode()
 
