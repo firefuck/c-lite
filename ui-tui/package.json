@@ -1,6 +1,6 @@
 {
   "name": "@clite/tui",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Terminal UI for C-lite. Talks to the Python backend over JSON-RPC on stdio.",

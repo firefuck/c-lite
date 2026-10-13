@@ -60,6 +60,21 @@ def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, timeout=60, env=env)
 
 
+def test_every_node_workspace_carries_the_package_version():
+    """The desktop installer is named after its package.json; the others ship inside the wheel.
+    `scripts/release.py bump` writes only the Python version, so a bump must update these too."""
+    import json
+
+    workspaces = json.loads((REPO_ROOT / "package.json").read_text(encoding="utf-8"))["workspaces"]
+    versions = {
+        name: json.loads((REPO_ROOT / name / "package.json").read_text(encoding="utf-8"))["version"]
+        for name in workspaces
+    }
+    assert versions == dict.fromkeys(workspaces, __version__), (
+        f"set the version in each workspace's package.json to {__version__}, then run npm install"
+    )
+
+
 def test_the_version_in_pyproject_the_cli_and_the_release_tag_are_the_same():
     project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     # pyproject.toml takes the version from the package instead of spelling a second copy.
