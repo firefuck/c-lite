@@ -97,15 +97,7 @@ def capture(
         except OSError:
             pass
 
-    timed_out = interrupted = False
-    while process.poll() is None:
-        if interrupt is not None and interrupt.is_set():
-            interrupted = True
-            break
-        if time.monotonic() > deadline:
-            timed_out = True
-            break
-        time.sleep(POLL_SECONDS)
+    timed_out, interrupted = _wait(process, deadline, interrupt)
     if timed_out or interrupted:
         stop(process)
     reader.join(timeout=_READER_JOIN_SECONDS)
@@ -121,3 +113,14 @@ def capture(
         output += "\n[command interrupted]"
         exit_code = 130
     return ExecResult(output, exit_code, timed_out, interrupted, truncated)
+
+
+def _wait(process: subprocess.Popen, deadline: float, interrupt: threading.Event | None) -> tuple[bool, bool]:
+    """Wait for ``process`` to exit. ``(timed_out, interrupted)``; both false when it exited."""
+    while process.poll() is None:
+        if interrupt is not None and interrupt.is_set():
+            return False, True
+        if time.monotonic() > deadline:
+            return True, False
+        time.sleep(POLL_SECONDS)
+    return False, False
