@@ -42,7 +42,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _clite_home import get_clite_home  # noqa: E402
+from _clite_home import get_clite_home
 
 SCHEMA_VERSION = 1
 

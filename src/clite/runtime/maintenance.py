@@ -73,7 +73,7 @@ def run_startup_maintenance(
         auto_prune_sessions(cfg, keep=keep_sessions)
         prune_checkpoints(cfg)
         run_curator_maintenance(cfg)
-    except Exception:  # noqa: BLE001 - housekeeping must never stop a session from starting
+    except Exception:  # housekeeping must never stop a session from starting
         logger.warning("startup maintenance failed", exc_info=True)
 
 
@@ -112,7 +112,7 @@ def run_curator_maintenance(config: dict[str, Any], *, now: float | None = None)
     db.set_meta(LAST_CURATOR_KEY, str(moment))  # claimed first, so a concurrent process skips
     try:
         report = _prune_curator_store(config, now=moment)
-    except Exception:  # noqa: BLE001 - the curator must never hold up a surface
+    except Exception:  # the curator must never hold up a surface
         logger.warning("curator maintenance failed", exc_info=True)
         return None
     archived = report.get("archived") if isinstance(report, dict) else None

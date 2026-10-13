@@ -137,7 +137,7 @@ class HookBus:
         for section_id, (plugin, content) in sections:
             try:
                 text = content() if callable(content) else content
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.warning("prompt section %s from plugin %r failed", section_id, plugin, exc_info=True)
                 continue
             text = str(text or "").strip()[:MAX_PROMPT_SECTION_CHARS]
@@ -194,7 +194,7 @@ class HookBus:
                 if fail_closed:
                     results.append({"action": "block", "message": _timed_out_message(name)})
                 continue
-            except Exception as exc:  # noqa: BLE001 - a plugin must never take the agent down
+            except Exception as exc:  # a plugin must never take the agent down
                 logger.warning(
                     "hook %s from plugin %r failed: %s", name, registration.plugin, exc, exc_info=True
                 )

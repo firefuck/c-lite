@@ -67,7 +67,7 @@ def finalize_turn(agent: AIAgent, state: TurnState) -> TurnResult:
     if should_review(agent, state, ignore_busy=True):
         try:
             spawn_background_review(agent, state)
-        except Exception:  # noqa: BLE001 - a review is never worth failing a turn for
+        except Exception:  # a review is never worth failing a turn for
             logger.debug("could not start a background review", exc_info=True)
 
     return TurnResult(

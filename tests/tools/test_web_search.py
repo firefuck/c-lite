@@ -28,7 +28,7 @@ from clite.tools.web_search import (
 class _FakeAPIHandler(BaseHTTPRequestHandler):
     """Mocks a SearXNG/Tavily-style JSON search endpoint."""
 
-    def do_POST(self):  # noqa: N802 - http.server API
+    def do_POST(self):  # http.server API
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length) if length else b""
         payload = json.loads(body) if body else {}
@@ -56,7 +56,7 @@ class _FakeAPIHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(doc)
 
-    def do_GET(self):  # noqa: N802 - http.server API
+    def do_GET(self):  # http.server API
         # SearXNG uses GET with a query parameter.
         from urllib.parse import parse_qs, urlparse
 
@@ -113,7 +113,7 @@ class _PostProvider(WebSearchProvider):
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310 - test server
+        with urllib.request.urlopen(req, timeout=10) as resp:  # test server
             data = json.loads(resp.read())
         return data.get("results", [])
 
@@ -132,7 +132,7 @@ class _GetProvider(WebSearchProvider):
         import urllib.request
 
         url = f"{self._base_url}/search?q={urllib.parse.quote(query)}"
-        with urllib.request.urlopen(url, timeout=10) as resp:  # noqa: S310 - test server
+        with urllib.request.urlopen(url, timeout=10) as resp:  # test server
             data = json.loads(resp.read())
         return data.get("results", [])
 
@@ -158,7 +158,7 @@ class _KeyedProvider(WebSearchProvider):
             headers={"Content-Type": "application/json", "Authorization": f"Bearer {self._api_key}"},
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310 - test server
+        with urllib.request.urlopen(req, timeout=10) as resp:  # test server
             data = json.loads(resp.read())
         return data.get("results", [])
 

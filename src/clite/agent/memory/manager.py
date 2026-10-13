@@ -84,7 +84,7 @@ class MemoryManager:
                 self.provider = provider
             else:
                 logger.warning("memory provider %s is not available; continuing without it", provider.name)
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.warning("memory provider failed to start", exc_info=True)
 
     def _guard(self, action: str, default: Any, call: Callable[[MemoryProvider], Any]) -> Any:
@@ -93,7 +93,7 @@ class MemoryManager:
             return default
         try:
             return call(self.provider)
-        except Exception:  # noqa: BLE001 - memory must never fail a turn
+        except Exception:  # memory must never fail a turn
             logger.warning("memory provider %s failed during %s", self.provider.name, action, exc_info=True)
             return default
 

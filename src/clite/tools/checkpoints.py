@@ -307,13 +307,13 @@ def record_change(
             try:
                 atomic_write_text(files / saved_name, before)
                 change.saved = saved_name
-            except OSError as exc:  # noqa: BLE001 - a failed save must not fail the write
+            except OSError as exc:  # a failed save must not fail the write
                 change.skipped_reason = f"could not save the previous content: {exc}"
 
     group.changes.append(change)
     try:
         _write_manifest(directory, group)
-    except OSError as exc:  # noqa: BLE001
+    except OSError as exc:
         logger.warning("could not write checkpoint manifest for %s: %s", session_id, exc)
         return None
     return change
@@ -355,7 +355,7 @@ def _rollback_group(session_id: str, group: TurnGroup, result: RollbackResult) -
                     shutil.rmtree(target, ignore_errors=True)
                 elif target.exists():
                     target.unlink()
-            except OSError as exc:  # noqa: BLE001 - report and keep going
+            except OSError as exc:  # report and keep going
                 result.skipped.append((change.path, f"could not remove: {exc}"))
                 continue
             result.removed.append(change.path)
@@ -367,12 +367,12 @@ def _rollback_group(session_id: str, group: TurnGroup, result: RollbackResult) -
         saved = directory / FILES_DIRNAME / change.saved
         try:
             content = saved.read_text(encoding="utf-8")
-        except OSError as exc:  # noqa: BLE001
+        except OSError as exc:
             result.skipped.append((change.path, f"could not read the saved copy: {exc}"))
             continue
         try:
             atomic_write_text(target, content)
-        except OSError as exc:  # noqa: BLE001
+        except OSError as exc:
             result.skipped.append((change.path, f"could not restore: {exc}"))
             continue
         result.restored.append(change.path)

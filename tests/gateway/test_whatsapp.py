@@ -20,7 +20,7 @@ class _GraphHandler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: object) -> None:
         return None
 
-    def do_POST(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
+    def do_POST(self) -> None:  # required by BaseHTTPRequestHandler
         length = int(self.headers.get("Content-Length") or 0)
         body = json.loads(self.rfile.read(length) or b"{}")
         self.__class__.requests.append((self.path, body))

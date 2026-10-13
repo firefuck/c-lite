@@ -39,7 +39,7 @@
     {
       "category": "productivity",
       "description": "Create, read, edit, template, and review Word .docx files.",
-      "hash": "sha256:503faeebe41b1102fc89f15b86ae5eb12a764c4fa7e9ec14802a0fbe749296ee",
+      "hash": "sha256:947c69ee678478146790d4f305e60441926b83a4be52ef3f7e0bc69d5b032aef",
       "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/docx",
       "name": "docx",
       "source": "github",
@@ -129,7 +129,7 @@
     {
       "category": "productivity",
       "description": "Create, read, edit Excel .xlsx workbooks and CSVs.",
-      "hash": "sha256:16da1a730f2f5639b7ae42a9e0f1c264de6b1a8f6b2d9941045df74d00fb6fd2",
+      "hash": "sha256:952257264f3901096ca591faa47092140ae1d401517cbeff43bb01ed6ee2fcc2",
       "identifier": "dragovics/clite/src/clite/bundled/skills/productivity/xlsx",
       "name": "xlsx",
       "source": "github",
@@ -156,7 +156,7 @@
     {
       "category": "research",
       "description": "Ground answers and documents in cited, verifiable sources.",
-      "hash": "sha256:5055683806fd3e37e47d16865c572bccf2405ab0760b26ad7196493db1c05421",
+      "hash": "sha256:bff3e3d4401db54855f83b967ea83abf4e6c7b45b5e3489be47d627b414acff3",
       "identifier": "dragovics/clite/src/clite/bundled/skills/research/grounded-citations",
       "name": "grounded-citations",
       "source": "github",

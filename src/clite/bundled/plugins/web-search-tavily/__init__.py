@@ -54,7 +54,7 @@ class TavilyProvider(WebSearchProvider):
                 "api_key": key,
             }
         ).encode()
-        request = urllib.request.Request(  # noqa: S310 - https is enforced
+        request = urllib.request.Request(  # https is enforced
             TAVILY_URL,
             data=body,
             headers={"Content-Type": "application/json", "User-Agent": _USER_AGENT},

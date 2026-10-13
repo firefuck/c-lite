@@ -63,9 +63,9 @@ class SignalAdapter:
             method=method,
         )
         try:
-            with urllib.request.urlopen(
+            with urllib.request.urlopen(  # noqa: S310 - base URL comes from the plugin config
                 request, timeout=float(self.config.get("request_timeout", 30))
-            ) as response:  # noqa: S310
+            ) as response:
                 return json.loads(response.read())
         except Exception as exc:  # noqa: BLE001 - protocol failures must not kill polling
             raise RuntimeError(f"signal-cli {method} {path.split('?', 1)[0]} failed: {exc}") from None

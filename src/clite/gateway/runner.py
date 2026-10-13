@@ -93,7 +93,7 @@ class _TypingKeeper:
         while not self._stop_event.wait(self.interval):
             try:
                 self.adapter.send_typing(self.chat_id, thread_id=self.thread_id)
-            except Exception:  # noqa: BLE001 - cosmetic heartbeat failure
+            except Exception:  # cosmetic heartbeat failure
                 logger.debug("typing heartbeat failed for %s", self.chat_id, exc_info=True)
 
     def stop(self) -> None:
@@ -233,9 +233,9 @@ class GatewayRunner:
 
     def start(self, *, with_cron: bool = True) -> list[str]:
         """Connect every enabled platform. Returns the names that started."""
-        import clite.gateway.platforms.discord  # noqa: F401
-        import clite.gateway.platforms.local  # noqa: F401 - registers the built-in adapters
-        import clite.gateway.platforms.slack  # noqa: F401
+        import clite.gateway.platforms.discord
+        import clite.gateway.platforms.local  # registers the built-in adapters
+        import clite.gateway.platforms.slack
         import clite.gateway.platforms.telegram  # noqa: F401
 
         ensure_plugins_loaded()  # plugins may register more platforms
@@ -301,7 +301,7 @@ class GatewayRunner:
         for adapter in self.adapters.values():
             try:
                 adapter.disconnect()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.debug("disconnect failed for %s", adapter.name, exc_info=True)
         self.adapters.clear()
 
@@ -318,7 +318,7 @@ class GatewayRunner:
 
                 try:
                     os.kill(os.getpid(), signal.SIGTERM)
-                except Exception:
+                except Exception:  # noqa: BLE001 - if signalling fails, exit hard so the supervisor restarts us
                     os._exit(75)
 
             start_thread(_exit, name="clite-gw-restart")
@@ -918,7 +918,7 @@ class GatewayRunner:
             self._dispatch(event)
         except CliteError as exc:
             self.reply(event.source, f"Error: {exc}")
-        except Exception:  # noqa: BLE001 - a bad message must not kill the adapter's receive loop
+        except Exception:  # a bad message must not kill the adapter's receive loop
             logger.exception("gateway dispatch failed")
             self.reply(event.source, "Something went wrong handling that message. The error was logged.")
 
@@ -1086,7 +1086,7 @@ class GatewayRunner:
             words = provider.transcribe(
                 stored.path, model=settings["model"], language=settings["language"]
             ).strip()
-        except Exception as exc:  # noqa: BLE001 - a broken provider is reported, not fatal
+        except Exception as exc:  # a broken provider is reported, not fatal
             logger.warning("transcription failed for %s", stored.path, exc_info=True)
             return "", (
                 f"The user's voice message could not be transcribed "
@@ -1192,7 +1192,7 @@ class GatewayRunner:
             callbacks.on_tool_start = on_tool_start
         try:
             result = session.chat.submit(turn.text, images=(turn.payload or {}).get("images"))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             if typing_keeper is not None:
                 typing_keeper.stop()
             logger.exception("gateway turn failed for %s", session.key)
@@ -1257,7 +1257,7 @@ class GatewayRunner:
             directory.mkdir(parents=True, exist_ok=True)
             provider.synthesize(text, target, voice=settings["voice"], model=settings["model"])
             sent = adapter.send_file(session.source.chat_id, str(target), thread_id=session.source.thread_id)
-        except Exception:  # noqa: BLE001 - the text answer already landed; the voice copy is a bonus
+        except Exception:  # the text answer already landed; the voice copy is a bonus
             logger.warning("session %s: could not speak the reply", session.key, exc_info=True)
             try:  # a half-written file is worse than none, but failing to remove it is not a turn
                 target.unlink()

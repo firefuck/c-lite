@@ -25,7 +25,7 @@ def browser():
     with sync_api.sync_playwright() as playwright:
         try:
             instance = playwright.chromium.launch(args=["--no-sandbox"])
-        except Exception as exc:  # noqa: BLE001 - no browser on this machine
+        except Exception as exc:  # no browser on this machine
             pytest.skip(f"cannot launch Chromium: {exc}")
         yield instance
         instance.close()

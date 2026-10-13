@@ -28,7 +28,7 @@ class _MatrixHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(encoded)
 
-    def do_GET(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
+    def do_GET(self) -> None:  # required by BaseHTTPRequestHandler
         self.__class__.sync_calls += 1
         self.__class__.requests.append(("GET", self.path, None))
         if self.path.startswith("/_matrix/client/v3/sync"):
@@ -53,7 +53,7 @@ class _MatrixHandler(BaseHTTPRequestHandler):
             return
         self.send_error(404)
 
-    def do_PUT(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
+    def do_PUT(self) -> None:  # required by BaseHTTPRequestHandler
         length = int(self.headers.get("Content-Length") or 0)
         body = json.loads(self.rfile.read(length) or b"{}")
         self.__class__.requests.append(("PUT", self.path, body))

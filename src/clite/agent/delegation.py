@@ -224,7 +224,7 @@ def _run_child(parent: AIAgent, index: int, task: dict[str, Any], spawn_id: str 
         }
         if result.error:
             report["error"] = result.error
-    except Exception as exc:  # noqa: BLE001 - one failed child must not fail its siblings
+    except Exception as exc:  # one failed child must not fail its siblings
         logger.warning("subagent %d crashed", index, exc_info=True)
         report = {
             "index": index,

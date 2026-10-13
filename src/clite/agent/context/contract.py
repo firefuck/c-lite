@@ -103,7 +103,7 @@ def _check_window(
     return result
 
 
-def _fixed_summary(prompt: str) -> str:  # noqa: ARG001 - the summariser signature takes a prompt
+def _fixed_summary(prompt: str) -> str:  # the summariser signature takes a prompt
     return "## Goal\ncontract check"
 
 

@@ -55,7 +55,7 @@ def run_turn(agent: AIAgent, state: TurnState) -> TurnResult:
                     break
                 if verdict.action != NEXT:
                     break  # "continue": begin a new iteration
-    except Exception as exc:  # noqa: BLE001 - a bug in a phase must not take the surface down
+    except Exception as exc:  # a bug in a phase must not take the surface down
         logger.exception("turn failed in session %s", agent.session_id)
         state.error = f"internal error: {type(exc).__name__}: {exc}"
         state.exit_reason = "internal_error"

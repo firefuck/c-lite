@@ -722,7 +722,7 @@ def own_command_names() -> set[str]:
             for entry in entry_points(group="console_scripts")
             if entry.value.split(":")[0].startswith(f"{APP_NAME}.")
         )
-    except Exception:  # noqa: BLE001 - metadata of some other package may be broken
+    except Exception:  # metadata of some other package may be broken
         logger.debug("could not list console scripts", exc_info=True)
     return names
 
@@ -1121,7 +1121,7 @@ def check_command(command: str, ctx: ToolContext | None = None, *, cwd: str = ""
     )
     try:
         choice = str(approve(command=command, description=description, pattern_keys=sorted(keys)) or "deny")
-    except Exception:  # noqa: BLE001 - a broken prompt must fail closed
+    except Exception:  # a broken prompt must fail closed
         logger.warning("approval callback failed", exc_info=True)
         choice = "deny"
     if choice not in CHOICES:
@@ -1156,5 +1156,5 @@ def _remember_always(keys: set[str]) -> None:
 
     try:
         atomic_config_update(mutate)
-    except Exception:  # noqa: BLE001 - the approval still holds for this session
+    except Exception:  # the approval still holds for this session
         logger.warning("could not persist command_allowlist", exc_info=True)

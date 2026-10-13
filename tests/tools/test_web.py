@@ -21,7 +21,7 @@ PAGE = """<html><head><title>Docs &amp; Guides</title><style>body{color:red}</st
 class _Handler(BaseHTTPRequestHandler):
     requested: list[str] = []  # every path this server was asked for, across requests
 
-    def do_GET(self):  # noqa: N802 - http.server API
+    def do_GET(self):  # http.server API
         self.requested.append(self.path)
         redirects = {
             "/moved": "/page",

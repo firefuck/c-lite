@@ -87,8 +87,10 @@ def kill_process_tree(process: subprocess.Popen, *, force: bool = False) -> None
         return
     try:
         if sys.platform == "win32":
-            subprocess.run(
-                ["taskkill", "/F", "/T", "/PID", str(process.pid)], capture_output=True, check=False
+            subprocess.run(  # noqa: S603 - the system's taskkill, no shell
+                ["taskkill", "/F", "/T", "/PID", str(process.pid)],  # noqa: S607 - the system's taskkill
+                capture_output=True,
+                check=False,
             )
         else:
             os.killpg(os.getpgid(process.pid), signal.SIGKILL if force else signal.SIGTERM)

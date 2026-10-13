@@ -93,7 +93,7 @@ class WhatsAppAdapter:
             if event is not None:
                 try:
                     self.handle_message(event)
-                except Exception:  # noqa: BLE001 - a single webhook message must not reject the batch
+                except Exception:  # a single webhook message must not reject the batch
                     logger.exception("WhatsApp message dispatch failed")
         return True
 
@@ -169,9 +169,9 @@ class WhatsAppAdapter:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(
+            with urllib.request.urlopen(  # noqa: S310 - Graph endpoint may be a local test fake
                 request, timeout=float(self.config.get("request_timeout", 30))
-            ) as response:  # noqa: S310
+            ) as response:
                 result = json.loads(response.read())
         except Exception as exc:  # noqa: BLE001 - runner receives a result rather than an adapter exception
             return self.ctx.gateway_send_result(False, error=f"WhatsApp send failed: {exc}")

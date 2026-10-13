@@ -157,7 +157,7 @@ class PluginContext:
         self,
         name: str,
         help: str,
-        handler: Callable[[Any], int | None],  # noqa: A002
+        handler: Callable[[Any], int | None],
         setup: Callable[[Any], None] | None = None,
     ) -> None:
         """Add a ``clite <name>`` subcommand."""

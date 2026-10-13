@@ -140,7 +140,7 @@ class _FakeIndexServer:
         payload = body.encode()
 
         class Handler(BaseHTTPRequestHandler):
-            def do_GET(self):  # noqa: N802 - BaseHTTPRequestHandler's name
+            def do_GET(self):  # BaseHTTPRequestHandler's name
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(payload)))

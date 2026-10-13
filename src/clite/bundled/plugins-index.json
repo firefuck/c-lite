@@ -65,7 +65,7 @@
     },
     {
       "description": "Receive and send Signal messages through a user-run signal-cli REST service",
-      "hash": "sha256:a5ba931ac029aec1d959b910f41a570310c6a0e3c33943c295e932f124dc9b15",
+      "hash": "sha256:cfe3e566c802a2a259bfb2e69b00502c7e2e6904e45d4b7909e12b2a51b33ca4",
       "identifier": "dragovics/clite/src/clite/bundled/plugins/signal",
       "kind": "platform",
       "name": "signal",
@@ -83,7 +83,7 @@
     },
     {
       "description": "Web search via the DuckDuckGo HTML endpoint (no API key required)",
-      "hash": "sha256:09919a5340d41bff2eb7fbc7ac31175363c433c1ec43f0456bc353320b78356e",
+      "hash": "sha256:1046edd590a3a953d8f686391e381aee90e941321b943e3510e1f3596c0fd312",
       "identifier": "dragovics/clite/src/clite/bundled/plugins/web-search-ddg",
       "kind": "backend",
       "name": "web-search-ddg",
@@ -92,7 +92,7 @@
     },
     {
       "description": "Web search via the Tavily API (requires TAVILY_API_KEY)",
-      "hash": "sha256:4e45c1803b991494494eedf08b83b39f2eeaf3a3b856aeb43d9e8cc1c66db018",
+      "hash": "sha256:98a1a512393f97fbe7a4b57ff0f738848ea1c59b67282b91af5d4948ebe68317",
       "identifier": "dragovics/clite/src/clite/bundled/plugins/web-search-tavily",
       "kind": "backend",
       "name": "web-search-tavily",
@@ -101,7 +101,7 @@
     },
     {
       "description": "Receive WhatsApp Cloud API webhooks and send replies through the Graph API",
-      "hash": "sha256:635e93505ea231dd97dae66e28b619e011cd3877e8dcd46d093881c0c74c91da",
+      "hash": "sha256:abc23e3edcc4b9cd41c1b68fd2221df3c998653008cf7b112a899f4910574bcb",
       "identifier": "dragovics/clite/src/clite/bundled/plugins/whatsapp",
       "kind": "platform",
       "name": "whatsapp",

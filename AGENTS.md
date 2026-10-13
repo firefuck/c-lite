@@ -100,6 +100,8 @@ tes, atau task yang tidak ada; `tests/test_docs.py` memeriksanya.
   modul. Komentar menjelaskan *mengapa*, bukan *apa*.
 - Tidak ada kode mati, tidak ada pengaturan yang tidak dibaca, tidak ada parameter "untuk
   nanti".
+- `except Exception`, `urlopen`, dan `subprocess` yang ditandai ruff diberi
+  `# noqa: <kode> - <alasan>`. Ruff menolak `noqa` yang tidak lagi dibutuhkan.
 - Pesan galat untuk pengguna dan untuk model menyebut apa yang salah dan apa yang bisa
   dilakukan berikutnya.
 

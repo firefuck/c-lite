@@ -211,7 +211,7 @@ def test_real_errors_are_classified(provider, model):
     def error_of(route, messages, params=None):
         try:
             LLMClient().complete(route, messages, params=params, stream=False)
-        except Exception as exc:  # noqa: BLE001 - the classification is what is being tested
+        except Exception as exc:  # the classification is what is being tested
             return classify_api_error(exc)
         raise AssertionError("the call was expected to fail")
 

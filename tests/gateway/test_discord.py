@@ -30,7 +30,7 @@ class FakeDiscordServer:
         server_self = self
 
         class RestHandler(BaseHTTPRequestHandler):
-            def do_GET(self):  # noqa: N802
+            def do_GET(self):
                 server_self.rest_calls.append(("GET", self.path))
                 if self.path == "/users/@me":
                     if "Bot good-token" not in self.headers.get("Authorization", ""):
@@ -38,7 +38,7 @@ class FakeDiscordServer:
                     return self._reply({"id": "bot-999", "username": "clite_bot"})
                 self._reply({}, status=404)
 
-            def do_POST(self):  # noqa: N802
+            def do_POST(self):
                 length = int(self.headers.get("Content-Length", 0))
                 body = json.loads(self.rfile.read(length)) if length > 0 else {}
                 server_self.rest_calls.append(("POST", self.path, body))

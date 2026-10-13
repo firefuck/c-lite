@@ -78,15 +78,15 @@ class DiscordAdapter(BasePlatformAdapter):
             "Content-Type": "application/json",
             "User-Agent": "clite (https://github.com/dragovics/clite, 0.1)",
         }
-        req = urllib.request.Request(url, data=data, headers=headers, method=method)
+        req = urllib.request.Request(url, data=data, headers=headers, method=method)  # noqa: S310 - the Discord API base URL
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - the Discord API base URL
                 body = resp.read()
                 return json.loads(body) if body else {}
         except urllib.error.HTTPError as exc:
             try:
                 err_data = json.loads(exc.read())
-            except Exception:
+            except Exception:  # noqa: BLE001 - an unreadable error body falls back to the status
                 err_data = {"message": f"HTTP {exc.code}"}
             raise CliteError(f"Discord API error {exc.code}: {err_data.get('message', '')}") from exc
         except Exception as exc:
@@ -129,7 +129,7 @@ class DiscordAdapter(BasePlatformAdapter):
             try:
                 res = self._call_rest("POST", f"/channels/{target}/messages", payload)
                 last_id = str(res.get("id", ""))
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - a failed send is reported, not raised
                 logger.warning("failed to send message chunk to Discord %s: %s", target, exc)
                 return SendResult(False, error=str(exc))
 
@@ -139,7 +139,7 @@ class DiscordAdapter(BasePlatformAdapter):
         target = thread_id or chat_id
         try:
             self._call_rest("POST", f"/channels/{target}/typing")
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - the typing indicator is cosmetic
             logger.debug("failed to trigger Discord typing indicator for %s: %s", target, exc)
 
     def _run_gateway(self) -> None:
@@ -159,7 +159,7 @@ class DiscordAdapter(BasePlatformAdapter):
                     self._ws = ws
                     backoff = 1.0  # reset on successful connection
                     await self._handle_connection(ws)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - any connection failure reconnects with backoff
                 if self._stop.is_set():
                     break
                 logger.warning(

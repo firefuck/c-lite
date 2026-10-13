@@ -143,7 +143,7 @@ def validate(path: str) -> dict:
         from docx import Document
 
         Document(path)
-    except Exception as exc:  # noqa: BLE001 - triage tool, report anything
+    except Exception as exc:  # triage tool, report anything
         _issue(issues, "error", "python-docx-open-failed", str(exc))
 
     ok = not any(i["severity"] == "error" for i in issues)

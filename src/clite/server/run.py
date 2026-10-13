@@ -62,7 +62,7 @@ def bind_socket(host: str, port: int) -> socket.socket:
 
 
 def _display_host(host: str) -> str:
-    return "127.0.0.1" if host in ("0.0.0.0", "::") else host  # noqa: S104 - display only
+    return "127.0.0.1" if host in ("0.0.0.0", "::") else host  # display only
 
 
 def dashboard_url(host: str, port: int, token: str, *, scheme: str = "http") -> str:

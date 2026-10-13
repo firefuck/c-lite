@@ -231,7 +231,7 @@ class RpcServer:
             )
         except CliteError as exc:
             self._respond(request_id, error=RpcError(REQUEST_FAILED, str(exc)))
-        except Exception as exc:  # noqa: BLE001 - one bad request must not end the connection
+        except Exception as exc:  # one bad request must not end the connection
             logger.exception("RPC handler %s failed", name)
             self._respond(request_id, error=RpcError(INTERNAL_ERROR, f"{type(exc).__name__}: {exc}"))
 
@@ -286,7 +286,7 @@ class RpcServer:
             if not detached.detach(session):
                 try:
                     session.close()
-                except Exception:  # noqa: BLE001
+                except Exception:
                     logger.debug("closing an RPC session failed", exc_info=True)
         self._pool.shutdown(wait=False, cancel_futures=True)
         self.transport.close()

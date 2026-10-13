@@ -28,7 +28,7 @@ class _SignalHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(encoded)
 
-    def do_GET(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
+    def do_GET(self) -> None:  # required by BaseHTTPRequestHandler
         self.__class__.receive_calls += 1
         self.__class__.requests.append(("GET", self.path, None))
         if self.path.startswith("/v1/receive/"):
@@ -50,7 +50,7 @@ class _SignalHandler(BaseHTTPRequestHandler):
             return
         self.send_error(404)
 
-    def do_POST(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
+    def do_POST(self) -> None:  # required by BaseHTTPRequestHandler
         length = int(self.headers.get("Content-Length") or 0)
         body = json.loads(self.rfile.read(length) or b"{}")
         self.__class__.requests.append(("POST", self.path, body))

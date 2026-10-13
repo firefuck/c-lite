@@ -88,9 +88,9 @@ class SlackAdapter(BasePlatformAdapter):
             "Content-Type": "application/json",
             "User-Agent": "clite (https://github.com/dragovics/clite, 0.1)",
         }
-        req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+        req = urllib.request.Request(url, data=data, headers=headers, method="POST")  # noqa: S310 - the Slack Web API base URL
         try:
-            with urllib.request.urlopen(req, timeout=30.0) as resp:
+            with urllib.request.urlopen(req, timeout=30.0) as resp:  # noqa: S310 - the Slack Web API base URL
                 body = json.loads(resp.read().decode("utf-8"))
                 if not body.get("ok"):
                     err = body.get("error", "unknown error")
@@ -100,7 +100,7 @@ class SlackAdapter(BasePlatformAdapter):
             try:
                 err_body = json.loads(exc.read().decode("utf-8"))
                 err_msg = err_body.get("error", f"HTTP {exc.code}")
-            except Exception:
+            except Exception:  # noqa: BLE001 - an unreadable error body falls back to the status
                 err_msg = f"HTTP {exc.code}"
             raise CliteError(f"Slack API error: {err_msg}") from exc
         except Exception as exc:
@@ -152,7 +152,7 @@ class SlackAdapter(BasePlatformAdapter):
             try:
                 res = self._call_web("chat.postMessage", payload)
                 last_ts = str(res.get("ts", ""))
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - a failed send is reported, not raised
                 logger.warning("failed to send message to Slack channel %s: %s", chat_id, exc)
                 return SendResult(False, error=str(exc))
 
@@ -183,7 +183,7 @@ class SlackAdapter(BasePlatformAdapter):
                     backoff = 1.0  # reset on successful connection
                     logger.info("Slack Socket Mode connected")
                     await self._handle_ws_messages(ws)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - any connection failure reconnects with backoff
                 if self._stop.is_set():
                     break
                 logger.warning(
@@ -196,7 +196,7 @@ class SlackAdapter(BasePlatformAdapter):
         async for raw in ws:
             try:
                 msg = json.loads(raw)
-            except Exception:
+            except Exception:  # noqa: BLE001 - a malformed frame is skipped
                 continue
 
             # Acknowledge the envelope immediately

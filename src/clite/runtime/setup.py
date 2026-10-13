@@ -52,7 +52,7 @@ def verify_provider_key(
             stream=False,
         )
         return True, "ok"
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - the probe reports any failure as text
         return False, str(exc)
 
 

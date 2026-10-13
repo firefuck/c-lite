@@ -193,7 +193,7 @@ class AcpServer:
         for action in pending or []:
             try:
                 action()
-            except Exception:  # noqa: BLE001 - a late announcement must not fail the request
+            except Exception:  # a late announcement must not fail the request
                 logger.debug("an after-reply action failed", exc_info=True)
 
     def _respond(self, request_id: Any, result: Any = None, error: AcpError | None = None) -> None:
@@ -256,7 +256,7 @@ class AcpServer:
             result = method.handler(self, params)
         except AcpError as exc:
             self._respond(request_id, error=exc)
-        except Exception as exc:  # noqa: BLE001 - one bad request must not end the connection
+        except Exception as exc:  # one bad request must not end the connection
             logger.exception("ACP method %s failed", name)
             self._respond(request_id, error=AcpError(INTERNAL_ERROR, f"{type(exc).__name__}: {exc}"))
         else:
@@ -344,7 +344,7 @@ class AcpServer:
         for session in sessions:
             try:
                 session.close()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.debug("closing an ACP session failed", exc_info=True)
         self._pool.shutdown(wait=False, cancel_futures=True)
         self.transport.close()

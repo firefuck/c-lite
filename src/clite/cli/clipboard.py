@@ -39,11 +39,11 @@ def write_clipboard_text(text: str, *, stream=None) -> bool:
         return False
     name, args = tool
     try:
-        completed = subprocess.run(
+        completed = subprocess.run(  # noqa: S603 - a known clipboard tool, no shell
             [name, *args],
             input=text,
             text=True,
-            encoding="utf-8",  # noqa: S603
+            encoding="utf-8",
             capture_output=True,
             timeout=10,
             check=False,

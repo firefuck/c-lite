@@ -250,7 +250,7 @@ def run_review(agent: AIAgent, state: TurnState, *, timeout: float | None = None
             if fork is not None:
                 try:
                     fork.close("review")
-                except Exception:  # noqa: BLE001
+                except Exception:
                     logger.debug("review fork cleanup failed", exc_info=True)
             done.set()
 

@@ -150,9 +150,9 @@ def _http_post(
     else:
         body_bytes = b""
 
-    req = urllib.request.Request(url, data=body_bytes, headers=req_headers, method="POST")
+    req = urllib.request.Request(url, data=body_bytes, headers=req_headers, method="POST")  # noqa: S310 - the provider's token endpoint from its profile
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - the provider's token endpoint from its profile
             raw = resp.read().decode("utf-8")
             try:
                 return json.loads(raw)
@@ -340,7 +340,7 @@ def login_pkce(
     if open_browser:
         try:
             webbrowser.open(auth_url)
-        except Exception:
+        except Exception:  # noqa: BLE001 - no browser here; the user opens the URL shown
             pass
 
     server_thread = threading.Thread(target=server.handle_request, daemon=True)
@@ -440,7 +440,7 @@ def login_device_code(
         target_url = verification_uri_complete or verification_uri
         try:
             webbrowser.open(target_url)
-        except Exception:
+        except Exception:  # noqa: BLE001 - no browser here; the user opens the URL shown
             pass
 
     deadline = time.time() + min(timeout, expires_in)

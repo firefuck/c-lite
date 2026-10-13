@@ -108,10 +108,10 @@ def fake_api():
             self.end_headers()
             self.wfile.write(payload)
 
-        def do_POST(self):  # noqa: N802
+        def do_POST(self):
             self._handle("POST")
 
-        def do_GET(self):  # noqa: N802
+        def do_GET(self):
             self._handle("GET")
 
         def log_message(self, *args):

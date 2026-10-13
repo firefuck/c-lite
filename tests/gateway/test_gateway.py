@@ -520,7 +520,7 @@ class FakeTelegram:
         api = self
 
         class Handler(BaseHTTPRequestHandler):
-            def do_POST(self):  # noqa: N802
+            def do_POST(self):
                 body = json.loads(self.rfile.read(int(self.headers["Content-Length"])) or b"{}")
                 method = self.path.rsplit("/", 1)[-1]
                 api.calls.append((method, body))
@@ -1243,7 +1243,7 @@ def test_tool_progress_keeps_only_the_last_lines():
 
 
 def test_a_tool_message_shows_the_tool_emoji_name_and_preview():
-    import clite.tools.builtin.file_tools  # noqa: F401 - registers the emoji in the registry
+    import clite.tools.builtin.file_tools  # registers the emoji in the registry
     import clite.tools.builtin.terminal  # noqa: F401
     from clite.gateway.stream import tool_message
 

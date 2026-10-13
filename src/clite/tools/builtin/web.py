@@ -156,7 +156,7 @@ class _GuardedRedirects(urllib.request.HTTPRedirectHandler):
     def __init__(self, allow_private: bool) -> None:
         self.allow_private = allow_private
 
-    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001 - urllib's signature
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # urllib's signature
         if urllib.parse.urlsplit(newurl).scheme not in ("http", "https"):
             raise _RedirectRefused(f"the page redirects to {newurl}, and only http and https are followed")
         if not self.allow_private:
@@ -182,9 +182,9 @@ def web_fetch_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
     except (TypeError, ValueError):
         return tool_error("max_chars and offset must be integers")
 
-    request = urllib.request.Request(
+    request = urllib.request.Request(  # noqa: S310 - scheme checked above
         url,
-        headers={  # noqa: S310 - scheme checked above
+        headers={
             "User-Agent": f"clite/{__version__} (+web_fetch)",
             "Accept": "text/html,text/plain,application/json,*/*;q=0.5",
         },

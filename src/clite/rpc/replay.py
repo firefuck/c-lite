@@ -174,14 +174,14 @@ class DetachedSessions:
         while not self._stop.wait(interval):
             try:
                 self.reap()
-            except Exception:  # noqa: BLE001 - a reaper that dies stops collecting sessions
+            except Exception:  # a reaper that dies stops collecting sessions
                 logger.exception("reaping detached sessions failed")
 
 
 def _close_quietly(session: Any) -> None:
     try:
         session.close()
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.debug("closing a detached session failed", exc_info=True)
 
 

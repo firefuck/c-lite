@@ -214,7 +214,7 @@ class ToolRegistry:
             result = entry.handler(args or {}, **kwargs)
             if inspect.isawaitable(result):
                 result = run_async(result)
-        except Exception as exc:  # noqa: BLE001 - the model gets the error and can react to it
+        except Exception as exc:  # the model gets the error and can react to it
             logger.warning("tool %s raised", name, exc_info=True)
             return tool_error(f"{type(exc).__name__}: {exc}")
         if isinstance(result, str):
@@ -323,7 +323,7 @@ def discover_builtin_tools(force: bool = False) -> list[str]:
             try:
                 importlib.import_module(module_name)
                 imported.append(module_name)
-            except Exception:  # noqa: BLE001 - one broken tool file must not hide the rest
+            except Exception:  # one broken tool file must not hide the rest
                 logger.warning("could not import tool module %s", module_name, exc_info=True)
         _DISCOVERED = True
         return imported

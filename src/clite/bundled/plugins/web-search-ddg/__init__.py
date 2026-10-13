@@ -37,7 +37,7 @@ class DuckDuckGoProvider(WebSearchProvider):
 
     def search(self, query: str, *, max_results: int = 5) -> list[dict[str, str]]:
         body = urllib.parse.urlencode({"q": query, "b": ""}).encode()
-        request = urllib.request.Request(  # noqa: S310 - https is enforced
+        request = urllib.request.Request(  # https is enforced
             DDG_URL,
             data=body,
             headers={"User-Agent": _USER_AGENT, "Accept": "text/html"},

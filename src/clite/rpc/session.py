@@ -221,7 +221,7 @@ class RpcSession:
                     "estimated_cost_usd": cost,
                 },
             )
-        except Exception as exc:  # noqa: BLE001 - the client must always get a turn.complete
+        except Exception as exc:  # the client must always get a turn.complete
             logger.exception("turn failed in RPC session %s", self.id)
             self._emit("error", {"message": f"{type(exc).__name__}: {exc}"})
             self._emit(

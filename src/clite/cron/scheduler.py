@@ -58,7 +58,7 @@ def _run_script(job: dict[str, Any], store: JobStore) -> tuple[str, str | None]:
     if not path.is_file():
         return "", f"script {script!r} does not exist in cron/scripts"
     try:
-        completed = subprocess.run(
+        completed = subprocess.run(  # noqa: S603 - a script the user placed in cron/scripts
             [sys.executable, str(path)],
             text=True,
             capture_output=True,
@@ -175,7 +175,7 @@ def run_job(
         store.mark_finished(
             job["id"], status=outcome["status"], error=result.error, output_path=str(output_path)
         )
-    except Exception as exc:  # noqa: BLE001 - one job failing must not stop the tick
+    except Exception as exc:  # one job failing must not stop the tick
         logger.warning("cron job %s failed", job["id"], exc_info=True)
         outcome.update(status="failed", error=f"{type(exc).__name__}: {exc}")
         store.mark_finished(job["id"], status="failed", error=outcome["error"])
@@ -299,7 +299,7 @@ class Scheduler:
         while not self._stop.is_set():
             try:
                 tick(client=self.client, deliver=self.deliver)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.warning("cron tick failed", exc_info=True)
             self._stop.wait(self.interval)
 

@@ -82,8 +82,8 @@ def plugin_digest(directory: Path) -> str:
 def git_commit(directory: Path) -> str:
     """The commit a checkout sits at, or ``""`` when it is not a git checkout."""
     try:
-        result = subprocess.run(
-            ["git", "-C", str(directory), "rev-parse", "HEAD"],  # noqa: S603, S607
+        result = subprocess.run(  # noqa: S603 - fixed git argv, no shell
+            ["git", "-C", str(directory), "rev-parse", "HEAD"],  # noqa: S607
             capture_output=True,
             text=True,
             check=False,
@@ -176,7 +176,7 @@ def stage(source: str, *, ref: str = "") -> Staged:
         )
     if source.startswith(("https://", "git@", "ssh://")) or source.endswith(".git"):
         directory = _staging(Path(source.rstrip("/")).name.removesuffix(".git") or "plugin")
-        command = ["git", "clone", "--depth", "1"]  # noqa: S607 - git is the documented tool
+        command = ["git", "clone", "--depth", "1"]  # git is the documented tool
         if ref:
             command += ["--branch", ref]
         command += [source, str(directory)]
