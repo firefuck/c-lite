@@ -24,6 +24,7 @@ import base64
 import os
 import shlex
 import shutil
+import subprocess
 import threading
 import uuid
 from collections.abc import Callable
@@ -92,8 +93,6 @@ class SSHEnvironment(BaseEnvironment):
     def _run_ssh(
         self, remote_command: str, *, timeout: int = 60, stdin_data: str | bytes | None = None
     ) -> ExecResult:
-        import subprocess
-
         argv = [*self._ssh_base(), "--", self._host, remote_command]
         data = stdin_data.encode("utf-8") if isinstance(stdin_data, str) else stdin_data
         try:
@@ -211,11 +210,9 @@ class SSHEnvironment(BaseEnvironment):
 
     # ── command execution ────────────────────────────────────────────────────────────────
 
-    def spawn_background(self, command: str, *, cwd: str) -> object:
+    def spawn_background(self, command: str, *, cwd: str) -> subprocess.Popen[str]:
         """Run the command over a dedicated ssh connection kept open, so ``process`` can read
         its output, feed stdin and kill it. The client process dying ends the remote command."""
-        import subprocess
-
         self._start()
         workdir = self.resolve_path(cwd)
         remote = f"cd {shlex.quote(workdir)} 2>/dev/null; {command}"
@@ -250,8 +247,6 @@ class SSHEnvironment(BaseEnvironment):
         on_output: Callable[[str], None] | None = None,
         max_output_chars: int | None = None,
     ) -> ExecResult:
-        import subprocess
-
         try:
             self._start()
         except RuntimeError as exc:

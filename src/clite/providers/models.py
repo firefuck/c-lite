@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 from clite.core.config import get_path, load_config
@@ -44,7 +45,7 @@ class ModelInfo:
     pricing: ModelPricing | None = None
 
 
-def _cache_path(provider: str):
+def _cache_path(provider: str) -> Path:
     return get_cache_dir() / "models" / f"{provider}.json"
 
 

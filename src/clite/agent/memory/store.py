@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import contextlib
 import threading
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -94,7 +95,7 @@ class MemoryStore:
     # ── writing ──────────────────────────────────────────────────────────────────────────
 
     @contextlib.contextmanager
-    def _locked(self):
+    def _locked(self) -> Iterator[None]:
         ensure_dir(self.directory)
         with _PROCESS_LOCK, exclusive_lock(self.directory / ".lock"):
             yield

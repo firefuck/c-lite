@@ -7,13 +7,14 @@ rewrites a skill file. The curator reads it to find agent-created skills nobody 
 from __future__ import annotations
 
 import time
+from pathlib import Path
 from typing import Any
 
 from clite.core.constants import get_skills_dir
 from clite.core.io import atomic_write_json, read_json
 
 
-def _path():
+def _path() -> Path:
     return get_skills_dir() / ".usage.json"
 
 

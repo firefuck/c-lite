@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from clite.agent.memory.provider import MemoryProvider
@@ -108,7 +109,7 @@ class MemoryManager:
 
     # ── the nudge counter, persisted per session ─────────────────────────────────────────
 
-    def _nudge_state_path(self):
+    def _nudge_state_path(self) -> Path:
         return get_memories_dir() / _NUDGE_STATE_FILENAME
 
     def _load_nudge_count(self, session_id: str) -> int:

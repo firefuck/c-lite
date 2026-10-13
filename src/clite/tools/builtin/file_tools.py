@@ -13,7 +13,7 @@ import difflib
 import fnmatch
 import os
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -55,7 +55,7 @@ SKIP_DIRS = frozenset(
 )
 
 
-def _env(ctx: ToolContext):
+def _env(ctx: ToolContext) -> BaseEnvironment:
     return get_environment(ctx.task_id or ctx.session_id, cwd=ctx.cwd)
 
 
@@ -68,7 +68,7 @@ def _join(parent: str, name: str) -> str:
     return str(PurePosixPath(parent) / name)
 
 
-def _before_content(environment, path: str) -> str | None:
+def _before_content(environment: BaseEnvironment, path: str) -> str | None:
     """The file's text as it is now, for the checkpoint store.
 
     Read through the session environment so a checkpoint follows the same files the tools
@@ -433,7 +433,7 @@ def _ancestors(directory: str) -> list[str]:
     return parents
 
 
-def _walk(environment, root: str, *, max_depth: int = 40):
+def _walk(environment: BaseEnvironment, root: str, *, max_depth: int = 40) -> Iterator[str]:
     """Yield files under ``root`` in sorted order, skipping dependency/vcs directories.
 
     Files directly under a directory come before files in its subdirectories, both sorted by

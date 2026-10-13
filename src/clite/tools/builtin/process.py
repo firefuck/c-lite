@@ -15,6 +15,7 @@ from clite.core.redact import redact
 from clite.core.threads import start_thread
 from clite.tools.context import ToolContext
 from clite.tools.environments import get_environment
+from clite.tools.environments.base import BaseEnvironment
 from clite.tools.environments.capture import read_output_chunks
 from clite.tools.environments.local import kill_process_tree
 from clite.tools.registry import registry, tool_error, tool_result
@@ -84,7 +85,9 @@ class ProcessRegistry:
         self._lock = threading.Lock()
         self._processes: dict[str, ManagedProcess] = {}
 
-    def spawn(self, command: str, *, cwd: str, task_id: str = "", environment=None) -> ManagedProcess:
+    def spawn(
+        self, command: str, *, cwd: str, task_id: str = "", environment: BaseEnvironment | None = None
+    ) -> ManagedProcess:
         with self._lock:
             running = [p for p in self._processes.values() if p.exit_code is None]
             if len(running) >= _MAX_PROCESSES:

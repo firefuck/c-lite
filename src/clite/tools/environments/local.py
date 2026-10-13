@@ -150,7 +150,7 @@ class LocalEnvironment(BaseEnvironment):
             exists=True, is_dir=is_dir, is_file=is_file, size=target.stat().st_size if is_file else 0
         )
 
-    def spawn_background(self, command: str, *, cwd: str) -> object:
+    def spawn_background(self, command: str, *, cwd: str) -> subprocess.Popen[str]:
         shell = find_shell()
         # list2cmdline quotes argv using CRT rules, which cmd.exe does not follow for /c.
         is_cmd = shell[0].replace("\\", "/").rsplit("/", 1)[-1].lower() in {"cmd", "cmd.exe"}

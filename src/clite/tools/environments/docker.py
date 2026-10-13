@@ -115,7 +115,7 @@ class DockerEnvironment(LocalEnvironment):
 
     # ── command execution ────────────────────────────────────────────────────────────────
 
-    def spawn_background(self, command: str, *, cwd: str) -> object:
+    def spawn_background(self, command: str, *, cwd: str) -> subprocess.Popen[str]:
         """Run the command in the container detached, keeping a ``docker exec`` client open
         so the ``process`` tool can still read its output, feed stdin and kill it."""
         container = self._ensure_container()

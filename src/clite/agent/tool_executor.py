@@ -16,6 +16,7 @@ import contextvars
 import json
 import logging
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
 
@@ -35,7 +36,9 @@ logger = logging.getLogger("clite.agent.tools")
 CANCELLED_RESULT = json.dumps({"error": "cancelled: the user interrupted before this tool ran"})
 
 
-def can_run_in_parallel(calls: list[tuple[ToolCall, dict[str, Any] | None]], resolve_path=None) -> bool:
+def can_run_in_parallel(
+    calls: list[tuple[ToolCall, dict[str, Any] | None]], resolve_path: Callable[[str], str] | None = None
+) -> bool:
     if len(calls) < 2:
         return False
     seen_paths: set[str] = set()

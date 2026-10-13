@@ -34,6 +34,7 @@ from clite.tools.toolsets import resolve_toolsets
 
 if TYPE_CHECKING:
     from clite.agent.agent import AIAgent
+    from clite.providers.runtime import RuntimeRoute
 
 logger = logging.getLogger("clite.agent.delegation")
 
@@ -91,7 +92,7 @@ def may_delegate(parent: AIAgent) -> bool:
     return parent.depth + 1 < _max_depth(parent)
 
 
-def _child_route(parent: AIAgent, model: str | None = None):
+def _child_route(parent: AIAgent, model: str | None = None) -> RuntimeRoute:
     """The route a child runs on.
 
     A per-task ``model`` (``<model>``, ``<provider>:<model>``, or a provider alias) wins over

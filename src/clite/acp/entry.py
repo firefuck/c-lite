@@ -9,6 +9,7 @@ corrupting the protocol stream.
 from __future__ import annotations
 
 import sys
+from typing import TextIO
 
 from clite.acp.server import AcpServer
 from clite.core.config import config_get
@@ -18,7 +19,7 @@ from clite.core.profiles import apply_profile_override
 from clite.rpc.transport import StdioTransport
 
 
-def serve_stdio(stdin=None, stdout=None) -> int:
+def serve_stdio(stdin: TextIO | None = None, stdout: TextIO | None = None) -> int:
     """Answer lines from ``stdin`` on ``stdout`` until it closes.
 
     ``sys.stdout`` is moved to stderr for the life of the server, so anything that prints —

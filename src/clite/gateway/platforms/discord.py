@@ -200,7 +200,7 @@ class DiscordAdapter(BasePlatformAdapter):
 
         last_ack = time.monotonic()
 
-        async def heartbeat_worker():
+        async def heartbeat_worker() -> None:
             nonlocal last_ack
             while not self._stop.is_set():
                 await asyncio.sleep(heartbeat_interval)

@@ -13,6 +13,7 @@ import subprocess
 import threading
 import time
 from collections.abc import Callable, Iterator
+from typing import IO
 
 from clite.core.threads import start_thread
 from clite.tools.environments.base import ExecResult
@@ -22,13 +23,16 @@ DEFAULT_MAX_OUTPUT_CHARS = 50_000
 _READER_JOIN_SECONDS = 2.0
 
 
-def read_output_chunks(stream) -> Iterator[str]:
+def read_output_chunks(stream: IO[str]) -> Iterator[str]:
     """Drain a subprocess pipe in bounded chunks, preserving split UTF-8 characters."""
+    # A text pipe from Popen is a TextIOWrapper. Reading its binary buffer returns whatever has
+    # arrived instead of waiting for a whole line, which keeps streamed output live.
+    buffer: io.BufferedReader = getattr(stream, "buffer")  # noqa: B009 - IO[str] does not declare it
     decoder = io.IncrementalNewlineDecoder(
         codecs.getincrementaldecoder("utf-8")(errors="replace"),
         translate=True,
     )
-    while data := stream.buffer.read1(8192):
+    while data := buffer.read1(8192):
         text = decoder.decode(data)
         if text:
             yield text

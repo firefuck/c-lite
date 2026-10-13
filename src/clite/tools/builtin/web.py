@@ -12,7 +12,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from html.parser import HTMLParser
-from typing import Any
+from http.client import HTTPMessage
+from typing import IO, Any
 
 from clite import __version__
 from clite.tools.context import ToolContext
@@ -156,7 +157,15 @@ class _GuardedRedirects(urllib.request.HTTPRedirectHandler):
     def __init__(self, allow_private: bool) -> None:
         self.allow_private = allow_private
 
-    def redirect_request(self, req, fp, code, msg, headers, newurl):  # urllib's signature
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: IO[bytes],
+        code: int,
+        msg: str,
+        headers: HTTPMessage,
+        newurl: str,
+    ) -> urllib.request.Request | None:
         if urllib.parse.urlsplit(newurl).scheme not in ("http", "https"):
             raise _RedirectRefused(f"the page redirects to {newurl}, and only http and https are followed")
         if not self.allow_private:

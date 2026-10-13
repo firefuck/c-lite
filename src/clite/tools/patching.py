@@ -358,7 +358,7 @@ def _hunk_to_replacement(hunk: PatchHunk) -> tuple[str, str, bool]:
     return (old, new, False)
 
 
-def apply_v4a_patch(patch_text: str, resolve) -> MultiFileResult:
+def apply_v4a_patch(patch_text: str, resolve: Callable[[str], Path]) -> MultiFileResult:
     """Apply a V4A multi-file patch atomically.
 
     ``resolve`` maps a path string (as written in the patch) to a ``Path``; the caller

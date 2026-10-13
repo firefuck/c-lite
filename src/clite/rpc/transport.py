@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import threading
+from collections.abc import Callable
 from typing import Any, Protocol, TextIO
 
 
@@ -69,7 +70,9 @@ class MemoryTransport:
             self.closed = True
             self._condition.notify_all()
 
-    def wait_for(self, predicate, timeout: float = 5.0) -> dict[str, Any]:
+    def wait_for(
+        self, predicate: Callable[[dict[str, Any]], bool], timeout: float | None = 5.0
+    ) -> dict[str, Any]:
         """The first message matching ``predicate``; raises ``TimeoutError`` if none arrives."""
         with self._condition:
             seen = 0

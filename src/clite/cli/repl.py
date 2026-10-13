@@ -21,6 +21,8 @@ import signal
 import sys
 import threading
 import time
+from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from clite.agent import AgentCallbacks, TurnResult
@@ -70,7 +72,7 @@ class Repl:
         self,
         *,
         display: Display | None = None,
-        input_fn=input,
+        input_fn: Callable[[str], str] = input,
         images: list[str] | None = None,
         **session_options: Any,
     ) -> None:
@@ -385,7 +387,7 @@ class Repl:
         return 0
 
 
-def _save_history(path) -> None:
+def _save_history(path: Path) -> None:
     try:
         readline.write_history_file(path)
     except OSError:

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import sys
+from typing import TextIO
 
 from clite.core.brand import ENV_PREFIX
 from clite.core.config import config_get
@@ -22,7 +23,9 @@ from clite.rpc.server import RpcServer
 from clite.rpc.transport import StdioTransport
 
 
-def serve_stdio(stdin=None, stdout=None, *, platform: str | None = None) -> int:
+def serve_stdio(
+    stdin: TextIO | None = None, stdout: TextIO | None = None, *, platform: str | None = None
+) -> int:
     wire = stdout or sys.stdout
     sys.stdout = sys.stderr
     source = stdin or sys.stdin
