@@ -115,57 +115,128 @@ Halaman analitik belum ada; ia belum punya task di roadmap.
 
 ### F5-T3 Dashboard React dan Vite
 
-**Tujuan.** Dashboard berpindah ke kerangka komponen, **bila dan hanya bila** JavaScript polos
-sudah menghambat: file `app.js` terlalu besar untuk dirawat, atau keadaan antarhalaman sulit
-dijaga.
+**Tujuan.** Dashboard berpindah ke kerangka komponen modern (React + Vite + TypeScript)
+agar antarmuka siap untuk fitur lanjutan berskala besar dan pemeliharaan jangka panjang.
 
-**Lingkup.** Task ini berukuran XL dan harus dipecah sebelum dikerjakan. Sebelum memecahnya,
-tuliskan di sini alasan konkret mengapa JavaScript polos tidak lagi cukup. Tanpa alasan itu,
-task ini tidak dikerjakan. Pecahan yang disarankan:
-1. Kerangka build: Vite, React, TypeScript; keluaran build di-commit ke dalam paket Python
-   dengan pemeriksaan kesegaran seperti bundle TUI.
-2. Lapisan data: `apps/shared` (klien dan reducer transkrip) dipakai langsung.
-3. Halaman obrolan dipindah lebih dulu, dengan semua tes browser yang ada tetap lulus.
-4. Halaman pengelolaan dari F5-T2 dipindah satu per satu.
-5. Dashboard lama dihapus.
+**Lingkup.**
+Task payung ini menaungi pecahan F5-T7 sampai F5-T11. Semua pecahan dikerjakan bertahap
+mulai dari fondasi build `web/`, penyambungan data `apps/shared`, porting obrolan, porting panel,
+hingga penggantian akhir server statis.
 
-**Di luar lingkup.** Protokol RPC tidak berubah karena perpindahan ini.
-
-**File.** `web/ (baru)`, `src/clite/server/static/`, `src/clite/server/app.py`,
-`package.json`, `tests/server/test_dashboard_browser.py`.
-
-**Rujukan Hermes.** `web/src/App.tsx`, `web/src/pages/`, `web/src/components/`.
+**File.** `package.json`, `docs/spesifikasi/desktop.md`.
 
 **Selesai bila.**
-- [ ] Alasan perpindahan tertulis, dan task sudah dipecah menjadi task bernomor.
-- [ ] Setelah semua pecahan selesai: seluruh tes browser lulus terhadap dashboard baru, dan
-      `pip install` tetap menghasilkan dashboard yang jalan tanpa Node di mesin pengguna.
+- [ ] Task anak F5-T7 sampai F5-T11 seluruhnya selesai dan terverifikasi.
 
 **Ukuran.** XL
 
 **Bergantung pada.** F5-T2
 
-**Keputusan 8 Oktober 2026: belum dikerjakan, alasannya belum ada.** Setelah F5-T2, dashboard
-adalah `static/app.js` (740 baris), `index.html` (57 baris), dan `style.css`. Sembilan panel
-berbagi satu objek `panels`, satu helper pembuat elemen, dan satu klien RPC; tiap panel punya
-fungsi render sendiri dan tidak ada keadaan yang dibagi antar-halaman selain sesi aktif. Itu
-belum "terlalu besar untuk dirawat", dan keadaan antarhalaman belum sulit dijaga. Menambah
-kerangka build sekarang berarti menambah langkah build pada paket Python yang sengaja belum
-punya satu pun, tanpa masalah yang diselesaikannya. Task ini tetap ⬜ sampai salah satu dari
-dua pemicunya benar-benar terjadi.
+---
 
-**Ditimbang ulang 9 Oktober 2026, sesudah F5-T5: masih belum.** `app.js` kini 1108 baris
-(`index.html` 70, `style.css` 173, `rpc.js` 115), setelah sambung ulang, lampiran, notifikasi,
-dan halaman profil. Yang bertambah adalah fungsi render panel kesebelas dan tiga fungsi
-pendukung di sekitar kotak tulis; yang **tidak** bertambah adalah keadaan bersama — masih
-`state.views`, `state.activeId`, dan `state.rpc`, dengan satu tambahan boolean. Kesebelas panel
-masih tidak saling tahu. Jadi ambangnya belum tersentuh, dan alasan yang sama masih berlaku:
-kerangka build adalah langkah build tetap pada paket yang sampai sekarang tidak punya satu pun.
-Yang akan mengubah jawabannya adalah keadaan bersama antar-halaman (misalnya penyaring global
-atau riwayat navigasi), bukan jumlah baris.
+### F5-T7 Kerangka build web (Vite, React, TypeScript)
+
+**Tujuan.** Direktori `web/` terpasang sebagai workspace npm mandiri berbasis Vite, React,
+dan TypeScript, menghasilkan bundle statis yang siap disajikan oleh backend Python.
+
+**Lingkup.**
+- Buat workspace `web/` baru dengan Vite, React, dan TypeScript.
+- Hubungkan `web/` ke workspace root `package.json`.
+- Output build disiapkan untuk integrasi server C-lite.
+- Lint dan typecheck bersih di suite npm.
+
+**File.** `web/ (baru)`, `package.json`.
+
+**Selesai bila.**
+- [ ] `npm run build` dan `npm run typecheck` di workspace web berhasil tanpa galat.
+
+**Ukuran.** M
+
+**Bergantung pada.** F5-T2
 
 ---
 
+### F5-T8 Lapisan data dashboard dengan apps/shared
+
+**Tujuan.** Komponen React di `web/` menggunakan `apps/shared` untuk mengelola state obrolan
+dan panggilan RPC secara reaktif dan tipe-aman.
+
+**Lingkup.**
+- Sambungkan klien RPC dan gateway client dari `apps/shared` ke context/hooks React.
+- Dukungan autentikasi token fragmen URL dan rekoneksi WebSocket otomatis.
+
+**File.** `web/ (baru)`, `apps/shared/src/gateway-client.ts`.
+
+**Selesai bila.**
+- [ ] Hook React berhasil tersambung ke backend RPC dan menerima state transkrip.
+
+**Ukuran.** M
+
+**Bergantung pada.** F5-T7
+
+---
+
+### F5-T9 Porting obrolan dashboard ke komponen React
+
+**Tujuan.** Antarmuka obrolan dashboard berpindah ke komponen React dengan transkrip streaming,
+rendering pesan, input interaktif, dan progres tool.
+
+**Lingkup.**
+- Implementasikan komponen obrolan, transkrip event, dan input composer.
+- Mendukung pesan optimistik dan rendering markdown hasil giliran.
+
+**File.** `web/ (baru)`.
+
+**Selesai bila.**
+- [ ] Alur kirim pesan dan streaming token berfungsi mulus pada antarmuka web baru.
+
+**Ukuran.** M
+
+**Bergantung pada.** F5-T8
+
+---
+
+### F5-T10 Porting panel manajemen dashboard
+
+**Tujuan.** Panel pengelolaan dashboard (config, cron, logs, memory, sessions, profile,
+audit, skills, plugins, models) berpindah ke komponen React modular.
+
+**Lingkup.**
+- Implementasikan panel pengelolaan sebagai komponen terpisah di `web/`.
+- Tiap panel memuat data RPC dan menyediakan formulir atau aksi yang setara dengan dashboard lama.
+
+**File.** `web/ (baru)`.
+
+**Selesai bila.**
+- [ ] Seluruh panel pengelolaan dapat dibuka dan berinteraksi dengan backend RPC.
+
+**Ukuran.** L
+
+**Bergantung pada.** F5-T8
+
+---
+
+### F5-T11 Penggantian final dashboard lama dan uji end-to-end
+
+**Tujuan.** Dashboard lama diganti seutuhnya oleh hasil build React/Vite, seluruh tes
+browser Playwright lulus, dan paket Python tetap mandiri.
+
+**Lingkup.**
+- Arahkan server Python di `src/clite/server/app.py` menyajikan hasil build `web/`.
+- Hapus file monolitik lama di `src/clite/server/static/` setelah bundle baru dipasang.
+- Verifikasi tes browser dashboard tetap lulus.
+
+**File.** `src/clite/server/app.py`, `src/clite/server/static/app.js`, `tests/server/test_dashboard_browser.py`.
+
+**Selesai bila.**
+- [ ] Seluruh tes server dan browser dashboard lulus.
+- [ ] Dashboard baru dapat dibuka langsung lewat peramban pengguna.
+
+**Ukuran.** S
+
+**Bergantung pada.** F5-T9, F5-T10
+
+---
 ### F5-T4 Pemaketan desktop
 
 **Tujuan.** Pengguna mengunduh satu installer, membukanya, dan aplikasinya jalan.
