@@ -6,7 +6,7 @@ import threading
 
 from clite.core.constants import display_home, home_scope
 from clite.core.env import get_secret, secret_scope
-from clite.rpc import methods
+from clite.rpc.methods import system as methods_system
 from clite.rpc.server import RpcServer
 from clite.server.app import create_app
 from clite.state.db import get_session_db
@@ -43,7 +43,7 @@ async def http_get(app, path):
 
 
 def test_http_workers_keep_two_concurrent_profile_scopes(tmp_path, monkeypatch):
-    original = methods.system_info
+    original = methods_system.system_info
     observed = {}
     barrier = threading.Barrier(2)
 
@@ -53,7 +53,7 @@ def test_http_workers_keep_two_concurrent_profile_scopes(tmp_path, monkeypatch):
         observed[result.home] = get_secret("SCOPE_TEST_KEY")
         return result
 
-    monkeypatch.setattr(methods, "system_info", observe)
+    monkeypatch.setattr(methods_system, "system_info", observe)
     app = create_app("context-test-token")
 
     async def request(index):

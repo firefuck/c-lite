@@ -25,8 +25,11 @@ Tes: `pytest tests/rpc -q`, dan `node --test test/*.test.ts` di `apps/shared`.
 
 1. Di `contracts/schema.py`: model `Params` dan `Result` (turunkan dari `Params` / `Result`
    di `base.py`), lalu `method("area.nama", XParams, XResult, "deskripsi satu kalimat")`.
-2. Di `methods.py`: `@rpc_method("area.nama")` pada fungsi
-   `def area_nama(server: RpcServer, params: schema.XParams) -> schema.XResult`.
+2. Di modul domainnya, `methods/<domain>.py` (awalan nama method menentukan modulnya; petanya
+   ada di docstring `methods/__init__.py`): `@rpc_method("area.nama")` pada fungsi
+   `def area_nama(server: RpcServer, params: schema.XParams) -> schema.XResult`. Domain baru
+   mendapat modul sendiri yang diimpor `methods/__init__.py`. Handler di modul yang tidak diimpor tidak
+   pernah terdaftar; `test_every_declared_method_has_a_handler_and_the_reverse` menangkapnya.
 3. `python scripts/gen_rpc_contracts.py` dan `python scripts/gen_docs.py`.
 4. Tes di `tests/rpc/test_rpc.py` (fixture klien di file itu mengirim permintaan lewat
    `MemoryTransport`).

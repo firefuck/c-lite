@@ -88,7 +88,7 @@ mempertimbangkan import ke atas.
 | Platform chat baru | `gateway/platforms/<nama>.py` atau plugin berjenis `platform` | Adapter hanya menerima, mengirim, memutus |
 | Slash command | `runtime/commands.py` + `runtime/slash.py` | Otomatis tersedia di semua surface |
 | Sub-perintah `clite` | `cli/subcommands/<nama>.py` | Punya `register(subparsers)` |
-| Method atau event RPC | `rpc/contracts/schema.py` + `rpc/methods.py` | Lalu `scripts/gen_rpc_contracts.py` |
+| Method atau event RPC | `rpc/contracts/schema.py` + `rpc/methods/<domain>.py` | Lalu `scripts/gen_rpc_contracts.py`; modul domain baru diimpor di `rpc/methods/__init__.py` |
 | Sesuatu yang dipakai dua surface | `runtime/` | Bukan di salah satu surface |
 | Pengaturan | `core/config_defaults.py` | Harus punya pembaca, kalau tidak suite gagal |
 | Reaksi atas event siklus hidup | Hook di plugin, atau shell hook | Bukan cabang baru di inti |

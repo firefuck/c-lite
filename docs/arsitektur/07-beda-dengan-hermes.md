@@ -138,6 +138,6 @@ Urutan kerja saat sebuah task roadmap merujuk file Hermes:
 | Konteks yang ditempel sesaat ke pesan pengguna | `turn_context`, tersimpan |
 | Handler slash command yang mencetak | Handler yang mengembalikan `SlashResult` |
 | Kode `async` di gateway | Kode sinkron di thread adapter |
-| Method baru di `tui_gateway/server.py` | Kontrak di `src/clite/rpc/contracts/schema.py`, lalu handler di `src/clite/rpc/methods.py` |
+| Method baru di `tui_gateway/server.py` | Kontrak di `src/clite/rpc/contracts/schema.py`, lalu handler di `src/clite/rpc/methods/<domain>.py` |
 | Rute REST baru di server dashboard | Method RPC (rute REST hanya untuk baca sederhana) |
 | Pengaturan baru | Kunci di `DEFAULT_CONFIG` **beserta pembacanya** |

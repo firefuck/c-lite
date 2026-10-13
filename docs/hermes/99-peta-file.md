@@ -184,7 +184,7 @@ Sebelum membawa sesuatu, baca
 | `tui_gateway/entry.py` | `src/clite/rpc/entry.py` | Entry point stdio |
 | `tui_gateway/transport.py`, `tui_gateway/ws.py` | `src/clite/rpc/transport.py` | |
 | `tui_gateway/contracts/` | `src/clite/rpc/contracts/` | Hermes 251 method, di sini 32 |
-| `tui_gateway/methods_session.py`, `tui_gateway/methods_prompt.py`, `tui_gateway/methods_config.py` | `src/clite/rpc/methods.py` | |
+| `tui_gateway/methods_session.py`, `tui_gateway/methods_prompt.py`, `tui_gateway/methods_config.py` | `src/clite/rpc/methods/` | |
 | `tui_gateway/agent_callbacks.py`, `tui_gateway/prompt_turn.py` | `src/clite/rpc/session.py` | Callback menjadi event |
 | `tui_gateway/server_requests.py` | `src/clite/rpc/server.py` | `request_client` |
 | `tui_gateway/event_replay.py` | belum ada | F5-T5 |

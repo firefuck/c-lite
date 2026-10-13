@@ -78,7 +78,7 @@ tes browser.
 7. **Shell hook dan MCP.** Status saja: yang terdaftar, yang menunggu persetujuan. Menyetujui
    hook tetap hanya lewat `clite hooks approve` di mesin itu.
 
-**File.** `src/clite/rpc/contracts/schema.py`, `src/clite/rpc/methods.py`,
+**File.** `src/clite/rpc/contracts/schema.py`, `src/clite/rpc/methods/`,
 `web/src/panels/`, `src/clite/server/static/index.html`, `tests/rpc/test_rpc.py`,
 `tests/server/test_dashboard_browser.py`.
 

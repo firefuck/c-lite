@@ -22,7 +22,8 @@ dashboard. Satu protokol, dua transport: stdio (satu dokumen JSON per baris) dan
 | `contracts/schema.py` | Deklarasi protokol sebagai model Pydantic |
 | `server.py` | `RpcServer`: satu instance per koneksi klien |
 | `session.py` | `RpcSession`: `ChatSession` yang callback-nya menjadi event |
-| `methods.py` | Handler method |
+| `methods/` | Handler method, satu modul per domain: `system`, `session`, `prompt`, `config`, `model`, `extensions`, `memory`, `cron`. `__init__.py` mengimpor semuanya sehingga setiap method terdaftar; docstring-nya memetakan awalan nama method ke modulnya |
+| `replay.py` | `EventLog` (event yang terlewat saat klien tersambung ulang) dan `DetachedSessions` (sesi yang bertahan sebentar setelah koneksinya putus) |
 | `transport.py` | `StdioTransport`, `WebSocketTransport`, `MemoryTransport` (tes) |
 | `entry.py` | `python -m clite.rpc.entry`: entry point stdio untuk TUI |
 
@@ -147,7 +148,7 @@ Daftar lengkap method, event, dan permintaan server ada di
 
 | Fitur | Status | Catatan |
 |---|---|---|
-| 49 method, 13 event, 2 permintaan server | ✅ | Hermes: 251 method, 69 event, 13 permintaan server |
+| 50 method, 13 event, 2 permintaan server | ✅ | Hermes: 251 method, 69 event, 13 permintaan server |
 | Transport stdio dan WebSocket | ✅ | |
 | Generator TypeScript dan pemeriksaan kesegaran | ✅ | |
 | Klien TypeScript bersama (`apps/shared`) | ✅ | 21 tes |

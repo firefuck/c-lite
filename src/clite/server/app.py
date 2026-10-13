@@ -221,7 +221,7 @@ async def _health(request: Request) -> Response:
 
 
 def _status(request: Request) -> Response:
-    from clite.rpc.methods import system_info
+    from clite.rpc.methods.system import system_info
 
     return JSONResponse(system_info(None, None).model_dump(mode="json"))  # type: ignore[arg-type]
 

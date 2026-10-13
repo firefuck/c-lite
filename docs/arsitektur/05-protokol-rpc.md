@@ -167,7 +167,8 @@ generate, handler, tes, klien**:
 
 1. Deklarasi di `src/clite/rpc/contracts/schema.py`.
 2. `python scripts/gen_rpc_contracts.py` dan `python scripts/gen_docs.py`.
-3. Handler di `src/clite/rpc/methods.py`, atau `self._emit(...)` di `src/clite/rpc/session.py`.
+3. Handler di modul domainnya, `src/clite/rpc/methods/<domain>.py` (domain baru: modul baru yang
+   diimpor `src/clite/rpc/methods/__init__.py`), atau `self._emit(...)` di `src/clite/rpc/session.py`.
 4. Tes di `tests/rpc/test_rpc.py`.
 5. Klien: `apps/shared/src/` dan `web/src/`, lalu bangun ulang kedua bundle (`npm run build` di
    `ui-tui/` dan di `web/`).

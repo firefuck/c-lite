@@ -242,7 +242,7 @@ Hermes tidak tersedia, sehingga file rujukan belum dibaca.
 
 **File.** `src/clite/cli/subcommands/chat.py`, `src/clite/runtime/session.py`,
 `src/clite/runtime/commands.py`, `src/clite/rpc/contracts/schema.py`,
-`src/clite/rpc/methods.py`, `src/clite/agent/attachments.py (baru)`,
+`src/clite/rpc/methods/`, `src/clite/agent/attachments.py (baru)`,
 `src/clite/tools/builtin/vision.py (baru)`, `src/clite/tools/builtin/image_gen.py (baru)`,
 `src/clite/providers/base.py`, `src/clite/core/config_defaults.py`.
 

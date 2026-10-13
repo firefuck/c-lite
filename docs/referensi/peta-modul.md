@@ -226,7 +226,6 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | --- | --- | --- |
 | `__init__.py` |  |  |
 | `entry.py` | Stdio entry point: ``python -m clite.rpc.entry``. | `serve_stdio()`, `main()` |
-| `methods.py` | RPC method handlers. | `ping()`, `system_info()`, `profiles_list()`, `session_create()`, `session_info()`, `session_list()`, `session_history()`, `session_close()`, `session_attach()`, `session_interrupt()`, … (+41) |
 | `replay.py` | What makes a reconnect cheap: the events a client missed, and the sessions that outlive it. | `EventLog`, `DetachedSessions`, `get_event_log()`, `get_detached_sessions()`, `configure()`, `reset_replay_state()` |
 | `server.py` | The JSON-RPC server: one instance per client connection. | `RpcError`, `rpc_method()`, `RpcServer`, `reset_server_state()` |
 | `session.py` | ``RpcSession``: a ``ChatSession`` whose callbacks become JSON-RPC events. | `RpcSession` |
@@ -239,6 +238,20 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `__init__.py` |  |  |
 | `base.py` | Contract registries: every JSON-RPC method, event and server request is declared once. | `Params`, `Result`, `Payload`, `Empty`, `Ok`, `MethodSpec`, `ServerRequestSpec`, `method()`, `event()`, `server_request()` |
 | `schema.py` | The protocol, declared: methods (client to server), events and server requests. | `ContextStatus`, `SessionInfo`, `StoredSession`, `TranscriptMessage`, `UsageTotals`, `CommandEntry`, `PingResult`, `SystemInfoResult`, `ProfileEntry`, `ProfilesListResult`, … (+94) |
+
+## `clite/rpc/methods/`
+
+| File | Isi | Simbol publik |
+| --- | --- | --- |
+| `__init__.py` | RPC method handlers: importing this package registers every one of them. |  |
+| `config.py` | RPC handlers for settings: the configuration keys and the credentials in the profile's ``.env``. | `config_get_method()`, `config_list_method()`, `config_set_method()`, `credentials_list()`, `credentials_set()`, `credentials_delete()` |
+| `cron.py` | RPC handlers for scheduled jobs: listing, creating and acting on them, and reading their runs. | `cron_output()`, `cron_list()`, `cron_history()`, `cron_create()`, `cron_action()` |
+| `extensions.py` | RPC handlers for what extends the agent: tools, skills, plugins, shell hooks and MCP servers. | `tools_list()`, `skills_list()`, `skills_view()`, `plugins_list()`, `plugins_set_enabled()`, `hooks_status()`, `mcp_status()` |
+| `memory.py` | RPC handlers for the agent's memory, read and edited through the store the memory tool uses. | `memory_get()`, `memory_set()` |
+| `model.py` | RPC handlers for providers and models: listing them, switching the model, first-run setup. | `model_list()`, `model_set()`, `providers_list()`, `setup_apply()` |
+| `prompt.py` | RPC handlers for what a client sends into a session: prompts, slash commands and attachments. | `prompt_submit()`, `slash_exec()`, `commands_catalog()`, `complete_slash()`, `attachments_dir()`, `attachment_save()` |
+| `session.py` | RPC handlers for sessions: the ones open on this connection and the ones stored in the database. | `session_create()`, `session_info()`, `session_list()`, `session_history()`, `session_close()`, `session_attach()`, `session_interrupt()`, `session_steer()`, `session_title()`, `session_delete()`, … (+7) |
+| `system.py` | RPC handlers that describe the running backend: its version, setup, profiles and logs. | `ping()`, `system_info()`, `profiles_list()`, `logs_tail()` |
 
 ## `clite/runtime/`
 
@@ -351,4 +364,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 215 modul.
+Jumlah: 223 modul.
