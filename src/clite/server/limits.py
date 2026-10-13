@@ -89,7 +89,7 @@ def too_large(raw: str, limit: int) -> bool:
     return len(raw.encode("utf-8", errors="replace")) > limit
 
 
-def client_address(connection) -> str:
+def client_address(connection: object) -> str:
     """The address a connection came from, or ``"unknown"`` when the transport hides it."""
     client = getattr(connection, "client", None)
     host = getattr(client, "host", None) if client is not None else None

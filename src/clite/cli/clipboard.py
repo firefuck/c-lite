@@ -13,6 +13,7 @@ import os
 import shutil
 import subprocess
 import sys
+from typing import TextIO
 
 # (command, args to read stdin) per platform, most specific first.
 _TOOLS: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -32,18 +33,18 @@ def _tool() -> tuple[str, tuple[str, ...]] | None:
     return None
 
 
-def write_clipboard_text(text: str, *, stream=None) -> bool:
+def write_clipboard_text(text: str, *, stream: TextIO | None = None) -> bool:
     """Put ``text`` on the clipboard. Returns True when a native tool did it."""
     tool = _tool()
     if tool is None:
         return False
     name, args = tool
     try:
-        completed = subprocess.run(
+        completed = subprocess.run(  # noqa: S603 - a known clipboard tool, no shell
             [name, *args],
             input=text,
             text=True,
-            encoding="utf-8",  # noqa: S603
+            encoding="utf-8",
             capture_output=True,
             timeout=10,
             check=False,
@@ -53,7 +54,7 @@ def write_clipboard_text(text: str, *, stream=None) -> bool:
     return completed.returncode == 0
 
 
-def write_osc52(text: str, *, stream=None) -> bool:
+def write_osc52(text: str, *, stream: TextIO | None = None) -> bool:
     """Copy via the terminal's OSC 52 sequence. Works over SSH, needs terminal support."""
     payload = text[:OSC52_LIMIT]
     encoded = base64.b64encode(payload.encode("utf-8")).decode("ascii")
@@ -71,7 +72,7 @@ def write_osc52(text: str, *, stream=None) -> bool:
     return True
 
 
-def copy_to_clipboard(text: str, *, stream=None) -> bool:
+def copy_to_clipboard(text: str, *, stream: TextIO | None = None) -> bool:
     """Try a native tool, then OSC 52. True when anything copied the text."""
     if write_clipboard_text(text):
         return True

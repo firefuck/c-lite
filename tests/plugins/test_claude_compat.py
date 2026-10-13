@@ -22,6 +22,7 @@ def test_claude_compat_injects_prompt_when_file_exists(tmp_path):
 
     class DummyCtx:
         settings = {}
+
         def register_hook(self, name, fn):
             hooks[name] = fn
 
@@ -40,6 +41,7 @@ def test_claude_compat_noop_when_no_file(tmp_path):
 
     class DummyCtx:
         settings = {}
+
         def register_hook(self, name, fn):
             hooks[name] = fn
 

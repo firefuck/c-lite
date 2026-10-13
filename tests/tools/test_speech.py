@@ -94,7 +94,9 @@ def test_text_to_speech_becomes_available_once_a_provider_is_registered(clite_ho
 
 def test_the_tool_without_a_provider_tells_the_model_what_to_do(tmp_path, clite_home):
     reset_speech_registries()
-    result = json.loads(handle_function_call("text_to_speech", {"text": "hello"}, ToolContext(cwd=str(tmp_path))))
+    result = json.loads(
+        handle_function_call("text_to_speech", {"text": "hello"}, ToolContext(cwd=str(tmp_path)))
+    )
     assert "no speech provider is configured" in result["error"]
     assert not (tmp_path / "spoken").exists()
 
@@ -145,9 +147,7 @@ def test_a_ceiling_of_zero_means_no_ceiling_on_both_voice_paths(tmp_path, clite_
     (clite_home / "config.yaml").write_text("speech:\n  max_chars: 0\n")
     assert speech_limits()["max_chars"] == 0.0
     result = json.loads(
-        handle_function_call(
-            "text_to_speech", {"text": "x" * 20_000}, ToolContext(cwd=str(tmp_path))
-        )
+        handle_function_call("text_to_speech", {"text": "x" * 20_000}, ToolContext(cwd=str(tmp_path)))
     )
     assert "error" not in result and Path(result["path"]).exists()
     assert len(speaker.calls) == 1
@@ -340,7 +340,7 @@ def _serve(handler_body):
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
 
-        def do_POST(self):  # noqa: N802 - http.server API
+        def do_POST(self):  # http.server API
             length = int(self.headers.get("Content-Length") or 0)
             body = self.rfile.read(length)
             recorded.append(
@@ -382,9 +382,7 @@ def test_the_bundled_openai_plugin_registers_both_providers(clite_home, monkeypa
         reset_speech_registries()
 
 
-def test_the_openai_provider_posts_the_documented_transcription_request(
-    tmp_path, clite_home, monkeypatch
-):
+def test_the_openai_provider_posts_the_documented_transcription_request(tmp_path, clite_home, monkeypatch):
     """Multipart with the audio under ``file``, plus the model and the language hint."""
     from clite.core.brand import PLUGIN_NAMESPACE
     from clite.plugins import manager as plugins_manager
@@ -487,9 +485,7 @@ def test_a_provider_error_message_is_carried_through(tmp_path, clite_home, monke
 # ── multi-key discovery, fallback endpoints, and Gemini STT ───────────────────────────────
 
 
-def test_groq_key_enables_transcription_and_routes_to_groq_endpoint(
-    tmp_path, clite_home, monkeypatch
-):
+def test_groq_key_enables_transcription_and_routes_to_groq_endpoint(tmp_path, clite_home, monkeypatch):
     from clite.core.brand import PLUGIN_NAMESPACE
     from clite.plugins import manager as plugins_manager
 
@@ -574,9 +570,7 @@ def test_gemini_key_enables_gemini_transcription(tmp_path, clite_home, monkeypat
 
     reset_speech_registries()
     monkeypatch.setenv("GEMINI_API_KEY", "gemini-synthetic-key")
-    (clite_home / "config.yaml").write_text(
-        "speech:\n  transcription:\n    provider: gemini-transcribe\n"
-    )
+    (clite_home / "config.yaml").write_text("speech:\n  transcription:\n    provider: gemini-transcribe\n")
     plugins_manager.ensure_plugins_loaded()
 
     provider = get_transcription_provider()
@@ -624,9 +618,7 @@ def test_google_api_key_also_activates_gemini_transcription(clite_home, monkeypa
 
     reset_speech_registries()
     monkeypatch.setenv("GOOGLE_API_KEY", "google-synthetic-key")
-    (clite_home / "config.yaml").write_text(
-        "speech:\n  transcription:\n    provider: gemini-transcribe\n"
-    )
+    (clite_home / "config.yaml").write_text("speech:\n  transcription:\n    provider: gemini-transcribe\n")
     plugins_manager.ensure_plugins_loaded()
 
     provider = get_transcription_provider()

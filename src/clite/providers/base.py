@@ -204,9 +204,7 @@ class ProviderProfile:
             return has_valid_token(self.name)
         return False
 
-    def build_oauth_authorize_url(
-        self, *, redirect_uri: str, code_challenge: str, state: str
-    ) -> str:
+    def build_oauth_authorize_url(self, *, redirect_uri: str, code_challenge: str, state: str) -> str:
         """Construct the authorization URL for PKCE."""
         from urllib.parse import urlencode
 

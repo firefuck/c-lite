@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 
 from clite.core.config import load_config
-from clite.gateway.event import CHAT_GROUP, SessionSource
+from clite.gateway.event import CHAT_GROUP, SendResult, SessionSource
 from clite.gateway.pairing import PairingStore
 from clite.gateway.platforms.base import split_message
 from clite.gateway.runner import GatewayRunner
@@ -390,6 +390,64 @@ def test_dangerous_command_is_approved_by_replying(gateway, tmp_path):
     assert not target.exists()
 
 
+def _with_buttons(adapter: Any) -> dict[str, list[Any]]:
+    """Give the in-process adapter button controls, recording what the runner sends."""
+    seen: dict[str, list[Any]] = {"pickers": [], "approvals": [], "edits": [], "answers": []}
+
+    def send(kind: str):
+        def sender(chat_id: str, text: str, keyboard: Any, *, thread_id: str | None = None) -> SendResult:
+            seen[kind].append({"text": text, "keyboard": keyboard})
+            return SendResult(True, message_id=f"{kind}-{len(seen[kind])}")
+
+        return sender
+
+    adapter.can_send_buttons = lambda: True
+    adapter.send_model_picker = send("pickers")
+    adapter.send_approval_prompt = send("approvals")
+    adapter.edit_approval_prompt = lambda chat_id, message_id, text, keyboard: seen["edits"].append(text)
+    adapter.answer_callback = lambda callback_id, text="": seen["answers"].append(text)
+    return seen
+
+
+def test_model_without_arguments_offers_a_picker_on_any_platform_with_buttons(gateway):
+    runner, local, _ = gateway()
+    seen = _with_buttons(local)
+    local.inject("/model", user_id="owner")
+    assert "Choose a provider" in seen["pickers"][0]["text"]
+    labels = [button["text"] for row in seen["pickers"][0]["keyboard"] for button in row]
+    assert "✓ mock" in labels and "Cancel" in labels
+    assert local.outbox == []  # the buttons replaced the text answer
+
+
+def test_model_without_arguments_answers_in_text_on_a_platform_without_buttons(gateway):
+    runner, local, _ = gateway()
+    local.inject("/model", user_id="owner")
+    assert "mock-1" in local.wait_for_messages(1)[0]
+
+
+@pytest.mark.platforms("posix")
+def test_approval_buttons_are_offered_on_any_platform_with_buttons(gateway, tmp_path):
+    target = tmp_path / "old-build"
+    target.mkdir()
+    runner, local, _ = gateway(
+        [tool_call_response(("terminal", {"command": f"rm -rf {target}"})), text_response("Removed.")]
+    )
+    seen = _with_buttons(local)
+    local.inject("clean the build dir", user_id="owner")
+    deadline = time.monotonic() + 5
+    while not seen["approvals"] and time.monotonic() < deadline:
+        time.sleep(0.01)
+    prompt = seen["approvals"][0]
+    assert f"rm -rf {target}" in prompt["text"] and local.outbox == []
+    once = next(button for row in prompt["keyboard"] for button in row if button["text"] == "Approve once")
+
+    owner = SessionSource("local", chat_id="owner", user_id="owner")
+    runner.handle_approval_callback(owner, "press-1", once["callback_data"], "approvals-1")
+    local.wait_for_text("Removed.")
+    assert not target.exists()
+    assert seen["answers"] == ["Approval recorded."] and seen["edits"] == ["Approval: once."]
+
+
 @pytest.mark.platforms("posix")
 def test_deny_and_silence_both_refuse(gateway, tmp_path):
     target = tmp_path / "keep"
@@ -520,7 +578,7 @@ class FakeTelegram:
         api = self
 
         class Handler(BaseHTTPRequestHandler):
-            def do_POST(self):  # noqa: N802
+            def do_POST(self):
                 body = json.loads(self.rfile.read(int(self.headers["Content-Length"])) or b"{}")
                 method = self.path.rsplit("/", 1)[-1]
                 api.calls.append((method, body))
@@ -604,6 +662,7 @@ class FakeTelegram:
 @pytest.fixture
 def telegram(clite_home, monkeypatch):
     api = FakeTelegram()
+
     def echo(messages, **kwargs):
         return text_response(f"You said: {messages[-1]['content']}")
 
@@ -706,7 +765,7 @@ After!"""
         "Before _stars_ and [docs](https://example.test/a_(b\\))\\.\n"
         "> First quoted line: `literal_*_`\\.\n"
         "> Second quoted line with *bold*\\.\n\n"
-        "```python\nprint(\"<literal>_*\")\n```\n"
+        '```python\nprint("<literal>_*")\n```\n'
         "After\\!"
     )
 
@@ -810,7 +869,9 @@ def test_telegram_model_picker_pages_back_and_cancels_after_provider_selection(t
     api.push_callback(next_page["callback_data"], message_id=1)
     paged_view = _wait_for_picker_edits(api, 2)[-1]
     assert "Choose a model (2/2)" in paged_view["text"]
-    assert any(button["text"] == "demo-9" for row in paged_view["reply_markup"]["inline_keyboard"] for button in row)
+    assert any(
+        button["text"] == "demo-9" for row in paged_view["reply_markup"]["inline_keyboard"] for button in row
+    )
 
     buttons = [button for row in paged_view["reply_markup"]["inline_keyboard"] for button in row]
     back = next(button for button in buttons if button["callback_data"].endswith(":back:0"))
@@ -888,7 +949,10 @@ def test_telegram_approval_buttons_resolve_only_the_owner_pending_approval(teleg
     runner.config["gateway"]["allow_all_users"] = True
     api.push_callback(callback, user=999, message_id=1)
     deadline = time.monotonic() + 5
-    while len([body for method, body in api.calls if method == "answerCallbackQuery"]) < 1 and time.monotonic() < deadline:
+    while (
+        len([body for method, body in api.calls if method == "answerCallbackQuery"]) < 1
+        and time.monotonic() < deadline
+    ):
         time.sleep(0.02)
     assert not pending.answered.is_set()
     assert len([body for method, body in api.calls if method == "editMessageText"]) == initial_edits
@@ -1237,7 +1301,7 @@ def test_tool_progress_keeps_only_the_last_lines():
 
 
 def test_a_tool_message_shows_the_tool_emoji_name_and_preview():
-    import clite.tools.builtin.file_tools  # noqa: F401 - registers the emoji in the registry
+    import clite.tools.builtin.file_tools  # registers the emoji in the registry
     import clite.tools.builtin.terminal  # noqa: F401
     from clite.gateway.stream import tool_message
 
@@ -1835,9 +1899,7 @@ def test_text_to_speech_is_offered_to_a_chat_agent_only_when_it_can_speak(gatewa
     register_speech_provider("fake-tts", _FakeSpeech)
     try:
         registry.reset_check_cache()  # the availability answer is cached for 30 seconds
-        names = [
-            definition["function"]["name"] for definition in get_tool_definitions(["clite-gateway"])
-        ]
+        names = [definition["function"]["name"] for definition in get_tool_definitions(["clite-gateway"])]
         assert "text_to_speech" in names
     finally:
         reset_speech_registries()

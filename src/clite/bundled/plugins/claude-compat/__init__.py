@@ -28,10 +28,7 @@ def register(ctx) -> None:
         if not instructions:
             return prompt
 
-        banner = (
-            "\n\n# Project Guidelines (from CLAUDE.md via claude-compat plugin)\n"
-            f"{instructions}\n"
-        )
+        banner = f"\n\n# Project Guidelines (from CLAUDE.md via claude-compat plugin)\n{instructions}\n"
         return prompt + banner
 
     ctx.register_hook("system_prompt", on_system_prompt)

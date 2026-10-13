@@ -37,7 +37,7 @@ class _ChatHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
     requests: list[dict] = []
 
-    def do_POST(self):  # noqa: N802 - http.server API
+    def do_POST(self):  # http.server API
         length = int(self.headers.get("Content-Length") or 0)
         raw = self.rfile.read(length) if length else b""
         body = json.loads(raw) if raw else {}

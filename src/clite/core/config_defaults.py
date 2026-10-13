@@ -31,6 +31,7 @@ def is_sensitive_config_key(key: str) -> bool:
     """True when writing ``key`` changes security behaviour and needs a confirmation."""
     return any(key == sensitive or key.startswith(sensitive + ".") for sensitive in SECURITY_SENSITIVE_KEYS)
 
+
 DEFAULT_CONFIG: dict[str, Any] = {
     # ── Model route ──────────────────────────────────────────────────────────────────────
     "model": {

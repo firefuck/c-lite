@@ -271,13 +271,16 @@ def test_session_rename_sets_the_title_of_a_stored_session(client):
     first = rpc.call("session.create")
     rpc.run_turn(first["session_id"], "hello")
 
-    renamed = rpc.call("session.rename", {"stored_session_id": first["stored_session_id"], "title": "Renamed"})
+    renamed = rpc.call(
+        "session.rename", {"stored_session_id": first["stored_session_id"], "title": "Renamed"}
+    )
     assert renamed["title"] == "Renamed"
     assert rpc.call("session.info", {"session_id": first["session_id"]})["title"] == "Renamed"
     assert rpc.call("session.list")["sessions"][0]["title"] == "Renamed"
-    assert "no stored session" in rpc.error(
-        "session.rename", {"stored_session_id": "missing", "title": "x"}
-    )["message"]
+    assert (
+        "no stored session"
+        in rpc.error("session.rename", {"stored_session_id": "missing", "title": "x"})["message"]
+    )
 
 
 def test_session_search_finds_stored_messages(client):
@@ -311,8 +314,14 @@ def test_session_pin_and_archive_change_what_is_listed(client):
     rpc.call("session.archive", {"stored_session_id": stored, "archived": False})
     assert [s["id"] for s in rpc.call("session.list")["sessions"]] == [stored]
 
-    assert "no stored session" in rpc.error("session.pin", {"stored_session_id": "missing", "pinned": True})["message"]
-    assert "no stored session" in rpc.error("session.archive", {"stored_session_id": "missing", "archived": True})["message"]
+    assert (
+        "no stored session"
+        in rpc.error("session.pin", {"stored_session_id": "missing", "pinned": True})["message"]
+    )
+    assert (
+        "no stored session"
+        in rpc.error("session.archive", {"stored_session_id": "missing", "archived": True})["message"]
+    )
 
 
 def test_session_export_returns_json_and_trajectory(client):
@@ -320,7 +329,9 @@ def test_session_export_returns_json_and_trajectory(client):
     first = rpc.call("session.create")
     rpc.run_turn(first["session_id"], "export me")
 
-    document = json.loads(rpc.call("session.export", {"stored_session_id": first["stored_session_id"]})["content"])
+    document = json.loads(
+        rpc.call("session.export", {"stored_session_id": first["stored_session_id"]})["content"]
+    )
     assert document["session"]["id"] == first["stored_session_id"]
     assert [message["role"] for message in document["messages"]][:2] == ["user", "assistant"]
 
@@ -582,9 +593,7 @@ def test_credentials_are_listed_but_never_read_back(client, clite_home):
     listed = {entry["name"]: entry for entry in rpc.call("credentials.list")["credentials"]}
     assert listed["CLITE_TEST_CREDENTIAL"]["filled"] is False
 
-    after = rpc.call(
-        "credentials.set", {"name": "clite_test_credential", "value": "sk-test-1234567890"}
-    )
+    after = rpc.call("credentials.set", {"name": "clite_test_credential", "value": "sk-test-1234567890"})
     entry = {e["name"]: e for e in after["credentials"]}["CLITE_TEST_CREDENTIAL"]
     assert entry["filled"] is True and entry["source"] == "file"
     assert "sk-test-1234567890" in (clite_home / ".env").read_text()
@@ -602,16 +611,18 @@ def test_credentials_are_listed_but_never_read_back(client, clite_home):
         assert secret not in json.dumps(rpc.call(method, params)), method
 
     assert "unknown credential" in rpc.error("credentials.set", {"name": "NOPE_KEY", "value": "x"})["message"]
-    assert "empty value" in rpc.error(
-        "credentials.set", {"name": "CLITE_TEST_CREDENTIAL", "value": ""}
-    )["message"]
+    assert (
+        "empty value"
+        in rpc.error("credentials.set", {"name": "CLITE_TEST_CREDENTIAL", "value": ""})["message"]
+    )
 
     removed = rpc.call("credentials.delete", {"name": "CLITE_TEST_CREDENTIAL"})
     assert {e["name"]: e for e in removed["credentials"]}["CLITE_TEST_CREDENTIAL"]["filled"] is False
     assert "sk-test-1234567890" not in (clite_home / ".env").read_text()
-    assert "no stored credential" in rpc.error(
-        "credentials.delete", {"name": "CLITE_TEST_CREDENTIAL"}
-    )["message"]
+    assert (
+        "no stored credential"
+        in rpc.error("credentials.delete", {"name": "CLITE_TEST_CREDENTIAL"})["message"]
+    )
 
 
 def test_cron_output_is_redacted_and_capped(client):
@@ -642,11 +653,15 @@ def test_memory_edits_go_through_the_store_and_its_guards(client):
     rpc = client()
     assert rpc.call("memory.get")["memory"] == []
 
-    added = rpc.call("memory.set", {"action": "add", "target": "memory", "content": "the launch is on friday"})
+    added = rpc.call(
+        "memory.set", {"action": "add", "target": "memory", "content": "the launch is on friday"}
+    )
     assert added["success"] is True and added["memory"] == ["the launch is on friday"]
     assert rpc.call("memory.get")["memory"] == ["the launch is on friday"]
 
-    duplicate = rpc.call("memory.set", {"action": "add", "target": "memory", "content": "the launch is on friday"})
+    duplicate = rpc.call(
+        "memory.set", {"action": "add", "target": "memory", "content": "the launch is on friday"}
+    )
     assert duplicate["success"] is True and "already exists" in duplicate["message"]
 
     replaced = rpc.call(
@@ -662,7 +677,9 @@ def test_memory_edits_go_through_the_store_and_its_guards(client):
     assert blocked["success"] is False and "security scan" in blocked["message"].lower()
     assert blocked["user"] == []
 
-    assert rpc.call("memory.set", {"action": "remove", "target": "memory", "old_text": "monday"})["memory"] == []
+    assert (
+        rpc.call("memory.set", {"action": "remove", "target": "memory", "old_text": "monday"})["memory"] == []
+    )
     missing = rpc.call("memory.set", {"action": "remove", "target": "memory", "old_text": "nothing here"})
     assert missing["success"] is False and "no entry contains" in missing["message"].lower()
 
@@ -922,9 +939,7 @@ def test_a_client_that_fell_too_far_behind_is_told_to_reload(client):
     # A client that is up to date needs nothing replayed.
     second.server.close()
     third = client()
-    up_to_date = third.call(
-        "session.attach", {"session_id": runtime_id, "last_seq": attached["last_seq"]}
-    )
+    up_to_date = third.call("session.attach", {"session_id": runtime_id, "last_seq": attached["last_seq"]})
     assert up_to_date["complete"] is True and up_to_date["events"] == []
 
 

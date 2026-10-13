@@ -20,6 +20,8 @@ if TYPE_CHECKING:
 class BasePlatformAdapter(ABC):
     name = ""
     max_message_length = 4000
+    # The longest button label the platform accepts, in UTF-8 bytes; ``None`` for no limit.
+    max_button_label_bytes: int | None = None
 
     def __init__(self, config: dict[str, Any], runner: GatewayRunner) -> None:
         self.config = config
@@ -53,6 +55,12 @@ class BasePlatformAdapter(ABC):
         Never raises: a failed edit (rate limit, message too old) leaves the answer to be sent
         whole at the end of the turn.
         """
+        return False
+
+    def can_send_buttons(self) -> bool:
+        """Whether this adapter implements the button controls below and routes their presses
+        to ``runner.handle_model_picker_callback`` / ``runner.handle_approval_callback``.
+        Without them the runner falls back to text: ``/model <id>`` and ``/approve``."""
         return False
 
     def send_model_picker(

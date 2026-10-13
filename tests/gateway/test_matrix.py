@@ -28,7 +28,7 @@ class _MatrixHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(encoded)
 
-    def do_GET(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
+    def do_GET(self) -> None:  # required by BaseHTTPRequestHandler
         self.__class__.sync_calls += 1
         self.__class__.requests.append(("GET", self.path, None))
         if self.path.startswith("/_matrix/client/v3/sync"):
@@ -53,7 +53,7 @@ class _MatrixHandler(BaseHTTPRequestHandler):
             return
         self.send_error(404)
 
-    def do_PUT(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
+    def do_PUT(self) -> None:  # required by BaseHTTPRequestHandler
         length = int(self.headers.get("Content-Length") or 0)
         body = json.loads(self.rfile.read(length) or b"{}")
         self.__class__.requests.append(("PUT", self.path, body))
@@ -108,8 +108,14 @@ def test_matrix_plugin_long_polls_local_sync_and_sends_a_room_message(monkeypatc
         assert sent is not None
         method, path, body = sent
         assert method == "PUT"
-        assert unquote(urlparse(path).path).startswith("/_matrix/client/v3/rooms/!room:example.test/send/m.room.message/")
-        assert body == {"msgtype": "m.text", "body": "The answer", "m.relates_to": {"m.in_reply_to": {"event_id": "$question"}}}
+        assert unquote(urlparse(path).path).startswith(
+            "/_matrix/client/v3/rooms/!room:example.test/send/m.room.message/"
+        )
+        assert body == {
+            "msgtype": "m.text",
+            "body": "The answer",
+            "m.relates_to": {"m.in_reply_to": {"event_id": "$question"}},
+        }
     finally:
         if "adapter" in locals():
             adapter.disconnect()

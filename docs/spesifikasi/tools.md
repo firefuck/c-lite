@@ -22,7 +22,7 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 | Konteks | `context.py` | `ToolContext`: apa yang boleh diketahui handler tentang panggilannya |
 | Persetujuan | `approval.py` | Pola berbahaya, pola terlarang mutlak, mode `manual` / `smart` / `off` |
 | Penjaga file | `file_safety.py` | Path yang tidak boleh ditulis atau dibaca tool file; `PROTECTED_PATHS` adalah daftar file terlindung di tiap home agent, dipakai juga oleh gerbang persetujuan |
-| Lingkungan | `environments/` | `BaseEnvironment` + operasi file, backend `local`, `docker`, `ssh` |
+| Lingkungan | `environments/` | `BaseEnvironment` + operasi file, backend `local`, `docker`, `ssh`; `capture.py` menunggu perintah (batas output, timeout, interupsi) untuk ketiganya |
 | Tool bawaan | `builtin/` | 23 tool (lihat [katalog](../referensi/katalog.md)) |
 | MCP | `mcp/client.py`, `mcp/http.py` | Klien MCP tanpa SDK: transport stdio dan Streamable HTTP, tools, resources, prompts |
 

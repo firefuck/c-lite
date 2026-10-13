@@ -12,6 +12,7 @@ Two modes:
                   "bullets": ["a", {"text": "b", "level": 1}],
                   "notes": "presenter text"}]}
 """
+
 import argparse
 import json
 import sys
@@ -21,6 +22,7 @@ from pptx import Presentation
 
 def fill_tokens(prs, values):
     from pptx_edit import replace_text  # same scripts/ directory
+
     total = 0
     for token, value in values.items():
         total += replace_text(prs, f"{{{{{token}}}}}", str(value))
@@ -33,20 +35,19 @@ def find_layout(prs, ref):
     for layout in prs.slide_layouts:
         if layout.name == ref:
             return layout
-    raise SystemExit(f"layout {ref!r} not found; available: "
-                     f"{[la.name for la in prs.slide_layouts]}")
+    raise SystemExit(f"layout {ref!r} not found; available: {[la.name for la in prs.slide_layouts]}")
 
 
 def add_slides(prs, spec):
     from pptx_create import add_bullets
+
     for slide_spec in spec.get("slides", []):
         layout = find_layout(prs, slide_spec.get("layout", 1))
         slide = prs.slides.add_slide(layout)
         if slide_spec.get("title") is not None and slide.shapes.title:
             slide.shapes.title.text = slide_spec["title"]
         if slide_spec.get("bullets"):
-            body = next((ph for ph in slide.placeholders
-                         if ph.placeholder_format.idx != 0), None)
+            body = next((ph for ph in slide.placeholders if ph.placeholder_format.idx != 0), None)
             if body is not None:
                 add_bullets(body.text_frame, slide_spec["bullets"])
         if slide_spec.get("notes"):
@@ -58,14 +59,14 @@ def main(argv=None):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(
         description="Fill {{tokens}} in a .pptx template and optionally "
-                    "append slides using the template's own layouts.",
-        epilog=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+        "append slides using the template's own layouts.",
+        epilog=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument("template", help="path to the template .pptx")
     parser.add_argument("output", help="output .pptx path")
-    parser.add_argument("--values", metavar="JSON",
-                        help="JSON file mapping token -> replacement value")
-    parser.add_argument("--add-slides", metavar="SPEC_JSON",
-                        help="JSON spec of slides to append")
+    parser.add_argument("--values", metavar="JSON", help="JSON file mapping token -> replacement value")
+    parser.add_argument("--add-slides", metavar="SPEC_JSON", help="JSON spec of slides to append")
     args = parser.parse_args(argv)
 
     prs = Presentation(args.template)
@@ -77,12 +78,12 @@ def main(argv=None):
         with open(args.add_slides, encoding="utf-8") as fh:
             add_slides(prs, json.load(fh))
     prs.save(args.output)
-    print(json.dumps({"ok": True, "output": args.output,
-                      "tokens_filled": filled}))
+    print(json.dumps({"ok": True, "output": args.output, "tokens_filled": filled}))
     return 0
 
 
 if __name__ == "__main__":
     import os
+
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     sys.exit(main())

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import codecs
-import io
 import os
 import shlex
 import shutil
@@ -12,18 +10,16 @@ import subprocess
 import sys
 import tempfile
 import threading
-import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from pathlib import Path
 
 from clite.core.config import config_get
 from clite.core.env import secret_names
 from clite.core.io import atomic_write_text
 from clite.core.redact import credential_values
-from clite.core.threads import start_thread
 from clite.tools.environments.base import BaseEnvironment, DirEntry, ExecResult, FileInfo, FileRead
+from clite.tools.environments.capture import capture
 
-_POLL_SECONDS = 0.05
 _KILL_GRACE_SECONDS = 2.0
 
 
@@ -87,8 +83,10 @@ def kill_process_tree(process: subprocess.Popen, *, force: bool = False) -> None
         return
     try:
         if sys.platform == "win32":
-            subprocess.run(
-                ["taskkill", "/F", "/T", "/PID", str(process.pid)], capture_output=True, check=False
+            subprocess.run(  # noqa: S603 - the system's taskkill, no shell
+                ["taskkill", "/F", "/T", "/PID", str(process.pid)],  # noqa: S607 - the system's taskkill
+                capture_output=True,
+                check=False,
             )
         else:
             os.killpg(os.getpgid(process.pid), signal.SIGKILL if force else signal.SIGTERM)
@@ -96,19 +94,14 @@ def kill_process_tree(process: subprocess.Popen, *, force: bool = False) -> None
         pass
 
 
-def read_output_chunks(stream) -> Iterator[str]:
-    """Drain a subprocess pipe in bounded chunks, preserving split UTF-8 characters."""
-    decoder = io.IncrementalNewlineDecoder(
-        codecs.getincrementaldecoder("utf-8")(errors="replace"),
-        translate=True,
-    )
-    while data := stream.buffer.read1(8192):
-        text = decoder.decode(data)
-        if text:
-            yield text
-    tail = decoder.decode(b"", final=True)
-    if tail:
-        yield tail
+def _stop_tree(process: subprocess.Popen) -> None:
+    """End a timed-out or interrupted command: ask the group to stop, then force it."""
+    kill_process_tree(process)
+    try:
+        process.wait(_KILL_GRACE_SECONDS)
+    except subprocess.TimeoutExpired:
+        kill_process_tree(process, force=True)
+        process.wait()
 
 
 class LocalEnvironment(BaseEnvironment):
@@ -157,7 +150,7 @@ class LocalEnvironment(BaseEnvironment):
             exists=True, is_dir=is_dir, is_file=is_file, size=target.stat().st_size if is_file else 0
         )
 
-    def spawn_background(self, command: str, *, cwd: str) -> object:
+    def spawn_background(self, command: str, *, cwd: str) -> subprocess.Popen[str]:
         shell = find_shell()
         # list2cmdline quotes argv using CRT rules, which cmd.exe does not follow for /c.
         is_cmd = shell[0].replace("\\", "/").rsplit("/", 1)[-1].lower() in {"cmd", "cmd.exe"}
@@ -191,8 +184,6 @@ class LocalEnvironment(BaseEnvironment):
         workdir = self.resolve_path(cwd) if cwd else self.cwd
         if not os.path.isdir(workdir):
             return ExecResult(f"working directory does not exist: {workdir}", 1)
-        limit = 50_000 if max_output_chars is None else max(0, max_output_chars)
-        deadline = time.monotonic() + (timeout or self.default_timeout)
         shell = find_shell()
         track_cwd = cwd is None
         cwd_file = batch_file = None
@@ -238,53 +229,18 @@ class LocalEnvironment(BaseEnvironment):
             _remove(batch_file)
             return ExecResult(f"could not start command: {exc}", 126)
 
-        chunks: list[str] = []
-        size = 0
-        truncated = False
+        result = capture(
+            process,
+            timeout=timeout or self.default_timeout,
+            stdin_data=stdin_data,
+            interrupt=interrupt,
+            on_output=on_output,
+            max_output_chars=max_output_chars,
+            stop=_stop_tree,
+            reader_name="clite-terminal-reader",
+        )
 
-        def read_output() -> None:
-            nonlocal size, truncated
-            assert process.stdout is not None
-            for line in read_output_chunks(process.stdout):
-                if on_output is not None:
-                    try:
-                        on_output(line)
-                    except Exception:  # noqa: BLE001 - a display callback must not kill the read loop
-                        pass
-                retained = line[: max(0, limit - size)]
-                if retained:
-                    chunks.append(retained)
-                    size += len(retained)
-                if len(retained) < len(line):
-                    truncated = True
-
-        reader = start_thread(read_output, name="clite-terminal-reader")
-        if stdin_data is not None and process.stdin is not None:
-            try:
-                process.stdin.write(stdin_data)
-                process.stdin.close()
-            except OSError:
-                pass
-
-        timed_out = interrupted = False
-        while process.poll() is None:
-            if interrupt is not None and interrupt.is_set():
-                interrupted = True
-                break
-            if time.monotonic() > deadline:
-                timed_out = True
-                break
-            time.sleep(_POLL_SECONDS)
-        if timed_out or interrupted:
-            kill_process_tree(process)
-            try:
-                process.wait(_KILL_GRACE_SECONDS)
-            except subprocess.TimeoutExpired:
-                kill_process_tree(process, force=True)
-                process.wait()
-        reader.join(timeout=2.0)
-
-        if track_cwd and cwd_file and not (timed_out or interrupted):
+        if track_cwd and cwd_file and not (result.timed_out or result.interrupted):
             try:
                 new_cwd = Path(cwd_file).read_text(encoding="utf-8").strip()
                 if new_cwd and os.path.isdir(new_cwd):
@@ -293,18 +249,7 @@ class LocalEnvironment(BaseEnvironment):
                 pass
         _remove(cwd_file)
         _remove(batch_file)
-
-        output = "".join(chunks)
-        if truncated:
-            output += f"\n[output truncated at {limit} characters]"
-        exit_code = process.returncode if process.returncode is not None else -1
-        if timed_out:
-            output += f"\n[command timed out after {timeout or self.default_timeout}s and was killed]"
-            exit_code = 124
-        elif interrupted:
-            output += "\n[command interrupted]"
-            exit_code = 130
-        return ExecResult(output, exit_code, timed_out, interrupted, truncated)
+        return result
 
 
 def _remove(path: str | None) -> None:

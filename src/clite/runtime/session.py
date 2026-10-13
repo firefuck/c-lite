@@ -348,7 +348,7 @@ class ChatSession:
         if plugin_command is not None:
             try:
                 output = plugin_command.handler(args, self)
-            except Exception as exc:  # noqa: BLE001 - a plugin bug is reported, not raised
+            except Exception as exc:  # a plugin bug is reported, not raised
                 logger.warning("plugin command /%s failed", name, exc_info=True)
                 return SlashResult(f"/{name} failed: {type(exc).__name__}: {exc}")
             return SlashResult(str(output) if output is not None else "")
@@ -379,7 +379,7 @@ class ChatSession:
             # The user wrote this command into their own config: it runs as given, without
             # the model and without the approval gate.
             try:
-                completed = subprocess.run(  # noqa: S602
+                completed = subprocess.run(
                     str(spec.get("command") or ""),
                     shell=True,
                     capture_output=True,

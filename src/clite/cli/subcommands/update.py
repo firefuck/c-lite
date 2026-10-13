@@ -37,8 +37,8 @@ def check_latest_version(index_url: str | None = None) -> tuple[str, str, bool]:
 
     url = index_url or "https://pypi.org/pypi/c-lite/json"
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": f"c-lite/{current}"})
-        with urllib.request.urlopen(req, timeout=5) as resp:
+        req = urllib.request.Request(url, headers={"User-Agent": f"c-lite/{current}"})  # noqa: S310 - PyPI over https, or the index the user named
+        with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310 - PyPI over https, or the index the user named
             data = json.loads(resp.read().decode("utf-8"))
             latest = str(data.get("info", {}).get("version", current))
     except Exception as exc:
@@ -66,14 +66,16 @@ def run_update(args: argparse.Namespace) -> int:
     print(f"Updating c-lite {current} -> {latest} via {method}…")
     if method == "git":
         repo_root = Path(__file__).resolve().parents[4]
-        res = subprocess.run(
-            ["git", "-C", str(repo_root), "pull", "--ff-only"], capture_output=True, text=True
+        res = subprocess.run(  # noqa: S603 - git pull in this install's own checkout
+            ["git", "-C", str(repo_root), "pull", "--ff-only"],  # noqa: S607 - the user's git on PATH
+            capture_output=True,
+            text=True,
         )
         if res.returncode != 0:
             raise CliteError(f"git pull failed: {res.stderr.strip()}")
     elif method == "pipx":
         pipx_bin = shutil.which("pipx") or "pipx"
-        res = subprocess.run([pipx_bin, "upgrade", "c-lite"], capture_output=True, text=True)
+        res = subprocess.run([pipx_bin, "upgrade", "c-lite"], capture_output=True, text=True)  # noqa: S603 - fixed pipx argv, no shell
         if res.returncode != 0:
             raise CliteError(f"pipx upgrade failed: {res.stderr.strip()}")
     else:

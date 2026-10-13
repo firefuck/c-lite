@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import time
 import uuid
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +22,7 @@ class CronHistory:
         self.path = directory / "history.json"
 
     @contextlib.contextmanager
-    def _locked(self):
+    def _locked(self) -> Iterator[None]:
         ensure_dir(self.directory)
         with exclusive_lock(self.directory / ".history.lock"):
             yield
@@ -65,7 +66,7 @@ class CronHistory:
             )
             self._save(data)
 
-    def retry_deliveries(self, deliver, max_attempts: int) -> int:
+    def retry_deliveries(self, deliver: Callable[[dict[str, Any], str], None], max_attempts: int) -> int:
         """Retry pending sends once; discard entries after their configured attempt limit."""
         with self._locked():
             data = self._load()

@@ -36,6 +36,11 @@ Panduan Hermes yang setara: `gateway/platforms/ADDING_A_PLATFORM.md` di clone ru
      Jangan melempar.
    - `disconnect()`: hentikan loop.
    - `max_message_length` sesuai batas platform.
+   - Opsional, bila platform punya tombol: `can_send_buttons()` mengembalikan `True`,
+     implementasikan `send_*`/`edit_*` kontrol dan `answer_callback`, lalu teruskan tekanan
+     tombol berawalan `CALLBACK_PREFIXES` (`gateway/controls.py`) ke
+     `runner.handle_model_picker_callback` / `runner.handle_approval_callback`. Runner tidak
+     memeriksa nama platform.
 2. Di akhir modul: `register_secret(SecretSpec(...))` dan `register_platform("<nama>", Kelas)`.
 3. Impor modul itu di `GatewayRunner.start` (bersama `local` dan `telegram`), dan di
    `scripts/gen_docs.py` supaya muncul di katalog.

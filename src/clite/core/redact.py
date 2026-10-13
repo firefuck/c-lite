@@ -40,6 +40,7 @@ def reset_redact_state() -> None:
     with _CREDENTIAL_LOCK:
         _CREDENTIAL_VALUES.clear()
 
+
 _PATTERNS = [
     re.compile(r"\bsk-[A-Za-z0-9_\-]{16,}"),  # OpenAI / Anthropic / OpenRouter style
     re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}"),  # GitHub tokens

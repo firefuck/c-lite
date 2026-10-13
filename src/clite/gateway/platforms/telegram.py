@@ -26,6 +26,7 @@ from typing import Any
 from clite.core.env import SecretSpec, get_secret, register_secret
 from clite.core.redact import redact
 from clite.core.threads import start_thread
+from clite.gateway.controls import APPROVAL_PREFIX, CALLBACK_PREFIXES
 from clite.gateway.event import CHAT_CHANNEL, CHAT_DM, CHAT_GROUP, MessageEvent, SendResult, SessionSource
 from clite.gateway.media import AUDIO, DOCUMENT, IMAGE, VIDEO, Attachment, MediaError
 from clite.gateway.platforms.base import BasePlatformAdapter, register_platform
@@ -74,6 +75,7 @@ def format_telegram_markdown(text: str) -> str:
 
     # MarkdownV2 permits only backslash and backtick escaping inside code blocks/spans.
     rendered = re.sub(r"(?ms)^(```[^`\n]*\n)(.*?)(^[ \t]*```)[ \t]*$", fenced, text)
+
     def code_span(match: re.Match[str]) -> str:
         code = match.group(1).replace("\\", "\\\\")
         return stash(f"`{code}`")
@@ -86,7 +88,12 @@ def format_telegram_markdown(text: str) -> str:
         return stash(f"[{_escape_markdown_v2(label)}]({safe_url})")
 
     rendered = re.sub(r"\[([^\]]+)\]\(([^()]*(?:\([^()]*\)[^()]*)*)\)", link, rendered)
-    rendered = re.sub(r"^#{1,6}\s+(.+)$", lambda match: inline(match.group(1).strip(), "*", "*"), rendered, flags=re.MULTILINE)
+    rendered = re.sub(
+        r"^#{1,6}\s+(.+)$",
+        lambda match: inline(match.group(1).strip(), "*", "*"),
+        rendered,
+        flags=re.MULTILINE,
+    )
     rendered = re.sub(r"\*\*(.+?)\*\*", lambda match: inline(match.group(1), "*", "*"), rendered)
     rendered = re.sub(r"\*([^*\n]+)\*", lambda match: inline(match.group(1), "_", "_"), rendered)
     rendered = re.sub(r"~~(.+?)~~", lambda match: inline(match.group(1), "~", "~"), rendered)
@@ -95,7 +102,10 @@ def format_telegram_markdown(text: str) -> str:
     # A leading unescaped > is Telegram's documented native blockquote syntax.  Every quote
     # line is preserved, so consecutive Markdown quote lines become one multiline quote block.
     rendered = re.sub(
-        r"^> ?(.*)$", lambda match: stash(f"> {_escape_markdown_v2(match.group(1))}"), rendered, flags=re.MULTILINE
+        r"^> ?(.*)$",
+        lambda match: stash(f"> {_escape_markdown_v2(match.group(1))}"),
+        rendered,
+        flags=re.MULTILINE,
     )
     rendered = _escape_markdown_v2(rendered)
     for key, value in reversed(tuple(placeholders.items())):
@@ -142,6 +152,7 @@ def telegram_command_menu() -> list[dict[str, str]]:
                 return menu
     return menu
 
+
 register_secret(
     SecretSpec(
         TOKEN_ENV,
@@ -155,6 +166,7 @@ register_secret(
 class TelegramAdapter(BasePlatformAdapter):
     name = "telegram"
     max_message_length = 4096
+    max_button_label_bytes = 64  # Bot API limit on inline keyboard button text
 
     def __init__(self, config: dict[str, Any], runner: Any) -> None:
         super().__init__(config, runner)
@@ -240,7 +252,7 @@ class TelegramAdapter(BasePlatformAdapter):
         if not isinstance(callback, dict):
             return False
         data = str(callback.get("data") or "")
-        if not (data.startswith("mp:") or data.startswith("ap:")):
+        if not data.startswith(CALLBACK_PREFIXES):
             self.answer_callback(str(callback.get("id") or ""), "Unsupported action.")
             return True
         message = callback.get("message") or {}
@@ -261,7 +273,7 @@ class TelegramAdapter(BasePlatformAdapter):
         )
         callback_id = str(callback.get("id") or "")
         message_id = str(message.get("message_id") or "")
-        if data.startswith("ap:"):
+        if data.startswith(f"{APPROVAL_PREFIX}:"):
             self.runner.handle_approval_callback(source, callback_id, data, message_id)
         else:
             self.runner.handle_model_picker_callback(source, callback_id, data, message_id)
@@ -369,11 +381,11 @@ class TelegramAdapter(BasePlatformAdapter):
         file_path = str((info or {}).get("file_path") or "")
         if not file_path:
             raise MediaError(f"Telegram did not return a path for {attachment.describe()}")
-        request = urllib.request.Request(f"{self.base_url}/file/bot{self.token}/{file_path}")
+        request = urllib.request.Request(f"{self.base_url}/file/bot{self.token}/{file_path}")  # noqa: S310 - the Bot API base URL from config
         try:
             with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310
                 data = response.read(max_bytes + 1)
-        except Exception as exc:  # noqa: BLE001 - a failed download is reported, not raised raw
+        except Exception as exc:  # a failed download is reported, not raised raw
             raise MediaError(f"could not download {attachment.describe()}: {exc}") from exc
         if len(data) > max_bytes:
             raise MediaError(f"{attachment.describe()} is larger than the {max_bytes} byte limit")
@@ -425,7 +437,11 @@ class TelegramAdapter(BasePlatformAdapter):
     def send(
         self, chat_id: str, text: str, *, reply_to: str | None = None, thread_id: str | None = None
     ) -> SendResult:
-        payload: dict[str, Any] = {"chat_id": chat_id, "text": format_telegram_markdown(text), "parse_mode": "MarkdownV2"}
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "text": format_telegram_markdown(text),
+            "parse_mode": "MarkdownV2",
+        }
         if reply_to:
             payload["reply_parameters"] = {"message_id": int(reply_to)}
         if thread_id:
@@ -444,6 +460,9 @@ class TelegramAdapter(BasePlatformAdapter):
             except Exception as fallback_exc:  # noqa: BLE001
                 return SendResult(False, error=str(fallback_exc))
         return SendResult(True, message_id=str(result.get("message_id", "")))
+
+    def can_send_buttons(self) -> bool:
+        return True
 
     def send_model_picker(
         self, chat_id: str, text: str, keyboard: list[list[dict[str, str]]], *, thread_id: str | None = None
@@ -517,7 +536,7 @@ class TelegramAdapter(BasePlatformAdapter):
             payload["text"] = text[:200]
         try:
             self._call("answerCallbackQuery", payload, timeout=10)
-        except Exception:  # noqa: BLE001 - acknowledging a callback is cosmetic
+        except Exception:  # acknowledging a callback is cosmetic
             logger.debug("telegram callback answer failed", exc_info=True)
 
     def send_typing(self, chat_id: str, *, thread_id: str | None = None) -> None:

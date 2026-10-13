@@ -32,12 +32,15 @@ def _token() -> str:
     try:
         data = json.loads(secret_file.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        sys.exit(f"airtable: cannot read {secret_file}: {exc}\n"
-                 'Write it first: {"AIRTABLE_API_KEY": "pat_..."}')
+        sys.exit(
+            f'airtable: cannot read {secret_file}: {exc}\nWrite it first: {{"AIRTABLE_API_KEY": "pat_..."}}'
+        )
     value = str(data.get("AIRTABLE_API_KEY", "")).strip()
     if not value:
-        sys.exit(f"airtable: AIRTABLE_API_KEY missing from {secret_file}\n"
-                 'Write it first: {"AIRTABLE_API_KEY": "pat_..."}')
+        sys.exit(
+            f"airtable: AIRTABLE_API_KEY missing from {secret_file}\n"
+            'Write it first: {"AIRTABLE_API_KEY": "pat_..."}'
+        )
     return value
 
 

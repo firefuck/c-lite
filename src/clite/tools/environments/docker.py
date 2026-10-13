@@ -22,14 +22,13 @@ from __future__ import annotations
 import os
 import subprocess
 import threading
-import time
 import uuid
 from collections.abc import Callable
 
 from clite.core.config import config_get
-from clite.core.threads import start_thread
 from clite.tools.environments.base import ExecResult
-from clite.tools.environments.local import _POLL_SECONDS, LocalEnvironment, read_output_chunks
+from clite.tools.environments.capture import capture, kill_client
+from clite.tools.environments.local import LocalEnvironment
 
 
 class DockerEnvironment(LocalEnvironment):
@@ -116,7 +115,7 @@ class DockerEnvironment(LocalEnvironment):
 
     # ── command execution ────────────────────────────────────────────────────────────────
 
-    def spawn_background(self, command: str, *, cwd: str) -> object:
+    def spawn_background(self, command: str, *, cwd: str) -> subprocess.Popen[str]:
         """Run the command in the container detached, keeping a ``docker exec`` client open
         so the ``process`` tool can still read its output, feed stdin and kill it."""
         container = self._ensure_container()
@@ -149,9 +148,6 @@ class DockerEnvironment(LocalEnvironment):
         except RuntimeError as exc:
             return ExecResult(str(exc), 126)
         workdir = self.resolve_path(cwd) if cwd else self.cwd
-        limit = 50_000 if max_output_chars is None else max(0, max_output_chars)
-        deadline = time.monotonic() + (timeout or self.default_timeout)
-
         argv = ["docker", "exec", "-i", "-w", workdir, container, "/bin/sh", "-c", command]
         try:
             process = subprocess.Popen(  # noqa: S603
@@ -167,63 +163,18 @@ class DockerEnvironment(LocalEnvironment):
         except OSError as exc:
             return ExecResult(f"could not run docker exec: {exc}", 126)
 
-        chunks: list[str] = []
-        size = 0
-        truncated = False
-
-        def collect() -> None:
-            nonlocal size, truncated
-            assert process.stdout is not None
-            for chunk in read_output_chunks(process.stdout):
-                if on_output is not None:
-                    try:
-                        on_output(chunk)
-                    except Exception:  # noqa: BLE001 - a display callback must not kill the reader
-                        pass
-                retained = chunk[: max(0, limit - size)]
-                if retained:
-                    chunks.append(retained)
-                    size += len(retained)
-                if len(retained) < len(chunk):
-                    truncated = True
-
-        reader_thread = start_thread(collect, name="clite-docker-reader")
-        if stdin_data is not None and process.stdin is not None:
-            try:
-                process.stdin.write(stdin_data)
-                process.stdin.close()
-            except OSError:
-                pass
-        timed_out = interrupted = False
-        while process.poll() is None:
-            if interrupt is not None and interrupt.is_set():
-                interrupted = True
-                break
-            if time.monotonic() > deadline:
-                timed_out = True
-                break
-            time.sleep(_POLL_SECONDS)
-        if timed_out or interrupted:
-            # Killing the docker client stops waiting on the command; the container keeps its
-            # state and is removed when the session closes.
-            process.kill()
-            try:
-                process.wait(2.0)
-            except subprocess.TimeoutExpired:
-                pass
-        reader_thread.join(timeout=2.0)
-
-        output = "".join(chunks)
-        if truncated:
-            output += f"\n[output truncated at {limit} characters]"
-        exit_code = process.returncode if process.returncode is not None else -1
-        if timed_out:
-            output += f"\n[command timed out after {timeout or self.default_timeout}s and was killed]"
-            exit_code = 124
-        elif interrupted:
-            output += "\n[command interrupted]"
-            exit_code = 130
-        return ExecResult(output, exit_code, timed_out, interrupted, truncated)
+        # Killing the docker client stops waiting on the command; the container keeps its state
+        # and is removed when the session closes.
+        return capture(
+            process,
+            timeout=timeout or self.default_timeout,
+            stdin_data=stdin_data,
+            interrupt=interrupt,
+            on_output=on_output,
+            max_output_chars=max_output_chars,
+            stop=kill_client,
+            reader_name="clite-docker-reader",
+        )
 
 
 def _docker_client_env() -> dict[str, str]:

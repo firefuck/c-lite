@@ -18,7 +18,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
-from clite.agent import AgentCallbacks
+from clite.agent import AgentCallbacks, AIAgent, TurnResult
 from clite.core.config import config_get
 from clite.core.constants import ensure_dir, get_cron_dir
 from clite.core.threads import start_thread
@@ -58,7 +58,7 @@ def _run_script(job: dict[str, Any], store: JobStore) -> tuple[str, str | None]:
     if not path.is_file():
         return "", f"script {script!r} does not exist in cron/scripts"
     try:
-        completed = subprocess.run(
+        completed = subprocess.run(  # noqa: S603 - a script the user placed in cron/scripts
             [sys.executable, str(path)],
             text=True,
             capture_output=True,
@@ -103,13 +103,7 @@ def run_job(
     history = CronHistory(store.directory)
     started_at = time.time()
     script_output, script_error = _run_script(job, store)
-    timeout = float(config_get("cron.inactivity_timeout_seconds", 600) or 0)
-    last_activity = [time.monotonic()]
-
-    def touch(*_args: Any) -> None:
-        last_activity[0] = time.monotonic()
-
-    callbacks = AgentCallbacks(on_step=touch, on_delta=touch, on_tool_start=touch, on_tool_complete=touch)
+    watchdog = _Watchdog(float(config_get("cron.inactivity_timeout_seconds", 600) or 0))
     outcome: dict[str, Any] = {"job_id": job["id"], "status": "failed", "delivered": False}
     usage: dict[str, int] = {}
     agent = None
@@ -119,34 +113,12 @@ def run_job(
             model=job.get("model") or None,
             provider=job.get("provider") or None,
             toolsets=job.get("toolsets") or None,
-            callbacks=callbacks,
+            callbacks=watchdog.callbacks(),
             client=client,
             auto_title=False,
             session_meta={"display_name": job.get("name") or f"cron {job['id']}"},
         )
-        done = threading.Event()
-        box: dict[str, Any] = {}
-
-        def work() -> None:
-            try:
-                box["result"] = agent.run_conversation(build_job_prompt(job, script_output))
-            except Exception as exc:  # noqa: BLE001
-                box["error"] = exc
-            finally:
-                done.set()
-
-        start_thread(work, name=f"clite-cron-{job['id']}")
-        while not done.wait(1.0):
-            if timeout and time.monotonic() - last_activity[0] > timeout:
-                logger.warning("cron job %s made no progress for %ss; interrupting", job["id"], timeout)
-                agent.interrupt()
-                done.wait(30)
-                break
-        if "error" in box:
-            raise box["error"]
-        result = box.get("result")
-        if result is None:
-            raise TimeoutError(f"no activity for {int(timeout)}s")
+        result = watchdog.run(agent, build_job_prompt(job, script_output), job["id"])
         text = (result.final_response or "").strip()
         usage = {
             "input_tokens": result.usage.input_tokens,
@@ -165,17 +137,11 @@ def run_job(
         )
         silent = text.upper().startswith(SILENT_MARKER) or not text
         if result.completed and not silent and deliver is not None and job.get("deliver", "local") != "local":
-            try:
-                deliver(job, text)
-                outcome["delivered"] = True
-            except Exception as exc:  # noqa: BLE001 - the output is on disk either way
-                logger.warning("delivery for cron job %s failed: %s", job["id"], exc)
-                outcome["delivery_error"] = str(exc)
-                history.enqueue_delivery(job, str(job.get("deliver") or "local"), text, str(exc))
+            _deliver(job, text, deliver, history, outcome)
         store.mark_finished(
             job["id"], status=outcome["status"], error=result.error, output_path=str(output_path)
         )
-    except Exception as exc:  # noqa: BLE001 - one job failing must not stop the tick
+    except Exception as exc:  # one job failing must not stop the tick
         logger.warning("cron job %s failed", job["id"], exc_info=True)
         outcome.update(status="failed", error=f"{type(exc).__name__}: {exc}")
         store.mark_finished(job["id"], status="failed", error=outcome["error"])
@@ -195,6 +161,65 @@ def run_job(
             }
         )
     return outcome
+
+
+class _Watchdog:
+    """Runs a job's turn and interrupts it after ``timeout`` seconds without any activity.
+
+    Activity is any streamed text, model step or tool event, so a long job that keeps working
+    is never cut off; only one that has stalled is. ``timeout`` 0 disables the watchdog.
+    """
+
+    def __init__(self, timeout: float) -> None:
+        self.timeout = timeout
+        self._last_activity = time.monotonic()
+
+    def touch(self, *_args: Any) -> None:
+        self._last_activity = time.monotonic()
+
+    def callbacks(self) -> AgentCallbacks:
+        touch = self.touch
+        return AgentCallbacks(on_step=touch, on_delta=touch, on_tool_start=touch, on_tool_complete=touch)
+
+    def run(self, agent: AIAgent, prompt: str, job_id: str) -> TurnResult:
+        """The turn's result. Raises what the turn raised, or ``TimeoutError`` when it stalled."""
+        done = threading.Event()
+        box: dict[str, Any] = {}
+
+        def work() -> None:
+            try:
+                box["result"] = agent.run_conversation(prompt)
+            except Exception as exc:  # noqa: BLE001 - re-raised on the caller's thread below
+                box["error"] = exc
+            finally:
+                done.set()
+
+        start_thread(work, name=f"clite-cron-{job_id}")
+        while not done.wait(1.0):
+            if self.timeout and time.monotonic() - self._last_activity > self.timeout:
+                logger.warning("cron job %s made no progress for %ss; interrupting", job_id, self.timeout)
+                agent.interrupt()
+                done.wait(30)
+                break
+        if "error" in box:
+            raise box["error"]
+        result = box.get("result")
+        if result is None:
+            raise TimeoutError(f"no activity for {int(self.timeout)}s")
+        return result
+
+
+def _deliver(
+    job: dict[str, Any], text: str, deliver: Deliver, history: CronHistory, outcome: dict[str, Any]
+) -> None:
+    """Send the output where the job asked; a failed delivery is queued for a retry."""
+    try:
+        deliver(job, text)
+        outcome["delivered"] = True
+    except Exception as exc:  # noqa: BLE001 - the output is on disk either way
+        logger.warning("delivery for cron job %s failed: %s", job["id"], exc)
+        outcome["delivery_error"] = str(exc)
+        history.enqueue_delivery(job, str(job.get("deliver") or "local"), text, str(exc))
 
 
 class _TickLock:
@@ -264,7 +289,11 @@ def tick(
             dispatched_jobs.append(store.mark_dispatched(job["id"], current))  # before running: at-most-once
         workers = max(1, int(config_get("cron.max_concurrent_jobs", 4) or 1))
         with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="clite-cron-tick") as executor:
-            return list(executor.map(lambda job: run_job(job, store=store, client=client, deliver=deliver), dispatched_jobs))
+            return list(
+                executor.map(
+                    lambda job: run_job(job, store=store, client=client, deliver=deliver), dispatched_jobs
+                )
+            )
     finally:
         lock.release()
 
@@ -295,7 +324,7 @@ class Scheduler:
         while not self._stop.is_set():
             try:
                 tick(client=self.client, deliver=self.deliver)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.warning("cron tick failed", exc_info=True)
             self._stop.wait(self.interval)
 

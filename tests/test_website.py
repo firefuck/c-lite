@@ -33,7 +33,7 @@ QUICKSTART = "start/quickstart.md"
 NOT_EXECUTED: dict[str, str] = {
     "clite": "opens the interactive REPL, which waits for input",
     "clite setup": "asks its questions on a terminal; the flag form is the one that is run",
-    "clite setup --provider openrouter --api-key \"$OPENROUTER_KEY\" --model anthropic/claude-sonnet-5": (
+    'clite setup --provider openrouter --api-key "$OPENROUTER_KEY" --model anthropic/claude-sonnet-5': (
         "needs a real API key and a network call to the provider"
     ),
 }
@@ -108,7 +108,9 @@ def _shape(markdown: str) -> tuple[int, list[str], int]:
 @pytest.fixture(scope="module")
 def builder() -> Any:
     """``scripts/build_site.py`` as a module, so the tests use the real navigation and renderer."""
-    spec = importlib.util.spec_from_file_location("build_site_under_test", REPO_ROOT / "scripts" / "build_site.py")
+    spec = importlib.util.spec_from_file_location(
+        "build_site_under_test", REPO_ROOT / "scripts" / "build_site.py"
+    )
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -142,7 +144,9 @@ def test_the_generated_pages_are_the_only_ones_in_the_reference_tree():
     generated = {"reference/commands.md", "reference/config.md", "reference/tools.md"}
     for language in LANGUAGES:
         in_tree = {page for page in _pages(language) if page.startswith("reference/")}
-        assert in_tree == generated, f"{language}: unexpected page in the generated tree: {in_tree - generated}"
+        assert in_tree == generated, (
+            f"{language}: unexpected page in the generated tree: {in_tree - generated}"
+        )
 
 
 # ── both languages are complete ──────────────────────────────────────────────────────────
@@ -276,11 +280,7 @@ def test_every_command_the_quick_start_shows_is_either_run_or_explained():
     """A command shown in a transcript but never executed is a promise nobody checked. Either
     it is in a ```bash block, or it is in NOT_EXECUTED with a reason."""
     markdown = _read("id", QUICKSTART)
-    executed = {
-        line
-        for block in _blocks(markdown, "bash")
-        for line in _commands(block)
-    }
+    executed = {line for block in _blocks(markdown, "bash") for line in _commands(block)}
     shown = [
         command
         for block in _blocks(markdown, "console")
@@ -290,6 +290,5 @@ def test_every_command_the_quick_start_shows_is_either_run_or_explained():
     ]
     unexplained = [command for command in shown if command not in executed and command not in NOT_EXECUTED]
     assert not unexplained, (
-        "the quick start shows commands the suite neither runs nor explains:\n  "
-        + "\n  ".join(unexplained)
+        "the quick start shows commands the suite neither runs nor explains:\n  " + "\n  ".join(unexplained)
     )

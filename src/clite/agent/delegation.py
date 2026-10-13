@@ -34,6 +34,7 @@ from clite.tools.toolsets import resolve_toolsets
 
 if TYPE_CHECKING:
     from clite.agent.agent import AIAgent
+    from clite.providers.runtime import RuntimeRoute
 
 logger = logging.getLogger("clite.agent.delegation")
 
@@ -91,7 +92,7 @@ def may_delegate(parent: AIAgent) -> bool:
     return parent.depth + 1 < _max_depth(parent)
 
 
-def _child_route(parent: AIAgent, model: str | None = None):
+def _child_route(parent: AIAgent, model: str | None = None) -> RuntimeRoute:
     """The route a child runs on.
 
     A per-task ``model`` (``<model>``, ``<provider>:<model>``, or a provider alias) wins over
@@ -224,7 +225,7 @@ def _run_child(parent: AIAgent, index: int, task: dict[str, Any], spawn_id: str 
         }
         if result.error:
             report["error"] = result.error
-    except Exception as exc:  # noqa: BLE001 - one failed child must not fail its siblings
+    except Exception as exc:  # one failed child must not fail its siblings
         logger.warning("subagent %d crashed", index, exc_info=True)
         report = {
             "index": index,

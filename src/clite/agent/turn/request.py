@@ -78,7 +78,7 @@ def _withhold_images(history: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def _backoff(attempt: int, retry_after: float | None) -> float:
     if retry_after is not None:
         return min(max(retry_after, 0.0), 120.0)
-    return min(2.0**attempt, MAX_BACKOFF_SECONDS) + random.uniform(0, 0.5)  # noqa: S311 - jitter, not security
+    return min(2.0**attempt, MAX_BACKOFF_SECONDS) + random.uniform(0, 0.5)  # jitter, not security
 
 
 def _recover(agent: AIAgent, state: TurnState, error: ClassifiedError) -> str:

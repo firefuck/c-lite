@@ -15,6 +15,7 @@ machine overrides them with a listing/exec translation of the same calls.
 
 from __future__ import annotations
 
+import subprocess
 import threading
 from abc import ABC, abstractmethod
 from collections.abc import Callable
@@ -113,11 +114,11 @@ class BaseEnvironment(ABC):
         """Whether ``path`` exists and what it is."""
         raise NotImplementedError
 
-    def spawn_background(self, command: str, *, cwd: str) -> object:
-        """Start ``command`` without waiting and return its process object.
+    def spawn_background(self, command: str, *, cwd: str) -> subprocess.Popen[str]:
+        """Start ``command`` without waiting and return its process.
 
-        ``process`` is anything with ``poll()``, ``wait(timeout)``, ``kill()``, ``stdin`` and
-        a readable ``stdout``. A backend that cannot keep a process alive across calls raises
+        The ``process`` tool polls, waits on and kills it, writes to its ``stdin`` and reads its
+        text ``stdout``. A backend that cannot keep a process alive across calls raises
         ``NotImplementedError``; the caller reports that to the model.
         """
         raise NotImplementedError

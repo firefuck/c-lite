@@ -302,7 +302,9 @@ class AcpSession:
             # The only status ACP has a place for is the session's title; the rest (compaction,
             # retries, fallbacks) are log lines, not something an editor shows.
             if kind == "title":
-                self._update({"sessionUpdate": "session_info_update", "title": str(self.chat.info()["title"])})
+                self._update(
+                    {"sessionUpdate": "session_info_update", "title": str(self.chat.info()["title"])}
+                )
 
         def on_tool_start(call_id: str, name: str, args: dict[str, Any]) -> None:
             self._call_on_thread.value = call_id
@@ -321,9 +323,7 @@ class AcpSession:
             if name == "todo":
                 # The task list is the only plan there is: an editor shows it as the session's
                 # plan, and it is re-sent whole whenever the tool that edits it has run.
-                self._update(
-                    {"sessionUpdate": "plan", "entries": plan_entries(self.chat.agent.todos.read())}
-                )
+                self._update({"sessionUpdate": "plan", "entries": plan_entries(self.chat.agent.todos.read())})
 
         def approve(*, command: str, description: str, pattern_keys: list[str]) -> str:
             call = self._running_call() or self._stand_in_call(command)

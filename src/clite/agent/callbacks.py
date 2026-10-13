@@ -46,5 +46,5 @@ class AgentCallbacks:
             return
         try:
             callback(*args)
-        except Exception:  # noqa: BLE001 - a display bug must not break the turn
+        except Exception:  # a display bug must not break the turn
             logger.warning("callback %s failed", name, exc_info=True)

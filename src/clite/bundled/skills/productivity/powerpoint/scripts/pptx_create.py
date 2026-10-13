@@ -33,6 +33,7 @@ Layouts: title, title_content, section, two_content, title_only, blank
 Chart types: bar, bar_h, line, pie   Shape types: rectangle,
 rounded_rectangle, oval, diamond, right_arrow, chevron
 """
+
 import argparse
 import copy
 import json
@@ -45,17 +46,21 @@ from pptx.enum.chart import XL_CHART_TYPE
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.util import Inches, Pt
 
-LAYOUTS = {"title": 0, "title_content": 1, "section": 2,
-           "two_content": 3, "title_only": 5, "blank": 6}
-CHART_TYPES = {"bar": XL_CHART_TYPE.COLUMN_CLUSTERED,
-               "bar_h": XL_CHART_TYPE.BAR_CLUSTERED,
-               "line": XL_CHART_TYPE.LINE_MARKERS,
-               "pie": XL_CHART_TYPE.PIE}
-SHAPE_TYPES = {"rectangle": MSO_SHAPE.RECTANGLE,
-               "rounded_rectangle": MSO_SHAPE.ROUNDED_RECTANGLE,
-               "oval": MSO_SHAPE.OVAL, "diamond": MSO_SHAPE.DIAMOND,
-               "right_arrow": MSO_SHAPE.RIGHT_ARROW,
-               "chevron": MSO_SHAPE.CHEVRON}
+LAYOUTS = {"title": 0, "title_content": 1, "section": 2, "two_content": 3, "title_only": 5, "blank": 6}
+CHART_TYPES = {
+    "bar": XL_CHART_TYPE.COLUMN_CLUSTERED,
+    "bar_h": XL_CHART_TYPE.BAR_CLUSTERED,
+    "line": XL_CHART_TYPE.LINE_MARKERS,
+    "pie": XL_CHART_TYPE.PIE,
+}
+SHAPE_TYPES = {
+    "rectangle": MSO_SHAPE.RECTANGLE,
+    "rounded_rectangle": MSO_SHAPE.ROUNDED_RECTANGLE,
+    "oval": MSO_SHAPE.OVAL,
+    "diamond": MSO_SHAPE.DIAMOND,
+    "right_arrow": MSO_SHAPE.RIGHT_ARROW,
+    "chevron": MSO_SHAPE.CHEVRON,
+}
 
 
 def style_run(run, spec):
@@ -123,11 +128,9 @@ def build_slide(prs, spec):
                 ph.text = spec["subtitle"]
                 break
     if spec.get("bullets"):
-        body = next((ph for ph in slide.placeholders
-                     if ph.placeholder_format.idx != 0), None)
+        body = next((ph for ph in slide.placeholders if ph.placeholder_format.idx != 0), None)
         if body is None:
-            body = slide.shapes.add_textbox(Inches(0.5), Inches(1.5),
-                                            Inches(9), Inches(5))
+            body = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(9), Inches(5))
         add_bullets(body.text_frame, spec["bullets"])
 
     for img in spec.get("images", []):
@@ -136,15 +139,18 @@ def build_slide(prs, spec):
             kwargs["width"] = Inches(img["width"])
         if img.get("height"):
             kwargs["height"] = Inches(img["height"])
-        slide.shapes.add_picture(img["path"], Inches(img.get("left", 1)),
-                                 Inches(img.get("top", 1)), **kwargs)
+        slide.shapes.add_picture(img["path"], Inches(img.get("left", 1)), Inches(img.get("top", 1)), **kwargs)
 
     for tbl in spec.get("tables", []):
         rows = tbl["rows"]
         shape = slide.shapes.add_table(
-            len(rows), len(rows[0]), Inches(tbl.get("left", 1)),
-            Inches(tbl.get("top", 2)), Inches(tbl.get("width", 6)),
-            Inches(tbl.get("height", 2)))
+            len(rows),
+            len(rows[0]),
+            Inches(tbl.get("left", 1)),
+            Inches(tbl.get("top", 2)),
+            Inches(tbl.get("width", 6)),
+            Inches(tbl.get("height", 2)),
+        )
         for r, row in enumerate(rows):
             for c, val in enumerate(row):
                 shape.table.cell(r, c).text = str(val)
@@ -152,8 +158,11 @@ def build_slide(prs, spec):
     for shp in spec.get("shapes", []):
         shape = slide.shapes.add_shape(
             SHAPE_TYPES.get(shp.get("type", "rectangle"), MSO_SHAPE.RECTANGLE),
-            Inches(shp.get("left", 1)), Inches(shp.get("top", 1)),
-            Inches(shp.get("width", 2)), Inches(shp.get("height", 1)))
+            Inches(shp.get("left", 1)),
+            Inches(shp.get("top", 1)),
+            Inches(shp.get("width", 2)),
+            Inches(shp.get("height", 1)),
+        )
         if shp.get("fill"):
             shape.fill.solid()
             shape.fill.fore_color.rgb = RGBColor.from_string(shp["fill"])
@@ -169,10 +178,13 @@ def build_slide(prs, spec):
         for name, values in cht["series"].items():
             data.add_series(name, values)
         frame = slide.shapes.add_chart(
-            CHART_TYPES.get(cht.get("type", "bar"),
-                            XL_CHART_TYPE.COLUMN_CLUSTERED),
-            Inches(cht.get("left", 1)), Inches(cht.get("top", 2)),
-            Inches(cht.get("width", 6)), Inches(cht.get("height", 4)), data)
+            CHART_TYPES.get(cht.get("type", "bar"), XL_CHART_TYPE.COLUMN_CLUSTERED),
+            Inches(cht.get("left", 1)),
+            Inches(cht.get("top", 2)),
+            Inches(cht.get("width", 6)),
+            Inches(cht.get("height", 4)),
+            data,
+        )
         if cht.get("title"):
             frame.chart.has_title = True
             frame.chart.chart_title.text_frame.text = cht["title"]
@@ -187,7 +199,9 @@ def main(argv=None):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(
         description="Create a .pptx deck from a JSON spec.",
-        epilog=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+        epilog=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument("spec", help="path to JSON deck spec")
     parser.add_argument("output", help="output .pptx path")
     args = parser.parse_args(argv)
@@ -205,8 +219,7 @@ def main(argv=None):
         build_slide(prs, slide_spec)
 
     prs.save(args.output)
-    print(json.dumps({"ok": True, "output": args.output,
-                      "slides": len(prs.slides._sldIdLst)}))
+    print(json.dumps({"ok": True, "output": args.output, "slides": len(prs.slides._sldIdLst)}))
     return 0
 
 

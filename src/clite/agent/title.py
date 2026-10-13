@@ -66,7 +66,7 @@ def generate_title_async(agent: AIAgent, user_text: str) -> threading.Thread:
             if agent.db is not None:
                 stored = agent.db.set_title(agent.session_id, title, source="auto")
                 agent.callbacks.emit("on_status", "title", stored)
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.debug("could not store session title", exc_info=True)
 
     return start_thread(work, name="clite-title")

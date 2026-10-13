@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from clite.agent.memory.provider import MemoryProvider
@@ -84,7 +85,7 @@ class MemoryManager:
                 self.provider = provider
             else:
                 logger.warning("memory provider %s is not available; continuing without it", provider.name)
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.warning("memory provider failed to start", exc_info=True)
 
     def _guard(self, action: str, default: Any, call: Callable[[MemoryProvider], Any]) -> Any:
@@ -93,7 +94,7 @@ class MemoryManager:
             return default
         try:
             return call(self.provider)
-        except Exception:  # noqa: BLE001 - memory must never fail a turn
+        except Exception:  # memory must never fail a turn
             logger.warning("memory provider %s failed during %s", self.provider.name, action, exc_info=True)
             return default
 
@@ -108,7 +109,7 @@ class MemoryManager:
 
     # ── the nudge counter, persisted per session ─────────────────────────────────────────
 
-    def _nudge_state_path(self):
+    def _nudge_state_path(self) -> Path:
         return get_memories_dir() / _NUDGE_STATE_FILENAME
 
     def _load_nudge_count(self, session_id: str) -> int:

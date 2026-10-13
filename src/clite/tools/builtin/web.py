@@ -12,7 +12,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from html.parser import HTMLParser
-from typing import Any
+from http.client import HTTPMessage
+from typing import IO, Any
 
 from clite import __version__
 from clite.tools.context import ToolContext
@@ -156,7 +157,15 @@ class _GuardedRedirects(urllib.request.HTTPRedirectHandler):
     def __init__(self, allow_private: bool) -> None:
         self.allow_private = allow_private
 
-    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001 - urllib's signature
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: IO[bytes],
+        code: int,
+        msg: str,
+        headers: HTTPMessage,
+        newurl: str,
+    ) -> urllib.request.Request | None:
         if urllib.parse.urlsplit(newurl).scheme not in ("http", "https"):
             raise _RedirectRefused(f"the page redirects to {newurl}, and only http and https are followed")
         if not self.allow_private:
@@ -182,9 +191,9 @@ def web_fetch_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
     except (TypeError, ValueError):
         return tool_error("max_chars and offset must be integers")
 
-    request = urllib.request.Request(
+    request = urllib.request.Request(  # noqa: S310 - scheme checked above
         url,
-        headers={  # noqa: S310 - scheme checked above
+        headers={
             "User-Agent": f"clite/{__version__} (+web_fetch)",
             "Accept": "text/html,text/plain,application/json,*/*;q=0.5",
         },

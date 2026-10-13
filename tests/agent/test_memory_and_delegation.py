@@ -203,9 +203,7 @@ def sqlite_provider(clite_home):
 
 def _save_a_fact(make_agent, fact: str, request: str = "remember this") -> None:
     """One session that saves ``fact`` with the provider's own tool, then closes."""
-    saver, _ = make_agent(
-        [tool_call_response(("memory_save", {"content": fact})), text_response("Noted.")]
-    )
+    saver, _ = make_agent([tool_call_response(("memory_save", {"content": fact})), text_response("Noted.")])
     assert "memory_save" in saver.tool_names
     assert saver.run_conversation(request).completed
     saver.close()

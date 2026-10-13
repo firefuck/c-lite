@@ -67,7 +67,7 @@ def _load_directory(directory: Path, target: dict[str, ProviderProfile], label: 
         try:
             sys.modules[module_name] = module
             spec.loader.exec_module(module)
-        except Exception:  # noqa: BLE001 - one broken provider must not hide the others
+        except Exception:  # one broken provider must not hide the others
             sys.modules.pop(module_name, None)
             logger.warning("could not load provider plugin %s", plugin_dir, exc_info=True)
         finally:

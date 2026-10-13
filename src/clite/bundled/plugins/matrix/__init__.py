@@ -100,11 +100,13 @@ class MatrixAdapter:
         query = {"timeout": str(max(self.poll_timeout, 0) * 1000)}
         if self._next_batch:
             query["since"] = self._next_batch
-        return self._request("GET", f"/_matrix/client/v3/sync?{urllib.parse.urlencode(query)}", timeout=self.poll_timeout + 10)
+        return self._request(
+            "GET", f"/_matrix/client/v3/sync?{urllib.parse.urlencode(query)}", timeout=self.poll_timeout + 10
+        )
 
     @staticmethod
     def _events(response: dict[str, Any]):
-        joined = ((response.get("rooms") or {}).get("join") or {})
+        joined = (response.get("rooms") or {}).get("join") or {}
         if not isinstance(joined, dict):
             return
         for room_id, room in joined.items():

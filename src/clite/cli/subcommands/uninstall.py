@@ -17,7 +17,7 @@ def run_uninstall(args: argparse.Namespace) -> int:
 
     if method == "pipx":
         pipx_bin = shutil.which("pipx") or "pipx"
-        subprocess.run([pipx_bin, "uninstall", "c-lite"])
+        subprocess.run([pipx_bin, "uninstall", "c-lite"])  # noqa: S603 - fixed pipx argv, no shell
     elif method == "pip":
         subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "c-lite"])
     else:

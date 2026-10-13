@@ -175,7 +175,7 @@ def test_the_openai_provider_posts_the_documented_images_request(clite_home, mon
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
 
-        def do_POST(self):  # noqa: N802 - http.server API
+        def do_POST(self):  # http.server API
             length = int(self.headers.get("Content-Length") or 0)
             recorded.append(
                 {

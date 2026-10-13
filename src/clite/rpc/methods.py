@@ -13,7 +13,7 @@ import time
 import uuid
 from collections.abc import Iterator, Mapping
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from clite import __version__
 from clite.agent.attachments import AttachmentError
@@ -37,6 +37,9 @@ from clite.skills.catalog import discover_skills, get_skill, linked_files, read_
 from clite.state.db import get_session_db
 from clite.tools.registry import discover_builtin_tools
 from clite.tools.toolsets import all_toolsets, resolve_toolset
+
+if TYPE_CHECKING:
+    from clite.agent.memory import MemoryStore
 
 # ── system ───────────────────────────────────────────────────────────────────────────────
 
@@ -555,7 +558,9 @@ def credentials_set(server: RpcServer, params: schema.CredentialSetParams) -> sc
 
 
 @rpc_method("credentials.delete")
-def credentials_delete(server: RpcServer, params: schema.CredentialNameParams) -> schema.CredentialsListResult:
+def credentials_delete(
+    server: RpcServer, params: schema.CredentialNameParams
+) -> schema.CredentialsListResult:
     from clite.core.env import remove_secret
 
     name = params.name.strip()
@@ -595,7 +600,7 @@ def _log_level(line: str) -> str:
     return parts[2].upper() if len(parts) >= 3 else ""
 
 
-def _memory_store():
+def _memory_store() -> MemoryStore:
     """The same store the `memory` tool writes through, with its limits and guards."""
     from clite.agent.memory import MemoryStore
 
@@ -606,7 +611,7 @@ def _memory_store():
     )
 
 
-def _memory_result(store, result: dict[str, Any]) -> schema.MemoryEditResult:
+def _memory_result(store: MemoryStore, result: dict[str, Any]) -> schema.MemoryEditResult:
     config = load_config()
     return schema.MemoryEditResult(
         success=bool(result.get("success")),
@@ -791,7 +796,10 @@ def cron_history(server: RpcServer, params: schema.CronHistoryParams) -> schema.
 
     store = get_job_store()
     return schema.CronHistoryResult(
-        entries=[schema.CronHistoryEntry.model_validate(entry) for entry in CronHistory(store.directory).list(params.job_id)]
+        entries=[
+            schema.CronHistoryEntry.model_validate(entry)
+            for entry in CronHistory(store.directory).list(params.job_id)
+        ]
     )
 
 

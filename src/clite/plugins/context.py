@@ -157,7 +157,7 @@ class PluginContext:
         self,
         name: str,
         help: str,
-        handler: Callable[[Any], int | None],  # noqa: A002
+        handler: Callable[[Any], int | None],
         setup: Callable[[Any], None] | None = None,
     ) -> None:
         """Add a ``clite <name>`` subcommand."""
@@ -210,9 +210,7 @@ class PluginContext:
         from clite.tools import speech
 
         speech.register_transcription_provider(name, factory)
-        self._record(
-            "transcription_provider", name, lambda: speech.unregister_transcription_provider(name)
-        )
+        self._record("transcription_provider", name, lambda: speech.unregister_transcription_provider(name))
 
     def register_speech_provider(self, name: str, factory: Callable[[], Any]) -> None:
         """Add a text-to-speech backend, selectable with ``speech.speech.provider``."""

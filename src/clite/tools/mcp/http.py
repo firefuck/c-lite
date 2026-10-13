@@ -108,9 +108,9 @@ class HttpTransport:
         if self.protocol_version:
             headers["mcp-protocol-version"] = self.protocol_version
         body = json.dumps(message, ensure_ascii=False).encode("utf-8")
-        request = urllib.request.Request(self.url, data=body, headers=headers, method="POST")
+        request = urllib.request.Request(self.url, data=body, headers=headers, method="POST")  # noqa: S310 - the MCP server URL the user configured
         try:
-            with urllib.request.urlopen(request, timeout=timeout or self.timeout) as response:
+            with urllib.request.urlopen(request, timeout=timeout or self.timeout) as response:  # noqa: S310 - the MCP server URL the user configured
                 session_id = response.headers.get("mcp-session-id")
                 if session_id:
                     self.session_id = session_id

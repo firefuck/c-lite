@@ -24,16 +24,15 @@ import base64
 import os
 import shlex
 import shutil
+import subprocess
 import threading
-import time
 import uuid
 from collections.abc import Callable
 from pathlib import PurePosixPath
 
 from clite.core.config import config_get
-from clite.core.threads import start_thread
 from clite.tools.environments.base import BaseEnvironment, DirEntry, ExecResult, FileInfo, FileRead
-from clite.tools.environments.local import _POLL_SECONDS, read_output_chunks
+from clite.tools.environments.capture import capture, kill_client
 
 _READ_BLOCK = 1_000_000
 _LIST_MARKER = "clite-ls-entry"
@@ -94,8 +93,6 @@ class SSHEnvironment(BaseEnvironment):
     def _run_ssh(
         self, remote_command: str, *, timeout: int = 60, stdin_data: str | bytes | None = None
     ) -> ExecResult:
-        import subprocess
-
         argv = [*self._ssh_base(), "--", self._host, remote_command]
         data = stdin_data.encode("utf-8") if isinstance(stdin_data, str) else stdin_data
         try:
@@ -213,11 +210,9 @@ class SSHEnvironment(BaseEnvironment):
 
     # ── command execution ────────────────────────────────────────────────────────────────
 
-    def spawn_background(self, command: str, *, cwd: str) -> object:
+    def spawn_background(self, command: str, *, cwd: str) -> subprocess.Popen[str]:
         """Run the command over a dedicated ssh connection kept open, so ``process`` can read
         its output, feed stdin and kill it. The client process dying ends the remote command."""
-        import subprocess
-
         self._start()
         workdir = self.resolve_path(cwd)
         remote = f"cd {shlex.quote(workdir)} 2>/dev/null; {command}"
@@ -252,15 +247,11 @@ class SSHEnvironment(BaseEnvironment):
         on_output: Callable[[str], None] | None = None,
         max_output_chars: int | None = None,
     ) -> ExecResult:
-        import subprocess
-
         try:
             self._start()
         except RuntimeError as exc:
             return ExecResult(str(exc), 126)
         workdir = self.resolve_path(cwd) if cwd else self.cwd
-        limit = 50_000 if max_output_chars is None else max(0, max_output_chars)
-        deadline = time.monotonic() + (timeout or self.default_timeout)
         remote = f"cd {shlex.quote(workdir)} 2>/dev/null; {command}"
 
         try:
@@ -276,61 +267,16 @@ class SSHEnvironment(BaseEnvironment):
         except OSError as exc:
             return ExecResult(f"could not run ssh: {exc}", 126)
 
-        chunks: list[str] = []
-        size = 0
-        truncated = False
-
-        def collect() -> None:
-            nonlocal size, truncated
-            assert process.stdout is not None
-            for chunk in read_output_chunks(process.stdout):
-                if on_output is not None:
-                    try:
-                        on_output(chunk)
-                    except Exception:  # noqa: BLE001
-                        pass
-                retained = chunk[: max(0, limit - size)]
-                if retained:
-                    chunks.append(retained)
-                    size += len(retained)
-                if len(retained) < len(chunk):
-                    truncated = True
-
-        reader_thread = start_thread(collect, name="clite-ssh-reader")
-        if stdin_data is not None and process.stdin is not None:
-            try:
-                process.stdin.write(stdin_data)
-                process.stdin.close()
-            except OSError:
-                pass
-        timed_out = interrupted = False
-        while process.poll() is None:
-            if interrupt is not None and interrupt.is_set():
-                interrupted = True
-                break
-            if time.monotonic() > deadline:
-                timed_out = True
-                break
-            time.sleep(_POLL_SECONDS)
-        if timed_out or interrupted:
-            process.kill()
-            try:
-                process.wait(2.0)
-            except subprocess.TimeoutExpired:
-                pass
-        reader_thread.join(timeout=2.0)
-
-        output = "".join(chunks)
-        if truncated:
-            output += f"\n[output truncated at {limit} characters]"
-        exit_code = process.returncode if process.returncode is not None else -1
-        if timed_out:
-            output += f"\n[command timed out after {timeout or self.default_timeout}s and was killed]"
-            exit_code = 124
-        elif interrupted:
-            output += "\n[command interrupted]"
-            exit_code = 130
-        return ExecResult(output, exit_code, timed_out, interrupted, truncated)
+        return capture(
+            process,
+            timeout=timeout or self.default_timeout,
+            stdin_data=stdin_data,
+            interrupt=interrupt,
+            on_output=on_output,
+            max_output_chars=max_output_chars,
+            stop=kill_client,
+            reader_name="clite-ssh-reader",
+        )
 
 
 def ssh_factory(*, cwd: str = "", timeout: int = 180) -> SSHEnvironment:

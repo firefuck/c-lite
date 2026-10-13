@@ -122,35 +122,9 @@ def resolve_runtime_provider(
     cfg = config if config is not None else load_config()
     section = cfg.get("model") or {}
     configured_provider = str(section.get("provider") or "").strip()
-    requested = (provider or configured_provider).strip()
+    profile, source = _choose_profile(provider, configured_provider, cfg)
+    config_applies = _config_applies(provider, configured_provider, profile, cfg)
 
-    if requested and requested != "auto":
-        profile = get_provider(requested, cfg)
-        if profile is None:
-            known = ", ".join(p.name for p in list_providers(cfg))
-            raise ProviderError(f"Unknown provider {requested!r}. Known providers: {known}")
-        source = "explicit" if provider else "config"
-    else:
-        profile = _auto_select(cfg)
-        if profile is None:
-            raise AuthError(
-                "No model provider is configured. Run `clite setup`, or put an API key in .env "
-                "(for example OPENROUTER_API_KEY) and choose a model with `clite model`.",
-                code="no_provider",
-            )
-        source = "auto"
-
-    # The config's base_url/api_mode/model belong to the provider the config names (or, with
-    # no provider configured, the one auto-detection picks). When the caller asks for a
-    # different provider, they must not leak onto it.
-    if not provider:
-        config_applies = True
-    else:
-        if configured_provider and configured_provider != "auto":
-            owner = get_provider(configured_provider, cfg)
-        else:
-            owner = _auto_select(cfg)
-        config_applies = owner is not None and owner.name == profile.name
     config_base_url = str(section.get("base_url") or "") if config_applies else ""
     native_base_url = profile.resolve_base_url()
     resolved_base_url = base_url or config_base_url or native_base_url
@@ -165,43 +139,10 @@ def resolve_runtime_provider(
     credential_env_vars: tuple[str, ...] = ()
     key = api_key or ""
     if not key and (profile.auth_type in ("api_key", "oauth") or profile.supports_oauth()):
-        # A vendor key stays on its original scheme, host and port. A custom endpoint
-        # needs an explicitly selected credential pool, including during recovery.
-        same_origin = not (profile.base_url or native_base_url) or _origin(resolved_base_url) == _origin(
-            profile.base_url or native_base_url
-        )
         override_env = str(section.get("api_key_env") or "") if config_applies else ""
-        if override_env:
-            credential_env_vars = (override_env,)
-            credential = get_credential_pool(
-                profile.name, credential_env_vars, origin=str(_origin(resolved_base_url))
-            ).current()
-            key = credential.value if credential else ""
-        elif same_origin:
-            credential_env_vars = profile.env_vars
-            credential = get_credential_pool(
-                profile.name, credential_env_vars, origin=str(_origin(resolved_base_url))
-            ).current()
-            key = credential.value if credential else ""
-        if not key:
-            if profile.auth_type == "oauth":
-                raise AuthError(
-                    f"Provider {profile.display_name!r} needs OAuth authentication. Run `clite auth login {profile.name}` to log in.",
-                    provider=profile.name,
-                    code="missing_oauth",
-                )
-            names = " or ".join(profile.env_vars) or "an API key"
-            hint = (
-                ""
-                if same_origin
-                else " (the provider's own key is not sent to a different host; set model.api_key_env)"
-            )
-            raise AuthError(
-                f"Provider {profile.display_name!r} needs {names} in .env{hint}. Run `clite setup` to add it.",
-                provider=profile.name,
-                code="missing_key",
-            )
-
+        key, credential, credential_env_vars = _pooled_key(
+            profile, resolved_base_url, native_base_url, override_env
+        )
     if profile.auth_type not in ("api_key", "none", "oauth"):
         key = profile.resolve_credential(resolved_base_url, key)
 
@@ -234,6 +175,86 @@ def resolve_runtime_provider(
         credential_env_vars=credential_env_vars,
         context_length=get_path(cfg, "model.context_length") if config_applies else None,
         max_tokens=get_path(cfg, "model.max_tokens") if config_applies else None,
+    )
+
+
+def _choose_profile(
+    provider: str | None, configured_provider: str, cfg: dict[str, Any]
+) -> tuple[ProviderProfile, str]:
+    """The provider to use and how it was chosen: "explicit", "config" or "auto"."""
+    requested = (provider or configured_provider).strip()
+    if requested and requested != "auto":
+        profile = get_provider(requested, cfg)
+        if profile is None:
+            known = ", ".join(p.name for p in list_providers(cfg))
+            raise ProviderError(f"Unknown provider {requested!r}. Known providers: {known}")
+        return profile, "explicit" if provider else "config"
+    profile = _auto_select(cfg)
+    if profile is None:
+        raise AuthError(
+            "No model provider is configured. Run `clite setup`, or put an API key in .env "
+            "(for example OPENROUTER_API_KEY) and choose a model with `clite model`.",
+            code="no_provider",
+        )
+    return profile, "auto"
+
+
+def _config_applies(
+    provider: str | None, configured_provider: str, profile: ProviderProfile, cfg: dict[str, Any]
+) -> bool:
+    """Whether the config's base_url/api_mode/model settings belong to ``profile``.
+
+    They belong to the provider the config names (or, with no provider configured, the one
+    auto-detection picks). When the caller asks for a different provider, they must not leak
+    onto it.
+    """
+    if not provider:
+        return True
+    if configured_provider and configured_provider != "auto":
+        owner = get_provider(configured_provider, cfg)
+    else:
+        owner = _auto_select(cfg)
+    return owner is not None and owner.name == profile.name
+
+
+def _pooled_key(
+    profile: ProviderProfile, base_url: str, native_base_url: str, override_env: str
+) -> tuple[str, Credential | None, tuple[str, ...]]:
+    """``(key, credential, env var names)`` from the credential pool, or ``AuthError``.
+
+    A vendor key stays on its original scheme, host and port. A custom endpoint needs an
+    explicitly selected credential pool (``model.api_key_env``), including during recovery.
+    """
+    vendor_url = profile.base_url or native_base_url
+    same_origin = not vendor_url or _origin(base_url) == _origin(vendor_url)
+    env_vars: tuple[str, ...] = ()
+    credential: Credential | None = None
+    if override_env:
+        env_vars = (override_env,)
+    elif same_origin:
+        env_vars = profile.env_vars
+    if override_env or same_origin:
+        credential = get_credential_pool(profile.name, env_vars, origin=str(_origin(base_url))).current()
+    key = credential.value if credential else ""
+    if key:
+        return key, credential, env_vars
+    if profile.auth_type == "oauth":
+        raise AuthError(
+            f"Provider {profile.display_name!r} needs OAuth authentication. "
+            f"Run `clite auth login {profile.name}` to log in.",
+            provider=profile.name,
+            code="missing_oauth",
+        )
+    names = " or ".join(profile.env_vars) or "an API key"
+    hint = (
+        ""
+        if same_origin
+        else " (the provider's own key is not sent to a different host; set model.api_key_env)"
+    )
+    raise AuthError(
+        f"Provider {profile.display_name!r} needs {names} in .env{hint}. Run `clite setup` to add it.",
+        provider=profile.name,
+        code="missing_key",
     )
 
 

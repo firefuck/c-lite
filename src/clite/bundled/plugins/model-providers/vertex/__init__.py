@@ -98,7 +98,7 @@ class VertexProfile(ProviderProfile):
             token = credentials.token
             if not isinstance(token, str) or not token or "\r" in token or "\n" in token:
                 raise ValueError("missing token")
-        except Exception:
+        except Exception:  # noqa: BLE001 - any SDK failure becomes one error that cannot leak the key
             if getattr(cancel, "cancelled", False):
                 raise InterruptedError("model call cancelled") from None
             # SDK and HTTP errors may echo the assertion or key; never propagate their text.

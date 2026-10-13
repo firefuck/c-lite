@@ -39,6 +39,7 @@ Operations (repeatable / combinable):
   --set-notes N TEXT       Replace slide N's speaker notes.
   --append-notes N TEXT    Append a paragraph to slide N's speaker notes.
 """
+
 import argparse
 import copy
 import json
@@ -73,8 +74,7 @@ def normalize_runs(para):
     i = 0
     while i + 1 < len(runs):
         a, b = runs[i], runs[i + 1]
-        if (_run_format_key(a._r) == _run_format_key(b._r)
-                and a._r.getnext() is b._r):
+        if _run_format_key(a._r) == _run_format_key(b._r) and a._r.getnext() is b._r:
             a.text = a.text + b.text
             b._r.getparent().remove(b._r)
             runs.pop(i + 1)
@@ -183,8 +183,7 @@ def update_chart(prs, spec_path):
                     idx = int(op["index"])
                 else:
                     if op["from"] not in categories:
-                        raise SystemExit(
-                            f"no category named {op['from']!r}")
+                        raise SystemExit(f"no category named {op['from']!r}")
                     idx = categories.index(op["from"])
                 categories[idx] = op["to"]
                 dirty = True
@@ -211,8 +210,7 @@ def update_chart(prs, spec_path):
 def swap_image(prs, slide_idx, shape_name, new_path):
     slide = prs.slides[int(slide_idx)]
     for shape in slide.shapes:
-        if (shape.shape_type == MSO_SHAPE_TYPE.PICTURE
-                and shape.name == shape_name):
+        if shape.shape_type == MSO_SHAPE_TYPE.PICTURE and shape.name == shape_name:
             image_part, rid = slide.part.get_or_add_image_part(new_path)
             blip = shape._element.blipFill.blip
             blip.set(R_EMBED + "embed", rid)
@@ -251,7 +249,8 @@ def duplicate_slide(prs, index):
             f"slide {index} contains a chart; duplication of chart slides "
             "is not supported (chart XML embeds a workbook part that "
             "cannot be cloned safely). Rebuild the chart on a new slide "
-            "with pptx_create.py / pptx_from_template.py instead.")
+            "with pptx_create.py / pptx_from_template.py instead."
+        )
 
     dest = prs.slides.add_slide(source.slide_layout)
     # drop the placeholders add_slide seeded from the layout
@@ -267,8 +266,7 @@ def duplicate_slide(prs, index):
         if rel.reltype.endswith(("/slideLayout", "/notesSlide")):
             continue
         if rel.is_external:
-            new_rid = dest.part.rels.get_or_add_ext_rel(
-                rel.reltype, rel.target_ref)
+            new_rid = dest.part.rels.get_or_add_ext_rel(rel.reltype, rel.target_ref)
         else:
             new_rid = dest.part.relate_to(rel.target_part, rel.reltype)
         rid_map[rel.rId] = new_rid
@@ -279,8 +277,7 @@ def duplicate_slide(prs, index):
                 el.set(attr, rid_map[val])
 
     if source.has_notes_slide:
-        dest.notes_slide.notes_text_frame.text = (
-            source.notes_slide.notes_text_frame.text)
+        dest.notes_slide.notes_text_frame.text = source.notes_slide.notes_text_frame.text
     return len(prs.slides._sldIdLst) - 1
 
 
@@ -336,13 +333,11 @@ def enable_slide_number(slide):
 
 
 def set_footer(slide, text):
-    shape = next((ph for ph in slide.placeholders
-                  if ph.placeholder_format.idx == 11), None)
+    shape = next((ph for ph in slide.placeholders if ph.placeholder_format.idx == 11), None)
     if shape is None:
         shape = _copy_layout_placeholder(slide, 11)
     if shape is None:
-        raise SystemExit("layout provides no footer placeholder; add a "
-                         "textbox instead")
+        raise SystemExit("layout provides no footer placeholder; add a textbox instead")
     shape.text_frame.text = text
     return True
 
@@ -361,25 +356,21 @@ def main(argv=None):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(
         description="Edit a .pptx: replace text, update chart data, swap "
-                    "images, duplicate/remove/reorder slides, backgrounds, "
-                    "hyperlinks, footers, slide numbers, speaker notes.",
-        epilog=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+        "images, duplicate/remove/reorder slides, backgrounds, "
+        "hyperlinks, footers, slide numbers, speaker notes.",
+        epilog=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument("pptx", help="path to the .pptx file")
-    parser.add_argument("--output", help="save to this path instead of "
-                                         "overwriting the input")
-    parser.add_argument("--replace-text", nargs=2, action="append",
-                        metavar=("OLD", "NEW"), default=[])
+    parser.add_argument("--output", help="save to this path instead of overwriting the input")
+    parser.add_argument("--replace-text", nargs=2, action="append", metavar=("OLD", "NEW"), default=[])
     parser.add_argument("--chart-data", metavar="SPEC_JSON")
-    parser.add_argument("--swap-image", nargs=3,
-                        metavar=("SLIDE", "SHAPE_NAME", "IMAGE"))
+    parser.add_argument("--swap-image", nargs=3, metavar=("SLIDE", "SHAPE_NAME", "IMAGE"))
     parser.add_argument("--remove-slide", type=int, metavar="N")
-    parser.add_argument("--move-slide", nargs=2, type=int,
-                        metavar=("FROM", "TO"))
+    parser.add_argument("--move-slide", nargs=2, type=int, metavar=("FROM", "TO"))
     parser.add_argument("--duplicate-slide", type=int, metavar="N")
-    parser.add_argument("--set-background", nargs=2,
-                        metavar=("SLIDE", "HEX"))
-    parser.add_argument("--hyperlink", nargs=3,
-                        metavar=("SLIDE", "TEXT", "URL"))
+    parser.add_argument("--set-background", nargs=2, metavar=("SLIDE", "HEX"))
+    parser.add_argument("--hyperlink", nargs=3, metavar=("SLIDE", "TEXT", "URL"))
     parser.add_argument("--enable-slide-number", type=int, metavar="N")
     parser.add_argument("--set-footer", nargs=2, metavar=("SLIDE", "TEXT"))
     parser.add_argument("--set-notes", nargs=2, metavar=("SLIDE", "TEXT"))
@@ -400,14 +391,12 @@ def main(argv=None):
     if args.duplicate_slide is not None:
         report["duplicated_to"] = duplicate_slide(prs, args.duplicate_slide)
     if args.set_background:
-        set_background(prs.slides[int(args.set_background[0])],
-                       args.set_background[1])
+        set_background(prs.slides[int(args.set_background[0])], args.set_background[1])
         report["background_set"] = True
     if args.hyperlink:
         report["hyperlinked_runs"] = add_hyperlink(prs, *args.hyperlink)
     if args.enable_slide_number is not None:
-        report["slide_number_enabled"] = enable_slide_number(
-            prs.slides[args.enable_slide_number])
+        report["slide_number_enabled"] = enable_slide_number(prs.slides[args.enable_slide_number])
     if args.set_footer:
         set_footer(prs.slides[int(args.set_footer[0])], args.set_footer[1])
         report["footer_set"] = True
@@ -415,8 +404,7 @@ def main(argv=None):
         set_notes(prs.slides[int(args.set_notes[0])], args.set_notes[1])
         report["notes_set"] = True
     if args.append_notes:
-        set_notes(prs.slides[int(args.append_notes[0])],
-                  args.append_notes[1], append=True)
+        set_notes(prs.slides[int(args.append_notes[0])], args.append_notes[1], append=True)
         report["notes_appended"] = True
     if args.remove_slide is not None:
         remove_slide(prs, args.remove_slide)

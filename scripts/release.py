@@ -196,7 +196,7 @@ def build(root: Path) -> list[Path]:
     """Build wheel and sdist into a fresh ``dist/`` and check the wheel."""
     dist = root / "dist"
     shutil.rmtree(dist, ignore_errors=True)
-    result = subprocess.run(
+    result = subprocess.run(  # noqa: S603 - fixed argv, no shell
         [sys.executable, "-m", "build", "--sdist", "--wheel", "--outdir", str(dist), str(root)],
         cwd=root,
         timeout=900,
@@ -215,7 +215,7 @@ def build(root: Path) -> list[Path]:
 
 
 def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, timeout=60)
+    return subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, timeout=60)  # noqa: S603, S607 - the user's git on PATH, no shell
 
 
 def tag(root: Path) -> str:

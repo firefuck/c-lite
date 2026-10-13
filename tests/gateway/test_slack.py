@@ -28,7 +28,7 @@ class FakeSlackServer:
         server_self = self
 
         class RestHandler(BaseHTTPRequestHandler):
-            def do_POST(self):  # noqa: N802
+            def do_POST(self):
                 length = int(self.headers.get("Content-Length", 0))
                 body = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
                 auth = self.headers.get("Authorization", "")

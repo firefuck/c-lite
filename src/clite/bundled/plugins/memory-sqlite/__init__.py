@@ -103,9 +103,7 @@ class SqliteMemoryProvider(MemoryProvider):
         facts = self.search(query, DEFAULT_LIMIT)
         if not facts:
             return ""
-        return "Facts remembered from earlier sessions:\n" + "\n".join(
-            f"- {fact}" for fact in facts
-        )
+        return "Facts remembered from earlier sessions:\n" + "\n".join(f"- {fact}" for fact in facts)
 
     # ── the two tools this provider adds ─────────────────────────────────────────────────
 
@@ -200,9 +198,7 @@ class SqliteMemoryProvider(MemoryProvider):
             directory = get_memories_dir()
             ensure_dir(directory)
             conn = sqlite3.connect(directory / DB_FILENAME, check_same_thread=False)
-            conn.execute(
-                "CREATE VIRTUAL TABLE IF NOT EXISTS facts USING fts5(content, created_at UNINDEXED)"
-            )
+            conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS facts USING fts5(content, created_at UNINDEXED)")
             conn.commit()
             self._conn = conn
         return self._conn

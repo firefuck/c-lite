@@ -48,8 +48,8 @@ def resolves(path: str, files: set[str]) -> bool:
 
 def checkout_commit(hermes: Path) -> str:
     try:
-        result = subprocess.run(
-            ["git", "-C", str(hermes), "rev-parse", "HEAD"],
+        result = subprocess.run(  # noqa: S603 - fixed git argv, no shell
+            ["git", "-C", str(hermes), "rev-parse", "HEAD"],  # noqa: S607 - the user's git on PATH
             capture_output=True,
             text=True,
             timeout=30,

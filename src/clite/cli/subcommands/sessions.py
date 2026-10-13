@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 import time
+from typing import Any
 
 from clite.agent.messages import content_text, is_internal
 from clite.core.config import config_get
@@ -17,7 +18,7 @@ def _when(timestamp: float | None) -> str:
     return time.strftime("%Y-%m-%d %H:%M", time.localtime(timestamp)) if timestamp else "-"
 
 
-def _find(reference: str):
+def _find(reference: str) -> dict[str, Any] | None:
     row = get_session_db().find_session(reference)
     if row is None:
         print(f"No session matches {reference!r}.")

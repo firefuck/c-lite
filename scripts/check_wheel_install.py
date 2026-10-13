@@ -51,7 +51,7 @@ def main() -> None:
         env.update(CLITE_HOME=str(smoke_home), CLITE_PYTHON=sys.executable, NO_COLOR="1")
 
         def run(*args: str, input_text: str | None = None) -> str:
-            result = subprocess.run(
+            result = subprocess.run(  # noqa: S603 - runs the installed wheel's own command
                 [str(command), *args],
                 cwd=directory,
                 env=env,

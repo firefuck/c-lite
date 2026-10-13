@@ -27,6 +27,7 @@ def _reset_process_state() -> None:
     db.close_all_session_dbs()
     env._LOADED.clear()
     from clite.core.redact import reset_redact_state
+
     reset_redact_state()
 
     # Later layers register their own reset hooks here as they are imported.

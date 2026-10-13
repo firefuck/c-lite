@@ -13,6 +13,7 @@ import threading
 
 import pytest
 
+from clite import __version__
 from clite.cli.display import Display, load_skin
 from clite.cli.main import main
 from clite.cli.repl import Repl
@@ -134,7 +135,7 @@ def test_repl_session(clite_home):
         ["hello", "", "/status", "/nonsense", "/quit", "never reached"],
         [text_response("Hi! How can I help?")],
     )
-    assert "C-lite 0.1.0" in out and "mock-1 via mock" in out
+    assert f"C-lite {__version__}" in out and "mock-1 via mock" in out
     assert "Hi! How can I help?" in out
     assert "Unknown command: /nonsense" in out and "Goodbye." in out
     assert "Resume this session with: clite chat --resume" in out
@@ -386,6 +387,22 @@ def test_setup_without_questions(clite_home, capsys, assert_private_file):
     assert main(["setup"]) == 1  # not a terminal: the interactive wizard refuses to guess
 
 
+def test_setup_wizard_stores_the_toolsets_and_approval_mode_picked_from_the_lists(clite_home, monkeypatch):
+    from clite.providers.registry import list_providers
+
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    mock_idx = str([p.name for p in list_providers()].index("mock") + 1)
+    # Provider: mock, model: first, toolsets: third entry, approvals: second entry, no Telegram.
+    answers = iter([mock_idx, "1", "3", "2", ""])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(answers))
+    monkeypatch.setattr("getpass.getpass", lambda prompt="": "test-key")
+
+    assert main(["setup"]) == 0
+    cfg = load_config()
+    assert cfg["toolsets"] == ["file", "terminal"]
+    assert cfg["approvals"]["mode"] == "smart"
+
+
 def test_setup_interactive_wizard_and_verification(clite_home, monkeypatch, capsys):
     from clite.providers.registry import list_providers
 
@@ -593,7 +610,7 @@ def test_gateway_commands(cli, clite_home):
 
 
 def test_status_version_doctor_logs_memory(cli, clite_home):
-    assert "C-lite 0.1.0" in cli("version")
+    assert f"C-lite {__version__}" in cli("version")
     status = cli("status")
     assert "mock-1 via mock" in status and "Cron:      0 active job(s)" in status
     doctor = cli("doctor")

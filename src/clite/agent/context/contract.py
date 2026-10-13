@@ -43,13 +43,9 @@ def contract_messages() -> list[dict[str, Any]]:
             ],
         }
     )
-    messages.append(
-        {"role": "tool", "tool_call_id": "call_contract", "name": "terminal", "content": "ok"}
-    )
+    messages.append({"role": "tool", "tool_call_id": "call_contract", "name": "terminal", "content": "ok"})
     for index in range(11, 20):
-        messages.append(
-            {"role": "user" if index % 2 == 0 else "assistant", "content": f"message {index}"}
-        )
+        messages.append({"role": "user" if index % 2 == 0 else "assistant", "content": f"message {index}"})
     return messages
 
 
@@ -107,16 +103,12 @@ def _check_window(
     return result
 
 
-def _fixed_summary(prompt: str) -> str:  # noqa: ARG001 - the summariser signature takes a prompt
+def _fixed_summary(prompt: str) -> str:  # the summariser signature takes a prompt
     return "## Goal\ncontract check"
 
 
 def _check_tool_pairs(messages: list[dict[str, Any]], where: str) -> None:
-    calls = sorted(
-        str(call.get("id"))
-        for message in messages
-        for call in message.get("tool_calls") or []
-    )
+    calls = sorted(str(call.get("id")) for message in messages for call in message.get("tool_calls") or [])
     results = sorted(
         str(message.get("tool_call_id")) for message in messages if message.get("role") == "tool"
     )

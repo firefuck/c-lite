@@ -15,6 +15,7 @@ import contextlib
 import threading
 import time
 import uuid
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -78,7 +79,7 @@ class JobStore:
     # ── storage ──────────────────────────────────────────────────────────────────────────
 
     @contextlib.contextmanager
-    def _locked(self):
+    def _locked(self) -> Iterator[None]:
         ensure_dir(self.directory)
         with self._lock, exclusive_lock(self.directory / ".jobs.lock"):
             yield
@@ -167,7 +168,7 @@ class JobStore:
             self._save(jobs)
         return job
 
-    def _mutate(self, job_id: str, change) -> dict[str, Any]:
+    def _mutate(self, job_id: str, change: Callable[[dict[str, Any]], object]) -> dict[str, Any]:
         with self._locked():
             jobs = self._load()
             matches = [job for job in jobs if job["id"] == job_id or job["id"].startswith(job_id)]

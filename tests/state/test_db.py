@@ -564,3 +564,32 @@ def test_get_insights_aggregates_and_subagent_attribution(db):
     tools = {t["name"]: t["count"] for t in insights["tools"]}
     assert tools["read_file"] == 3
     assert tools["terminal"] == 2
+
+
+def test_insights_attribute_subagents_to_their_parent_and_keep_unpriced_sessions_apart(db):
+    db.create_session("root-cli", "cli", model="big")
+    db.create_session("root-tg", "telegram", model="small")
+    db.create_session("child", "cli", model="big", parent_session_id="root-cli")
+    db.add_usage("root-cli", input_tokens=100, output_tokens=50, cost_usd=0.25)
+    db.add_usage("child", input_tokens=10, output_tokens=5, cost_usd=0.05)
+    db.add_usage("root-tg", input_tokens=7, output_tokens=3)  # no price known
+    db.append_message("root-cli", {"role": "tool", "name": "terminal", "content": "ok", "tool_call_id": "c1"})
+    db.append_message("root-cli", {"role": "tool", "name": "terminal", "content": "ok", "tool_call_id": "c2"})
+
+    insights = db.get_insights(days=30)
+
+    assert insights["platforms"] == {"cli": 1, "telegram": 1}  # the subagent is not a session of its own
+    assert insights["total_sessions"] == 2 and insights["total_subagents"] == 1
+    assert insights["tokens"]["total"] == 175
+    assert insights["cost"] == {
+        "total_usd": 0.3,
+        "unpriced_sessions": 1,
+        "priced_sessions": 2,
+        "has_unpriced": True,
+    }
+    assert [(m["model"], m["total_tokens"], m["unpriced_sessions"]) for m in insights["models"]] == [
+        ("big", 165, 0),
+        ("small", 10, 1),
+    ]
+    assert insights["tools"] == [{"name": "terminal", "count": 2}]
+    assert len(insights["daily"]) == 1 and insights["daily"][0]["sessions"] == 2

@@ -77,7 +77,7 @@ def get_tool_definitions(
         if entry.dynamic_schema is not None:
             try:
                 schema = entry.dynamic_schema(schema)
-            except Exception:  # noqa: BLE001 - fall back to the static schema
+            except Exception:  # fall back to the static schema
                 logger.warning("dynamic schema for %s failed", name, exc_info=True)
         definitions.append({"type": "function", "function": schema})
     with _CACHE_LOCK:

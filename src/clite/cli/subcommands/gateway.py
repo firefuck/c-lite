@@ -31,7 +31,7 @@ def _service_command(action: str) -> int:
     if shutil.which(command[0]) is None:
         print(f"{command[0]} is not available on this system.")
         return 1
-    return subprocess.run(command, check=False).returncode
+    return subprocess.run(command, check=False).returncode  # noqa: S603 - fixed service-manager argv, no shell
 
 
 def run_install(args: argparse.Namespace) -> int:
@@ -69,15 +69,20 @@ def run_logs(args: argparse.Namespace) -> int:
     from clite.core.profiles import get_active_profile_name
     from clite.gateway.service import service_name
 
-    command = ["journalctl", "--user-unit", f"{service_name(get_active_profile_name())}.service", "--no-pager"]
+    command = [
+        "journalctl",
+        "--user-unit",
+        f"{service_name(get_active_profile_name())}.service",
+        "--no-pager",
+    ]
     if shutil.which(command[0]) is None:
         print("journalctl is not available on this system.")
         return 1
-    return subprocess.run(command, check=False).returncode
+    return subprocess.run(command, check=False).returncode  # noqa: S603 - fixed journalctl argv, no shell
 
 
 def run_status(args: argparse.Namespace) -> int:
-    import clite.gateway.platforms.local  # noqa: F401
+    import clite.gateway.platforms.local
     import clite.gateway.platforms.telegram  # noqa: F401
     from clite.gateway.platforms.base import PLATFORMS
     from clite.plugins.manager import ensure_plugins_loaded

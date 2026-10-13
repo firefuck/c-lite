@@ -129,7 +129,7 @@ def _fit(raw: bytes, media_type: str, *, max_bytes: int, max_edge: int) -> tuple
             out_format = "JPEG" if media_type == "image/jpeg" else "PNG"
             image.save(buffer, format=out_format, optimize=True)
             return buffer.getvalue(), True
-    except Exception:  # noqa: BLE001 - a decode failure is a refusal, not a crash
+    except Exception:  # a decode failure is a refusal, not a crash
         logger.warning("could not downscale an image attachment", exc_info=True)
         return raw, False
 

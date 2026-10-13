@@ -124,7 +124,11 @@ class Display:
         self.skin = load_skin(skin)
         self.tool_progress = tool_progress
         if color is None:
-            color = self.out.isatty() and "NO_COLOR" not in os.environ and os.environ.get("TERM") not in (None, "", "dumb")
+            color = (
+                self.out.isatty()
+                and "NO_COLOR" not in os.environ
+                and os.environ.get("TERM") not in (None, "", "dumb")
+            )
         self.color = color
         self.width = width or min(shutil.get_terminal_size((80, 24)).columns, 120)
         self.diff_lines = diff_lines

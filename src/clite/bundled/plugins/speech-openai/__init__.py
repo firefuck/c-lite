@@ -47,7 +47,9 @@ SPEECH_URL = "https://api.openai.com/v1/audio/speech"
 
 GEMINI_API_KEY_ENVS = ("GEMINI_API_KEY", "GOOGLE_API_KEY")
 DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
-GEMINI_GENERATE_CONTENT_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+GEMINI_GENERATE_CONTENT_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+)
 
 DEFAULT_TRANSCRIPTION_MODEL = "whisper-1"
 DEFAULT_GROQ_TRANSCRIPTION_MODEL = "whisper-large-v3"
@@ -85,7 +87,9 @@ def _key(own: str) -> str:
         val = get_secret(env)
         if val:
             return val
-    raise RuntimeError("No compatible speech API key set; add OPENAI_API_KEY, GROQ_API_KEY, or CUSTOM_API_KEY to .env")
+    raise RuntimeError(
+        "No compatible speech API key set; add OPENAI_API_KEY, GROQ_API_KEY, or CUSTOM_API_KEY to .env"
+    )
 
 
 def _resolve_transcription_endpoint_and_key(
@@ -116,9 +120,7 @@ def _resolve_transcription_endpoint_and_key(
     return TRANSCRIPTIONS_URL, _key(""), own_model or DEFAULT_TRANSCRIPTION_MODEL
 
 
-def _resolve_speech_endpoint_and_key(
-    own_key: str, own_base_url: str, own_model: str
-) -> tuple[str, str, str]:
+def _resolve_speech_endpoint_and_key(own_key: str, own_base_url: str, own_model: str) -> tuple[str, str, str]:
     """Resolve (url, key, model) for speech synthesis based on available configuration/keys."""
     if own_base_url:
         key = own_key or _key("")

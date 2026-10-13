@@ -205,6 +205,7 @@ def test_a_failing_job_is_recorded_and_does_not_stop_the_others():
     store = get_job_store()
     broken = store.create("first", "every 1h", now=NOW)
     healthy = store.create("second", "every 1h", now=NOW)
+
     def response_for_job(*, messages, **_kwargs):
         if messages[-1]["content"] == "first":
             return ProviderHTTPError(400, '{"error": {"message": "bad request"}}', {}, "u")

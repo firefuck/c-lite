@@ -14,7 +14,13 @@ from clite.plugins.hub import (
     plan_update,
     search_plugins,
 )
-from clite.plugins.manager import get_plugin_manager, install_plugin, remove_plugin, set_plugin_enabled
+from clite.plugins.manager import (
+    PluginInfo,
+    get_plugin_manager,
+    install_plugin,
+    remove_plugin,
+    set_plugin_enabled,
+)
 from clite.plugins.manifest import ManifestError
 
 
@@ -67,7 +73,7 @@ def run_search(args: argparse.Namespace) -> int:
     return 0
 
 
-def _describe(info) -> list[str]:
+def _describe(info: PluginInfo) -> list[str]:
     """The lines `clite plugins info` prints, provenance included."""
     kind = info.manifest.kind + (f" ({info.manifest.category})" if info.manifest.category else "")
     lines = [

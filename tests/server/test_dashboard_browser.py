@@ -25,7 +25,7 @@ def browser():
     with sync_api.sync_playwright() as playwright:
         try:
             instance = playwright.chromium.launch(args=["--no-sandbox"])
-        except Exception as exc:  # noqa: BLE001 - no browser on this machine
+        except Exception as exc:  # no browser on this machine
             pytest.skip(f"cannot launch Chromium: {exc}")
         yield instance
         instance.close()
@@ -166,16 +166,12 @@ def test_sessions_page_searches_renames_and_pins(dashboard):
     dashboard.wait_for_selector("#ask-text")
     dashboard.fill("#ask-text", '<img src=x onerror="window.__pwned = true">')
     dashboard.click("dialog button.primary")
-    dashboard.wait_for_function(
-        "document.querySelector('#session-results').innerText.includes('<img src=x')"
-    )
+    dashboard.wait_for_function("document.querySelector('#session-results').innerText.includes('<img src=x')")
     assert dashboard.evaluate("window.__pwned") is None
 
     # Pin it: the row says so, and the sidebar list keeps working.
     dashboard.click("#session-results .row [data-action=pin]")
-    dashboard.wait_for_function(
-        "document.querySelector('#session-results').innerText.includes('pinned')"
-    )
+    dashboard.wait_for_function("document.querySelector('#session-results').innerText.includes('pinned')")
 
     # Archive hides it; the checkbox brings it back.
     dashboard.click("#session-results .row [data-action=archive]")
@@ -183,9 +179,7 @@ def test_sessions_page_searches_renames_and_pins(dashboard):
         "document.querySelector('#session-results').innerText.includes('No sessions yet')"
     )
     dashboard.check("#session-archived")
-    dashboard.wait_for_function(
-        "document.querySelector('#session-results').innerText.includes('archived')"
-    )
+    dashboard.wait_for_function("document.querySelector('#session-results').innerText.includes('archived')")
 
 
 def test_config_page_edits_a_setting_and_confirms_a_sensitive_one(dashboard, clite_home):
@@ -233,18 +227,14 @@ def test_credentials_page_stores_and_deletes_a_secret(dashboard, clite_home):
     dashboard.fill(f"{row} input", "sk-page-1234567890")
     dashboard.click(f"{row} [data-action=save]")
     # The row is rebuilt from the server's answer, which never carries the value.
-    dashboard.wait_for_function(
-        f"document.querySelector(\"{row}\").classList.contains('filled')"
-    )
+    dashboard.wait_for_function(f"document.querySelector(\"{row}\").classList.contains('filled')")
     assert "sk-page-1234567890" in (clite_home / ".env").read_text()
     assert dashboard.input_value(f"{row} input") == ""  # never read back into the page
 
     dashboard.click(f"{row} [data-action=delete]")
     dashboard.wait_for_function("document.querySelector('dialog').open === true")
     dashboard.click("dialog [data-confirm=yes]")
-    dashboard.wait_for_function(
-        f"!document.querySelector(\"{row}\").classList.contains('filled')"
-    )
+    dashboard.wait_for_function(f"!document.querySelector(\"{row}\").classList.contains('filled')")
     assert "sk-page-1234567890" not in (clite_home / ".env").read_text()
 
 
@@ -259,9 +249,7 @@ def test_cron_page_creates_a_job_and_shows_its_last_output(dashboard, clite_home
     dashboard.fill("#cron-schedule", "every 1h")
     dashboard.fill("#cron-name", "hourly digest")
     dashboard.click("dialog [data-action=create]")
-    dashboard.wait_for_function(
-        "document.querySelector('#panel-cron').innerText.includes('hourly digest')"
-    )
+    dashboard.wait_for_function("document.querySelector('#panel-cron').innerText.includes('hourly digest')")
 
     # A finished run's saved output opens in a dialog, as text.
     store = get_job_store()
@@ -292,9 +280,7 @@ def test_memory_page_adds_edits_and_removes_an_entry(dashboard, clite_home):
     dashboard.wait_for_selector("#ask-text")
     dashboard.fill("#ask-text", "the launch is on monday")
     dashboard.click("dialog button.primary")
-    dashboard.wait_for_function(
-        "document.querySelector('#panel-memory').innerText.includes('monday')"
-    )
+    dashboard.wait_for_function("document.querySelector('#panel-memory').innerText.includes('monday')")
     assert "monday" in (clite_home / "memories" / "MEMORY.md").read_text()
 
     # And remove it. (The user section is empty from the start, so waiting for the text
@@ -318,15 +304,11 @@ def test_logs_page_shows_a_filtered_tail(dashboard, clite_home):
 
     dashboard.click("[data-tab=logs]")
     dashboard.wait_for_selector("#logs-body")
-    dashboard.wait_for_function(
-        "document.querySelector('#logs-body').textContent.includes('starting up')"
-    )
+    dashboard.wait_for_function("document.querySelector('#logs-body').textContent.includes('starting up')")
     assert dashboard.evaluate("window.__pwned") is None  # a log line is text, never markup
 
     dashboard.select_option("#logs-level", "error")
-    dashboard.wait_for_function(
-        "!document.querySelector('#logs-body').textContent.includes('starting up')"
-    )
+    dashboard.wait_for_function("!document.querySelector('#logs-body').textContent.includes('starting up')")
     assert "clite.rpc" in dashboard.inner_text("#logs-body")
 
 
@@ -391,9 +373,7 @@ def test_closing_an_open_session_keeps_the_other_one(dashboard):
     # Close the active one; the other stays open and becomes active.
     dashboard.click("#open-sessions button.current .close")
     dashboard.wait_for_function("document.querySelectorAll('#open-sessions button').length === 1")
-    dashboard.wait_for_function(
-        "document.querySelector('.message.user')?.textContent === 'keep me'"
-    )
+    dashboard.wait_for_function("document.querySelector('.message.user')?.textContent === 'keep me'")
     assert dashboard.inner_text(".message.assistant") == "You said: keep me"
 
 
@@ -509,8 +489,7 @@ def test_the_notification_setting_can_turn_notifications_off(clite_home, browser
         page.fill("#config-dashboard\\.notifications", "false")
         page.click("#panel-config .row[data-key='dashboard.notifications'] [data-action=save]")
         page.wait_for_function(
-            "document.querySelector('#config-dashboard\\\\.notifications')"
-            ".getAttribute('value') === 'false'"
+            "document.querySelector('#config-dashboard\\\\.notifications').getAttribute('value') === 'false'"
         )
         page.click("[data-tab=chat]")
 

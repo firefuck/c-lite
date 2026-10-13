@@ -2,7 +2,7 @@
 # Run every check the project has: lint, type checks, Python tests, TypeScript tests.
 #
 #   scripts/run_tests.sh            everything
-#   scripts/run_tests.sh lint       ruff and mypy
+#   scripts/run_tests.sh lint       ruff (lint and format) and mypy
 #   scripts/run_tests.sh python     only the Python suite (extra arguments go to pytest)
 #   scripts/run_tests.sh node       only the TypeScript packages
 #
@@ -23,6 +23,7 @@ run_lint() {
   if command -v ruff >/dev/null; then
     echo "== ruff"
     ruff check src tests scripts || failed=1
+    ruff format --check src tests scripts || failed=1
   else
     echo "== ruff is not installed: lint skipped (pip install -e '.[dev]')"
   fi

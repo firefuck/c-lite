@@ -213,7 +213,7 @@ def make_reader(
     if prompt_toolkit_available():
         try:
             return PromptToolkitReader(completer=completer, history_path=history_path, style=style)
-        except Exception:  # noqa: BLE001 - a broken terminal must still leave a usable REPL
+        except Exception:  # a broken terminal must still leave a usable REPL
             import logging
 
             logging.getLogger("clite.cli.input").warning(

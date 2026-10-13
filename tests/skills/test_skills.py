@@ -487,7 +487,7 @@ class FakeGitHub:
         github = self
 
         class Handler(BaseHTTPRequestHandler):
-            def do_GET(self):  # noqa: N802
+            def do_GET(self):
                 github.requests.append({"path": self.path, "auth": self.headers.get("Authorization")})
                 if github.rate_limited:
                     return self._send(

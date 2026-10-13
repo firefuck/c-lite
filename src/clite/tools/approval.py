@@ -32,6 +32,7 @@ import posixpath
 import re
 import threading
 import unicodedata
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -722,7 +723,7 @@ def own_command_names() -> set[str]:
             for entry in entry_points(group="console_scripts")
             if entry.value.split(":")[0].startswith(f"{APP_NAME}.")
         )
-    except Exception:  # noqa: BLE001 - metadata of some other package may be broken
+    except Exception:  # metadata of some other package may be broken
         logger.debug("could not list console scripts", exc_info=True)
     return names
 
@@ -1042,29 +1043,14 @@ def smart_verdict(command: str, description: str, ctx: ToolContext) -> str:
 def check_command(command: str, ctx: ToolContext | None = None, *, cwd: str = "") -> ApprovalDecision:
     """Decide whether ``command`` may run. May block on the user's answer.
 
-    ``cwd`` is the directory the command will run in, when the caller knows it.
+    ``cwd`` is the directory the command will run in, when the caller knows it. The steps are
+    the ones listed in the module docstring, in that order.
     """
     ctx = ctx or ToolContext()
     cwd = cwd or ctx.cwd
-    try:
-        _guard_parse_limits(command)
-    except CommandTooComplexError as exc:
-        return ApprovalDecision(
-            False,
-            f"Refused: {exc.reason}, so it cannot be read safely. Split it into smaller commands, "
-            "or explain to the user what needs to be run and why.",
-            "too_complex",
-        )
-    hardline = detect_hardline(command, cwd)
-    if hardline:
-        return ApprovalDecision(
-            False, f"Refused: this command would {hardline}. No setting allows it.", "hardline"
-        )
-
-    readings = _readings(command)
-    for glob in ctx.setting("approvals.deny", []) or []:
-        if any(fnmatch.fnmatch(text, str(glob)) for text in readings):
-            return ApprovalDecision(False, f"Refused by the approvals.deny rule {glob!r}.", "denylist")
+    refusal = _absolute_refusal(command, ctx, cwd)
+    if refusal is not None:
+        return refusal
 
     mode = ctx.approval_mode or str(ctx.setting("approvals.mode", "manual"))
     if mode == "off":
@@ -1101,27 +1087,71 @@ def check_command(command: str, ctx: ToolContext | None = None, *, cwd: str = ""
             )
     approve = getattr(ctx.callbacks, "approve", None)
     if approve is None:
-        if _non_interactive_policy(ctx) == "approve":
-            return ApprovalDecision(True, "non-interactive policy: approve", "policy", matches)
+        return _decide_without_asking(ctx, description, matches)
+    return _ask_user(approve, command, description, matches, ctx, session_key)
+
+
+def _absolute_refusal(command: str, ctx: ToolContext, cwd: str) -> ApprovalDecision | None:
+    """The refusals no mode and no answer can lift: unreadable, hardline, ``approvals.deny``."""
+    try:
+        _guard_parse_limits(command)
+    except CommandTooComplexError as exc:
         return ApprovalDecision(
             False,
-            f"Refused: this command needs approval ({description}) and there is no one to ask. "
-            "Use a safer command, or tell the user what needs to be run.",
-            "policy",
-            matches,
+            f"Refused: {exc.reason}, so it cannot be read safely. Split it into smaller commands, "
+            "or explain to the user what needs to be run and why.",
+            "too_complex",
         )
+    hardline = detect_hardline(command, cwd)
+    if hardline:
+        return ApprovalDecision(
+            False, f"Refused: this command would {hardline}. No setting allows it.", "hardline"
+        )
+    readings = _readings(command)
+    for glob in ctx.setting("approvals.deny", []) or []:
+        if any(fnmatch.fnmatch(text, str(glob)) for text in readings):
+            return ApprovalDecision(False, f"Refused by the approvals.deny rule {glob!r}.", "denylist")
+    return None
 
+
+def _decide_without_asking(
+    ctx: ToolContext, description: str, matches: list[DangerMatch]
+) -> ApprovalDecision:
+    """No one to ask (cron, a one-shot query): the platform's policy decides, deny by default."""
+    if _non_interactive_policy(ctx) == "approve":
+        return ApprovalDecision(True, "non-interactive policy: approve", "policy", matches)
+    return ApprovalDecision(
+        False,
+        f"Refused: this command needs approval ({description}) and there is no one to ask. "
+        "Use a safer command, or tell the user what needs to be run.",
+        "policy",
+        matches,
+    )
+
+
+def _ask_user(
+    approve: Callable[..., Any],
+    command: str,
+    description: str,
+    matches: list[DangerMatch],
+    ctx: ToolContext,
+    session_key: str,
+) -> ApprovalDecision:
+    """Ask once / session / always / deny, and remember a yes where the answer allows it."""
+    keys = {match.key for match in matches}
+    pattern_keys = sorted(keys)
     invoke_hook(
         "pre_approval_request",
         command=command,
         description=description,
-        pattern_keys=sorted(keys),
+        pattern_keys=pattern_keys,
         session_key=session_key,
         surface=ctx.platform,
     )
     try:
-        choice = str(approve(command=command, description=description, pattern_keys=sorted(keys)) or "deny")
-    except Exception:  # noqa: BLE001 - a broken prompt must fail closed
+        answer = approve(command=command, description=description, pattern_keys=pattern_keys)
+        choice = str(answer or "deny")
+    except Exception:  # a broken prompt must fail closed
         logger.warning("approval callback failed", exc_info=True)
         choice = "deny"
     if choice not in CHOICES:
@@ -1130,7 +1160,7 @@ def check_command(command: str, ctx: ToolContext | None = None, *, cwd: str = ""
         "post_approval_response",
         command=command,
         description=description,
-        pattern_keys=sorted(keys),
+        pattern_keys=pattern_keys,
         session_key=session_key,
         surface=ctx.platform,
         choice=choice,
@@ -1156,5 +1186,5 @@ def _remember_always(keys: set[str]) -> None:
 
     try:
         atomic_config_update(mutate)
-    except Exception:  # noqa: BLE001 - the approval still holds for this session
+    except Exception:  # the approval still holds for this session
         logger.warning("could not persist command_allowlist", exc_info=True)

@@ -605,142 +605,139 @@ class SessionDB:
         - Token usage and costs are aggregated per model and per day.
         - Sessions without cost estimation are counted in `unpriced_sessions`, not zeroed out.
         """
+        cutoff = time.time() - (days * 86400) if days > 0 else 0.0
         with self._lock:
-            cutoff = time.time() - (days * 86400) if days > 0 else 0.0
-
-            # 1. Total sessions and platform breakdown (ROOT sessions only, subagents excluded)
-            cur = self._conn.execute(
-                "SELECT source, COUNT(*) FROM sessions WHERE started_at >= ? AND parent_session_id IS NULL GROUP BY source",
-                (cutoff,),
-            )
-            platforms = {row[0]: row[1] for row in cur.fetchall()}
-            total_sessions = sum(platforms.values())
-
-            # Count subagents
-            cur = self._conn.execute(
-                "SELECT COUNT(*) FROM sessions WHERE started_at >= ? AND parent_session_id IS NOT NULL",
-                (cutoff,),
-            )
-            subagents_count = cur.fetchone()[0]
-
-            # 2. Token & cost totals across all sessions in the period
-            cur = self._conn.execute(
-                """
-                SELECT
-                    COALESCE(SUM(input_tokens), 0),
-                    COALESCE(SUM(output_tokens), 0),
-                    COALESCE(SUM(cache_read_tokens), 0),
-                    COALESCE(SUM(cache_write_tokens), 0),
-                    COALESCE(SUM(reasoning_tokens), 0),
-                    COALESCE(SUM(message_count), 0),
-                    COALESCE(SUM(CASE WHEN estimated_cost_usd IS NOT NULL THEN estimated_cost_usd ELSE 0.0 END), 0.0),
-                    COUNT(CASE WHEN estimated_cost_usd IS NULL THEN 1 END),
-                    COUNT(CASE WHEN estimated_cost_usd IS NOT NULL THEN 1 END)
-                FROM sessions
-                WHERE started_at >= ?
-                """,
-                (cutoff,),
-            )
-            row = cur.fetchone()
-            in_tok, out_tok, cr_tok, cw_tok, reas_tok, total_msgs, total_cost, unpriced_cnt, priced_cnt = row
-
-            # 3. Model breakdown
-            cur = self._conn.execute(
-                """
-                SELECT
-                    model,
-                    COALESCE(SUM(input_tokens), 0),
-                    COALESCE(SUM(output_tokens), 0),
-                    COALESCE(SUM(CASE WHEN estimated_cost_usd IS NOT NULL THEN estimated_cost_usd ELSE 0.0 END), 0.0),
-                    COUNT(CASE WHEN estimated_cost_usd IS NULL THEN 1 END)
-                FROM sessions
-                WHERE started_at >= ?
-                GROUP BY model
-                ORDER BY (SUM(input_tokens) + SUM(output_tokens)) DESC
-                """,
-                (cutoff,),
-            )
-            models = []
-            for m_row in cur.fetchall():
-                mod_name, m_in, m_out, m_cost, m_unpriced = m_row
-                models.append(
-                    {
-                        "model": mod_name or "unknown",
-                        "input_tokens": m_in,
-                        "output_tokens": m_out,
-                        "total_tokens": m_in + m_out,
-                        "cost_usd": round(m_cost, 6),
-                        "unpriced_sessions": m_unpriced,
-                    }
-                )
-
-            # 4. Tool calls breakdown (from messages)
-            cur = self._conn.execute(
-                """
-                SELECT tool_name, COUNT(*) as cnt
-                FROM messages
-                WHERE role = 'tool' AND tool_name IS NOT NULL AND timestamp >= ?
-                GROUP BY tool_name
-                ORDER BY cnt DESC
-                LIMIT 20
-                """,
-                (cutoff,),
-            )
-            tools = [{"name": row[0], "count": row[1]} for row in cur.fetchall()]
-
-            # 5. Daily activity breakdown
-            cur = self._conn.execute(
-                """
-                SELECT
-                    date(started_at, 'unixepoch') as day,
-                    COUNT(CASE WHEN parent_session_id IS NULL THEN 1 END) as sess_count,
-                    COALESCE(SUM(input_tokens + output_tokens), 0) as tok_count,
-                    COALESCE(SUM(CASE WHEN estimated_cost_usd IS NOT NULL THEN estimated_cost_usd ELSE 0.0 END), 0.0) as day_cost
-                FROM sessions
-                WHERE started_at >= ?
-                GROUP BY day
-                ORDER BY day DESC
-                LIMIT 30
-                """,
-                (cutoff,),
-            )
-            daily = []
-            for d_row in cur.fetchall():
-                day_str, d_sess, d_tok, d_cost = d_row
-                if day_str:
-                    daily.append(
-                        {
-                            "date": day_str,
-                            "sessions": d_sess,
-                            "tokens": d_tok,
-                            "cost_usd": round(d_cost, 6),
-                        }
-                    )
-
+            platforms, subagents = self._insight_sessions(cutoff)
+            totals = self._insight_totals(cutoff)
             return {
                 "days": days,
-                "total_sessions": total_sessions,
-                "total_subagents": subagents_count,
-                "total_messages": total_msgs,
-                "tokens": {
-                    "input": in_tok,
-                    "output": out_tok,
-                    "cache_read": cr_tok,
-                    "cache_write": cw_tok,
-                    "reasoning": reas_tok,
-                    "total": in_tok + out_tok,
-                },
-                "cost": {
-                    "total_usd": round(total_cost, 6),
-                    "unpriced_sessions": unpriced_cnt,
-                    "priced_sessions": priced_cnt,
-                    "has_unpriced": bool(unpriced_cnt > 0),
-                },
-                "models": models,
+                "total_sessions": sum(platforms.values()),
+                "total_subagents": subagents,
+                "total_messages": totals["messages"],
+                "tokens": totals["tokens"],
+                "cost": totals["cost"],
+                "models": self._insight_models(cutoff),
                 "platforms": platforms,
-                "tools": tools,
-                "daily": daily,
+                "tools": self._insight_tools(cutoff),
+                "daily": self._insight_daily(cutoff),
             }
+
+    # The ``_insight_*`` queries below run with ``self._lock`` held by ``get_insights``.
+
+    def _insight_sessions(self, cutoff: float) -> tuple[dict[str, int], int]:
+        """Root sessions per platform, and the number of subagent sessions."""
+        cur = self._conn.execute(
+            "SELECT source, COUNT(*) FROM sessions WHERE started_at >= ? AND parent_session_id IS NULL GROUP BY source",
+            (cutoff,),
+        )
+        platforms = {row[0]: row[1] for row in cur.fetchall()}
+        cur = self._conn.execute(
+            "SELECT COUNT(*) FROM sessions WHERE started_at >= ? AND parent_session_id IS NOT NULL",
+            (cutoff,),
+        )
+        return platforms, cur.fetchone()[0]
+
+    def _insight_totals(self, cutoff: float) -> dict[str, Any]:
+        """Token, message and cost totals across all sessions in the period."""
+        cur = self._conn.execute(
+            """
+            SELECT
+                COALESCE(SUM(input_tokens), 0),
+                COALESCE(SUM(output_tokens), 0),
+                COALESCE(SUM(cache_read_tokens), 0),
+                COALESCE(SUM(cache_write_tokens), 0),
+                COALESCE(SUM(reasoning_tokens), 0),
+                COALESCE(SUM(message_count), 0),
+                COALESCE(SUM(CASE WHEN estimated_cost_usd IS NOT NULL THEN estimated_cost_usd ELSE 0.0 END), 0.0),
+                COUNT(CASE WHEN estimated_cost_usd IS NULL THEN 1 END),
+                COUNT(CASE WHEN estimated_cost_usd IS NOT NULL THEN 1 END)
+            FROM sessions
+            WHERE started_at >= ?
+            """,
+            (cutoff,),
+        )
+        in_tok, out_tok, cr_tok, cw_tok, reas_tok, total_msgs, total_cost, unpriced, priced = cur.fetchone()
+        return {
+            "messages": total_msgs,
+            "tokens": {
+                "input": in_tok,
+                "output": out_tok,
+                "cache_read": cr_tok,
+                "cache_write": cw_tok,
+                "reasoning": reas_tok,
+                "total": in_tok + out_tok,
+            },
+            "cost": {
+                "total_usd": round(total_cost, 6),
+                "unpriced_sessions": unpriced,
+                "priced_sessions": priced,
+                "has_unpriced": bool(unpriced > 0),
+            },
+        }
+
+    def _insight_models(self, cutoff: float) -> list[dict[str, Any]]:
+        cur = self._conn.execute(
+            """
+            SELECT
+                model,
+                COALESCE(SUM(input_tokens), 0),
+                COALESCE(SUM(output_tokens), 0),
+                COALESCE(SUM(CASE WHEN estimated_cost_usd IS NOT NULL THEN estimated_cost_usd ELSE 0.0 END), 0.0),
+                COUNT(CASE WHEN estimated_cost_usd IS NULL THEN 1 END)
+            FROM sessions
+            WHERE started_at >= ?
+            GROUP BY model
+            ORDER BY (SUM(input_tokens) + SUM(output_tokens)) DESC
+            """,
+            (cutoff,),
+        )
+        return [
+            {
+                "model": name or "unknown",
+                "input_tokens": tokens_in,
+                "output_tokens": tokens_out,
+                "total_tokens": tokens_in + tokens_out,
+                "cost_usd": round(cost, 6),
+                "unpriced_sessions": unpriced,
+            }
+            for name, tokens_in, tokens_out, cost, unpriced in cur.fetchall()
+        ]
+
+    def _insight_tools(self, cutoff: float) -> list[dict[str, Any]]:
+        cur = self._conn.execute(
+            """
+            SELECT tool_name, COUNT(*) as cnt
+            FROM messages
+            WHERE role = 'tool' AND tool_name IS NOT NULL AND timestamp >= ?
+            GROUP BY tool_name
+            ORDER BY cnt DESC
+            LIMIT 20
+            """,
+            (cutoff,),
+        )
+        return [{"name": row[0], "count": row[1]} for row in cur.fetchall()]
+
+    def _insight_daily(self, cutoff: float) -> list[dict[str, Any]]:
+        cur = self._conn.execute(
+            """
+            SELECT
+                date(started_at, 'unixepoch') as day,
+                COUNT(CASE WHEN parent_session_id IS NULL THEN 1 END) as sess_count,
+                COALESCE(SUM(input_tokens + output_tokens), 0) as tok_count,
+                COALESCE(SUM(CASE WHEN estimated_cost_usd IS NOT NULL THEN estimated_cost_usd ELSE 0.0 END), 0.0) as day_cost
+            FROM sessions
+            WHERE started_at >= ?
+            GROUP BY day
+            ORDER BY day DESC
+            LIMIT 30
+            """,
+            (cutoff,),
+        )
+        return [
+            {"date": day, "sessions": sessions, "tokens": tokens, "cost_usd": round(cost, 6)}
+            for day, sessions, tokens, cost in cur.fetchall()
+            if day
+        ]
 
 
 def format_insights(data: dict[str, Any]) -> str:

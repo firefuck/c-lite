@@ -44,7 +44,7 @@ class CredentialPool:
             oauth_cred = get_oauth_credential(self.provider)
             if oauth_cred is not None and all(oauth_cred.value != existing.value for existing in found):
                 found.append(oauth_cred)
-        except Exception:
+        except Exception:  # noqa: BLE001 - a broken OAuth store must not hide the other credentials
             pass
         return found
 

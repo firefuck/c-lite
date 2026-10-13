@@ -200,9 +200,7 @@ def test_pkce_login_flow_and_file_mode(mock_oauth_server, clite_home):
     def _visit(url: str) -> None:
         urllib.request.urlopen(url, timeout=5)
 
-    tokens = login_pkce(
-        "test_oauth_pkce", profile, open_browser=False, timeout=10, on_auth_url=_visit
-    )
+    tokens = login_pkce("test_oauth_pkce", profile, open_browser=False, timeout=10, on_auth_url=_visit)
     assert tokens["access_token"] == "at_pkce_success_999"
     assert tokens["refresh_token"] == "rt_pkce_success_999"
 
@@ -442,6 +440,7 @@ def test_openrouter_pkce_quirks(mock_oauth_server, clite_home):
     port = mock_oauth_server.server_address[1]
     # Configure OpenRouter-style PKCE
     import importlib
+
     openrouter_mod = importlib.import_module("clite.bundled.plugins.model-providers.openrouter")
     OpenRouterProfile = openrouter_mod.OpenRouterProfile
 

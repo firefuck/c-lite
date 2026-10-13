@@ -124,7 +124,7 @@ class PluginManager:
     def _scan_entry_points(self) -> None:
         try:
             entry_points = importlib.metadata.entry_points(group=ENTRY_POINT_GROUP)
-        except Exception:  # noqa: BLE001 - broken package metadata must not stop startup
+        except Exception:  # broken package metadata must not stop startup
             logger.debug("could not read entry points", exc_info=True)
             return
         for entry_point in entry_points:
@@ -199,7 +199,7 @@ class PluginManager:
                 if register is None:
                     raise AttributeError("plugin has no register(ctx) function")
                 register(context)
-            except Exception as exc:  # noqa: BLE001 - a broken plugin must not stop the agent
+            except Exception as exc:  # a broken plugin must not stop the agent
                 logger.warning("plugin %s failed to load", name, exc_info=True)
                 self._undo(context)
                 info.status, info.error = "error", f"{type(exc).__name__}: {exc}"
@@ -211,7 +211,7 @@ class PluginManager:
         for registration in reversed(context.ledger):
             try:
                 registration.undo()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.debug("undo of %s %s failed", registration.kind, registration.name, exc_info=True)
         context.ledger.clear()
         get_hook_bus().unregister_plugin(context.plugin_id)
@@ -262,7 +262,7 @@ class PluginManager:
             try:
                 # Shell hooks from `hooks:` in config.yaml share the bus with plugin hooks.
                 _, self.pending_shell_hooks = register_shell_hooks(cfg)
-            except Exception:  # noqa: BLE001 - a bad hooks section must not stop startup
+            except Exception:  # a bad hooks section must not stop startup
                 logger.warning("shell hooks could not be registered", exc_info=True)
             self._loaded = True
 

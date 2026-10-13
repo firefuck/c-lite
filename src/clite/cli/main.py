@@ -52,7 +52,7 @@ def _register_plugin_commands(subparsers: argparse._SubParsersAction) -> None:
         from clite.plugins.manager import ensure_plugins_loaded
 
         manager = ensure_plugins_loaded()
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.warning("plugins could not be loaded for the CLI", exc_info=True)
         return
     builtin = set(subparsers.choices)
@@ -67,7 +67,7 @@ def _register_plugin_commands(subparsers: argparse._SubParsersAction) -> None:
             if command.setup is not None:
                 command.setup(parser)
             parser.set_defaults(handler=command.handler)
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.warning("plugin command %r could not be registered", name, exc_info=True)
 
 

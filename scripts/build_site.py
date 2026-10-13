@@ -32,6 +32,7 @@ import html
 import re
 import shutil
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -137,8 +138,6 @@ def _link(label: str, target: str) -> str:
         if path_part.endswith(".md"):
             path_part = path_part[: -len(".md")] + ".html"
         href = path_part + separator + anchor
-    if href.startswith(("http://", "https://")):
-        return f'<a href="{html.escape(href, quote=True)}">{label}</a>'
     return f'<a href="{html.escape(href, quote=True)}">{label}</a>'
 
 
@@ -153,76 +152,101 @@ def render(markdown: str, *, source: str) -> str:
         if not line.strip():
             index += 1
             continue
-        fence = FENCE.match(line.strip())
-        if fence:
-            language = fence.group(1)
-            index += 1
-            block: list[str] = []
-            while index < len(lines) and not lines[index].strip().startswith("```"):
-                block.append(lines[index])
-                index += 1
-            if index >= len(lines):
-                raise ValueError(f"{source}:{index + 1}: a code fence is never closed")
-            index += 1
-            code = html.escape("\n".join(block))
-            kind = f' class="language-{language}"' if language else ""
-            out.append(f"<pre><code{kind}>{code}</code></pre>")
-            continue
-        heading = HEADING.match(line)
-        if heading:
-            level = len(heading.group(1))
-            title = heading.group(2)
-            out.append(f'<h{level} id="{slugify(title)}">{inline(title)}</h{level}>')
-            index += 1
-            continue
         if line.strip() in {"---", "***", "___"}:
             out.append("<hr>")
             index += 1
             continue
-        if TABLE_ROW.match(line) and index + 1 < len(lines) and TABLE_RULE.match(lines[index + 1]):
-            header = _cells(line)
-            index += 2
-            rows = []
-            while index < len(lines) and TABLE_ROW.match(lines[index]):
-                rows.append(_cells(lines[index]))
-                index += 1
-            out.append("<table><thead><tr>")
-            out += [f"<th>{inline(cell)}</th>" for cell in header]
-            out.append("</tr></thead><tbody>")
-            for row in rows:
-                out.append("<tr>")
-                out += [f"<td>{inline(cell)}</td>" for cell in row]
-                out.append("</tr>")
-            out.append("</tbody></table>")
-            continue
-        if line.strip().startswith(">"):
-            quote: list[str] = []
-            while index < len(lines) and lines[index].strip().startswith(">"):
-                quote.append(lines[index].strip().lstrip(">").strip())
-                index += 1
-            out.append(f"<blockquote><p>{inline(' '.join(quote))}</p></blockquote>")
-            continue
-        if LIST_ITEM.match(line):
-            ordered = bool(re.match(r"^\s*\d+\.", line))
-            items: list[str] = []
-            while index < len(lines):
-                item = LIST_ITEM.match(lines[index])
-                if not item or bool(re.match(r"^\s*\d+\.", lines[index])) != ordered:
-                    break
-                items.append(item.group(2))
-                index += 1
-            tag = "ol" if ordered else "ul"
-            rendered = "".join(f"<li>{inline(item)}</li>" for item in items)
-            out.append(f"<{tag}>{rendered}</{tag}>")
-            continue
-        paragraph: list[str] = []
-        while index < len(lines) and lines[index].strip() and not _starts_block(lines[index]):
-            paragraph.append(lines[index].strip())
+        heading = HEADING.match(line)
+        if heading:
+            level, title = len(heading.group(1)), heading.group(2)
+            out.append(f'<h{level} id="{slugify(title)}">{inline(title)}</h{level}>')
             index += 1
-        if not paragraph:  # a construct the renderer does not know; say which
-            raise ValueError(f"{source}:{index + 1}: cannot render: {line.strip()!r}")
-        out.append(f"<p>{inline(' '.join(paragraph))}</p>")
+            continue
+        reader = _block_reader(lines, index)
+        block, index = reader(lines, index, source)
+        out.append(block)
     return "\n".join(out)
+
+
+_BlockReader = Callable[[list[str], int, str], tuple[str, int]]
+
+
+def _block_reader(lines: list[str], index: int) -> _BlockReader:
+    """The reader for the multi-line block that starts at ``lines[index]``."""
+    line = lines[index]
+    if FENCE.match(line.strip()):
+        return _read_fence
+    if TABLE_ROW.match(line) and index + 1 < len(lines) and TABLE_RULE.match(lines[index + 1]):
+        return _read_table
+    if line.strip().startswith(">"):
+        return _read_quote
+    if LIST_ITEM.match(line):
+        return _read_list
+    return _read_paragraph
+
+
+# Each reader takes the lines and the index where its block starts, and returns the block's
+# HTML and the index of the first line after it.
+
+
+def _read_fence(lines: list[str], index: int, source: str) -> tuple[str, int]:
+    fence = FENCE.match(lines[index].strip())
+    assert fence is not None
+    language = fence.group(1)
+    index += 1
+    block: list[str] = []
+    while index < len(lines) and not lines[index].strip().startswith("```"):
+        block.append(lines[index])
+        index += 1
+    if index >= len(lines):
+        raise ValueError(f"{source}:{index + 1}: a code fence is never closed")
+    code = html.escape("\n".join(block))
+    kind = f' class="language-{language}"' if language else ""
+    return f"<pre><code{kind}>{code}</code></pre>", index + 1
+
+
+def _read_table(lines: list[str], index: int, source: str) -> tuple[str, int]:
+    header = _cells(lines[index])
+    index += 2  # the header row and the |---| rule under it
+    out = ["<table><thead><tr>", *(f"<th>{inline(cell)}</th>" for cell in header), "</tr></thead><tbody>"]
+    while index < len(lines) and TABLE_ROW.match(lines[index]):
+        out += ["<tr>", *(f"<td>{inline(cell)}</td>" for cell in _cells(lines[index])), "</tr>"]
+        index += 1
+    out.append("</tbody></table>")
+    return "\n".join(out), index
+
+
+def _read_quote(lines: list[str], index: int, source: str) -> tuple[str, int]:
+    quote: list[str] = []
+    while index < len(lines) and lines[index].strip().startswith(">"):
+        quote.append(lines[index].strip().lstrip(">").strip())
+        index += 1
+    return f"<blockquote><p>{inline(' '.join(quote))}</p></blockquote>", index
+
+
+def _read_list(lines: list[str], index: int, source: str) -> tuple[str, int]:
+    ordered = bool(re.match(r"^\s*\d+\.", lines[index]))
+    items: list[str] = []
+    while index < len(lines):
+        item = LIST_ITEM.match(lines[index])
+        if not item or bool(re.match(r"^\s*\d+\.", lines[index])) != ordered:
+            break
+        items.append(item.group(2))
+        index += 1
+    tag = "ol" if ordered else "ul"
+    rendered = "".join(f"<li>{inline(item)}</li>" for item in items)
+    return f"<{tag}>{rendered}</{tag}>", index
+
+
+def _read_paragraph(lines: list[str], index: int, source: str) -> tuple[str, int]:
+    start = index
+    paragraph: list[str] = []
+    while index < len(lines) and lines[index].strip() and not _starts_block(lines[index]):
+        paragraph.append(lines[index].strip())
+        index += 1
+    if not paragraph:  # a construct the renderer does not know; say which
+        raise ValueError(f"{source}:{index + 1}: cannot render: {lines[start].strip()!r}")
+    return f"<p>{inline(' '.join(paragraph))}</p>", index
 
 
 def _starts_block(line: str) -> bool:
@@ -250,7 +274,9 @@ def title_of(markdown: str, *, source: str) -> str:
     raise ValueError(f"{source}: a page must start with a '# ' heading")
 
 
-def page_html(*, language: str, slug: str, body: str, title: str, navigation: list[tuple[str, str, str]]) -> str:
+def page_html(
+    *, language: str, slug: str, body: str, title: str, navigation: list[tuple[str, str, str]]
+) -> str:
     """One page, wrapped in the site chrome. ``navigation`` is ``(href, label, section)``."""
     site = SITE[language]
     depth = 1 + slug.count("/")

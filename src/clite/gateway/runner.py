@@ -18,9 +18,11 @@ A turn runs on its own thread, so one long task never blocks another chat.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import threading
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -29,6 +31,14 @@ from clite.core.config import get_path, load_config
 from clite.core.errors import CliteError
 from clite.core.threads import start_thread
 from clite.gateway import media
+from clite.gateway.controls import (
+    APPROVAL_PREFIX,
+    MODEL_PICKER_PREFIX,
+    Keyboard,
+    ModelPicker,
+    approval_keyboard,
+    model_picker_view,
+)
 from clite.gateway.event import CHAT_DM, MessageEvent, SessionSource
 from clite.gateway.media import MediaError
 from clite.gateway.media import store as media_store
@@ -93,7 +103,7 @@ class _TypingKeeper:
         while not self._stop_event.wait(self.interval):
             try:
                 self.adapter.send_typing(self.chat_id, thread_id=self.thread_id)
-            except Exception:  # noqa: BLE001 - cosmetic heartbeat failure
+            except Exception:  # cosmetic heartbeat failure
                 logger.debug("typing heartbeat failed for %s", self.chat_id, exc_info=True)
 
     def stop(self) -> None:
@@ -127,6 +137,77 @@ def _typing_keeper(
     return keeper
 
 
+class _LiveReply:
+    """How one turn's answer reaches a chat while it is being written.
+
+    A chat that can edit a sent message gets the answer as it is written and one status
+    message for tool activity. A chat that cannot keeps the old behaviour: typing indicator,
+    then the whole answer. ``message`` mode instead gets one separate chat message per tool
+    call, sent as the call starts.
+    """
+
+    def __init__(
+        self,
+        adapter: BasePlatformAdapter,
+        source: SessionSource,
+        *,
+        reply_to: str | None,
+        typing_keeper: _TypingKeeper | None,
+        tool_progress: str,
+    ) -> None:
+        self.adapter = adapter
+        self.chat_id, self.thread_id = source.chat_id, source.thread_id
+        self.reply_to = reply_to
+        self.typing_keeper = typing_keeper
+        self._first_send = True
+        self.stream: StreamSender | None = None
+        self.progress: ProgressReporter | None = None
+        self.per_tool_message = False
+        if adapter.can_edit():
+            self.stream = StreamSender(self.send, self.edit, max_length=adapter.max_message_length)
+            if tool_progress not in ("off", "message"):
+                self.progress = ProgressReporter(self.send, self.edit)
+            self.per_tool_message = tool_progress == "message"
+
+    def send(self, text: str) -> str | None:
+        if self.typing_keeper is not None:
+            self.typing_keeper.stop()
+        result = self.adapter.send(
+            self.chat_id,
+            text,
+            reply_to=self.reply_to if self._first_send else None,
+            thread_id=self.thread_id,
+        )
+        if result.success:
+            self._first_send = False
+        return result.message_id if result.success else None
+
+    def edit(self, message_id: str, text: str) -> bool:
+        return self.adapter.edit(self.chat_id, message_id, text)
+
+    @contextlib.contextmanager
+    def wired(self, callbacks: AgentCallbacks) -> Iterator[None]:
+        """Point the session's streaming callbacks at this chat for the turn, then restore them."""
+        saved = (callbacks.on_delta, callbacks.on_tool_complete, callbacks.on_tool_start)
+        stream, progress = self.stream, self.progress
+        if stream is not None:
+            callbacks.on_delta = stream.push
+        if progress is not None:
+            callbacks.on_tool_complete = lambda _call_id, name, args, result, seconds: progress.note(
+                tool_line(name, args, result, seconds)
+            )
+        if self.per_tool_message:
+
+            def on_tool_start(_call_id: str, name: str, args: dict[str, Any]) -> None:
+                self.send(tool_message(name, args))
+
+            callbacks.on_tool_start = on_tool_start
+        try:
+            yield
+        finally:
+            callbacks.on_delta, callbacks.on_tool_complete, callbacks.on_tool_start = saved
+
+
 def active_runner() -> GatewayRunner | None:
     """The first running gateway in this process, or ``None`` when there is none."""
     with _ACTIVE_LOCK:
@@ -155,14 +236,6 @@ _APPROVAL_WORDS = {
     "n": "deny",
 }
 _APPROVAL_TRAILING_PUNCTUATION = ".,;:!?"
-_APPROVAL_BUTTONS = (
-    ("Approve once", "once"),
-    ("Approve for session", "session"),
-    ("Always approve", "always"),
-    ("Deny", "deny"),
-)
-
-
 
 
 @dataclass
@@ -176,21 +249,19 @@ class _Pending:
 
 
 @dataclass
-class _ModelPicker:
-    """A Telegram model picker owned by one authorized gateway session."""
+class _PickerTap:
+    """One tap on a model picker button, with what is needed to answer it."""
 
-    key: str
-    session_key: str
+    adapter: BasePlatformAdapter
     source: SessionSource
-    providers: list[str]
-    provider: str | None = None
-    models: list[str] = field(default_factory=list)
-    page: int = 0
+    callback_id: str
+    message_id: str
+    value: str
 
 
 @dataclass
 class _ApprovalPrompt:
-    """A Telegram approval keyboard tied to the one pending question that created it."""
+    """An approval button prompt tied to the one pending question that created it."""
 
     key: str
     session_key: str
@@ -223,7 +294,7 @@ class GatewayRunner:
         self.home_channels = HomeChannels(self.config)
         self.now_fn = time.time
         self.pairing = PairingStore()
-        self._model_pickers: dict[str, _ModelPicker] = {}
+        self._model_pickers: dict[str, ModelPicker] = {}
         self._approval_prompts: dict[str, _ApprovalPrompt] = {}
         self.on_restart: Any = None
         self._lock = threading.RLock()
@@ -235,9 +306,9 @@ class GatewayRunner:
 
     def start(self, *, with_cron: bool = True) -> list[str]:
         """Connect every enabled platform. Returns the names that started."""
-        import clite.gateway.platforms.discord  # noqa: F401
-        import clite.gateway.platforms.local  # noqa: F401 - registers the built-in adapters
-        import clite.gateway.platforms.slack  # noqa: F401
+        import clite.gateway.platforms.discord
+        import clite.gateway.platforms.local  # registers the built-in adapters
+        import clite.gateway.platforms.slack
         import clite.gateway.platforms.telegram  # noqa: F401
 
         ensure_plugins_loaded()  # plugins may register more platforms
@@ -303,7 +374,7 @@ class GatewayRunner:
         for adapter in self.adapters.values():
             try:
                 adapter.disconnect()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.debug("disconnect failed for %s", adapter.name, exc_info=True)
         self.adapters.clear()
 
@@ -320,7 +391,7 @@ class GatewayRunner:
 
                 try:
                     os.kill(os.getpid(), signal.SIGTERM)
-                except Exception:
+                except Exception:  # noqa: BLE001 - if signalling fails, exit hard so the supervisor restarts us
                     os._exit(75)
 
             start_thread(_exit, name="clite-gw-restart")
@@ -464,76 +535,29 @@ class GatewayRunner:
         logger.info("send_file delivered %s to %s", path, destination)
         return destination
 
-    # ── Telegram model picker ────────────────────────────────────────────────────────────
+    # ── model picker buttons ─────────────────────────────────────────────────────────────
 
-    @staticmethod
-    def _model_picker_label(model: str, *, current: bool) -> str:
-        """A Telegram-safe label: Bot API button text is limited to 64 UTF-8 bytes."""
-        prefix = "✓ " if current else ""
-        budget = 64 - len(prefix.encode("utf-8"))
-        encoded = model.encode("utf-8")
-        if len(encoded) > budget:
-            encoded = encoded[: max(0, budget - len("…".encode()))]
-            while encoded and (encoded[-1] & 0xC0) == 0x80:
-                encoded = encoded[:-1]
-            model = encoded.decode("utf-8", errors="ignore") + "…"
-        return prefix + model
+    def _model_picker_view(self, picker: ModelPicker, session: GatewaySession) -> tuple[str, Keyboard]:
+        adapter = self.adapters.get(picker.source.platform)
+        route = session.chat.agent.route
+        return model_picker_view(
+            picker,
+            current_provider=route.provider,
+            current_model=route.model,
+            label_bytes=adapter.max_button_label_bytes if adapter is not None else None,
+        )
 
-    def _model_picker_view(self, picker: _ModelPicker, session: GatewaySession) -> tuple[str, list[list[dict[str, str]]]]:
-        page_size = 8
-        selecting_provider = picker.provider is None
-        choices = picker.providers if selecting_provider else picker.models
-        total_pages = max(1, (len(choices) + page_size - 1) // page_size)
-        picker.page = min(max(picker.page, 0), total_pages - 1)
-        start = picker.page * page_size
-        rows: list[list[dict[str, str]]] = []
-        if selecting_provider:
-            buttons = [
-                {
-                    "text": self._model_picker_label(provider, current=provider == session.chat.agent.route.provider),
-                    "callback_data": f"mp:{picker.key}:provider:{index}",
-                }
-                for index, provider in enumerate(choices[start : start + page_size], start=start)
-            ]
-        else:
-            buttons = [
-                {
-                    "text": self._model_picker_label(
-                        model,
-                        current=picker.provider == session.chat.agent.route.provider
-                        and model == session.chat.agent.route.model,
-                    ),
-                    "callback_data": f"mp:{picker.key}:select:{index}",
-                }
-                for index, model in enumerate(choices[start : start + page_size], start=start)
-            ]
-        rows.extend([buttons[index : index + 2] for index in range(0, len(buttons), 2)])
-        if total_pages > 1:
-            navigation: list[dict[str, str]] = []
-            if picker.page:
-                navigation.append({"text": "◀ Prev", "callback_data": f"mp:{picker.key}:page:{picker.page - 1}"})
-            navigation.append({"text": f"{picker.page + 1}/{total_pages}", "callback_data": f"mp:{picker.key}:noop"})
-            if picker.page < total_pages - 1:
-                navigation.append({"text": "Next ▶", "callback_data": f"mp:{picker.key}:page:{picker.page + 1}"})
-            rows.append(navigation)
-        if not selecting_provider:
-            rows.append([{"text": "◀ Back", "callback_data": f"mp:{picker.key}:back:0"}])
-        rows.append([{"text": "Cancel", "callback_data": f"mp:{picker.key}:cancel"}])
-        if selecting_provider:
-            text = f"Model: {session.chat.agent.route.model}\nChoose a provider ({picker.page + 1}/{total_pages})."
-        else:
-            text = f"Provider: {picker.provider}\nChoose a model ({picker.page + 1}/{total_pages})."
-        return text, rows
-
-    def _send_telegram_model_picker(self, session: GatewaySession) -> bool:
-        """Render the Telegram-only interactive form of an argument-less ``/model`` command."""
+    def _send_model_picker(self, session: GatewaySession) -> bool:
+        """The button form of an argument-less ``/model``, on platforms that can show buttons."""
         adapter = self.adapters.get(session.source.platform)
-        if adapter is None:
+        if adapter is None or not adapter.can_send_buttons():
             return False
         from clite.providers.registry import list_providers
 
         current = session.chat.agent.route.provider
-        providers = [profile.name for profile in list_providers(session.chat.agent.config) if profile.is_configured()]
+        providers = [
+            profile.name for profile in list_providers(session.chat.agent.config) if profile.is_configured()
+        ]
         if current not in providers:
             providers.insert(0, current)
         providers = list(dict.fromkeys(providers))
@@ -542,11 +566,13 @@ class GatewayRunner:
         import secrets
 
         key = secrets.token_hex(4)
-        picker = _ModelPicker(key=key, session_key=session.key, source=session.source, providers=providers)
+        picker = ModelPicker(key=key, session_key=session.key, source=session.source, providers=providers)
         text, keyboard = self._model_picker_view(picker, session)
-        result = adapter.send_model_picker(session.source.chat_id, text, keyboard, thread_id=session.source.thread_id)
+        result = adapter.send_model_picker(
+            session.source.chat_id, text, keyboard, thread_id=session.source.thread_id
+        )
         if not result.success:
-            logger.warning("could not send Telegram model picker: %s", result.error)
+            logger.warning("could not send the model picker: %s", result.error)
             return False
         self._model_pickers[key] = picker
         return True
@@ -554,115 +580,142 @@ class GatewayRunner:
     def handle_model_picker_callback(
         self, source: SessionSource, callback_id: str, data: str, message_id: str
     ) -> None:
-        """Apply a Telegram picker tap after the runner's usual authorization and busy checks."""
+        """Apply a model picker tap after the runner's usual authorization and busy checks."""
         adapter = self.adapters.get(source.platform)
         if adapter is None:
             return
         parts = data.split(":", 3)
-        if len(parts) not in (3, 4) or parts[0] != "mp":
+        if len(parts) not in (3, 4) or parts[0] != MODEL_PICKER_PREFIX:
             adapter.answer_callback(callback_id, "Invalid model selection.")
             return
         _prefix, key, action = parts[:3]
-        raw_value = parts[3] if len(parts) == 4 else ""
-        if not self.is_authorized(source):
-            adapter.answer_callback(callback_id, "You are not authorized.")
+        tap = _PickerTap(
+            adapter=adapter,
+            source=source,
+            callback_id=callback_id,
+            message_id=message_id,
+            value=parts[3] if len(parts) == 4 else "",
+        )
+        found = self._picker_for_tap(tap, key)
+        if found is None:
             return
-        picker = self._model_pickers.get(key)
-        if picker is None or picker.source.user_id != source.user_id or picker.source.chat_id != source.chat_id:
-            adapter.answer_callback(callback_id, "This model picker has expired. Run /model again.")
-            return
-        session = self._get_session(source)
-        if session.key != picker.session_key:
-            adapter.answer_callback(callback_id, "This model picker has expired. Run /model again.")
-            return
-        if session.busy:
-            adapter.answer_callback(callback_id, "The model change has to wait until the current turn ends.")
-            return
+        picker, session = found
         if action == "noop":
             adapter.answer_callback(callback_id)
             return
-        if action == "cancel":
-            adapter.edit_model_picker(source.chat_id, message_id, "Model selection cancelled.", [])
-            self._model_pickers.pop(key, None)
-            adapter.answer_callback(callback_id)
-            return
-        if action == "page":
-            try:
-                picker.page = int(raw_value)
-            except ValueError:
-                adapter.answer_callback(callback_id, "Invalid model page.")
-                return
-            text, keyboard = self._model_picker_view(picker, session)
-            adapter.edit_model_picker(source.chat_id, message_id, text, keyboard)
-            adapter.answer_callback(callback_id)
-            return
-        if action == "back":
-            picker.provider = None
-            picker.models = []
-            picker.page = 0
-            text, keyboard = self._model_picker_view(picker, session)
-            adapter.edit_model_picker(source.chat_id, message_id, text, keyboard)
-            adapter.answer_callback(callback_id)
-            return
-        if action == "provider":
-            try:
-                provider = picker.providers[int(raw_value)]
-            except (ValueError, IndexError):
-                adapter.answer_callback(callback_id, "Invalid provider selection.")
-                return
-            from clite.providers.models import list_models
-
-            route = session.chat.agent.route
-            models = [model.id for model in list_models(provider, route=route if provider == route.provider else None)]
-            if provider == route.provider and route.model not in models:
-                models.insert(0, route.model)
-            models = list(dict.fromkeys(models))
-            if not models:
-                adapter.answer_callback(callback_id, "That provider has no models available.")
-                return
-            picker.provider = provider
-            picker.models = models
-            picker.page = 0
-            text, keyboard = self._model_picker_view(picker, session)
-            adapter.edit_model_picker(source.chat_id, message_id, text, keyboard)
-            adapter.answer_callback(callback_id)
-            return
-        if action != "select" or picker.provider is None:
+        handler = {
+            "cancel": self._picker_cancel,
+            "page": self._picker_page,
+            "back": self._picker_back,
+            "provider": self._picker_provider,
+            "select": self._picker_select,
+        }.get(action)
+        if handler is None:
             adapter.answer_callback(callback_id, "Invalid model selection.")
+            return
+        handler(tap, picker, session)
+
+    def _picker_for_tap(self, tap: _PickerTap, key: str) -> tuple[ModelPicker, GatewaySession] | None:
+        """The picker a tap belongs to, once the tapper may use it and the session is idle."""
+        adapter, callback_id = tap.adapter, tap.callback_id
+        if not self.is_authorized(tap.source):
+            adapter.answer_callback(callback_id, "You are not authorized.")
+            return None
+        picker = self._model_pickers.get(key)
+        if (
+            picker is None
+            or picker.source.user_id != tap.source.user_id
+            or picker.source.chat_id != tap.source.chat_id
+        ):
+            adapter.answer_callback(callback_id, "This model picker has expired. Run /model again.")
+            return None
+        session = self._get_session(tap.source)
+        if session.key != picker.session_key:
+            adapter.answer_callback(callback_id, "This model picker has expired. Run /model again.")
+            return None
+        if session.busy:
+            adapter.answer_callback(callback_id, "The model change has to wait until the current turn ends.")
+            return None
+        return picker, session
+
+    def _redraw_picker(self, tap: _PickerTap, picker: ModelPicker, session: GatewaySession) -> None:
+        text, keyboard = self._model_picker_view(picker, session)
+        tap.adapter.edit_model_picker(tap.source.chat_id, tap.message_id, text, keyboard)
+        tap.adapter.answer_callback(tap.callback_id)
+
+    def _picker_cancel(self, tap: _PickerTap, picker: ModelPicker, session: GatewaySession) -> None:
+        tap.adapter.edit_model_picker(tap.source.chat_id, tap.message_id, "Model selection cancelled.", [])
+        self._model_pickers.pop(picker.key, None)
+        tap.adapter.answer_callback(tap.callback_id)
+
+    def _picker_page(self, tap: _PickerTap, picker: ModelPicker, session: GatewaySession) -> None:
+        try:
+            picker.page = int(tap.value)
+        except ValueError:
+            tap.adapter.answer_callback(tap.callback_id, "Invalid model page.")
+            return
+        self._redraw_picker(tap, picker, session)
+
+    def _picker_back(self, tap: _PickerTap, picker: ModelPicker, session: GatewaySession) -> None:
+        picker.provider = None
+        picker.models = []
+        picker.page = 0
+        self._redraw_picker(tap, picker, session)
+
+    def _picker_provider(self, tap: _PickerTap, picker: ModelPicker, session: GatewaySession) -> None:
+        try:
+            provider = picker.providers[int(tap.value)]
+        except (ValueError, IndexError):
+            tap.adapter.answer_callback(tap.callback_id, "Invalid provider selection.")
+            return
+        from clite.providers.models import list_models
+
+        route = session.chat.agent.route
+        models = [
+            model.id for model in list_models(provider, route=route if provider == route.provider else None)
+        ]
+        if provider == route.provider and route.model not in models:
+            models.insert(0, route.model)
+        models = list(dict.fromkeys(models))
+        if not models:
+            tap.adapter.answer_callback(tap.callback_id, "That provider has no models available.")
+            return
+        picker.provider = provider
+        picker.models = models
+        picker.page = 0
+        self._redraw_picker(tap, picker, session)
+
+    def _picker_select(self, tap: _PickerTap, picker: ModelPicker, session: GatewaySession) -> None:
+        if picker.provider is None:
+            tap.adapter.answer_callback(tap.callback_id, "Invalid model selection.")
             return
         try:
-            model = picker.models[int(raw_value)]
+            model = picker.models[int(tap.value)]
         except (ValueError, IndexError):
-            adapter.answer_callback(callback_id, "Invalid model selection.")
+            tap.adapter.answer_callback(tap.callback_id, "Invalid model selection.")
             return
         result = session.chat.switch_model(f"{picker.provider}:{model}")
         text = f"Switched to {session.chat.agent.route.model}." if result.success else result.message
-        adapter.edit_model_picker(source.chat_id, message_id, text, [])
+        tap.adapter.edit_model_picker(tap.source.chat_id, tap.message_id, text, [])
         if result.success:
-            self._model_pickers.pop(key, None)
-            adapter.answer_callback(callback_id, "Model switched.")
+            self._model_pickers.pop(picker.key, None)
+            tap.adapter.answer_callback(tap.callback_id, "Model switched.")
         else:
-            adapter.answer_callback(callback_id, "Could not switch model.")
+            tap.adapter.answer_callback(tap.callback_id, "Could not switch model.")
 
-    # ── Telegram approval controls ───────────────────────────────────────────────────────
+    # ── approval buttons ─────────────────────────────────────────────────────────────────
 
-    def _send_telegram_approval(
+    def _send_approval_buttons(
         self, session: GatewaySession, pending: _Pending, command: str, description: str
     ) -> bool:
-        """Send a Telegram approval keyboard and bind it to this exact pending question."""
+        """Send approval buttons and bind them to this exact pending question."""
         adapter = self.adapters.get(session.source.platform)
-        if adapter is None or session.source.platform != "telegram":
+        if adapter is None or not adapter.can_send_buttons():
             return False
         import secrets
 
         key = secrets.token_urlsafe(8)
-        keyboard = [
-            [
-                {"text": label, "callback_data": f"ap:{key}:{choice}"}
-                for label, choice in _APPROVAL_BUTTONS[index : index + 2]
-            ]
-            for index in range(0, len(_APPROVAL_BUTTONS), 2)
-        ]
+        keyboard = approval_keyboard(key)
         text = f"This command needs your approval ({description}):\n\n{command}\n\nChoose an approval option."
         result = adapter.send_approval_prompt(
             session.source.chat_id, text, keyboard, thread_id=session.source.thread_id
@@ -681,8 +734,8 @@ class GatewayRunner:
             adapter.edit_approval_prompt(session.source.chat_id, result.message_id, "Approval: expired.", [])
         return True
 
-    def _remove_telegram_approval(self, prompt: _ApprovalPrompt, text: str) -> None:
-        """Disable a consumed or expired keyboard. A failed cosmetic edit never reopens approval."""
+    def _close_approval_prompt(self, prompt: _ApprovalPrompt, text: str) -> None:
+        """Disable consumed or expired buttons. A failed cosmetic edit never reopens approval."""
         with self._lock:
             if self._approval_prompts.get(prompt.key) is not prompt:
                 return
@@ -691,14 +744,15 @@ class GatewayRunner:
         if adapter is not None:
             adapter.edit_approval_prompt(prompt.source.chat_id, prompt.message_id, text, [])
 
-    def _remove_telegram_approval_for_pending(self, pending: _Pending, text: str) -> None:
-        """Remove the keyboard associated with a text answer or a timed-out pending approval."""
+    def _close_approval_prompt_for(self, pending: _Pending, text: str) -> None:
+        """Remove the buttons of an approval answered by text or left to time out."""
         with self._lock:
             prompt = next(
-                (candidate for candidate in self._approval_prompts.values() if candidate.pending is pending), None
+                (candidate for candidate in self._approval_prompts.values() if candidate.pending is pending),
+                None,
             )
         if prompt is not None:
-            self._remove_telegram_approval(prompt, text)
+            self._close_approval_prompt(prompt, text)
 
     def handle_approval_callback(
         self, source: SessionSource, callback_id: str, data: str, message_id: str
@@ -708,7 +762,7 @@ class GatewayRunner:
         if adapter is None:
             return
         parts = data.split(":", 2)
-        if len(parts) != 3 or parts[0] != "ap" or parts[2] not in _APPROVAL_WORDS.values():
+        if len(parts) != 3 or parts[0] != APPROVAL_PREFIX or parts[2] not in _APPROVAL_WORDS.values():
             adapter.answer_callback(callback_id, "Invalid approval selection.")
             return
         _prefix, key, choice = parts
@@ -732,7 +786,7 @@ class GatewayRunner:
                 return
             prompt.pending.answer = choice
             prompt.pending.answered.set()
-        self._remove_telegram_approval(prompt, f"Approval: {choice}.")
+        self._close_approval_prompt(prompt, f"Approval: {choice}.")
         adapter.answer_callback(callback_id, "Approval recorded.")
 
     # ── authorization ────────────────────────────────────────────────────────────────────
@@ -774,10 +828,10 @@ class GatewayRunner:
             if session is None:
                 return "deny"
             session.pending = pending
-            if not self._send_telegram_approval(session, pending, command, description):
+            if not self._send_approval_buttons(session, pending, command, description):
                 self.reply(source, message)
             pending.answered.wait(timeout)
-            self._remove_telegram_approval_for_pending(pending, f"Approval: {pending.answer or 'denied'}.")
+            self._close_approval_prompt_for(pending, f"Approval: {pending.answer or 'denied'}.")
             session.pending = None
             return pending.answer or "deny"  # silence is a no
 
@@ -898,21 +952,15 @@ class GatewayRunner:
             self._dispatch(event)
         except CliteError as exc:
             self.reply(event.source, f"Error: {exc}")
-        except Exception:  # noqa: BLE001 - a bad message must not kill the adapter's receive loop
+        except Exception:  # a bad message must not kill the adapter's receive loop
             logger.exception("gateway dispatch failed")
             self.reply(event.source, "Something went wrong handling that message. The error was logged.")
 
     def _dispatch(self, event: MessageEvent) -> None:
         if not self.accepting:
             return
-        text = event.text.strip()
-        if has_hook("pre_gateway_dispatch"):
-            for directive in invoke_hook("pre_gateway_dispatch", event=event, gateway=self):
-                if isinstance(directive, dict) and directive.get("action") == "skip":
-                    return
-                if isinstance(directive, dict) and directive.get("action") == "rewrite":
-                    text = str(directive.get("text") or "").strip()
-        if not text and not event.attachments:
+        text = self._apply_dispatch_hooks(event)
+        if text is None or (not text and not event.attachments):
             return
         if not self.is_authorized(event.source):
             self._handle_unauthorized(event.source)
@@ -922,36 +970,60 @@ class GatewayRunner:
         if session.pending is not None and self._answer_pending(session, text):
             return
 
-        if event.source.platform == "telegram" and text == "/model" and not session.busy and self._send_telegram_model_picker(session):
+        if text == "/model" and not session.busy and self._send_model_picker(session):
             return
 
+        if split_command(text)[0]:
+            submitted = self._run_command(session, event, text)
+            if submitted is None:
+                return
+            text = submitted  # a skill command: run it as a turn
+        self._submit_message(session, event, text)
+
+    def _apply_dispatch_hooks(self, event: MessageEvent) -> str | None:
+        """The message text after plugins had their say; ``None`` when one dropped it."""
+        text = event.text.strip()
+        if not has_hook("pre_gateway_dispatch"):
+            return text
+        for directive in invoke_hook("pre_gateway_dispatch", event=event, gateway=self):
+            if isinstance(directive, dict) and directive.get("action") == "skip":
+                return None
+            if isinstance(directive, dict) and directive.get("action") == "rewrite":
+                text = str(directive.get("text") or "").strip()
+        return text
+
+    def _run_command(self, session: GatewaySession, event: MessageEvent, text: str) -> str | None:
+        """Run a slash command. Returns the text to submit as a turn, or ``None`` when the
+        command was answered (or refused) here."""
         name, _args = split_command(text)
+        reply_to = event.reply_to or event.message_id
         if name in ("approve", "deny"):
             self.reply(event.source, "Nothing is waiting for approval.")
-            return
-        if name:
-            definition = resolve_command(name)
-            is_reset = definition is not None and definition.name == "new"
-            if session.busy:
-                if is_reset:
-                    session.chat.interrupt()
-                    if session.turns is not None:
-                        session.turns.clear()
-                    self.reply(event.source, "Stopping running turn and resetting session…")
-                elif definition is None or definition.busy_policy != BUSY_ALLOW:
-                    self.reply(event.source, f"/{name} has to wait: I am still working. Send /stop to interrupt.")
-                    return
-            result = session.chat.run_slash(text)
-            if result.action == ACTION_NEW:
-                self.session_map.set(session.key, session.chat.session_id, event.source)
-            if result.action == ACTION_RESTART:
-                self.reply(event.source, result.text, reply_to=event.reply_to or event.message_id)
-                self.request_restart()
-                return
-            if result.action != ACTION_SUBMIT:
-                self.reply(event.source, result.text, reply_to=event.reply_to or event.message_id)
-                return
-            text = result.text  # a skill command: run it as a turn
+            return None
+        definition = resolve_command(name)
+        if session.busy:
+            if definition is not None and definition.name == "new":
+                session.chat.interrupt()
+                if session.turns is not None:
+                    session.turns.clear()
+                self.reply(event.source, "Stopping running turn and resetting session…")
+            elif definition is None or definition.busy_policy != BUSY_ALLOW:
+                self.reply(event.source, f"/{name} has to wait: I am still working. Send /stop to interrupt.")
+                return None
+        result = session.chat.run_slash(text)
+        if result.action == ACTION_NEW:
+            self.session_map.set(session.key, session.chat.session_id, event.source)
+        if result.action == ACTION_RESTART:
+            self.reply(event.source, result.text, reply_to=reply_to)
+            self.request_restart()
+            return None
+        if result.action != ACTION_SUBMIT:
+            self.reply(event.source, result.text, reply_to=reply_to)
+            return None
+        return result.text
+
+    def _submit_message(self, session: GatewaySession, event: MessageEvent, text: str) -> None:
+        """Turn the message and its attachments into the next turn."""
         images, notes, transcript = self._collect_attachments(session, event)
         if transcript:
             text = f"{text}\n\n{transcript}".strip() if text else transcript
@@ -1059,7 +1131,7 @@ class GatewayRunner:
             words = provider.transcribe(
                 stored.path, model=settings["model"], language=settings["language"]
             ).strip()
-        except Exception as exc:  # noqa: BLE001 - a broken provider is reported, not fatal
+        except Exception as exc:  # a broken provider is reported, not fatal
             logger.warning("transcription failed for %s", stored.path, exc_info=True)
             return "", (
                 f"The user's voice message could not be transcribed "
@@ -1113,70 +1185,33 @@ class GatewayRunner:
             if adapter is not None
             else None
         )
-
-        # A chat that can edit a sent message gets the answer as it is written and one status
-        # message for tool activity. A chat that cannot keeps the old behaviour: typing
-        # indicator, then the whole answer. ``message`` mode instead gets one separate chat
-        # message per tool call, sent as the call starts.
-        stream: StreamSender | None = None
-        progress: ProgressReporter | None = None
-        per_tool_message = session.chat.tool_progress == "message"
         reply_to = str((turn.payload or {}).get("reply_to") or "") or None
-        if adapter is not None:
-            chat_id, thread_id = session.source.chat_id, session.source.thread_id
-            first_send = True
-
-            def send(text: str) -> str | None:
-                nonlocal first_send
-                if typing_keeper is not None:
-                    typing_keeper.stop()
-                result = adapter.send(chat_id, text, reply_to=reply_to if first_send else None, thread_id=thread_id)
-                if result.success:
-                    first_send = False
-                return result.message_id if result.success else None
-
-            def edit(message_id: str, text: str) -> bool:
-                return adapter.edit(chat_id, message_id, text)
-
-            if adapter.can_edit():
-                stream = StreamSender(send, edit, max_length=adapter.max_message_length)
-                if session.chat.tool_progress not in ("off", "message"):
-                    progress = ProgressReporter(send, edit)
-
-        callbacks = session.chat.callbacks
-        saved_on_delta, saved_on_tool, saved_on_start = (
-            callbacks.on_delta,
-            callbacks.on_tool_complete,
-            callbacks.on_tool_start,
-        )
-        if stream is not None:
-            callbacks.on_delta = stream.push
-        if progress is not None:
-            callbacks.on_tool_complete = lambda _call_id, name, args, result, seconds: progress.note(
-                tool_line(name, args, result, seconds)
+        live = (
+            _LiveReply(
+                adapter,
+                session.source,
+                reply_to=reply_to,
+                typing_keeper=typing_keeper,
+                tool_progress=session.chat.tool_progress,
             )
-        if per_tool_message and stream is not None:
-
-            def on_tool_start(_call_id: str, name: str, args: dict[str, Any]) -> None:
-                send(tool_message(name, args))
-
-            callbacks.on_tool_start = on_tool_start
+            if adapter is not None
+            else None
+        )
+        stream = live.stream if live is not None else None
         try:
-            result = session.chat.submit(turn.text, images=(turn.payload or {}).get("images"))
-        except Exception as exc:  # noqa: BLE001
+            with live.wired(session.chat.callbacks) if live is not None else contextlib.nullcontext():
+                result = session.chat.submit(turn.text, images=(turn.payload or {}).get("images"))
+        except Exception as exc:
             if typing_keeper is not None:
                 typing_keeper.stop()
             logger.exception("gateway turn failed for %s", session.key)
-            self.reply(session.source, f"Something went wrong: {type(exc).__name__}: {exc}", reply_to=reply_to)
+            self.reply(
+                session.source, f"Something went wrong: {type(exc).__name__}: {exc}", reply_to=reply_to
+            )
             return
         finally:
             if typing_keeper is not None:
                 typing_keeper.stop()
-            callbacks.on_delta, callbacks.on_tool_complete, callbacks.on_tool_start = (
-                saved_on_delta,
-                saved_on_tool,
-                saved_on_start,
-            )
         session.last_used = time.monotonic()
         if stream is not None:
             # Settle whatever is already on screen. An interrupted turn has no final answer, so
@@ -1217,9 +1252,7 @@ class GatewayRunner:
             return
         max_chars = speech.speech_limits()["max_chars"]
         if max_chars and len(text) > max_chars:
-            logger.info(
-                "session %s: a %d character answer is too long to speak", session.key, len(text)
-            )
+            logger.info("session %s: a %d character answer is too long to speak", session.key, len(text))
             return
         settings = speech.speech_settings()
         directory = media.media_dir(session.key) / "spoken"
@@ -1227,10 +1260,8 @@ class GatewayRunner:
         try:
             directory.mkdir(parents=True, exist_ok=True)
             provider.synthesize(text, target, voice=settings["voice"], model=settings["model"])
-            sent = adapter.send_file(
-                session.source.chat_id, str(target), thread_id=session.source.thread_id
-            )
-        except Exception:  # noqa: BLE001 - the text answer already landed; the voice copy is a bonus
+            sent = adapter.send_file(session.source.chat_id, str(target), thread_id=session.source.thread_id)
+        except Exception:  # the text answer already landed; the voice copy is a bonus
             logger.warning("session %s: could not speak the reply", session.key, exc_info=True)
             try:  # a half-written file is worse than none, but failing to remove it is not a turn
                 target.unlink()

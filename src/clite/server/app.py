@@ -134,7 +134,9 @@ def websocket_host_allowed(websocket: WebSocket, bind_host: str) -> bool:
     """
     if bind_host.strip("[]").lower() not in _LOOPBACK_HOSTS:
         return True
-    hosts = [value.decode("latin-1") for key, value in websocket.scope.get("headers", []) if key.lower() == b"host"]
+    hosts = [
+        value.decode("latin-1") for key, value in websocket.scope.get("headers", []) if key.lower() == b"host"
+    ]
     return bool(hosts) and all(_authority(value)[0] in _LOOPBACK_HOSTS for value in hosts)
 
 
@@ -157,50 +159,46 @@ def origin_allowed(connection: HTTPConnection) -> bool:
     return origin_host == host or {origin_host, host} <= _LOOPBACK_HOSTS
 
 
-def create_app(
-    token: str,
-    *,
-    client_factory: Callable[[], Any] | None = None,
-    platform: str = "desktop",
-    bind_host: str = "127.0.0.1",
-    throttle: TokenThrottle | None = None,
-) -> Starlette:
-    if not token:
-        raise ValueError("the server needs a session token")
-    limiter = throttle or TokenThrottle(
-        max_failures=int(config_get("server.rate_limit.max_failures", 10) or 10),
-        window_seconds=float(config_get("server.rate_limit.window_seconds", 60) or 60),
-        delay_seconds=float(config_get("server.rate_limit.delay_seconds", 5) or 5),
-    )
-    hosts = allowed_hosts()
+class _Gate:
+    """Who may use the ``/api`` routes: the right Host, then a valid token, with a throttle."""
 
-    def credential_name(connection: HTTPConnection) -> str:
+    def __init__(self, token: str, *, bind_host: str, throttle: TokenThrottle | None) -> None:
+        self.token = token
+        self.bind_host = bind_host
+        self.hosts = allowed_hosts()
+        self.limiter = throttle or TokenThrottle(
+            max_failures=int(config_get("server.rate_limit.max_failures", 10) or 10),
+            window_seconds=float(config_get("server.rate_limit.window_seconds", 60) or 60),
+            delay_seconds=float(config_get("server.rate_limit.delay_seconds", 5) or 5),
+        )
+
+    def credential_name(self, connection: HTTPConnection) -> str:
         """Which credential this connection presented: "session", a named token, or ""."""
         presented = presented_token(connection)
         if not presented:
             return ""
-        if hmac.compare_digest(presented.encode(), token.encode()):
+        if hmac.compare_digest(presented.encode(), self.token.encode()):
             return "session"  # the one-off token a parent process handed us
         record = get_token_store().verify(presented)
         return record.name if record is not None else ""
 
-    def authorize(connection: HTTPConnection) -> tuple[bool, str, float]:
+    def authorize(self, connection: HTTPConnection) -> tuple[bool, str, float]:
         """``(allowed, credential name, seconds to wait before answering)``."""
         address = client_address(connection)
-        if not host_allowed(connection, bind_host, hosts):
+        if not host_allowed(connection, self.bind_host, self.hosts):
             audit("host_rejected", address=address, host=connection.headers.get("host", ""))
             return False, "", 0.0
-        name = credential_name(connection)
+        name = self.credential_name(connection)
         if name:
-            limiter.record_success(address)
+            self.limiter.record_success(address)
             return True, name, 0.0
-        delay = limiter.record_failure(address)
+        delay = self.limiter.record_failure(address)
         audit("token_rejected", address=address, delay=f"{delay:.2f}s")
         return False, "", delay
 
-    def guarded(handler: Callable[[Request], Any]) -> Callable[[Request], Any]:
+    def guarded(self, handler: Callable[[Request], Any]) -> Callable[[Request], Any]:
         async def wrapper(request: Request) -> Response:
-            allowed, _name, delay = authorize(request)
+            allowed, _name, delay = self.authorize(request)
             if not allowed:
                 if delay:
                     await asyncio.sleep(delay)  # the throttle is a wait, not just a count
@@ -211,54 +209,71 @@ def create_app(
 
         return wrapper
 
-    async def health(request: Request) -> Response:
-        return JSONResponse({"ok": True, "version": __version__})
 
-    def status(request: Request) -> Response:
-        from clite.rpc.methods import system_info
+# ── REST handlers: read-only views; everything that acts goes through the WebSocket ─────────
 
-        return JSONResponse(system_info(None, None).model_dump(mode="json"))  # type: ignore[arg-type]
 
-    def sessions(request: Request) -> Response:
-        try:
-            limit = max(1, min(int(request.query_params.get("limit", "30")), 200))
-        except ValueError:
-            return JSONResponse({"error": "limit must be an integer"}, status_code=400)
-        rows = get_session_db().list_sessions(limit=limit)
-        keys = ("id", "title", "source", "model", "message_count", "started_at", "last_activity_at")
-        return JSONResponse({"sessions": [{key: row.get(key) for key in keys} for row in rows]})
+async def _health(request: Request) -> Response:
+    return JSONResponse({"ok": True, "version": __version__})
 
-    def plugin_pages(request: Request) -> Response:
-        return JSONResponse(
-            {
-                "plugins": [
-                    {"name": page.plugin, "title": page.title, "url": page.url()}
-                    for page in dashboard_pages()
-                ]
-            }
-        )
 
-    def session_messages(request: Request) -> Response:
-        db = get_session_db()
-        row = db.find_session(request.path_params["session_id"])
-        if row is None:
-            return JSONResponse({"error": "no such session"}, status_code=404)
-        messages = [
-            {
-                "role": m["role"],
-                "text": content_text(m.get("content")),
-                "tool_name": m.get("name") or "",
-                "tool_calls": [call["function"]["name"] for call in m.get("tool_calls") or []],
-                "timestamp": m.get("timestamp"),
-            }
-            for m in db.get_messages(row["id"])
-            if not is_internal(m)
-        ]
-        return JSONResponse({"session_id": row["id"], "title": row.get("title") or "", "messages": messages})
+def _status(request: Request) -> Response:
+    from clite.rpc.methods import system_info
 
-    async def websocket_endpoint(websocket: WebSocket) -> None:
-        allowed, name, delay = authorize(websocket)
-        if not allowed or not websocket_host_allowed(websocket, bind_host) or not origin_allowed(websocket):
+    return JSONResponse(system_info(None, None).model_dump(mode="json"))  # type: ignore[arg-type]
+
+
+def _sessions(request: Request) -> Response:
+    try:
+        limit = max(1, min(int(request.query_params.get("limit", "30")), 200))
+    except ValueError:
+        return JSONResponse({"error": "limit must be an integer"}, status_code=400)
+    rows = get_session_db().list_sessions(limit=limit)
+    keys = ("id", "title", "source", "model", "message_count", "started_at", "last_activity_at")
+    return JSONResponse({"sessions": [{key: row.get(key) for key in keys} for row in rows]})
+
+
+def _plugin_pages(request: Request) -> Response:
+    pages = [{"name": page.plugin, "title": page.title, "url": page.url()} for page in dashboard_pages()]
+    return JSONResponse({"plugins": pages})
+
+
+def _session_messages(request: Request) -> Response:
+    db = get_session_db()
+    row = db.find_session(request.path_params["session_id"])
+    if row is None:
+        return JSONResponse({"error": "no such session"}, status_code=404)
+    messages = [
+        {
+            "role": m["role"],
+            "text": content_text(m.get("content")),
+            "tool_name": m.get("name") or "",
+            "tool_calls": [call["function"]["name"] for call in m.get("tool_calls") or []],
+            "timestamp": m.get("timestamp"),
+        }
+        for m in db.get_messages(row["id"])
+        if not is_internal(m)
+    ]
+    return JSONResponse({"session_id": row["id"], "title": row.get("title") or "", "messages": messages})
+
+
+async def _index(request: Request) -> Response:
+    return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-store"})
+
+
+# ── WebSocket: JSON-RPC ──────────────────────────────────────────────────────────────────
+
+
+def _websocket_endpoint(
+    gate: _Gate, *, platform: str, client_factory: Callable[[], Any] | None
+) -> Callable[[WebSocket], Any]:
+    async def endpoint(websocket: WebSocket) -> None:
+        allowed, name, delay = gate.authorize(websocket)
+        if (
+            not allowed
+            or not websocket_host_allowed(websocket, gate.bind_host)
+            or not origin_allowed(websocket)
+        ):
             if delay:
                 await asyncio.sleep(delay)
             await websocket.close(code=WS_UNAUTHORIZED)
@@ -279,28 +294,15 @@ def create_app(
                     command=str(params.get("command", ""))[:200],
                 )
 
-        loop = asyncio.get_running_loop()
         server = RpcServer(
-            WebSocketTransport(websocket, loop),
+            WebSocketTransport(websocket, asyncio.get_running_loop()),
             platform=platform,
             client_factory=client_factory,
             on_server_answer=record_answer,
         )
         server.announce()
-        limit = max_message_bytes()
         try:
-            while True:
-                raw = await websocket.receive_text()
-                if too_large(raw, limit):
-                    audit("message_rejected", token=name, address=address, limit=limit)
-                    await websocket.close(code=WS_MESSAGE_TOO_BIG)
-                    return
-                if not _credential_still_valid(name, token):
-                    # Revoked (or expired) while this socket was open: cut it off now.
-                    audit("token_revoked", token=name, address=address)
-                    await websocket.close(code=WS_TOKEN_REVOKED)
-                    return
-                server.handle_line(raw)
+            await _serve_socket(websocket, server, gate.token, name=name, address=address)
         except WebSocketDisconnect:
             pass
         finally:
@@ -308,18 +310,41 @@ def create_app(
             # Closing interrupts running turns and joins their threads; keep it off the loop.
             await asyncio.to_thread(server.close)
 
-    async def index(request: Request) -> Response:
-        return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-store"})
+    return endpoint
 
-    routes: list[Any] = [
-        Route("/api/health", health),
-    ]
+
+async def _serve_socket(
+    websocket: WebSocket, server: RpcServer, token: str, *, name: str, address: str
+) -> None:
+    """Hand each incoming line to the RPC server until the client leaves or must be cut off."""
+    limit = max_message_bytes()
+    while True:
+        raw = await websocket.receive_text()
+        if too_large(raw, limit):
+            audit("message_rejected", token=name, address=address, limit=limit)
+            await websocket.close(code=WS_MESSAGE_TOO_BIG)
+            return
+        if not _credential_still_valid(name, token):
+            # Revoked (or expired) while this socket was open: cut it off now.
+            audit("token_revoked", token=name, address=address)
+            await websocket.close(code=WS_TOKEN_REVOKED)
+            return
+        server.handle_line(raw)
+
+
+# ── the app ──────────────────────────────────────────────────────────────────────────────
+
+
+def _optional_routes(gate: _Gate, client_factory: Callable[[], Any] | None) -> list[Any]:
+    """Routes the user turns on in config: the OpenAI-compatible API and inbound webhooks."""
+    routes: list[Any] = []
     config = load_config()
     if bool(get_path(config, "server.openai_api_enabled", False)):
         from clite.server.openai_api import routes as openai_routes
 
         models, completions = openai_routes(config, client_factory)
-        routes.extend([Route("/v1/models", guarded(models)), Route("/v1/chat/completions", guarded(completions), methods=["POST"])])
+        routes.append(Route("/v1/models", gate.guarded(models)))
+        routes.append(Route("/v1/chat/completions", gate.guarded(completions), methods=["POST"]))
     if bool(get_path(config, "server.webhooks_enabled", False)):
         from clite.server.webhooks import routes as webhook_routes
 
@@ -327,17 +352,36 @@ def create_app(
         # Meta authenticates its webhook with the app-secret signature rather than the local
         # server token; the handler rejects it unless an active WhatsApp adapter verifies it.
         routes.append(Route("/api/webhooks/whatsapp", webhook_handler, methods=["GET", "POST"]))
-        routes.append(Route("/api/webhooks/{name}", guarded(webhook_handler), methods=["POST"]))
-    routes.extend([
-            Route("/api/status", guarded(status)),
-            Route("/api/sessions", guarded(sessions)),
-            Route("/api/sessions/{session_id}/messages", guarded(session_messages)),
-            Route("/api/plugin-pages", guarded(plugin_pages)),
-            WebSocketRoute("/api/ws", websocket_endpoint),
-            Route("/", index),
-            Mount("/static", StaticFiles(directory=STATIC_DIR), name="static"),
-            Mount("/assets", StaticFiles(directory=DIST_DIR / "assets" if (DIST_DIR / "assets").exists() else STATIC_DIR), name="assets"),
-        ])
+        routes.append(Route("/api/webhooks/{name}", gate.guarded(webhook_handler), methods=["POST"]))
+    return routes
+
+
+def create_app(
+    token: str,
+    *,
+    client_factory: Callable[[], Any] | None = None,
+    platform: str = "desktop",
+    bind_host: str = "127.0.0.1",
+    throttle: TokenThrottle | None = None,
+) -> Starlette:
+    if not token:
+        raise ValueError("the server needs a session token")
+    gate = _Gate(token, bind_host=bind_host, throttle=throttle)
+    assets = DIST_DIR / "assets" if (DIST_DIR / "assets").exists() else STATIC_DIR
+    routes: list[Any] = [
+        Route("/api/health", _health),
+        *_optional_routes(gate, client_factory),
+        Route("/api/status", gate.guarded(_status)),
+        Route("/api/sessions", gate.guarded(_sessions)),
+        Route("/api/sessions/{session_id}/messages", gate.guarded(_session_messages)),
+        Route("/api/plugin-pages", gate.guarded(_plugin_pages)),
+        WebSocketRoute(
+            "/api/ws", _websocket_endpoint(gate, platform=platform, client_factory=client_factory)
+        ),
+        Route("/", _index),
+        Mount("/static", StaticFiles(directory=STATIC_DIR), name="static"),
+        Mount("/assets", StaticFiles(directory=assets), name="assets"),
+    ]
     return Starlette(routes=routes)
 
 

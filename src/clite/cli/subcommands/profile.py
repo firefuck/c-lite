@@ -23,9 +23,7 @@ def run_list(args: argparse.Namespace) -> int:
         payload = {
             "current": get_active_profile_name(),
             "sticky": sticky,
-            "profiles": [
-                {"name": p.name, "home": str(p.home), "active": p.active} for p in list_profiles()
-            ],
+            "profiles": [{"name": p.name, "home": str(p.home), "active": p.active} for p in list_profiles()],
         }
         print(json.dumps(payload, indent=2))
         return 0

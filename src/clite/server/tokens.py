@@ -121,7 +121,9 @@ class TokenStore:
 
     # ── writing ──────────────────────────────────────────────────────────────────────────
 
-    def create(self, name: str, *, ttl_days: float | None = None, now: float | None = None) -> tuple[TokenRecord, str]:
+    def create(
+        self, name: str, *, ttl_days: float | None = None, now: float | None = None
+    ) -> tuple[TokenRecord, str]:
         """Make a token and return ``(record, plaintext)``. The plaintext is not stored."""
         clean = _check_name(name)
         current = now if now is not None else time.time()

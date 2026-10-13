@@ -361,6 +361,7 @@ def test_kill_process_tree_is_reused_from_local():
     kill_process_tree(process)
     assert process.wait(2.0) is not None
 
+
 # ── SSH live tests (local loopback; opt in with -m ssh) ───────────────────────────────
 
 
@@ -378,10 +379,7 @@ def _configure_live_ssh(clite_home) -> None:
         pytest.skip(f"live SSH key {_LIVE_SSH_KEY} not accessible by current user")
 
     (clite_home / "config.yaml").write_text(
-        "terminal:\n"
-        "  ssh:\n"
-        "    host: root@localhost\n"
-        f"    key: {_LIVE_SSH_KEY}\n"
+        f"terminal:\n  ssh:\n    host: root@localhost\n    key: {_LIVE_SSH_KEY}\n"
     )
     config.reset_config_cache()
 

@@ -38,6 +38,7 @@ from clite.core.redact import redact
 from clite.tools.approval import check_command
 from clite.tools.context import ToolContext
 from clite.tools.environments import get_environment
+from clite.tools.environments.base import BaseEnvironment
 from clite.tools.registry import registry, tool_error, tool_result
 
 MAX_TIMEOUT_SECONDS = 600
@@ -149,7 +150,7 @@ def _report(merged: str, marker: str) -> dict[str, Any] | None:
     return payload if isinstance(payload, dict) else None
 
 
-def _interpreter(environment) -> str:
+def _interpreter(environment: BaseEnvironment) -> str:
     """The Python that runs the program.
 
     The local backend is the interpreter running the agent. A container or a remote host is

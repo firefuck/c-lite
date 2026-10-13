@@ -63,7 +63,9 @@ class SignalAdapter:
             method=method,
         )
         try:
-            with urllib.request.urlopen(request, timeout=float(self.config.get("request_timeout", 30))) as response:  # noqa: S310
+            with urllib.request.urlopen(  # noqa: S310 - base URL comes from the plugin config
+                request, timeout=float(self.config.get("request_timeout", 30))
+            ) as response:
                 return json.loads(response.read())
         except Exception as exc:  # noqa: BLE001 - protocol failures must not kill polling
             raise RuntimeError(f"signal-cli {method} {path.split('?', 1)[0]} failed: {exc}") from None
@@ -117,7 +119,9 @@ class SignalAdapter:
     def send(self, chat_id: str, text: str, *, reply_to: str | None = None, thread_id: str | None = None):
         del reply_to, thread_id
         try:
-            result = self._request("POST", "/v2/send", {"message": text, "number": self.account, "recipients": [chat_id]})
+            result = self._request(
+                "POST", "/v2/send", {"message": text, "number": self.account, "recipients": [chat_id]}
+            )
         except Exception as exc:  # noqa: BLE001 - runner receives an outcome rather than an adapter exception
             return self.ctx.gateway_send_result(False, error=str(exc))
         message_id = str(result.get("timestamp") or "") if isinstance(result, dict) else ""
