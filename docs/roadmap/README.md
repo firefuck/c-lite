@@ -87,8 +87,8 @@ dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
 | Task | Judul | Ukuran | Bergantung pada | Status |
 |---|---|---|---|---|
 | F1-T1 | Pasang di lingkungan nyata dan hijaukan CI | S | - | ✅ |
-| F1-T2 | Uji provider sungguhan | M | F1-T1 | 🟡 |
-| F1-T3 | Uji Telegram sungguhan | S | F1-T1 | 🟡 |
+| F1-T2 | Uji provider sungguhan | M | F1-T1 | ✅ |
+| F1-T3 | Uji Telegram sungguhan | S | F1-T1 | ✅ |
 | F1-T4 | Pasang skill dari GitHub | S | F1-T1 | ✅ |
 | F1-T5 | Windows | M | F1-T1 | ✅ |
 | F1-T6 | Penulis config yang mempertahankan komentar | S | F1-T1 | ✅ |
@@ -98,12 +98,12 @@ dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
 
 | Task | Judul | Ukuran | Bergantung pada | Status |
 |---|---|---|---|---|
-| F2-T1 | Transport Responses API | M | F1-T2 | 🟡 |
-| F2-T2 | Profil provider tambahan | M | F1-T2 | 🟡 |
+| F2-T1 | Transport Responses API | M | F1-T2 | ✅ |
+| F2-T2 | Profil provider tambahan | M | F1-T2 | ✅ |
 | F2-T3 | Harga dan estimasi biaya | S | F1-T2 | ✅ |
 | F2-T4 | Patch toleran dan patch multi-file | M | - | ✅ |
 | F2-T5 | Pencarian web | M | - | ✅ |
-| F2-T6 | Gambar: masukan, analisis, pembuatan | L | F1-T2 | 🟡 |
+| F2-T6 | Gambar: masukan, analisis, pembuatan | L | F1-T2 | ✅ |
 | F2-T7 | Backend terminal Docker dan SSH | L | - | 🟡 |
 | F2-T8 | Checkpoint dan rollback file | M | - | ✅ |
 | F2-T9 | Eksekusi kode | M | F2-T7 | ✅ |
@@ -138,9 +138,9 @@ dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
 
 | Task | Judul | Ukuran | Bergantung pada | Status |
 |---|---|---|---|---|
-| F4-T1 | Discord | M | F1-T3 | 🟡 |
-| F4-T2 | Slack | M | F1-T3 | 🟡 |
-| F4-T3 | WhatsApp, Signal, Matrix, email | L | F1-T3 | 🟡 |
+| F4-T1 | Discord | M | F1-T3 | ✅ |
+| F4-T2 | Slack | M | F1-T3 | ✅ |
+| F4-T3 | WhatsApp, Signal, Matrix, email | L | F1-T3 | ✅ |
 | F4-T4 | Lampiran masuk dan keluar | M | F2-T6 | ✅ |
 | F4-T5 | Jawaban streaming dan progres tool di chat | M | F1-T3 | ✅ |
 | F4-T6 | Gateway sebagai layanan sistem | M | F1-T3 | ✅ |
