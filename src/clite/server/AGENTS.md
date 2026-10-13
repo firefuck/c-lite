@@ -15,21 +15,23 @@ dilewati).
    Jangan melonggarkan keduanya untuk "memudahkan pengembangan".
 3. **Token tidak pernah masuk log, baris perintah, atau query string yang dicetak.**
 4. **Default hanya loopback.** Jangan mengubah host default.
-5. **Dashboard tidak pernah memasang HTML dari model atau tool.** Pakai `textContent` dan
-   pembuatan elemen; tidak ada `innerHTML` dengan data.
-6. **Dashboard tetap tanpa build** sampai roadmap F5-T3 dikerjakan. Tidak ada dependensi npm
-   di `static/`.
+5. **Dashboard tidak pernah memasang HTML dari model atau tool.** React merender teks; tidak
+   ada `dangerouslySetInnerHTML` atau `innerHTML` di `web/src/`
+   (`test_the_bundle_never_sets_html_from_data`).
+6. **`static/` adalah hasil build, bukan sumber.** Sumbernya di `web/` (lihat `web/AGENTS.md`).
+   Setelah mengubah `web/src/`, `web/index.html`, atau `apps/shared/src/`, jalankan
+   `npm run build` di `web/` dan commit `src/clite/server/static/`.
 
 ## Resep
 
 ### Menambah sesuatu ke dashboard
 
 1. Bila butuh data baru: tambahkan method RPC dulu (lihat `src/clite/rpc/AGENTS.md`).
-2. Ubah `static/app.js` (dan `index.html`, `style.css`).
+2. Ubah `web/src/` (resepnya di `web/AGENTS.md`), lalu `npm run build` di `web/`.
 3. Tambahkan tes di `tests/server/test_dashboard_browser.py`. Tes itu menjalankan server
    sungguhan dengan provider `mock` dan mengendalikan Chromium.
-4. File statis baru harus cocok dengan pola `server/static/*.{html,css,js}` di
-   `pyproject.toml`, kalau tidak ia tidak ikut ke wheel.
+4. Hasil build harus cocok dengan pola `server/static/**` di `pyproject.toml`, kalau tidak ia
+   tidak ikut ke wheel. `scripts/check_wheel_install.py` memeriksanya.
 
 ## Jebakan
 

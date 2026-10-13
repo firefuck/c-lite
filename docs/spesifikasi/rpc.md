@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Kode | `src/clite/rpc/` |
-| Klien | `apps/shared/src/` (TypeScript), `src/clite/server/static/rpc.js` (browser) |
+| Klien | `apps/shared/src/` (TypeScript), `web/src/` (dashboard di browser dan desktop) |
 | Tes | `tests/rpc/`, `apps/shared/test/` |
 | Lapisan | 8. Boleh mengimpor `runtime` dan semua di bawahnya. Tidak mengimpor `gateway`, `server`, `cli` |
 | Bedah Hermes | [09-tui-dan-rpc](../hermes/09-tui-dan-rpc.md) |

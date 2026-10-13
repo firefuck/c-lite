@@ -23,9 +23,9 @@ def main() -> None:
         "bundled/plugins/model-providers/mock/__init__.py",
         "bundled/skills/meta/skill-authoring/SKILL.md",
         "server/static/index.html",
-        "server/static/app.js",
-        "server/static/rpc.js",
-        "server/static/style.css",
+        "server/static/build-info.json",
+        "server/static/assets/app.js",
+        "server/static/assets/app.css",
         "tui_dist/clite-tui.mjs",
         "tui_dist/build-info.json",
     )

@@ -13,8 +13,8 @@ dan alurnya. Kontrak yang dijaga tes ada di [spesifikasi rpc](../spesifikasi/rpc
 | Klien | Transport | Backend dijalankan sebagai | Kode klien |
 |---|---|---|---|
 | TUI | stdio: satu dokumen JSON per baris | `python -m clite.rpc.entry` (proses anak TUI) | `apps/shared/src/` |
-| Desktop | WebSocket: satu dokumen JSON per frame teks | `clite serve` (proses anak Electron) | `src/clite/server/static/rpc.js` |
-| Dashboard | WebSocket | `clite dashboard` atau `clite serve` | `src/clite/server/static/rpc.js` |
+| Desktop | WebSocket: satu dokumen JSON per frame teks | `clite serve` (proses anak Electron) | Dashboard yang dimuat jendelanya |
+| Dashboard | WebSocket | `clite dashboard` atau `clite serve` | `apps/shared/src/` lewat `web/src/state/dashboard.ts` |
 
 Server (`RpcServer`) tidak tahu transport mana yang dipakai. Satu koneksi klien adalah satu
 `RpcServer`; memutus koneksi mengakhiri semua sesinya.
@@ -169,7 +169,8 @@ generate, handler, tes, klien**:
 2. `python scripts/gen_rpc_contracts.py` dan `python scripts/gen_docs.py`.
 3. Handler di `src/clite/rpc/methods.py`, atau `self._emit(...)` di `src/clite/rpc/session.py`.
 4. Tes di `tests/rpc/test_rpc.py`.
-5. Klien: `apps/shared/src/` (lalu bangun ulang bundle TUI) dan `src/clite/server/static/`.
+5. Klien: `apps/shared/src/` dan `web/src/`, lalu bangun ulang kedua bundle (`npm run build` di
+   `ui-tui/` dan di `web/`).
 
 Tiga tes menggagalkan suite bila sebuah langkah terlewat:
 `test_every_declared_method_has_a_handler_and_the_reverse`,

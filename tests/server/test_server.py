@@ -137,9 +137,9 @@ def test_health_is_public_and_everything_else_needs_the_token(backend):
 def test_static_dashboard_is_served_without_the_token(backend):
     with urllib.request.urlopen(backend.base + "/", timeout=5) as response:
         html = response.read().decode()
-    assert "<title>C-lite</title>" in html and ("/static/app.js" in html or "/assets/" in html)
-    with urllib.request.urlopen(backend.base + "/static/rpc.js", timeout=5) as response:
-        assert "class RpcClient" in response.read().decode()
+    assert "<title>C-lite</title>" in html and "/assets/app.js" in html
+    with urllib.request.urlopen(backend.base + "/assets/app.js", timeout=5) as response:
+        assert "approval.request" in response.read().decode()
 
 
 def test_websocket_rejects_a_bad_token_and_a_foreign_origin(backend):
@@ -642,7 +642,7 @@ def test_the_page_listener_serves_web_assets_only(clite_home):
             "/board/plugin.yaml",
             "/board/dashboard/%2e%2e/%2e%2e/notes.env",  # tries to climb out
             "/somewhere-else/index.html",  # no such plugin
-            "/static/style.css",  # the dashboard's own static files are not here
+            "/assets/app.css",  # the dashboard's own files are not here
         ):
             assert fetch_status(origin + path) == 404, path
     finally:
@@ -673,8 +673,8 @@ def test_the_dashboard_embeds_plugin_pages_without_same_origin():
     be checked here is the frame the dashboard builds, and it must not carry allow-same-origin."""
     from clite.server.app import STATIC_DIR
 
-    script = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
-    match = re.search(r'sandbox: "([^"]+)"', script)
+    script = (STATIC_DIR / "assets" / "app.js").read_text(encoding="utf-8")
+    match = re.search(r'sandbox:\s*"([^"]+)"', script)
     assert match, "the dashboard does not set a sandbox on plugin pages"
     assert "allow-scripts" in match.group(1) and "allow-same-origin" not in match.group(1)
-    assert 'referrerpolicy: "no-referrer"' in script
+    assert re.search(r'referrerPolicy:\s*"no-referrer"', script)

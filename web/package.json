@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Browser dashboard for C-lite built with Vite and React.",
+  "description": "Browser dashboard for C-lite, built with Vite and React into the Python package.",
   "scripts": {
     "typecheck": "tsc --noEmit -p .",
-    "build": "vite build",
+    "build": "node build.mjs",
+    "dev": "vite",
     "test": "node --test test/*.test.ts"
   },
   "dependencies": {

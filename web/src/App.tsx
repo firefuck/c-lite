@@ -1,50 +1,86 @@
-import React, { useState, useEffect } from "react";
-import { useGateway } from "./hooks/useGateway.ts";
-import { Sidebar } from "./components/Sidebar.tsx";
-import { Tabs, type TabKey } from "./components/Tabs.tsx";
+import { useEffect, useState } from "react";
+import type { ComponentType } from "react";
+
 import { ChatView } from "./components/ChatView.tsx";
-import { ManagementView } from "./panels/Panels.tsx";
+import { Sidebar } from "./components/Sidebar.tsx";
+import { DialogHost } from "./dialogs/DialogHost.tsx";
+import { HooksPanel, PluginsPanel, ProfilesPanel, SkillsPanel, ToolsPanel } from "./panels/InfoPanels.tsx";
+import { SessionsPanel } from "./panels/SessionsPanel.tsx";
+import { ConfigPanel, CredentialsPanel } from "./panels/SettingsPanels.tsx";
+import { CronPanel, LogsPanel, MemoryPanel } from "./panels/WorkPanels.tsx";
+import { useDashboard, useDashboardState } from "./state/useDashboard.ts";
+
+/** Every tab after "Chat", in the order the tab bar shows them. */
+const PANELS: [string, string, ComponentType][] = [
+  ["sessions", "Sessions", SessionsPanel],
+  ["config", "Config", ConfigPanel],
+  ["credentials", "Credentials", CredentialsPanel],
+  ["skills", "Skills", SkillsPanel],
+  ["tools", "Tools", ToolsPanel],
+  ["cron", "Cron", CronPanel],
+  ["plugins", "Plugins", PluginsPanel],
+  ["memory", "Memory", MemoryPanel],
+  ["logs", "Logs", LogsPanel],
+  ["hooks", "Hooks & MCP", HooksPanel],
+  ["profiles", "Profiles", ProfilesPanel],
+];
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<TabKey>("chat");
-  const { client, connected, activeSessionId, sessionInfo, connect } = useGateway();
+  const dashboard = useDashboard();
+  const state = useDashboardState();
+  const [tab, setTab] = useState("chat");
+  // Opening a tab loads it afresh, so a panel never shows what was true when it was last open.
+  const [visit, setVisit] = useState(0);
+  const select = (name: string) => {
+    setTab(name);
+    setVisit((value) => value + 1);
+  };
+  const online = state.connection.online;
 
   useEffect(() => {
-    // Ambil token dari fragment hash #token=xxx
-    const hash = window.location.hash.slice(1);
-    const params = new URLSearchParams(hash);
-    const token = params.get("token") || "";
-
-    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = window.location.host;
-    const wsUrl = `${proto}//${host}/api/ws${token ? `?token=${encodeURIComponent(token)}` : ""}`;
-    connect(wsUrl);
-  }, [connect]);
-
-  const handleNewChat = async () => {
-    if (!client) return;
-    try {
-      await client.request("session.create", {});
-    } catch (err) {
-      console.error("Create session failed:", err);
-    }
-  };
+    const onKeyDown = (event: KeyboardEvent) => {
+      const busy = dashboard.activeView()?.transcript.busy;
+      if (event.key === "Escape" && busy && !dashboard.getState().dialogs.length) dashboard.interrupt();
+    };
+    const onUnload = () => dashboard.stop();
+    document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("beforeunload", onUnload);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("beforeunload", onUnload);
+    };
+  }, [dashboard]);
 
   return (
-    <div id="app" style={{ display: "flex", height: "100vh" }}>
-      <Sidebar
-        sessionInfo={sessionInfo}
-        connected={connected}
-        onNewChat={handleNewChat}
-      />
-      <main style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <Tabs activeTab={activeTab} onTabSelect={setActiveTab} />
-        {activeTab === "chat" ? (
-          <ChatView client={client} sessionId={activeSessionId} />
-        ) : (
-          <ManagementView tab={activeTab} client={client} />
-        )}
-      </main>
-    </div>
+    <>
+      <div id="app">
+        <Sidebar />
+        <main>
+          <nav id="tabs" role="tablist">
+            {[["chat", "Chat"] as const, ...PANELS.map(([name, label]) => [name, label] as const)].map(([name, label]) => (
+              <button
+                key={name}
+                type="button"
+                role="tab"
+                data-tab={name}
+                className={tab === name ? "active" : undefined}
+                onClick={() => select(name)}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+          <ChatView active={tab === "chat"} />
+          {PANELS.map(([name, , Panel]) => (
+            <section key={name} id={`view-${name}`} className={`view${tab === name ? " active" : ""}`}>
+              <div className="panel" id={`panel-${name}`}>
+                {tab === name && online ? <Panel key={visit} /> : null}
+              </div>
+            </section>
+          ))}
+        </main>
+      </div>
+      <DialogHost />
+    </>
   );
 }

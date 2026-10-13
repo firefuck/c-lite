@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Kode | `src/clite/server/` (termasuk dashboard di `static/`) |
-| Tes | `tests/server/` (HTTP dan WebSocket sungguhan; dashboard di Chromium sungguhan) |
+| Kode | `src/clite/server/`; dashboard di `web/`, dibangun ke `src/clite/server/static/` |
+| Tes | `tests/server/` (HTTP dan WebSocket sungguhan; dashboard di Chromium sungguhan), `web/test/` |
 | Lapisan | 9. Boleh mengimpor `rpc` dan semua di bawahnya |
 | Bedah Hermes | [10-gui-desktop-dashboard](../hermes/10-gui-desktop-dashboard.md) |
 
@@ -23,7 +23,7 @@ statis.
 | `GET /api/sessions/{id}/messages` | ya | Satu transkrip |
 | `GET /api/plugin-pages` | ya | Halaman dashboard dari plugin, beserta URL-nya di origin sendiri |
 | `WS /api/ws` | ya | JSON-RPC, protokol yang sama dengan TUI |
-| `GET /` dan `/static/*` | tidak | Dashboard (tidak memuat rahasia) |
+| `GET /` dan `/assets/*` | tidak | Dashboard (tidak memuat rahasia) |
 | `GET /<plugin>/<berkas>` | tidak | Halaman plugin, di **listener dan port sendiri** (lihat di bawah) |
 
 Semua yang bisa **dilakukan** klien lewat WebSocket. Rute REST hanya untuk integrasi baca dan
@@ -68,12 +68,20 @@ pemeriksaan kesehatan.
 - Satu `RpcServer` per koneksi WebSocket. Memutus koneksi mengakhiri sesi milik koneksi itu.
 
 **Dashboard**
-- JavaScript polos, tanpa langkah build, dikirim di dalam wheel. Empat file: `index.html`,
-  `style.css`, `rpc.js`, `app.js`.
-- Semua teks dari model dan tool dimasukkan sebagai teks, tidak pernah sebagai HTML.
+- React + TypeScript di `web/`, dibangun Vite (`npm run build` di `web/`) ke
+  `src/clite/server/static/`: `index.html`, `assets/app.js`, `assets/app.css`, dan
+  `build-info.json` berisi hash sumbernya. Bundle itu di-commit dan dikirim di dalam wheel, jadi
+  pengguna tidak butuh Node. `test_the_committed_bundle_was_built_from_the_current_sources`
+  gagal bila sumbernya berubah tanpa membangun ulang.
+- State dan semua yang mengubahnya ada di `web/src/state/dashboard.ts`, tanpa DOM dan tanpa
+  React, di atas `GatewayClient` dari `apps/shared`; komponen hanya membaca snapshot-nya.
+- Semua teks dari model dan tool dimasukkan sebagai teks, tidak pernah sebagai HTML
+  (`test_the_bundle_never_sets_html_from_data`).
 - Fitur: obrolan dengan streaming, tampilan tool call dan hasilnya, dialog persetujuan dan
-  klarifikasi, slash command, daftar dan pembukaan ulang sesi, tab tool/skill/plugin, layar
-  setup saat belum ada provider.
+  klarifikasi, slash command, daftar dan pembukaan ulang sesi, beberapa percakapan terbuka
+  sekaligus, sambung ulang dengan putar ulang event, lampiran, notifikasi, panel manajemen, layar
+  setup saat belum ada provider. Pertanyaan yang datang saat dialog lain terbuka menunggu
+  gilirannya; Escape pada dialog persetujuan berarti tolak.
 
 Handler REST dan penutupan WebSocket membawa konteks pemanggil ke worker melalui
 `asyncio.to_thread`. Rute status membaca model profil yang benar; daftar sesi dan transkrip
@@ -100,10 +108,10 @@ luar event loop dijaga oleh `tests/server/test_context.py`.
 | Fitur | Status | Catatan |
 |---|---|---|
 | Server, token, pemeriksaan origin, baris siap | ✅ | |
-| Dashboard obrolan | ✅ | 16 tes browser |
+| Dashboard obrolan | ✅ | Tes browser di `tests/server/test_dashboard_browser.py` |
 | Halaman sesi, config, kredensial, cron, memori, log, hook/MCP | ✅ | F5-T2 |
 | Halaman analitik | ⬜ | Belum ada task-nya |
-| Dashboard React + Vite | ⬜ | Hanya bila JS polos tidak lagi cukup: F5-T3 |
+| Dashboard React + Vite | ✅ | F5-T3 (F5-T7 sampai F5-T11): 24 tes browser dashboard lama lulus tanpa diubah, 10 tes `web/test/dashboard.test.ts`, kesegaran bundle dijaga `tests/server/test_dashboard_bundle.py` |
 | Token bernama, pembatasan laju, batas ukuran pesan, TLS, daftar host, log audit | ✅ | F5-T6 |
 | Autentikasi pengguna (login, banyak akun) | ⬜ | Belum ada task-nya |
 | Endpoint kompatibel OpenAI (`/v1/chat/completions`) | ✅ | Nonstreaming dan SSE, token API, serta penolakan Host asing pada loopback dijaga `tests/server/test_server.py`: F4-T10 |
@@ -113,7 +121,8 @@ luar event loop dijaga oleh `tests/server/test_context.py`.
 
 - **Satu server untuk desktop dan dashboard.** Hermes punya server dashboard terpisah
   (`hermes_cli/web_server.py`, FastAPI, puluhan rute REST) di samping gateway TUI.
-- **Dashboard tanpa build.** Dashboard Hermes adalah aplikasi React (`web/`).
+- **Bundle dashboard ikut di wheel.** Dashboard Hermes juga aplikasi React; di sini hasil
+  build-nya di-commit ke paket Python, sehingga `clite dashboard` jalan tanpa Node.
 - **Starlette, bukan FastAPI.** Validasi sudah dilakukan kontrak RPC.
 
 ## Celah yang diketahui

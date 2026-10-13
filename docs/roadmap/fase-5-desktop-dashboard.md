@@ -79,8 +79,7 @@ tes browser.
    hook tetap hanya lewat `clite hooks approve` di mesin itu.
 
 **File.** `src/clite/rpc/contracts/schema.py`, `src/clite/rpc/methods.py`,
-`src/clite/server/static/app.js`, `src/clite/server/static/index.html`,
-`src/clite/server/static/style.css`, `tests/rpc/test_rpc.py`,
+`web/src/panels/`, `src/clite/server/static/index.html`, `tests/rpc/test_rpc.py`,
 `tests/server/test_dashboard_browser.py`.
 
 **Rujukan Hermes.** `web/src/pages/` (terutama `ConfigPage.tsx`, `CronPage.tsx`,
@@ -126,7 +125,7 @@ hingga penggantian akhir server statis.
 **File.** `package.json`, `docs/spesifikasi/desktop.md`.
 
 **Selesai bila.**
-- [ ] Task anak F5-T7 sampai F5-T11 seluruhnya selesai dan terverifikasi.
+- [x] Task anak F5-T7 sampai F5-T11 seluruhnya selesai dan terverifikasi.
 
 **Ukuran.** XL
 
@@ -148,7 +147,7 @@ dan TypeScript, menghasilkan bundle statis yang siap disajikan oleh backend Pyth
 **File.** `web/ (baru)`, `package.json`.
 
 **Selesai bila.**
-- [ ] `npm run build` dan `npm run typecheck` di workspace web berhasil tanpa galat.
+- [x] `npm run build` dan `npm run typecheck` di workspace web berhasil tanpa galat.
 
 **Ukuran.** M
 
@@ -168,7 +167,9 @@ dan panggilan RPC secara reaktif dan tipe-aman.
 **File.** `web/ (baru)`, `apps/shared/src/gateway-client.ts`.
 
 **Selesai bila.**
-- [ ] Hook React berhasil tersambung ke backend RPC dan menerima state transkrip.
+- [x] Hook React berhasil tersambung ke backend RPC dan menerima state transkrip
+  (`web/src/state/useDashboard.ts` di atas `web/src/state/dashboard.ts`; dijaga
+  `web/test/dashboard.test.ts`, termasuk token dari fragmen URL dan sambung ulang).
 
 **Ukuran.** M
 
@@ -183,12 +184,13 @@ rendering pesan, input interaktif, dan progres tool.
 
 **Lingkup.**
 - Implementasikan komponen obrolan, transkrip event, dan input composer.
-- Mendukung pesan optimistik dan rendering markdown hasil giliran.
+- Mendukung pesan optimistik dan rendering hasil giliran. Seperti dashboard lama, teks hanya
+  memisahkan blok kode berpagar; Markdown lain tetap teks supaya tidak ada HTML dari model.
 
 **File.** `web/ (baru)`.
 
 **Selesai bila.**
-- [ ] Alur kirim pesan dan streaming token berfungsi mulus pada antarmuka web baru.
+- [x] Alur kirim pesan dan streaming token berfungsi mulus pada antarmuka web baru.
 
 **Ukuran.** M
 
@@ -208,7 +210,7 @@ audit, skills, plugins, models) berpindah ke komponen React modular.
 **File.** `web/ (baru)`.
 
 **Selesai bila.**
-- [ ] Seluruh panel pengelolaan dapat dibuka dan berinteraksi dengan backend RPC.
+- [x] Seluruh panel pengelolaan dapat dibuka dan berinteraksi dengan backend RPC.
 
 **Ukuran.** L
 
@@ -226,11 +228,14 @@ browser Playwright lulus, dan paket Python tetap mandiri.
 - Hapus file monolitik lama di `src/clite/server/static/` setelah bundle baru dipasang.
 - Verifikasi tes browser dashboard tetap lulus.
 
-**File.** `src/clite/server/app.py`, `src/clite/server/static/app.js`, `tests/server/test_dashboard_browser.py`.
+**File.** `src/clite/server/app.py`, `web/build.mjs`, `tests/server/test_dashboard_browser.py`,
+`tests/server/test_dashboard_bundle.py`.
 
 **Selesai bila.**
-- [ ] Seluruh tes server dan browser dashboard lulus.
-- [ ] Dashboard baru dapat dibuka langsung lewat peramban pengguna.
+- [x] Seluruh tes server dan browser dashboard lulus (24 tes browser yang sama dengan dashboard
+  lama, tanpa diubah).
+- [x] Dashboard baru dapat dibuka langsung lewat peramban pengguna (Chromium sungguhan di tes
+  browser).
 
 **Ukuran.** S
 
@@ -294,8 +299,7 @@ saat koneksi putus sebentar.
 
 **File.** `src/clite/rpc/server.py`, `src/clite/rpc/session.py`,
 `src/clite/rpc/contracts/schema.py`, `src/clite/server/app.py`,
-`src/clite/server/static/app.js`, `src/clite/server/static/rpc.js`,
-`apps/shared/src/gateway-client.ts`, `apps/desktop/src/main.ts`,
+`web/src/state/dashboard.ts`, `apps/shared/src/gateway-client.ts`, `apps/desktop/src/main.ts`,
 `apps/desktop/src/preload.ts`, `tests/rpc/test_rpc.py`, `tests/server/test_server.py`.
 
 **Rujukan Hermes.** `tui_gateway/event_replay.py`, `tui_gateway/prompt_attachments.py`,

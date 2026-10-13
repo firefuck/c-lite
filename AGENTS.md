@@ -5,7 +5,7 @@ TUI, dashboard, aplikasi desktop, dan gateway pesan. Arsitekturnya diturunkan da
 Agent, dan fiturnya ditumbuhkan bertahap mengikuti `docs/roadmap/`.
 
 File ini berlaku untuk seluruh repositori. Tiap area (`src/clite/<area>/`, `tests/`, `ui-tui/`,
-`apps/`) punya `AGENTS.md` sendiri berisi aturan dan resep khusus area itu. Baca file area
+`web/`, `apps/`) punya `AGENTS.md` sendiri berisi aturan dan resep khusus area itu. Baca file area
 sebelum mengubah apa pun di dalamnya.
 
 ## Perintah
@@ -23,6 +23,7 @@ Sesudah mengubah sesuatu yang punya turunan, buat ulang turunannya. Suite gagal 
 | Tool, slash command, sub-perintah, method RPC, kunci config, simbol publik | `python scripts/gen_docs.py` |
 | `src/clite/rpc/contracts/schema.py` | `python scripts/gen_rpc_contracts.py` |
 | `ui-tui/src/` atau `apps/shared/src/` | `node build.mjs` di `ui-tui/`, lalu commit `src/clite/tui_dist/` |
+| `web/src/`, `web/index.html`, atau `apps/shared/src/` | `node build.mjs` di `web/`, lalu commit `src/clite/server/static/` |
 | Dokumen yang merujuk file Hermes | `python scripts/check_hermes_refs.py --hermes ../hermes-ref` |
 
 ## Di mana mencari

@@ -171,3 +171,11 @@ dialog .buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; ju
   #app { grid-template-columns: 1fr; }
   #sidebar { display: none; }
 }
+
+/* Reasoning the model streams before its answer: shown quietly, never as the answer. */
+.reasoning {
+  color: var(--muted);
+  font-style: italic;
+  white-space: pre-wrap;
+  margin: 4px 0;
+}
