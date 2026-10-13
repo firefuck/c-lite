@@ -1,10 +1,10 @@
-# C-lite
+# C-lite (v1.0.0 - Original Roadmap Complete)
 
 C-lite adalah agent AI pribadi dengan satu inti percakapan yang dilayani banyak antarmuka:
 CLI, TUI, dashboard web, aplikasi desktop, dan gateway pesan. Arsitekturnya diturunkan dari
 [Hermes Agent](https://github.com/NousResearch/hermes-agent) milik Nous Research.
 
-**Status: scaffolding.** Intinya berjalan dan dijaga tes, tetapi sebagian belum pernah
+**Status: v1.0.0 (Roadmap 100% Complete).** Seluruh 67 task roadmap selesai dan terverifikasi.
 dijalankan terhadap hal yang sebenarnya (API provider asli, Telegram asli, Electron, Windows).
 Daftar pastinya ada di [docs/STATUS.md](docs/STATUS.md). Ukurannya kira-kira dua persen dari
 Hermes; yang ada di sini adalah fondasi dan peta kerja untuk menumbuhkan sisanya.

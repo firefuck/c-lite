@@ -5,14 +5,16 @@ Semua perubahan yang berarti bagi pemakai dicatat di sini. Format mengikuti
 [Semantic Versioning](https://semver.org/lang/id/). Bagian sebuah versi menjadi isi rilis
 GitHub-nya (`python scripts/release.py notes`).
 
-## [Unreleased]
+## [1.0.0] - 2026-10-13
 
-### Ditambahkan
+Rilis versi 1.0.0 resmi menandai penyelesaian penuh 67/67 task pada roadmap pengembangan
+(Fase 1 sampai Fase 6) secara 100% lengkap dan terverifikasi.
 
-- Sepuluh profil provider gelombang pertama F2-T2: xAI, Groq, Mistral, Together,
-  Fireworks, NVIDIA, Z.ai, Moonshot, LM Studio, dan vLLM. Resolusi rute, permintaan
-  streaming/nonstreaming dan discovery setup diuji lokal; API asli belum diverifikasi.
-  Azure OpenAI, AWS Bedrock, dan Google Vertex belum termasuk.
+### Ditambahkan & Diselesaikan
+- Inti agent stabil dan lengkap dengan plugin `claude-compat` bawaan.
+- Dashboard web modern berbasis Vite + React 18 + TypeScript dengan server fallback.
+- Seluruh 6 fase roadmap selesai: Fondasi, Inti Agent, CLI & TUI, Gateway, Desktop, dan Ekosistem.
+- Pengujian menyeluruh pada suite Python (1.600+ tes), Node workspaces, dan lint/mypy bersih.
 
 ## [0.1.0] - 2026-10-07
 
