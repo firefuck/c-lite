@@ -1,6 +1,6 @@
 {
   "name": "@clite/desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "description": "Desktop shell for C-lite: starts the backend and shows its dashboard in a window.",

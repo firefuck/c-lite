@@ -57,6 +57,7 @@ ada di [riwayat per task](#riwayat-per-task).
 |---|---|---|
 | CI lengkap dan pemasangan wheel di virtualenv bersih | Repo hulu `dragovics/clite`, run `37356398420` pada `6e6669c` (6 Oktober 2026). Di `firefuck/c-lite` CI belum pernah berjalan (lihat [Menjalankan pemeriksaan](#menjalankan-pemeriksaan)) | F1-T1 |
 | Rilis GitHub `v0.1.0` | Workflow `37563420757` hijau pada `e65bb0c`; aset diunduh, digest cocok, wheel dipasang dengan pipx | F1-T7 |
+| Wheel `1.0.1` di virtualenv bersih | `python scripts/release.py build` lulus termasuk pemeriksaan isi wheel; wheel dipasang di virtualenv bersih (Linux, Python 3.13) dan `scripts/check_wheel_install.py` lulus di luar checkout. TUI `--plain` lewat pipa dan dashboard (halaman, aset, gerbang token) juga dicoba langsung (13 Oktober 2026). Rilis GitHub `v1.0.1` belum terbit, dan wheel ini belum diuji di Python 3.11 dan 3.12 | F1-T7 |
 | Windows | CI `37499972911` pada `6360a9a`: 765 lulus, 59 terlewati. Belum diulang sejak refactor 13 Oktober 2026; REPL manual belum dicoba | F1-T5 |
 | Backend terminal Docker | VM-36: 3/3 tes perintah dalam container, baca/tulis lewat mount, penolakan file di luar workspace | F2-T7 |
 | Backend terminal SSH | VM-36, ke localhost: 3/3 tes perintah, operasi file, dan cleanup | F2-T7 |

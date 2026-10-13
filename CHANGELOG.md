@@ -7,6 +7,8 @@ GitHub-nya (`python scripts/release.py notes`).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-13
+
 ### Keamanan
 - `clite backup restore` menolak arsip yang anggotanya berupa tautan ke luar home. Sebelumnya
   arsip buatan orang lain bisa menulis file di luar home lewat symlink atau hardlink.
@@ -14,8 +16,12 @@ GitHub-nya (`python scripts/release.py notes`).
 ### Ditambah
 - Metadata paket: penulis, tautan ke repositori, isu, dokumentasi, dan catatan perubahan,
   serta klasifikasi PyPI.
+- Kebijakan keamanan (`SECURITY.md`) dengan saluran pelaporan privat, panduan kontribusi, dan
+  kode etik.
 
 ### Diubah
+- Dashboard web ditulis ulang dengan React dan Vite. Fitur dan perilakunya sama: 24 tes browser
+  dashboard lama lulus tanpa diubah.
 - Perapian kode tanpa perubahan perilaku: fungsi panjang dipecah dan kompleksitas tiap fungsi
   dibatasi 15, format kode dan komentar `noqa` beralasan diperiksa di CI, dan mypy berjalan
   dalam mode `strict`. Empat modul terbesar dipecah menurut tanggung jawab: runner gateway,
@@ -28,6 +34,12 @@ GitHub-nya (`python scripts/release.py notes`).
   perintah (batas output, timeout, interupsi).
 - Gateway menawarkan pemilih `/model` dan tombol persetujuan menurut kemampuan adapter, bukan
   nama platform; Telegram berperilaku seperti sebelumnya.
+
+### Diperbaiki
+- Wheel kini menyertakan berkas lisensi skill bawaan `docx`, `pdf`, `powerpoint`, dan `xlsx`;
+  sebelumnya tertinggal karena tidak berekstensi, dan pemeriksaan isi wheel menolak rilis.
+- Endpoint token OAuth yang menjawab dengan JSON bukan objek kini dibaca sebagai teks mentah,
+  tidak lagi diteruskan sebagai tipe yang salah.
 
 ## [1.0.0] - 2026-10-13
 
