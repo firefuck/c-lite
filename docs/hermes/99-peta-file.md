@@ -214,7 +214,7 @@ Sebelum membawa sesuatu, baca
 | `plugins/platforms/discord/` | belum ada | F4-T1 |
 | `plugins/platforms/slack/` | belum ada | F4-T2 |
 | `plugins/platforms/whatsapp/`, `gateway/platforms/signal.py`, `plugins/platforms/matrix/`, `plugins/platforms/email/` | belum ada | F4-T3 |
-| `gateway/stream_consumer.py` | belum ada | Jawaban streaming: F4-T5 |
+| `gateway/stream_consumer.py` | `src/clite/gateway/stream.py` | Jawaban streaming: F4-T5 |
 | `gateway/delivery.py` | `src/clite/gateway/runner.py` | `reply`, `deliver` |
 | `hermes_cli/gateway_launchd.py`, `gateway/restart.py` | belum ada | Layanan sistem: F4-T6 |
 | `gateway/config.py` | belum ada | Kebijakan reset sesi (menganggur, harian): F4-T7 |

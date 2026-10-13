@@ -20,7 +20,14 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
 | `event.py` | `MessageEvent`, `SessionSource`, `SendResult`: satu-satunya bentuk yang dikenal runner |
 | `session.py` | `build_session_key`, `SessionMap` (kunci sesi ke id sesi tersimpan) |
 | `pairing.py` | `PairingStore`: kode pairing untuk pengguna tak dikenal |
-| `runner.py` | `GatewayRunner`: lapisan kebijakan antara platform dan agent |
+| `runner.py` | `GatewayRunner`: lapisan kebijakan antara platform dan agent; memegang urutan dispatch, sesi, dan giliran, dan mendelegasikan bagian-bagian di bawah ini |
+| `questions.py` | `PendingQuestions`: persetujuan dan klarifikasi yang ditunggu giliran, dijawab lewat pesan teks atau tombol; diam berarti tolak |
+| `model_picker.py` | `ModelPickerFlow`: kebijakan pemilih `/model` bertombol (kapan ditawarkan, siapa boleh menekan, apa akibat tiap tekanan) |
+| `attachments.py` | `collect_attachments`: lampiran pesan menjadi bagian gambar, transkrip, atau catatan path untuk model |
+| `voice.py` | Transkripsi pesan suara dan salinan jawaban bersuara; tidak ada jalur suara yang menggagalkan giliran |
+| `live_reply.py` | Indikator mengetik dan jawaban yang tampil selagi ditulis (`LiveReply`, di atas `stream.py`) |
+| `stream.py` | `StreamSender` dan `ProgressReporter`: satu pesan yang tumbuh dan satu pesan status tool, dengan batas laju dan pemecahan; tanpa I/O sendiri |
+| `media.py` | Lampiran masuk: batas ukuran diperiksa sebelum ditulis, jenis ditentukan dari isi file, disimpan di bawah `<home>/gateway/media/<sesi>` |
 | `controls.py` | Tampilan kontrol tombol (pemilih `/model`, tombol persetujuan): tombol, label, data callback; tanpa kebijakan |
 | `service.py` | Unit systemd/LaunchAgent, kunci per-home, dan drain SIGTERM |
 | `platforms/base.py` | `BasePlatformAdapter`, registry `PLATFORMS`, `split_message` |

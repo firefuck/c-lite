@@ -155,14 +155,19 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | The messaging gateway: one long-running process serving every configured chat platform. |  |
+| `attachments.py` | What a message's attachments become in a turn: image parts, transcripts, or notes on saved files. | `collect_attachments()` |
 | `controls.py` | Inline button controls the runner sends: the ``/model`` picker and the approval prompt. | `ModelPicker`, `button_label()`, `model_picker_view()`, `approval_keyboard()` |
 | `event.py` | What a platform adapter hands to the gateway, and what it gets back. | `SessionSource`, `MessageEvent`, `SendResult` |
+| `live_reply.py` | Keeping a chat live while a turn runs: the typing indicator and the answer as it is written. | `TypingKeeper`, `start_typing()`, `LiveReply` |
 | `media.py` | Chat attachments: bring them into the session's directory and check them before use. | `MediaError`, `Attachment`, `media_dir()`, `cleanup_media()`, `classify()`, `StoredFile`, `store()` |
+| `model_picker.py` | The ``/model`` picker's policy: when buttons are offered, who may tap them, what a tap changes. | `ModelPickerFlow` |
 | `pairing.py` | DM pairing: how an unknown user gets access without the owner editing config. | `PairingStore` |
+| `questions.py` | Questions a turn waits on in a chat: command approvals and clarifications, and their answers. | `Pending`, `PendingQuestions` |
 | `runner.py` | ``GatewayRunner``: the policy layer between chat platforms and the agent. | `active_runner()`, `reset_active_runners()`, `GatewaySession`, `GatewayRunner` |
 | `service.py` | System-service lifecycle for the gateway. | `service_name()`, `render_systemd_unit()`, `render_launch_agent()`, `service_path()`, `install()`, `uninstall()`, `GatewayLock`, `GatewayService`, `run_service()` |
 | `session.py` | Session keys: which conversation a message belongs to. | `build_session_key()`, `SessionMap` |
 | `stream.py` | Streaming answers into a chat: one message that grows, instead of a long silence. | `StreamSender`, `ProgressReporter`, `tool_line()`, `tool_message()` |
+| `voice.py` | Voice in a chat: the words in a voice message, and a spoken copy of the answer to one. | `transcribe()`, `speak_reply()` |
 
 ## `clite/gateway/platforms/`
 
@@ -366,4 +371,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 225 modul.
+Jumlah: 230 modul.

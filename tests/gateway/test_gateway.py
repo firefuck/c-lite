@@ -85,9 +85,9 @@ def test_message_in_reply_out(gateway):
 
 
 def test_continuous_typing_heartbeat_during_long_turn(gateway, monkeypatch):
-    import clite.gateway.runner as runner_mod
+    import clite.gateway.live_reply as live_reply
 
-    monkeypatch.setattr(runner_mod, "DEFAULT_TYPING_INTERVAL", 0.05)
+    monkeypatch.setattr(live_reply, "DEFAULT_TYPING_INTERVAL", 0.05)
 
     def slow_model(messages, **kwargs):
         deadline = time.monotonic() + 1.0
@@ -108,9 +108,9 @@ def test_continuous_typing_heartbeat_during_long_turn(gateway, monkeypatch):
 
 
 def test_continuous_typing_heartbeat_stops_on_exception(gateway, monkeypatch):
-    import clite.gateway.runner as runner_mod
+    import clite.gateway.live_reply as live_reply
 
-    monkeypatch.setattr(runner_mod, "DEFAULT_TYPING_INTERVAL", 0.05)
+    monkeypatch.setattr(live_reply, "DEFAULT_TYPING_INTERVAL", 0.05)
 
     def failing_submit(*args, **kwargs):
         deadline = time.monotonic() + 1.0
@@ -136,9 +136,9 @@ def test_continuous_typing_heartbeat_stops_on_exception(gateway, monkeypatch):
 
 
 def test_continuous_typing_heartbeat_stops_when_first_reply_is_sent(gateway, monkeypatch):
-    import clite.gateway.runner as runner_mod
+    import clite.gateway.live_reply as live_reply
 
-    monkeypatch.setattr(runner_mod, "DEFAULT_TYPING_INTERVAL", 0.05)
+    monkeypatch.setattr(live_reply, "DEFAULT_TYPING_INTERVAL", 0.05)
     typing_stopped_before_or_at_send = threading.Event()
 
     def check_send(text: str) -> None:
@@ -1778,7 +1778,7 @@ def test_a_reply_too_long_to_speak_is_left_as_text(gateway, clite_home):
         name = "fake-tts"
 
         def synthesize(self, text, path, *, voice="", model="", speed=0.0):
-            # Recorded, not raised: _speak_reply swallows exceptions on purpose, so a raised
+            # Recorded, not raised: speak_reply swallows exceptions on purpose, so a raised
             # canary would prove nothing about whether this provider was reached.
             calls.append(text)
             Path(path).write_bytes(b"\xff\xfb" + b"\x00" * 16)

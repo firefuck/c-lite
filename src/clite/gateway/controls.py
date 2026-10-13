@@ -2,8 +2,9 @@
 
 This module only draws them: the picker's state, the button rows and their labels, and the
 callback data a button carries. Who may press a button and what a press changes is policy, and
-stays in ``runner.py``. An adapter that can show buttons says so with ``can_send_buttons`` and
-routes a press whose data starts with one of the prefixes below back to the runner.
+stays with the runner: ``model_picker.py`` for the picker, ``questions.py`` for approvals. An
+adapter that can show buttons says so with ``can_send_buttons`` and routes a press whose data
+starts with one of the prefixes below back to the runner.
 """
 
 from __future__ import annotations
