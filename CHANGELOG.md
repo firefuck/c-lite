@@ -45,6 +45,12 @@ GitHub-nya (`python scripts/release.py notes`).
 - Endpoint token OAuth yang menjawab dengan JSON bukan objek kini dibaca sebagai teks mentah,
   tidak lagi diteruskan sebagai tipe yang salah.
 
+### Diketahui
+- Aplikasi desktop, macOS, dan platform pesan selain Telegram belum pernah dijalankan terhadap
+  layanan sungguhan; daftar lengkapnya di `docs/STATUS.md`.
+- Belum ada sandbox: perintah yang lolos gerbang persetujuan berjalan dengan hak penuh
+  pengguna, kecuali bila backend `docker` dipilih.
+
 ## [1.0.0] - 2026-10-13
 
 Rilis versi 1.0.0 resmi menandai penyelesaian penuh 67/67 task pada roadmap pengembangan
