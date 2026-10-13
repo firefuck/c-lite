@@ -13,6 +13,7 @@ import difflib
 import fnmatch
 import os
 import re
+from collections.abc import Callable
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -20,6 +21,7 @@ from clite.core.redact import redact
 from clite.tools.checkpoints import record_change, turn_id_for
 from clite.tools.context import ToolContext
 from clite.tools.environments import get_environment
+from clite.tools.environments.base import BaseEnvironment
 from clite.tools.file_safety import read_denied_reason, write_denied_reason
 from clite.tools.patching import apply_replacement, apply_v4a_patch, find_tolerant_match
 from clite.tools.registry import PARALLEL_PATH, PARALLEL_SAFE, registry, tool_error, tool_result
@@ -478,7 +480,6 @@ def search_files_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> s
         limit = max(1, min(int(args.get("limit") or 50), 500))
     except (TypeError, ValueError):
         return tool_error("limit must be an integer")
-    file_glob = args.get("file_glob")
     base = root if root_info.is_dir else str(PurePosixPath(root).parent)
 
     def display(path: str) -> str:
@@ -486,14 +487,8 @@ def search_files_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> s
         return path[len(prefix) :] if path.startswith(prefix) else path
 
     if target == "files":
-        matches = []
-        for path in _walk(environment, root):
-            name = PurePosixPath(path).name
-            if fnmatch.fnmatch(name, pattern) or fnmatch.fnmatch(display(path), pattern):
-                matches.append(display(path))
-                if len(matches) >= limit:
-                    break
-        return tool_result(files=matches, count=len(matches), truncated=len(matches) >= limit, root=str(base))
+        files = _find_files(environment, root, pattern, limit, display)
+        return tool_result(files=files, count=len(files), truncated=len(files) >= limit, root=str(base))
     if target != "content":
         return tool_error("target must be 'content' or 'files'")
 
@@ -501,22 +496,52 @@ def search_files_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> s
         regex = re.compile(pattern, re.IGNORECASE if args.get("ignore_case") else 0)
     except re.error as exc:
         return tool_error(f"invalid regular expression: {exc}")
+    file_glob = args.get("file_glob")
+    results, files_with_matches = _grep(
+        environment, root, regex, str(file_glob) if file_glob else "", limit, display
+    )
+    return tool_result(
+        matches=results,
+        count=len(results),
+        files_with_matches=files_with_matches,
+        truncated=len(results) >= limit,
+        root=str(base),
+    )
+
+
+def _find_files(
+    environment: BaseEnvironment, root: str, pattern: str, limit: int, display: Callable[[str], str]
+) -> list[str]:
+    """Files whose name, or path below the search root, matches the glob ``pattern``."""
+    matches: list[str] = []
+    for path in _walk(environment, root):
+        name = PurePosixPath(path).name
+        if fnmatch.fnmatch(name, pattern) or fnmatch.fnmatch(display(path), pattern):
+            matches.append(display(path))
+            if len(matches) >= limit:
+                break
+    return matches
+
+
+def _grep(
+    environment: BaseEnvironment,
+    root: str,
+    regex: re.Pattern[str],
+    file_glob: str,
+    limit: int,
+    display: Callable[[str], str],
+) -> tuple[list[str], int]:
+    """``(matching lines, number of files with a match)``, stopping at ``limit`` lines."""
     results: list[str] = []
     files_with_matches = 0
     for path in _walk(environment, root):
-        if file_glob and not fnmatch.fnmatch(PurePosixPath(path).name, str(file_glob)):
+        if file_glob and not fnmatch.fnmatch(PurePosixPath(path).name, file_glob):
             continue
-        info = environment.stat(path)
-        if info.size > MAX_SEARCH_FILE_BYTES or read_denied_reason(path):
-            continue
-        try:
-            read = environment.read_file(path, max_bytes=MAX_SEARCH_FILE_BYTES + 1)
-        except OSError:
-            continue
-        if read.binary:
+        text = _searchable_text(environment, path)
+        if text is None:
             continue
         hit = False
-        for number, line in enumerate(read.content.splitlines(), start=1):
+        for number, line in enumerate(text.splitlines(), start=1):
             if regex.search(line):
                 hit = True
                 results.append(f"{display(path)}:{number}: {redact(line.strip()[:300])}")
@@ -525,13 +550,19 @@ def search_files_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> s
         files_with_matches += hit
         if len(results) >= limit:
             break
-    return tool_result(
-        matches=results,
-        count=len(results),
-        files_with_matches=files_with_matches,
-        truncated=len(results) >= limit,
-        root=str(base),
-    )
+    return results, files_with_matches
+
+
+def _searchable_text(environment: BaseEnvironment, path: str) -> str | None:
+    """The text of a file the search may look into; ``None`` for one it skips (too large,
+    read-protected, unreadable or binary)."""
+    if environment.stat(path).size > MAX_SEARCH_FILE_BYTES or read_denied_reason(path):
+        return None
+    try:
+        read = environment.read_file(path, max_bytes=MAX_SEARCH_FILE_BYTES + 1)
+    except OSError:
+        return None
+    return None if read.binary else read.content
 
 
 registry.register(
