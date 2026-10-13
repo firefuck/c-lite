@@ -30,7 +30,7 @@ class ManagedProcess:
     command: str
     cwd: str
     task_id: str
-    process: subprocess.Popen
+    process: subprocess.Popen[str]
     profile: str = field(default_factory=home_key)
     drained: threading.Event = field(default_factory=threading.Event)
     started_at: float = field(default_factory=time.time)

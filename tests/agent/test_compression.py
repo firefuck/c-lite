@@ -194,7 +194,7 @@ def test_tool_calls_are_never_separated_from_their_results():
         {"role": "user", "content": "now?"},
     ]
     for last in range(1, 8):
-        for first in range(0, 5):
+        for first in range(5):
             compressed = _engine(first=first, last=last).compress(
                 list(messages), summarize=lambda prompt: "S"
             )
@@ -206,7 +206,9 @@ def test_roles_alternate_around_the_summary():
         roles = [m["role"] for m in messages if m["role"] != "tool"]
         return all(a != b for a, b in zip(roles, roles[1:], strict=False))
 
-    summarize = lambda prompt: "S"  # noqa: E731
+    def summarize(prompt):
+        return "S"
+
     # head ends with assistant, tail starts with user: summary is folded into that user message
     folded = _engine(first=2, last=2).compress(_chat(10), summarize=summarize)
     assert no_adjacent_duplicates(folded) and folded[2]["content"].endswith("message 8")

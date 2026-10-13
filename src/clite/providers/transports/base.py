@@ -81,6 +81,19 @@ class ProviderTransport(ABC):
         self, on_delta: Callable[[str], None] | None = None, on_reasoning: Callable[[str], None] | None = None
     ) -> StreamAccumulator: ...
 
+    def run(
+        self,
+        route: RuntimeRoute,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]] | None,
+        params: RequestParams,
+        *,
+        on_delta: Callable[[str], None] | None = None,
+        cancel: threading.Event | None = None,
+    ) -> NormalizedResponse:
+        """Answer without HTTP. Only a ``local`` transport implements it."""
+        raise NotImplementedError(f"the {self.api_mode} transport answers over HTTP")
+
 
 _TRANSPORTS: dict[str, ProviderTransport] = {}
 _BUILTIN_LOADED = False
@@ -116,7 +129,7 @@ def _ensure_builtin() -> None:
         if _BUILTIN_LOADED:
             return
         registered_first = dict(_TRANSPORTS)  # a plugin may have registered before first use
-        from clite.providers.transports import (  # noqa: F401
+        from clite.providers.transports import (  # noqa: F401 - importing registers the built-in transports
             anthropic_messages,
             chat_completions,
             mock,

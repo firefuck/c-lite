@@ -139,7 +139,7 @@ def run_prune(args: argparse.Namespace) -> int:
     return 0
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("sessions", help="list, show, search, export or delete sessions")
     parser.set_defaults(handler=run_list, limit=20, source=None, all=False)
     actions = parser.add_subparsers(dest="sessions_action")

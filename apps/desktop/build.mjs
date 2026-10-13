@@ -5,7 +5,14 @@ import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const common = { bundle: true, platform: "node", format: "cjs", target: "node22", external: ["electron"], legalComments: "none" };
+const common = {
+  bundle: true,
+  platform: "node",
+  format: "cjs",
+  target: "node22",
+  external: ["electron"],
+  legalComments: "none",
+};
 
 await build({ ...common, entryPoints: [resolve(here, "src/main.ts")], outfile: resolve(here, "dist/main.cjs") });
 await build({ ...common, entryPoints: [resolve(here, "src/preload.ts")], outfile: resolve(here, "dist/preload.cjs") });

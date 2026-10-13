@@ -62,12 +62,12 @@ beberapa baris, dan menempel teks panjang tanpa terkirim sepotong-sepotong.
 - Diff berwarna untuk hasil `patch` dan `write_file`, dengan batas panjang.
 - Skin menentukan warna; perender tidak mengeja kode warna sendiri.
 - Fungsi murni tanpa I/O, supaya bisa diuji dengan membandingkan string. Padanan
-  TypeScript-nya di `ui-tui/src/render.ts` memakai aturan yang sama.
+  TypeScript-nya di `apps/tui/src/render.ts` memakai aturan yang sama.
 - `NO_COLOR`, terminal `dumb`, dan keluaran yang dialihkan ke file menghasilkan teks polos.
 
 **File.** `src/clite/cli/markdown.py (baru)`, `src/clite/cli/display.py`,
-`src/clite/runtime/presentation.py`, `ui-tui/src/render.ts`, `tests/cli/test_markdown.py (baru)`,
-`ui-tui/test/render.test.ts`.
+`src/clite/runtime/presentation.py`, `apps/tui/src/render.ts`, `tests/cli/test_markdown.py (baru)`,
+`apps/tui/test/render.test.ts`.
 
 **Rujukan Hermes.** `agent/display.py`, `agent/markdown_tables.py`,
 `hermes_cli/skin_engine.py`, `tools/working_diff.py`.
@@ -97,12 +97,12 @@ penuh dan antarmuka baris (`plain.ts`) tetap ada sebagai `--plain` dan untuk mas
 
 **Keputusan desain (mengikat semua anak).**
 - **Pustaka: Ink + React** (sama seperti Hermes), disetujui pemilik proyek pada 8 Oktober 2026.
-  Ini melonggarkan aturan "tanpa dependensi runtime baru" di `ui-tui/AGENTS.md`: `ink` dan
-  `react` masuk `ui-tui/package.json` sebagai `devDependencies`, dan esbuild menanamkan
+  Ini melonggarkan aturan "tanpa dependensi runtime baru" di `apps/tui/AGENTS.md`: `ink` dan
+  `react` masuk `apps/tui/package.json` sebagai `devDependencies`, dan esbuild menanamkan
   seluruhnya ke dalam satu file `.mjs` — pengguna tetap menjalankan `clite tui` tanpa
-  `npm install`. `ui-tui/AGENTS.md` diperbarui untuk menyebut pengecualian ini di F3-T9.
-- **Yang dipakai ulang tanpa diubah:** `ui-tui/src/backend.ts`,
-  `apps/shared/src/gateway-client.ts`, `apps/shared/src/transcript.ts` (reducer transkrip yang
+  `npm install`. `apps/tui/AGENTS.md` diperbarui untuk menyebut pengecualian ini di F3-T9.
+- **Yang dipakai ulang tanpa diubah:** `apps/tui/src/backend.ts`,
+  `packages/shared/src/gateway-client.ts`, `packages/shared/src/transcript.ts` (reducer transkrip yang
   sama untuk mode penuh dan `--plain`). TUI tetap tidak punya logika percakapan: ia mengirim
   permintaan dan merender event.
 - **Antarmuka baris tetap diuji.** `plain.ts` tidak dibuang; `entry.ts` memilih TUI Ink bila
@@ -121,8 +121,8 @@ penuh dan antarmuka baris (`plain.ts`) tetap ada sebagai `--plain` dan untuk mas
 | F3-T14 | Tema dari skin dan tahan ubah ukuran | S | F3-T9 |
 | F3-T15 | Bundle Ink dalam satu `.mjs` | M | F3-T9 |
 
-**File.** `ui-tui/src/app/ (baru)`, `ui-tui/src/entry.ts`, `ui-tui/build.mjs`,
-`ui-tui/package.json`, `ui-tui/AGENTS.md`, `src/clite/cli/subcommands/tui.py`, `ui-tui/test/`.
+**File.** `apps/tui/src/app/ (baru)`, `apps/tui/src/entry.ts`, `apps/tui/build.mjs`,
+`apps/tui/package.json`, `apps/tui/AGENTS.md`, `src/clite/cli/subcommands/tui.py`, `apps/tui/test/`.
 
 **Rujukan Hermes.** `ui-tui/src/app.tsx`, `ui-tui/src/components/`, `ui-tui/src/entry.tsx`,
 `ui-tui/src/gatewayClient.ts`, `ui-tui/README.md`.
@@ -130,7 +130,7 @@ penuh dan antarmuka baris (`plain.ts`) tetap ada sebagai `--plain` dan untuk mas
 **Selesai bila.**
 - [x] Task ini sudah dipecah menjadi task bernomor di file ini, masing-masing berukuran M atau
       lebih kecil, dan terdaftar di indeks.
-- [x] Setelah semua pecahan selesai: tes ujung ke ujung yang ada (`ui-tui/test/`) lulus
+- [x] Setelah semua pecahan selesai: tes ujung ke ujung yang ada (`apps/tui/test/`) lulus
       terhadap TUI baru dan terhadap mode `--plain`.
 - [x] `pip install` tetap menghasilkan `clite tui` yang jalan tanpa `npm install` di mesin
       pengguna.
@@ -147,17 +147,17 @@ penuh dan antarmuka baris (`plain.ts`) tetap ada sebagai `--plain` dan untuk mas
 tulis yang tetap di bawah; `--plain` dan masukan pipa tetap memakai `PlainTui` yang sekarang.
 
 **Lingkup.**
-- Tambahkan `ink` dan `react` ke `devDependencies` `ui-tui/package.json`; perbarui
-  `ui-tui/AGENTS.md` untuk mencatat pengecualian dependensi ini (lihat F3-T3).
-- `ui-tui/src/app/ (baru)`: komponen akar Ink (`App`) yang merender transkrip dari reducer
-  `apps/shared/src/transcript.ts` (dipakai ulang tanpa diubah) dan sebuah kotak tulis.
-- `ui-tui/src/entry.ts`: pilih TUI Ink bila `stdin` dan `stdout` adalah TTY dan `--plain` tidak
+- Tambahkan `ink` dan `react` ke `devDependencies` `apps/tui/package.json`; perbarui
+  `apps/tui/AGENTS.md` untuk mencatat pengecualian dependensi ini (lihat F3-T3).
+- `apps/tui/src/app/ (baru)`: komponen akar Ink (`App`) yang merender transkrip dari reducer
+  `packages/shared/src/transcript.ts` (dipakai ulang tanpa diubah) dan sebuah kotak tulis.
+- `apps/tui/src/entry.ts`: pilih TUI Ink bila `stdin` dan `stdout` adalah TTY dan `--plain` tidak
   diberikan; selain itu (pipa, non-TTY) jalankan `PlainTui`. Bila `ink` gagal dimuat, jatuh ke
   `PlainTui` dengan catatan di stderr.
 - Kirim pesan dan tampilkan jawaban streaming lewat `gateway-client.ts` yang sudah ada.
 
-**File.** `ui-tui/src/app/ (baru)`, `ui-tui/src/entry.ts`, `ui-tui/package.json`,
-`ui-tui/AGENTS.md`, `ui-tui/test/`.
+**File.** `apps/tui/src/app/ (baru)`, `apps/tui/src/entry.ts`, `apps/tui/package.json`,
+`apps/tui/AGENTS.md`, `apps/tui/test/`.
 
 **Rujukan Hermes.** `ui-tui/src/app.tsx`, `ui-tui/src/components/appLayout.tsx`,
 `ui-tui/src/components/messageLine.tsx`, `ui-tui/src/app/useMainApp.ts`.
@@ -182,14 +182,14 @@ tulis yang tetap di bawah; `--plain` dan masukan pipa tetap memakai `PlainTui` y
 direktori kerja, identitas/judul sesi bila ada, aktivitas giliran/tool, dan token giliran terakhir.
 
 **Lingkup.**
-- Komponen bilah status Ink di `ui-tui/src/app/ (baru)`, memakai fakta yang sudah ada di
+- Komponen bilah status Ink di `apps/tui/src/app/ (baru)`, memakai fakta yang sudah ada di
   `session.info` dan event `turn.start`/`turn.step`/`tool.start`/`tool.complete`/`turn.complete`.
 - Setelah respons provider selesai, server memancarkan ulang `session.info` yang sudah ada agar
   pemakaian konteks terukur diperbarui tanpa polling atau kontrak TUI baru.
 - Pada terminal sempit, aktivitas, model, dan konteks dipertahankan lebih dulu; rincian sesi,
   direktori, provider, lalu token dibuang bertahap sebelum elipsis satu baris.
 
-**File.** `ui-tui/src/app/ (baru)`, `ui-tui/test/`.
+**File.** `apps/tui/src/app/ (baru)`, `apps/tui/test/`.
 
 **Rujukan Hermes.** `ui-tui/src/components/appChrome.tsx`, `ui-tui/src/components/themed.tsx`.
 
@@ -210,12 +210,12 @@ direktori kerja, identitas/judul sesi bila ada, aktivitas giliran/tool, dan toke
 menggantikan pertanyaan berbasis baris.
 
 **Lingkup.**
-- Dialog Ink di `ui-tui/src/app/ (baru)` untuk `approval.request` dan pertanyaan `clarify`,
+- Dialog Ink di `apps/tui/src/app/ (baru)` untuk `approval.request` dan pertanyaan `clarify`,
   memakai RPC yang sudah ada (`approval.respond`, `clarify.respond`).
 - Pilihan dapat diklik/dipilih dengan tombol panah dan Enter; pertanyaan bebas teks tetap
   didukung.
 
-**File.** `ui-tui/src/app/ (baru)`, `ui-tui/test/`.
+**File.** `apps/tui/src/app/ (baru)`, `apps/tui/test/`.
 
 **Rujukan Hermes.** `ui-tui/src/components/prompts.tsx`,
 `ui-tui/src/components/overlayPrimitives.tsx`.
@@ -242,7 +242,7 @@ melengkapinya; argumen tertentu (nama model, sesi) ikut dilengkapi.
   ada); tidak ada daftar perintah yang dieja di TypeScript.
 - Pilih dengan panah/Enter; Esc menutup.
 
-**File.** `ui-tui/src/app/ (baru)`, `ui-tui/test/`.
+**File.** `apps/tui/src/app/ (baru)`, `apps/tui/test/`.
 
 **Rujukan Hermes.** `ui-tui/src/hooks/useCompletion.ts`,
 `ui-tui/src/app/createSlashHandler.ts`.
@@ -263,11 +263,11 @@ melengkapinya; argumen tertentu (nama model, sesi) ikut dilengkapi.
 **Tujuan.** Overlay untuk memilih sesi sebelumnya dan memilih model, tanpa mengetik id.
 
 **Lingkup.**
-- Overlay Ink di `ui-tui/src/app/ (baru)` memakai `session.list` dan `model.list`; memilih
+- Overlay Ink di `apps/tui/src/app/ (baru)` memakai `session.list` dan `model.list`; memilih
   memanggil `session.create` (resume) atau `model.set`.
 - Menampilkan judul, model, dan waktu aktivitas tiap sesi.
 
-**File.** `ui-tui/src/app/ (baru)`, `ui-tui/test/`.
+**File.** `apps/tui/src/app/ (baru)`, `apps/tui/test/`.
 
 **Rujukan Hermes.** `ui-tui/src/components/modelPicker.tsx`,
 `ui-tui/src/components/activeSessionSwitcher.tsx`.
@@ -294,7 +294,7 @@ benar saat terminal diubah ukurannya.
   `config`), sehingga CLI dan TUI seragam.
 - Tangani `dimension`/resize dari Ink: transkrip dan bilah status menyesuaikan lebar.
 
-**File.** `ui-tui/src/app/ (baru)`, `ui-tui/src/render.ts`, `ui-tui/test/`.
+**File.** `apps/tui/src/app/ (baru)`, `apps/tui/src/render.ts`, `apps/tui/test/`.
 
 **Rujukan Hermes.** `ui-tui/src/theme.ts`, `ui-tui/src/components/themed.tsx`.
 
@@ -316,15 +316,15 @@ benar saat terminal diubah ukurannya.
 `ink` dan `react` tertanam di dalam satu `clite-tui.mjs`.
 
 **Lingkup.**
-- `ui-tui/build.mjs`: bangun entri TUI Ink (JSX) menjadi satu `.mjs`, dengan `ink` dan `react`
+- `apps/tui/build.mjs`: bangun entri TUI Ink (JSX) menjadi satu `.mjs`, dengan `ink` dan `react`
   dibundel (bukan `external`), `platform: node`, `format: esm`.
-- `ui-tui/package.json`: `ink`/`react` di `devDependencies`; skrip build tetap `node build.mjs`.
+- `apps/tui/package.json`: `ink`/`react` di `devDependencies`; skrip build tetap `node build.mjs`.
 - Tambahkan gerbang ukuran/waktu-mulai yang diuji: bundle tidak melewati batas ukuran yang
   wajar dan `--version`/bantuan TUI tetap cepat (batas ditulis di tes).
-- `ui-tui/src/entry.ts` tetap memuat bundel tanpa impor luar pada waktu jalan.
+- `apps/tui/src/entry.ts` tetap memuat bundel tanpa impor luar pada waktu jalan.
 
-**File.** `ui-tui/build.mjs`, `ui-tui/package.json`, `ui-tui/src/entry.ts`,
-`src/clite/cli/subcommands/tui.py`, `src/clite/tui_dist/ (dibangun ulang)`, `ui-tui/test/`,
+**File.** `apps/tui/build.mjs`, `apps/tui/package.json`, `apps/tui/src/entry.ts`,
+`src/clite/cli/subcommands/tui.py`, `src/clite/tui_dist/ (dibangun ulang)`, `apps/tui/test/`,
 `tests/cli/test_tui_bundle.py`.
 
 **Rujukan Hermes.** `ui-tui/scripts/build.mjs`, `ui-tui/README.md`.

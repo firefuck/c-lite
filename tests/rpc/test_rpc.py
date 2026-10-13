@@ -766,7 +766,7 @@ def test_attachment_save_stores_a_file_the_agent_can_read(client, clite_home):
 def test_old_attachments_are_pruned(client, clite_home):
     import os
 
-    from clite.rpc.methods import _prune_attachments, attachments_dir
+    from clite.rpc.methods.prompt import _prune_attachments, attachments_dir
 
     directory = attachments_dir()
     directory.mkdir(parents=True, exist_ok=True)

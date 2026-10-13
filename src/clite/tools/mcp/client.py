@@ -124,7 +124,7 @@ class _StdioTransport:
 
     def __init__(self, server: McpServer) -> None:
         self.server = server
-        self.process: subprocess.Popen | None = None
+        self.process: subprocess.Popen[str] | None = None
         self._write_lock = threading.Lock()
         self._stderr_tail: list[str] = []
         self._stderr_reader: threading.Thread | None = None
@@ -225,7 +225,9 @@ class McpServer:
             spec.get("timeout")
             or (DEFAULT_HTTP_TIMEOUT_SECONDS if spec.get("url") else DEFAULT_CALL_TIMEOUT_SECONDS)
         )
-        self.process: subprocess.Popen | None = None  # set for stdio transports, for callers that watch it
+        self.process: subprocess.Popen[str] | None = (
+            None  # set for stdio transports, for callers that watch it
+        )
         self.tools: list[dict[str, Any]] = []
         self.resources: list[dict[str, Any]] = []
         self.prompts: list[McpPrompt] = []
@@ -584,7 +586,7 @@ class McpServer:
 
     def backoff_seconds(self) -> float:
         """The delay before the next attempt: base * 2^(failures-1), capped (exponential)."""
-        return min(RECONNECT_BASE_DELAY_SECONDS * (2 ** (self._failures - 1)), RECONNECT_MAX_DELAY_SECONDS)
+        return min(RECONNECT_BASE_DELAY_SECONDS * (2.0 ** (self._failures - 1)), RECONNECT_MAX_DELAY_SECONDS)
 
     def clear_failure(self) -> None:
         self._failures = 0
@@ -701,20 +703,18 @@ def mcp_servers_snapshot() -> list[dict[str, Any]]:
     """Every known server and its state, for `clite mcp list` and `/mcp`."""
     with _SERVERS_LOCK:
         servers = list(_SERVERS.values())
-    rows = []
-    for server in servers:
-        rows.append(
-            {
-                "name": server.name,
-                "transport": "http" if server.is_http else "stdio",
-                "alive": server.is_alive(),
-                "tools": list(server.registered),
-                "resources": len(server.resources),
-                "prompts": len(server.prompts),
-                "tools_changed": server.tools_changed,
-            }
-        )
-    return rows
+    return [
+        {
+            "name": server.name,
+            "transport": "http" if server.is_http else "stdio",
+            "alive": server.is_alive(),
+            "tools": list(server.registered),
+            "resources": len(server.resources),
+            "prompts": len(server.prompts),
+            "tools_changed": server.tools_changed,
+        }
+        for server in servers
+    ]
 
 
 # ── prompts as slash commands ─────────────────────────────────────────────────────────────

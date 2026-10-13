@@ -69,7 +69,7 @@ class TokenThrottle:
                 return 0.0
             # Each failure past the threshold doubles the wait, up to a minute.
             over = state.failures - self.max_failures
-            delay = min(self.delay_seconds * (2**over), MAX_DELAY_SECONDS)
+            delay = min(self.delay_seconds * (2.0**over), MAX_DELAY_SECONDS)
             state.blocked_until = current + delay
             return delay
 

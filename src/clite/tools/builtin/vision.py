@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from clite.providers.auxiliary import call_auxiliary, resolve_auxiliary_route
+from clite.providers.runtime import RuntimeRoute
 from clite.tools.context import ToolContext
 from clite.tools.registry import registry, tool_error, tool_result
 
@@ -45,12 +46,9 @@ VISION_ANALYZE_SCHEMA = {
 }
 
 
-def _route_sees_images(route: Any) -> bool:
+def _route_sees_images(route: RuntimeRoute) -> bool:
     """True when the route's model accepts image content, per its provider profile."""
-    profile = getattr(route, "profile", None)
-    if profile is None:
-        return False
-    return profile.supports_vision(route.model)
+    return route.profile is not None and route.profile.supports_vision(route.model)
 
 
 def vision_analyze_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:

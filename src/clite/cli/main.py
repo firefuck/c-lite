@@ -46,7 +46,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _register_plugin_commands(subparsers: argparse._SubParsersAction) -> None:
+def _register_plugin_commands(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     """Subcommands contributed by enabled plugins. A broken plugin never breaks the CLI."""
     try:
         from clite.plugins.manager import ensure_plugins_loaded

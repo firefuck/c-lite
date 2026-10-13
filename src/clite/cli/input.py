@@ -189,7 +189,7 @@ def _pt_completer(source: Completer) -> Any:
 
 def prompt_toolkit_available() -> bool:
     try:
-        import prompt_toolkit  # noqa: F401
+        import prompt_toolkit  # noqa: F401 - only checks that the optional extra is installed
     except ImportError:
         return False
     return True
@@ -312,9 +312,10 @@ def build_completer(*, surface: str = "cli", cwd: str | None = None) -> Complete
     try:
         from clite.state.db import get_session_db
 
-        for row in get_session_db().list_sessions(limit=50):
-            sessions.append(Suggestion(str(row["id"]), "session"))
-    except Exception:  # noqa: BLE001
+        sessions.extend(
+            Suggestion(str(row["id"]), "session") for row in get_session_db().list_sessions(limit=50)
+        )
+    except Exception:  # noqa: BLE001 - completion is a convenience; never fail the REPL for it
         pass
 
     return Completer(

@@ -57,7 +57,7 @@ def run_usage(args: argparse.Namespace) -> int:
     return 1
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("batch", help="run many prompts unattended")
     parser.set_defaults(handler=run_usage)
     actions = parser.add_subparsers(dest="batch_action")

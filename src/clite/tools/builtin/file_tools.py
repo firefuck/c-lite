@@ -461,8 +461,7 @@ def _walk(environment: BaseEnvironment, root: str, *, max_depth: int = 40) -> It
                     subdirs.append(child)
             elif entry.is_file:
                 yield _join(directory, entry.name)
-        for child in reversed(subdirs):
-            stack.append((child, depth + 1, ancestors | {child}))
+        stack.extend((child, depth + 1, ancestors | {child}) for child in reversed(subdirs))
 
 
 def search_files_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
@@ -484,7 +483,7 @@ def search_files_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> s
 
     def display(path: str) -> str:
         prefix = base.rstrip("/") + "/"
-        return path[len(prefix) :] if path.startswith(prefix) else path
+        return path.removeprefix(prefix)
 
     if target == "files":
         files = _find_files(environment, root, pattern, limit, display)

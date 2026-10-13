@@ -27,11 +27,22 @@ run_lint() {
   else
     echo "== ruff is not installed: lint skipped (pip install -e '.[dev]')"
   fi
-  if command -v mypy >/dev/null; then
+  # The project's interpreter, not whichever mypy is on PATH: one installed in an environment of
+  # its own cannot see the dependencies, and strict mode rejects every class it reads as Any.
+  if "$python" -m mypy --version >/dev/null 2>&1; then
     echo "== mypy"
-    mypy || failed=1
+    "$python" -m mypy || failed=1
   else
     echo "== mypy is not installed: type check skipped (pip install -e '.[dev]')"
+  fi
+  # The same for TypeScript: format and lint every workspace (biome.jsonc).
+  local biome=""
+  command -v node >/dev/null && biome="$(node_resolve @biomejs/biome/bin/biome)"
+  if [ -n "$biome" ]; then
+    echo "== biome"
+    node "$biome" ci --colors=off . || failed=1
+  else
+    echo "== biome is not installed: TypeScript lint skipped (npm install)"
   fi
 }
 
@@ -50,9 +61,11 @@ run_node() {
     echo "== Node.js not found: skipping the TypeScript tests"
     return 0
   fi
-  for package in apps/shared ui-tui web apps/desktop; do
+  for package in packages/shared apps/tui apps/web apps/desktop; do
     echo "== $package: tests"
-    (cd "$package" && CLITE_PYTHON="$python" node --test test/*.test.ts) || failed=1
+    # node:test waits forever by default; a test stuck on an event that never comes would hold
+    # the run (and every push) instead of failing. Two minutes is far above the slowest test.
+    (cd "$package" && CLITE_PYTHON="$python" node --test --test-timeout=120000 test/*.test.ts) || failed=1
     (
       cd "$package"
       tsc="$(node_resolve typescript/bin/tsc)"

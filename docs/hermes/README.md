@@ -78,12 +78,11 @@ scaffolding ini.
 | [13-aturan-rekayasa.md](13-aturan-rekayasa.md) | Aturan rekayasa Hermes yang layak diwarisi |
 | [99-peta-file.md](99-peta-file.md) | Tabel padanan file Hermes ke modul proyek ini |
 
-## Cara memakai dokumen ini bersama AI
+## Cara memakai dokumen ini
 
-Saat memberi tugas ke AI untuk sebuah modul, sertakan tiga hal: spesifikasi modul di
-`docs/spesifikasi/`, bab bedah yang relevan di folder ini, dan path file Hermes yang
-disebut di bab itu. AI lalu membaca file Hermes tersebut di clone rujukan, bukan
-menebak dari ingatan. Pola ini dijelaskan lebih rinci di `docs/prompts/`.
+Saat mengerjakan sebuah modul, siapkan tiga hal: spesifikasi modul di `docs/spesifikasi/`,
+bab bedah yang relevan di folder ini, dan path file Hermes yang disebut di bab itu. Baca file
+Hermes tersebut di clone rujukan, bukan dari ingatan.
 
 ## Catatan lisensi
 

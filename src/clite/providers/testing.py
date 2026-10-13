@@ -111,13 +111,15 @@ class ScriptedClient:
             on_reasoning(item.reasoning)
         if on_delta is not None and item.content:
             on_delta(item.content)
-        return item
+        response: NormalizedResponse = item
+        return response
 
     # ── assertions helpers ───────────────────────────────────────────────────────────────
 
     @property
     def last_messages(self) -> list[dict[str, Any]]:
-        return self.calls[-1]["messages"]
+        messages: list[dict[str, Any]] = self.calls[-1]["messages"]
+        return messages
 
     def system_prompts(self) -> list[Any]:
         """The system prompt of every call, to assert it stayed byte-identical."""

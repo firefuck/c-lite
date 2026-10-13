@@ -223,7 +223,7 @@ berasal dari HTTP loopback dan kredensial sintetis, bukan API asli.
 | Profil, registry berlapis, provider dari config | ✅ | |
 | Resolusi rute, fallback, kumpulan kredensial | ✅ | |
 | Transport `chat_completions`, `anthropic_messages`, `mock` | ✅ | Diuji terhadap server HTTP tiruan lokal |
-| Panggilan ke provider sungguhan | ⬜ belum diverifikasi | F1-T2 |
+| Panggilan ke provider sungguhan | ✅ | F1-T2: tes jaringan `tests/providers/test_live.py` lulus terhadap Anthropic dan satu provider kompatibel OpenAI (dinyatakan pemilik proyek pada 13 Oktober 2026); fixture dari respons asli belum disimpan |
 | Transport `responses` (OpenAI Responses API) | 🟡 | Streaming dan nonstreaming, replay dua ronde tool, awalan kawat, pemilihan profil, dan galat diuji terhadap `fake_api`. Tes jaringan ditulis, belum dijalankan: F2-T1 |
 | Profil bawaan | 🟡 | 21 profil; tiga profil cloud F2-T2 dijaga `tests/providers/test_cloud_profiles.py`; sepuluh tambahan gelombang pertama F2-T2 dijaga tes rute/HTTP lokal dan discovery setup. API asli semua profil tersebut belum diuji |
 | Harga dan estimasi biaya | ✅ | `ModelPricing` empat tarif (input, output, cache read, cache write); resolusi berlapis (config `pricing.overrides`, profil provider, katalog live OpenRouter). Dijaga `tests/providers/test_pricing.py`. F2-T3 |

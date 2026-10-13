@@ -121,7 +121,7 @@ class DockerEnvironment(LocalEnvironment):
         container = self._ensure_container()
         workdir = self.resolve_path(cwd)
         argv = ["docker", "exec", "-i", "-w", workdir, container, "/bin/sh", "-c", command]
-        return subprocess.Popen(  # noqa: S603
+        return subprocess.Popen(  # noqa: S603 - the docker CLI with a fixed argv; the command runs in the container
             argv,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -150,7 +150,7 @@ class DockerEnvironment(LocalEnvironment):
         workdir = self.resolve_path(cwd) if cwd else self.cwd
         argv = ["docker", "exec", "-i", "-w", workdir, container, "/bin/sh", "-c", command]
         try:
-            process = subprocess.Popen(  # noqa: S603
+            process = subprocess.Popen(  # noqa: S603 - the docker CLI with a fixed argv; the command runs in the container
                 argv,
                 stdin=subprocess.PIPE if stdin_data is not None else subprocess.DEVNULL,
                 stdout=subprocess.PIPE,

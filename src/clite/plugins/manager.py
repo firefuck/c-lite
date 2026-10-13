@@ -283,7 +283,7 @@ class PluginManager:
 def _ensure_namespace() -> None:
     if PLUGIN_NAMESPACE not in sys.modules:
         namespace = types.ModuleType(PLUGIN_NAMESPACE)
-        namespace.__path__ = []  # type: ignore[attr-defined]
+        namespace.__path__ = []
         sys.modules[PLUGIN_NAMESPACE] = namespace
 
 

@@ -155,14 +155,19 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | The messaging gateway: one long-running process serving every configured chat platform. |  |
+| `attachments.py` | What a message's attachments become in a turn: image parts, transcripts, or notes on saved files. | `collect_attachments()` |
 | `controls.py` | Inline button controls the runner sends: the ``/model`` picker and the approval prompt. | `ModelPicker`, `button_label()`, `model_picker_view()`, `approval_keyboard()` |
 | `event.py` | What a platform adapter hands to the gateway, and what it gets back. | `SessionSource`, `MessageEvent`, `SendResult` |
+| `live_reply.py` | Keeping a chat live while a turn runs: the typing indicator and the answer as it is written. | `TypingKeeper`, `start_typing()`, `LiveReply` |
 | `media.py` | Chat attachments: bring them into the session's directory and check them before use. | `MediaError`, `Attachment`, `media_dir()`, `cleanup_media()`, `classify()`, `StoredFile`, `store()` |
+| `model_picker.py` | The ``/model`` picker's policy: when buttons are offered, who may tap them, what a tap changes. | `ModelPickerFlow` |
 | `pairing.py` | DM pairing: how an unknown user gets access without the owner editing config. | `PairingStore` |
+| `questions.py` | Questions a turn waits on in a chat: command approvals and clarifications, and their answers. | `Pending`, `PendingQuestions` |
 | `runner.py` | ``GatewayRunner``: the policy layer between chat platforms and the agent. | `active_runner()`, `reset_active_runners()`, `GatewaySession`, `GatewayRunner` |
 | `service.py` | System-service lifecycle for the gateway. | `service_name()`, `render_systemd_unit()`, `render_launch_agent()`, `service_path()`, `install()`, `uninstall()`, `GatewayLock`, `GatewayService`, `run_service()` |
 | `session.py` | Session keys: which conversation a message belongs to. | `build_session_key()`, `SessionMap` |
 | `stream.py` | Streaming answers into a chat: one message that grows, instead of a long silence. | `StreamSender`, `ProgressReporter`, `tool_line()`, `tool_message()` |
+| `voice.py` | Voice in a chat: the words in a voice message, and a spoken copy of the answer to one. | `transcribe()`, `speak_reply()` |
 
 ## `clite/gateway/platforms/`
 
@@ -226,7 +231,6 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | --- | --- | --- |
 | `__init__.py` |  |  |
 | `entry.py` | Stdio entry point: ``python -m clite.rpc.entry``. | `serve_stdio()`, `main()` |
-| `methods.py` | RPC method handlers. | `ping()`, `system_info()`, `profiles_list()`, `session_create()`, `session_info()`, `session_list()`, `session_history()`, `session_close()`, `session_attach()`, `session_interrupt()`, … (+41) |
 | `replay.py` | What makes a reconnect cheap: the events a client missed, and the sessions that outlive it. | `EventLog`, `DetachedSessions`, `get_event_log()`, `get_detached_sessions()`, `configure()`, `reset_replay_state()` |
 | `server.py` | The JSON-RPC server: one instance per client connection. | `RpcError`, `rpc_method()`, `RpcServer`, `reset_server_state()` |
 | `session.py` | ``RpcSession``: a ``ChatSession`` whose callbacks become JSON-RPC events. | `RpcSession` |
@@ -239,6 +243,20 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `__init__.py` |  |  |
 | `base.py` | Contract registries: every JSON-RPC method, event and server request is declared once. | `Params`, `Result`, `Payload`, `Empty`, `Ok`, `MethodSpec`, `ServerRequestSpec`, `method()`, `event()`, `server_request()` |
 | `schema.py` | The protocol, declared: methods (client to server), events and server requests. | `ContextStatus`, `SessionInfo`, `StoredSession`, `TranscriptMessage`, `UsageTotals`, `CommandEntry`, `PingResult`, `SystemInfoResult`, `ProfileEntry`, `ProfilesListResult`, … (+94) |
+
+## `clite/rpc/methods/`
+
+| File | Isi | Simbol publik |
+| --- | --- | --- |
+| `__init__.py` | RPC method handlers: importing this package registers every one of them. |  |
+| `config.py` | RPC handlers for settings: the configuration keys and the credentials in the profile's ``.env``. | `config_get_method()`, `config_list_method()`, `config_set_method()`, `credentials_list()`, `credentials_set()`, `credentials_delete()` |
+| `cron.py` | RPC handlers for scheduled jobs: listing, creating and acting on them, and reading their runs. | `cron_output()`, `cron_list()`, `cron_history()`, `cron_create()`, `cron_action()` |
+| `extensions.py` | RPC handlers for what extends the agent: tools, skills, plugins, shell hooks and MCP servers. | `tools_list()`, `skills_list()`, `skills_view()`, `plugins_list()`, `plugins_set_enabled()`, `hooks_status()`, `mcp_status()` |
+| `memory.py` | RPC handlers for the agent's memory, read and edited through the store the memory tool uses. | `memory_get()`, `memory_set()` |
+| `model.py` | RPC handlers for providers and models: listing them, switching the model, first-run setup. | `model_list()`, `model_set()`, `providers_list()`, `setup_apply()` |
+| `prompt.py` | RPC handlers for what a client sends into a session: prompts, slash commands and attachments. | `prompt_submit()`, `slash_exec()`, `commands_catalog()`, `complete_slash()`, `attachments_dir()`, `attachment_save()` |
+| `session.py` | RPC handlers for sessions: the ones open on this connection and the ones stored in the database. | `session_create()`, `session_info()`, `session_list()`, `session_history()`, `session_close()`, `session_attach()`, `session_interrupt()`, `session_steer()`, `session_title()`, `session_delete()`, … (+7) |
+| `system.py` | RPC handlers that describe the running backend: its version, setup, profiles and logs. | `ping()`, `system_info()`, `profiles_list()`, `logs_tail()` |
 
 ## `clite/runtime/`
 
@@ -289,22 +307,27 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | Session storage: one SQLite file per profile with FTS5 search. |  |
-| `db.py` | ``SessionDB``: durable sessions and messages in ``<home>/state.db``. | `new_session_id()`, `get_session_db()`, `close_all_session_dbs()`, `SessionDB`, `format_insights()` |
-| `schema.py` | SQLite schema for sessions and messages. |  |
+| `db.py` | ``SessionDB``: durable sessions and messages in ``<home>/state.db``. | `new_session_id()`, `get_session_db()`, `close_all_session_dbs()`, `SessionDB` |
+| `insights.py` | Usage analytics over the session store: aggregate queries and their plain-text report. | `collect_insights()`, `format_insights()` |
+| `schema.py` | SQLite schema for sessions and messages, and how a database is brought up to it. | `prepare_schema()` |
+| `search.py` | Message search: the text a message is indexed by, and the statements that look it up. | `search_text_of()`, `search_statements()`, `fts_query()`, `escape_like()` |
 
 ## `clite/tools/`
 
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | Tools: the registry, toolsets, the dispatch entry points and the built-in tools. |  |
-| `approval.py` | Command approval: the gate between the model and a destructive shell command. | `DangerMatch`, `ApprovalDecision`, `CommandTooComplexError`, `shell_plain()`, `own_command_names()`, `detect_self_access()`, `reset_approval_state()`, `normalize_command()`, `detect_dangerous_command()`, `detect_hardline()`, … (+2) |
+| `approval.py` | Command approval: the gate between the model and a destructive shell command. | `ApprovalDecision`, `reset_approval_state()`, `smart_verdict()`, `check_command()` |
 | `checkpoints.py` | Per-session file checkpoints, so the agent's own edits can be rolled back. | `reset_turn_tracking()`, `Change`, `TurnGroup`, `RollbackResult`, `session_dir()`, `turn_id_for()`, `record_change()`, `rollback()`, `list_checkpoints()`, `total_size()`, … (+1) |
+| `command_patterns.py` | Dangerous and forbidden commands: the pattern catalogues and the detectors that read them. | `DangerMatch`, `detect_dangerous_command()`, `detect_hardline()` |
 | `context.py` | ``ToolContext``: what a tool handler may know about the call it is serving. | `ToolContext` |
 | `dispatch.py` | The two entry points the agent loop uses: tool definitions in, tool results out. | `reset_definition_cache()`, `resolve_enabled_tools()`, `get_tool_definitions()`, `coerce_args()`, `cap_result()`, `handle_function_call()` |
 | `file_safety.py` | Path guards for the file tools. | `protected_path()`, `write_denied_reason()`, `read_denied_reason()` |
 | `image_gen.py` | ``ImageProvider``: a pluggable backend for the ``image_generate`` tool. | `GeneratedImage`, `ImageProvider`, `register_image_provider()`, `unregister_image_provider()`, `reset_image_providers()`, `provider_names()`, `has_image_provider()`, `get_image_provider()` |
 | `patching.py` | Tolerant patch matching and V4A multi-file patch application. | `MatchResult`, `find_tolerant_match()`, `apply_replacement()`, `PatchHunk`, `ParsedPatch`, `parse_v4a_patch()`, `MultiFileResult`, `apply_v4a_patch()` |
 | `registry.py` | Tool registry: one process-wide table of every tool the model can call. | `ToolEntry`, `ToolRegistry`, `get_background_loop()`, `run_async()`, `tool_error()`, `tool_result()`, `discover_builtin_tools()`, `reset_check_cache()` |
+| `self_access.py` | Whether a command reaches for the agent's own settings or credentials. | `own_command_names()`, `reset_own_command_cache()`, `detect_self_access()` |
+| `shell_reading.py` | Reading a command the way a shell would, for the approval gate's detectors. | `normalize_command()`, `CommandTooComplexError`, `guard_parse_limits()`, `contained()`, `variable_values()`, `expand_variables()`, `code_payloads()`, `shell_plain()`, `readings()`, `position_readings()`, … (+2) |
 | `speech.py` | ``TranscriptionProvider`` and ``SpeechProvider``: the two pluggable backends behind voice. | `TranscriptionProvider`, `SpeechProvider`, `register_transcription_provider()`, `unregister_transcription_provider()`, `transcription_provider_names()`, `get_transcription_provider()`, `has_transcription_provider()`, `register_speech_provider()`, `unregister_speech_provider()`, `speech_provider_names()`, … (+8) |
 | `toolsets.py` | Toolsets: named groups of tools, composable through ``includes``. | `register_toolset()`, `toolset_exists()`, `resolve_toolset()`, `resolve_toolsets()`, `all_toolsets()`, `toolset_for_tool()` |
 | `web_search.py` | ``WebSearchProvider``: a pluggable backend for the ``web_search`` tool. | `WebSearchProvider`, `register_web_search_provider()`, `unregister_web_search_provider()`, `reset_web_search_providers()`, `provider_names()`, `has_web_search_provider()`, `get_web_search_provider()` |
@@ -351,4 +374,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 215 modul.
+Jumlah: 233 modul.

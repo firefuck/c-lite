@@ -83,7 +83,7 @@ def git_commit(directory: Path) -> str:
     """The commit a checkout sits at, or ``""`` when it is not a git checkout."""
     try:
         result = subprocess.run(  # noqa: S603 - fixed git argv, no shell
-            ["git", "-C", str(directory), "rev-parse", "HEAD"],  # noqa: S607
+            ["git", "-C", str(directory), "rev-parse", "HEAD"],  # noqa: S607 - git from PATH, the user's own
             capture_output=True,
             text=True,
             check=False,
@@ -180,7 +180,7 @@ def stage(source: str, *, ref: str = "") -> Staged:
         if ref:
             command += ["--branch", ref]
         command += [source, str(directory)]
-        result = subprocess.run(command, capture_output=True, text=True, check=False)  # noqa: S603
+        result = subprocess.run(command, capture_output=True, text=True, check=False)  # noqa: S603 - git clone of the source the user named
         if result.returncode != 0:
             raise PluginError(f"git clone failed: {result.stderr.strip()[:300]}")
         commit = git_commit(directory)
@@ -367,7 +367,7 @@ def read_index(location: str) -> dict[str, Any]:
             location, headers={"User-Agent": f"clite/{__version__}", "Accept": "application/json"}
         )
         try:
-            with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
+            with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - the request built above
                 text = response.read(5_000_000).decode("utf-8", errors="replace")
         except (urllib.error.URLError, OSError) as exc:
             raise PluginError(f"cannot read the plugin catalog at {location}: {exc}") from None

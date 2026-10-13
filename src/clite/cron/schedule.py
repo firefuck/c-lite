@@ -16,6 +16,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, tzinfo
+from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 KIND_ONCE, KIND_INTERVAL, KIND_CRON = "once", "interval", "cron"
@@ -46,7 +47,7 @@ class Schedule:
     interval_seconds: int | None = None  # interval
     expr: str | None = None  # cron
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "kind": self.kind,
             "display": self.display,
@@ -56,7 +57,7 @@ class Schedule:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> Schedule:
+    def from_dict(cls, data: dict[str, Any]) -> Schedule:
         return cls(
             kind=data["kind"],
             display=data.get("display", ""),

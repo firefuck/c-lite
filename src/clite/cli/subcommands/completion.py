@@ -167,7 +167,7 @@ def _values(kind: str) -> list[str]:
 
         try:
             return [str(row["id"]) for row in get_session_db().list_sessions(limit=50)]
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001 - completion is a convenience; never fail the shell for it
             return []
     return []
 
@@ -189,7 +189,7 @@ def run_completion(args: argparse.Namespace) -> int:
     return 0
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser(
         "completion",
         help="print a shell completion script for bash, zsh or fish",

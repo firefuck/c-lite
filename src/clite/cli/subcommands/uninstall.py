@@ -39,7 +39,7 @@ def run_uninstall(args: argparse.Namespace) -> int:
     return 0
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("uninstall", help="uninstall c-lite and optionally purge data")
     parser.add_argument("--purge", action="store_true", help="also remove the home directory and data")
     parser.add_argument("--yes", "-y", action="store_true", help="do not ask for confirmation before purging")

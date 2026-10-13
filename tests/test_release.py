@@ -7,13 +7,16 @@ on this repository, and check the script's refusals on small throwaway repositor
 
 from __future__ import annotations
 
+import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import tomllib
 import zipfile
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -34,7 +37,9 @@ finally:
 
 
 def _mini_repository(root: Path, version: str = "1.2.3") -> Path:
-    """The files the release script reads, from this repository, with another version."""
+    """The files the release script reads, from this repository, with another version.
+
+    It has no Node workspaces; ``_with_node_workspaces`` adds two."""
     package = root / "src" / APP_NAME
     (package / "core").mkdir(parents=True)
     shutil.copy2(REPO_ROOT / "src" / APP_NAME / "core" / "brand.py", package / "core" / "brand.py")
@@ -44,6 +49,20 @@ def _mini_repository(root: Path, version: str = "1.2.3") -> Path:
         f"# Changes\n\n## [{version}] - 2026-01-01\n\n- Something.\n\n## [0.0.1]\n\n- Old.\n",
         encoding="utf-8",
     )
+    return root
+
+
+def _with_node_workspaces(root: Path, version: str) -> Path:
+    workspaces = ["apps/app", "packages/lib"]
+    (root / "package.json").write_text(json.dumps({"name": "w", "workspaces": workspaces}, indent=2) + "\n")
+    lock: dict[str, Any] = {"name": "w", "lockfileVersion": 3, "packages": {"": {"workspaces": workspaces}}}
+    for name in workspaces:
+        (root / name).mkdir(parents=True)
+        manifest = {"name": f"@w/{name.rsplit('/', 1)[1]}", "version": version, "private": True}
+        (root / name / "package.json").write_text(json.dumps(manifest, indent=2) + "\n")
+        lock["packages"][name] = {"name": manifest["name"], "version": version}
+        lock["packages"][f"node_modules/{manifest['name']}"] = {"resolved": name, "link": True}
+    (root / "package-lock.json").write_text(json.dumps(lock, indent=2) + "\n")
     return root
 
 
@@ -62,16 +81,14 @@ def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
 
 def test_every_node_workspace_carries_the_package_version():
     """The desktop installer is named after its package.json; the others ship inside the wheel.
-    `scripts/release.py bump` writes only the Python version, so a bump must update these too."""
-    import json
-
+    `scripts/release.py bump` writes the version into all of them."""
     workspaces = json.loads((REPO_ROOT / "package.json").read_text(encoding="utf-8"))["workspaces"]
     versions = {
         name: json.loads((REPO_ROOT / name / "package.json").read_text(encoding="utf-8"))["version"]
         for name in workspaces
     }
     assert versions == dict.fromkeys(workspaces, __version__), (
-        f"set the version in each workspace's package.json to {__version__}, then run npm install"
+        f"run `python scripts/release.py bump {__version__}` to set every workspace's version"
     )
 
 
@@ -101,6 +118,16 @@ def test_the_distribution_is_published_as_c_lite_while_the_command_stays_clite()
     assert project["name"] != APP_NAME  # the short name on PyPI belongs to another project
     assert project["scripts"][APP_NAME] == f"{APP_NAME}.cli.main:main"
     assert project["license"] == "MIT"
+
+
+def test_the_project_links_point_at_the_repository_the_readme_clones():
+    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    clone = re.search(r"git clone (https://github\.com/[\w.-]+/[\w.-]+)", readme)
+    assert clone is not None
+    urls = project["urls"]
+    assert {"Homepage", "Documentation", "Issues", "Changelog"} <= set(urls)
+    assert all(url.startswith(clone.group(1)) for name, url in urls.items() if name != "Documentation")
 
 
 def test_a_tag_that_does_not_match_the_version_is_reported(tmp_path):
@@ -133,6 +160,27 @@ def test_bump_rewrites_the_one_version_and_nothing_else(tmp_path):
     assert (root / "pyproject.toml").read_bytes() == before
     with pytest.raises(release.ReleaseError):
         release.bump(root, "sideways")
+
+
+def test_bump_carries_the_version_into_every_node_workspace_and_the_lockfile(tmp_path):
+    root = _with_node_workspaces(_mini_repository(tmp_path), "1.2.3")
+    assert release.check(root) == []
+    assert release.bump(root, "patch") == "1.2.4"
+    for name in ("apps/app", "packages/lib"):
+        assert json.loads((root / name / "package.json").read_text())["version"] == "1.2.4"
+    lock = json.loads((root / "package-lock.json").read_text())
+    assert [lock["packages"][name]["version"] for name in ("apps/app", "packages/lib")] == ["1.2.4", "1.2.4"]
+    assert lock["packages"]["node_modules/@w/app"] == {"resolved": "apps/app", "link": True}
+    changelog = root / "CHANGELOG.md"
+    changelog.write_text(changelog.read_text().replace("# Changes\n", "# Changes\n\n## [1.2.4]\n\n- Fix.\n"))
+    assert release.check(root) == []
+
+
+def test_a_node_workspace_left_at_another_version_is_reported(tmp_path):
+    root = _with_node_workspaces(_mini_repository(tmp_path), "1.2.3")
+    manifest = root / "packages" / "lib" / "package.json"
+    manifest.write_text(manifest.read_text().replace('"1.2.3"', '"1.0.0"'))
+    assert release.check(root) == ["packages/lib/package.json has version '1.0.0', expected '1.2.3'"]
 
 
 def test_the_release_notes_are_the_changelog_section_of_the_current_version(tmp_path):
@@ -170,6 +218,28 @@ def test_the_wheel_check_accepts_a_complete_wheel_and_names_what_is_missing(tmp_
     (tmp_path / "short").mkdir()
     short = _wheel_from_package(REPO_ROOT, tmp_path / "short", leave_out=skill)
     assert release.inspect_wheel(short, REPO_ROOT) == [f"missing from the wheel: {skill}"]
+
+
+def _glob_pattern(glob: str) -> re.Pattern[str]:
+    """A setuptools package-data glob as a regex: ``**/`` spans directories, ``*`` does not."""
+    parts = re.split(r"(\*\*/|\*)", glob)
+    translated = {"**/": "(?:.*/)?", "*": "[^/]*"}
+    return re.compile("".join(translated.get(part, re.escape(part)) for part in parts) + "$")
+
+
+def test_every_data_file_the_wheel_must_ship_is_named_by_the_package_data():
+    """Building the wheel would catch it too, but only at release time; this runs in the suite."""
+    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    patterns = [_glob_pattern(glob) for glob in project["tool"]["setuptools"]["package-data"][APP_NAME]]
+    prefix = f"{APP_NAME}/"
+    data = sorted(
+        name.removeprefix(prefix)
+        for name in release.expected_wheel_files(REPO_ROOT)
+        # Modules of importable packages ship as code; everything else needs a package-data glob.
+        if not name.endswith(".py") or name.startswith(f"{prefix}bundled/")
+    )
+    unnamed = [name for name in data if not any(pattern.match(name) for pattern in patterns)]
+    assert not unnamed, "add a [tool.setuptools.package-data] glob for:\n" + "\n".join(unnamed)
 
 
 def test_area_instructions_for_contributors_are_not_expected_in_the_wheel():

@@ -84,7 +84,7 @@ Sebelum membawa sesuatu, baca
 | `tools/registry.py` | `src/clite/tools/registry.py` | |
 | `toolsets.py` | `src/clite/tools/toolsets.py` | |
 | `model_tools.py` | `src/clite/tools/dispatch.py` | `get_tool_definitions`, `handle_function_call` |
-| `tools/approval.py`, `tools/approval_detection.py`, `tools/approval_smart.py` | `src/clite/tools/approval.py` | Pola di Hermes jauh lebih banyak |
+| `tools/approval.py`, `tools/approval_detection.py`, `tools/approval_smart.py` | `src/clite/tools/approval.py` (keputusan), `src/clite/tools/command_patterns.py`, `src/clite/tools/self_access.py`, `src/clite/tools/shell_reading.py` (deteksi) | Pola di Hermes jauh lebih banyak |
 | `agent/file_safety.py`, `tools/path_security.py` | `src/clite/tools/file_safety.py` | |
 | `agent/redact.py` | `src/clite/core/redact.py` | |
 | `tools/threat_patterns.py` | `src/clite/core/threats.py` | |
@@ -184,19 +184,19 @@ Sebelum membawa sesuatu, baca
 | `tui_gateway/entry.py` | `src/clite/rpc/entry.py` | Entry point stdio |
 | `tui_gateway/transport.py`, `tui_gateway/ws.py` | `src/clite/rpc/transport.py` | |
 | `tui_gateway/contracts/` | `src/clite/rpc/contracts/` | Hermes 251 method, di sini 32 |
-| `tui_gateway/methods_session.py`, `tui_gateway/methods_prompt.py`, `tui_gateway/methods_config.py` | `src/clite/rpc/methods.py` | |
+| `tui_gateway/methods_session.py`, `tui_gateway/methods_prompt.py`, `tui_gateway/methods_config.py` | `src/clite/rpc/methods/` | |
 | `tui_gateway/agent_callbacks.py`, `tui_gateway/prompt_turn.py` | `src/clite/rpc/session.py` | Callback menjadi event |
 | `tui_gateway/server_requests.py` | `src/clite/rpc/server.py` | `request_client` |
 | `tui_gateway/event_replay.py` | belum ada | F5-T5 |
 | `tui_gateway/prompt_attachments.py` | belum ada | F2-T6 |
 | `scripts/gen_gateway_contracts.py` | `scripts/gen_rpc_contracts.py` | Generator tipe TypeScript |
-| `apps/shared/src/gateway-contract.generated.ts` | `apps/shared/src/contracts.generated.ts` | Hasil generate |
-| `apps/shared/src/json-rpc-channel.ts` | `apps/shared/src/json-rpc-channel.ts` | |
-| `apps/shared/src/json-rpc-gateway.ts` | `apps/shared/src/gateway-client.ts` | Klien bertipe |
-| `ui-tui/src/entry.tsx`, `ui-tui/src/gatewayClient.ts` | `ui-tui/src/entry.ts`, `ui-tui/src/backend.ts` | |
-| `ui-tui/src/app.tsx`, `ui-tui/src/components/` | `ui-tui/src/plain.ts`, `ui-tui/src/render.ts` | Hermes memakai Ink. TUI layar penuh: F3-T3 |
+| `apps/shared/src/gateway-contract.generated.ts` | `packages/shared/src/contracts.generated.ts` | Hasil generate |
+| `apps/shared/src/json-rpc-channel.ts` | `packages/shared/src/json-rpc-channel.ts` | |
+| `apps/shared/src/json-rpc-gateway.ts` | `packages/shared/src/gateway-client.ts` | Klien bertipe |
+| `ui-tui/src/entry.tsx`, `ui-tui/src/gatewayClient.ts` | `apps/tui/src/entry.ts`, `apps/tui/src/backend.ts` | |
+| `ui-tui/src/app.tsx`, `ui-tui/src/components/` | `apps/tui/src/app/`, `apps/tui/src/plain.ts`, `apps/tui/src/render.ts` | Keduanya memakai Ink; di sini antarmuka baris (`plain.ts`) tetap ada untuk `--plain` dan masukan pipa |
 | `hermes_cli/web_server.py` | `src/clite/server/app.py`, `src/clite/server/run.py` | Di sini satu server untuk desktop dan dashboard |
-| `web/src/` | `src/clite/server/static/` | Hermes: React. Di sini JavaScript polos. Halaman tambahan: F5-T2 |
+| `web/src/` | `apps/web/src/` | Keduanya React; di sini dibangun Vite ke `src/clite/server/static/` dan disajikan backend |
 | `apps/desktop/electron/` | `apps/desktop/src/` | Proses utama Electron. Belum diverifikasi: F5-T1 |
 | `apps/desktop/src/` | tidak dibawa | Renderer React Hermes. Di sini jendela memuat dashboard |
 | `acp_adapter/` | `src/clite/acp/` | Baru penanda tempat: F6-T4 |
@@ -214,7 +214,7 @@ Sebelum membawa sesuatu, baca
 | `plugins/platforms/discord/` | belum ada | F4-T1 |
 | `plugins/platforms/slack/` | belum ada | F4-T2 |
 | `plugins/platforms/whatsapp/`, `gateway/platforms/signal.py`, `plugins/platforms/matrix/`, `plugins/platforms/email/` | belum ada | F4-T3 |
-| `gateway/stream_consumer.py` | belum ada | Jawaban streaming: F4-T5 |
+| `gateway/stream_consumer.py` | `src/clite/gateway/stream.py` | Jawaban streaming: F4-T5 |
 | `gateway/delivery.py` | `src/clite/gateway/runner.py` | `reply`, `deliver` |
 | `hermes_cli/gateway_launchd.py`, `gateway/restart.py` | belum ada | Layanan sistem: F4-T6 |
 | `gateway/config.py` | belum ada | Kebijakan reset sesi (menganggur, harian): F4-T7 |

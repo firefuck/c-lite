@@ -1,19 +1,22 @@
 {
   "name": "clite-workspace",
   "private": true,
-  "description": "Node workspaces for C-lite: shared protocol client, terminal UI, desktop shell.",
+  "description": "Node workspaces for C-lite: the shared protocol client, the terminal UI, the dashboard and the desktop shell.",
   "workspaces": [
-    "apps/shared",
-    "ui-tui",
-    "apps/desktop",
-    "web"
+    "packages/shared",
+    "apps/tui",
+    "apps/web",
+    "apps/desktop"
   ],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces",
     "test": "npm run test --workspaces",
-    "build": "npm run build --workspace ui-tui && npm run build --workspace apps/desktop && npm run build --workspace web"
+    "build": "npm run build --workspace apps/tui && npm run build --workspace apps/desktop && npm run build --workspace apps/web"
   },
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15"
   }
 }

@@ -43,6 +43,23 @@ def _where(path: Path, line: int) -> str:
     return f"{path.relative_to(REPO_ROOT)}:{line}"
 
 
+def test_hidden_tool_directories_are_neither_documents_nor_repository_files(tmp_path):
+    for relative in (
+        "docs/guide.md",
+        ".github/pull_request_template.md",
+        ".venv/lib/README.md",
+        ".workspace/copy/docs/guide.md",
+        "node_modules/pkg/README.md",
+    ):
+        (tmp_path / relative).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / relative).write_text("# x\n", encoding="utf-8")
+    documents = [path.relative_to(tmp_path).as_posix() for path in doc_refs.documents(tmp_path)]
+    assert documents == [".github/pull_request_template.md", "docs/guide.md"]
+    files = doc_refs.repository_files(tmp_path)
+    assert "docs/guide.md" in files
+    assert not any(name.startswith((".venv", ".workspace", "node_modules")) for name in files)
+
+
 # ── links ────────────────────────────────────────────────────────────────────────────────
 
 
@@ -219,3 +236,21 @@ def test_hermes_reference_checker_reports_a_missing_checkout(tmp_path):
     )
     assert result.returncode == 2
     assert "not a Hermes checkout" in result.stderr
+
+
+def test_hermes_reference_checker_tells_paths_from_home_files_and_host_names():
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    try:
+        import check_hermes_refs
+    finally:
+        sys.path.pop(0)
+    looks_like_a_path = check_hermes_refs.looks_like_a_path
+    assert looks_like_a_path("agent/redact.py", set())
+    assert looks_like_a_path("gateway/platforms/", set())  # a directory
+    assert looks_like_a_path("docs/guide.md", set())  # a known file suffix
+    assert looks_like_a_path("plugins/model-providers", {"plugins"})  # a known top-level folder
+    assert looks_like_a_path("run_agent.py", set())  # a bare name that is clearly code
+    assert not looks_like_a_path("config.yaml", set())  # a file in the user's home
+    assert not looks_like_a_path("api.example.sh", set())  # a host name
+    assert not looks_like_a_path(".env", set())
+    assert not looks_like_a_path("some/thing", set())

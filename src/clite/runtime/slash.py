@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import time
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from clite.agent.messages import content_text, is_internal
 from clite.agent.prompt.builder import build_prompt_tiers
@@ -550,7 +550,7 @@ def _handle_cron(session: ChatSession, args: str) -> SlashResult:
 
 
 def _handle_help(session: ChatSession, args: str) -> SlashResult:
-    grouped: dict[str, list[dict]] = {}
+    grouped: dict[str, list[dict[str, Any]]] = {}
     for entry in command_catalog(session.platform, cwd=session.agent.cwd):
         grouped.setdefault(entry["category"], []).append(entry)
     lines = []
@@ -568,8 +568,10 @@ def _handle_status(session: ChatSession, args: str) -> SlashResult:
     lines = [
         f"Session:  {info['session_id']}" + (f"  ({info['title']})" if info["title"] else ""),
         f"Model:    {info['model']} via {info['provider']}",
-        f"Context:  {context['last_prompt_tokens']:,} / {context['context_length']:,} tokens "
-        f"({context['usage_percent']}%), {info['message_count']} messages, {context['compression_count']} compressions",
+        (
+            f"Context:  {context['last_prompt_tokens']:,} / {context['context_length']:,} tokens "
+            f"({context['usage_percent']}%), {info['message_count']} messages, {context['compression_count']} compressions"
+        ),
         f"Tools:    {len(info['tools'])} from {', '.join(info['toolsets']) or 'no toolsets'}",
         f"Folder:   {info['cwd']}",
         f"State:    {'working' if info['busy'] else 'idle'}" + ("; approvals OFF" if info["yolo"] else ""),
@@ -682,7 +684,7 @@ def _handle_insights(session: ChatSession, args: str) -> SlashResult:
     db = session.agent.db
     if db is None:
         return SlashResult("Database not available.")
-    from clite.state.db import format_insights
+    from clite.state.insights import format_insights
 
     data = db.get_insights(days=days)
     return SlashResult(format_insights(data))

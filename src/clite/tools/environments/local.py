@@ -47,9 +47,11 @@ def build_child_env(
     env["PAGER"] = "cat"
     env["GIT_PAGER"] = "cat"
     if extra:
-        for k, v in extra.items():
-            if k not in secrets and (not cred_vals or v not in cred_vals):
-                env[k] = v
+        env.update(
+            (key, value)
+            for key, value in extra.items()
+            if key not in secrets and (not cred_vals or value not in cred_vals)
+        )
     return env
 
 
@@ -60,9 +62,11 @@ def find_shell() -> list[str]:
         git = shutil.which("git")
         if git:
             candidates.append(str(Path(git).parent.parent / "bin" / "bash.exe"))
-        for variable in ("ProgramFiles", "ProgramFiles(x86)"):
-            if os.environ.get(variable):
-                candidates.append(str(Path(os.environ[variable]) / "Git" / "bin" / "bash.exe"))
+        candidates.extend(
+            str(Path(os.environ[variable]) / "Git" / "bin" / "bash.exe")
+            for variable in ("ProgramFiles", "ProgramFiles(x86)")
+            if os.environ.get(variable)
+        )
         bash = next(
             (
                 path
@@ -77,7 +81,7 @@ def find_shell() -> list[str]:
     return [shutil.which("bash") or "/bin/sh", "-c"]
 
 
-def kill_process_tree(process: subprocess.Popen, *, force: bool = False) -> None:
+def kill_process_tree(process: subprocess.Popen[str], *, force: bool = False) -> None:
     """Signal the whole process group so children of the shell die with it."""
     if process.poll() is not None:
         return
@@ -94,7 +98,7 @@ def kill_process_tree(process: subprocess.Popen, *, force: bool = False) -> None
         pass
 
 
-def _stop_tree(process: subprocess.Popen) -> None:
+def _stop_tree(process: subprocess.Popen[str]) -> None:
     """End a timed-out or interrupted command: ask the group to stop, then force it."""
     kill_process_tree(process)
     try:
@@ -129,17 +133,12 @@ class LocalEnvironment(BaseEnvironment):
         atomic_write_text(path, content)
 
     def list_dir(self, path: str) -> list[DirEntry]:
-        entries = []
-        for child in Path(path).iterdir():
-            entries.append(
-                DirEntry(
-                    child.name,
-                    child.is_dir(),
-                    child.is_file(),
-                    child.stat().st_size if child.is_file() else 0,
-                )
+        return [
+            DirEntry(
+                child.name, child.is_dir(), child.is_file(), child.stat().st_size if child.is_file() else 0
             )
-        return entries
+            for child in Path(path).iterdir()
+        ]
 
     def stat(self, path: str) -> FileInfo:
         target = Path(path)

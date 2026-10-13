@@ -48,9 +48,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// ../node_modules/react/cjs/react.production.min.js
+// ../../node_modules/react/cjs/react.production.min.js
 var require_react_production_min = __commonJS({
-  "../node_modules/react/cjs/react.production.min.js"(exports) {
+  "../../node_modules/react/cjs/react.production.min.js"(exports) {
     "use strict";
     var l = /* @__PURE__ */ Symbol.for("react.element");
     var n = /* @__PURE__ */ Symbol.for("react.portal");
@@ -321,9 +321,9 @@ var require_react_production_min = __commonJS({
   }
 });
 
-// ../node_modules/react/cjs/react.development.js
+// ../../node_modules/react/cjs/react.development.js
 var require_react_development = __commonJS({
-  "../node_modules/react/cjs/react.development.js"(exports, module) {
+  "../../node_modules/react/cjs/react.development.js"(exports, module) {
     "use strict";
     if (process.env.NODE_ENV !== "production") {
       (function() {
@@ -2195,9 +2195,9 @@ var require_react_development = __commonJS({
   }
 });
 
-// ../node_modules/react/index.js
+// ../../node_modules/react/index.js
 var require_react = __commonJS({
-  "../node_modules/react/index.js"(exports, module) {
+  "../../node_modules/react/index.js"(exports, module) {
     "use strict";
     if (process.env.NODE_ENV === "production") {
       module.exports = require_react_production_min();
@@ -2207,9 +2207,9 @@ var require_react = __commonJS({
   }
 });
 
-// ../node_modules/signal-exit/signals.js
+// ../../node_modules/signal-exit/signals.js
 var require_signals = __commonJS({
-  "../node_modules/signal-exit/signals.js"(exports, module) {
+  "../../node_modules/signal-exit/signals.js"(exports, module) {
     module.exports = [
       "SIGABRT",
       "SIGALRM",
@@ -2244,9 +2244,9 @@ var require_signals = __commonJS({
   }
 });
 
-// ../node_modules/signal-exit/index.js
+// ../../node_modules/signal-exit/index.js
 var require_signal_exit = __commonJS({
-  "../node_modules/signal-exit/index.js"(exports, module) {
+  "../../node_modules/signal-exit/index.js"(exports, module) {
     var process13 = global.process;
     var processOk = function(process14) {
       return process14 && typeof process14 === "object" && typeof process14.removeListener === "function" && typeof process14.emit === "function" && typeof process14.reallyExit === "function" && typeof process14.listeners === "function" && typeof process14.kill === "function" && typeof process14.pid === "number" && typeof process14.on === "function";
@@ -2403,9 +2403,9 @@ var require_signal_exit = __commonJS({
   }
 });
 
-// ../node_modules/scheduler/cjs/scheduler.production.min.js
+// ../../node_modules/scheduler/cjs/scheduler.production.min.js
 var require_scheduler_production_min = __commonJS({
-  "../node_modules/scheduler/cjs/scheduler.production.min.js"(exports) {
+  "../../node_modules/scheduler/cjs/scheduler.production.min.js"(exports) {
     "use strict";
     function f(a, b) {
       var c = a.length;
@@ -2656,9 +2656,9 @@ var require_scheduler_production_min = __commonJS({
   }
 });
 
-// ../node_modules/scheduler/cjs/scheduler.development.js
+// ../../node_modules/scheduler/cjs/scheduler.development.js
 var require_scheduler_development = __commonJS({
-  "../node_modules/scheduler/cjs/scheduler.development.js"(exports) {
+  "../../node_modules/scheduler/cjs/scheduler.development.js"(exports) {
     "use strict";
     if (process.env.NODE_ENV !== "production") {
       (function() {
@@ -3106,9 +3106,9 @@ var require_scheduler_development = __commonJS({
   }
 });
 
-// ../node_modules/scheduler/index.js
+// ../../node_modules/scheduler/index.js
 var require_scheduler = __commonJS({
-  "../node_modules/scheduler/index.js"(exports, module) {
+  "../../node_modules/scheduler/index.js"(exports, module) {
     "use strict";
     if (process.env.NODE_ENV === "production") {
       module.exports = require_scheduler_production_min();
@@ -3118,9 +3118,9 @@ var require_scheduler = __commonJS({
   }
 });
 
-// ../node_modules/react-reconciler/cjs/react-reconciler.production.min.js
+// ../../node_modules/react-reconciler/cjs/react-reconciler.production.min.js
 var require_react_reconciler_production_min = __commonJS({
-  "../node_modules/react-reconciler/cjs/react-reconciler.production.min.js"(exports, module) {
+  "../../node_modules/react-reconciler/cjs/react-reconciler.production.min.js"(exports, module) {
     module.exports = function $$$reconciler($$$hostConfig) {
       var exports2 = {};
       "use strict";
@@ -7867,9 +7867,9 @@ var require_react_reconciler_production_min = __commonJS({
   }
 });
 
-// ../node_modules/react-reconciler/cjs/react-reconciler.development.js
+// ../../node_modules/react-reconciler/cjs/react-reconciler.development.js
 var require_react_reconciler_development = __commonJS({
-  "../node_modules/react-reconciler/cjs/react-reconciler.development.js"(exports, module) {
+  "../../node_modules/react-reconciler/cjs/react-reconciler.development.js"(exports, module) {
     "use strict";
     if (process.env.NODE_ENV !== "production") {
       module.exports = function $$$reconciler($$$hostConfig) {
@@ -22995,9 +22995,9 @@ var require_react_reconciler_development = __commonJS({
   }
 });
 
-// ../node_modules/react-reconciler/index.js
+// ../../node_modules/react-reconciler/index.js
 var require_react_reconciler = __commonJS({
-  "../node_modules/react-reconciler/index.js"(exports, module) {
+  "../../node_modules/react-reconciler/index.js"(exports, module) {
     "use strict";
     if (process.env.NODE_ENV === "production") {
       module.exports = require_react_reconciler_production_min();
@@ -23007,9 +23007,9 @@ var require_react_reconciler = __commonJS({
   }
 });
 
-// ../node_modules/react-reconciler/cjs/react-reconciler-constants.production.min.js
+// ../../node_modules/react-reconciler/cjs/react-reconciler-constants.production.min.js
 var require_react_reconciler_constants_production_min = __commonJS({
-  "../node_modules/react-reconciler/cjs/react-reconciler-constants.production.min.js"(exports) {
+  "../../node_modules/react-reconciler/cjs/react-reconciler-constants.production.min.js"(exports) {
     "use strict";
     exports.ConcurrentRoot = 1;
     exports.ContinuousEventPriority = 4;
@@ -23020,9 +23020,9 @@ var require_react_reconciler_constants_production_min = __commonJS({
   }
 });
 
-// ../node_modules/react-reconciler/cjs/react-reconciler-constants.development.js
+// ../../node_modules/react-reconciler/cjs/react-reconciler-constants.development.js
 var require_react_reconciler_constants_development = __commonJS({
-  "../node_modules/react-reconciler/cjs/react-reconciler-constants.development.js"(exports) {
+  "../../node_modules/react-reconciler/cjs/react-reconciler-constants.development.js"(exports) {
     "use strict";
     if (process.env.NODE_ENV !== "production") {
       (function() {
@@ -23060,9 +23060,9 @@ var require_react_reconciler_constants_development = __commonJS({
   }
 });
 
-// ../node_modules/react-reconciler/constants.js
+// ../../node_modules/react-reconciler/constants.js
 var require_constants = __commonJS({
-  "../node_modules/react-reconciler/constants.js"(exports, module) {
+  "../../node_modules/react-reconciler/constants.js"(exports, module) {
     "use strict";
     if (process.env.NODE_ENV === "production") {
       module.exports = require_react_reconciler_constants_production_min();
@@ -23072,18 +23072,18 @@ var require_constants = __commonJS({
   }
 });
 
-// ../node_modules/emoji-regex/index.js
+// ../../node_modules/emoji-regex/index.js
 var require_emoji_regex = __commonJS({
-  "../node_modules/emoji-regex/index.js"(exports, module) {
+  "../../node_modules/emoji-regex/index.js"(exports, module) {
     module.exports = () => {
       return /[#*0-9]\uFE0F?\u20E3|[\xA9\xAE\u203C\u2049\u2122\u2139\u2194-\u2199\u21A9\u21AA\u231A\u231B\u2328\u23CF\u23ED-\u23EF\u23F1\u23F2\u23F8-\u23FA\u24C2\u25AA\u25AB\u25B6\u25C0\u25FB\u25FC\u25FE\u2600-\u2604\u260E\u2611\u2614\u2615\u2618\u2620\u2622\u2623\u2626\u262A\u262E\u262F\u2638-\u263A\u2640\u2642\u2648-\u2653\u265F\u2660\u2663\u2665\u2666\u2668\u267B\u267E\u267F\u2692\u2694-\u2697\u2699\u269B\u269C\u26A0\u26A7\u26AA\u26B0\u26B1\u26BD\u26BE\u26C4\u26C8\u26CF\u26D1\u26E9\u26F0-\u26F5\u26F7\u26F8\u26FA\u2702\u2708\u2709\u270F\u2712\u2714\u2716\u271D\u2721\u2733\u2734\u2744\u2747\u2757\u2763\u27A1\u2934\u2935\u2B05-\u2B07\u2B1B\u2B1C\u2B55\u3030\u303D\u3297\u3299]\uFE0F?|[\u261D\u270C\u270D](?:\uD83C[\uDFFB-\uDFFF]|\uFE0F)?|[\u270A\u270B](?:\uD83C[\uDFFB-\uDFFF])?|[\u23E9-\u23EC\u23F0\u23F3\u25FD\u2693\u26A1\u26AB\u26C5\u26CE\u26D4\u26EA\u26FD\u2705\u2728\u274C\u274E\u2753-\u2755\u2795-\u2797\u27B0\u27BF\u2B50]|\u26D3\uFE0F?(?:\u200D\uD83D\uDCA5)?|\u26F9(?:\uD83C[\uDFFB-\uDFFF]|\uFE0F)?(?:\u200D[\u2640\u2642]\uFE0F?)?|\u2764\uFE0F?(?:\u200D(?:\uD83D\uDD25|\uD83E\uDE79))?|\uD83C(?:[\uDC04\uDD70\uDD71\uDD7E\uDD7F\uDE02\uDE37\uDF21\uDF24-\uDF2C\uDF36\uDF7D\uDF96\uDF97\uDF99-\uDF9B\uDF9E\uDF9F\uDFCD\uDFCE\uDFD4-\uDFDF\uDFF5\uDFF7]\uFE0F?|[\uDF85\uDFC2\uDFC7](?:\uD83C[\uDFFB-\uDFFF])?|[\uDFC4\uDFCA](?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDFCB\uDFCC](?:\uD83C[\uDFFB-\uDFFF]|\uFE0F)?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDCCF\uDD8E\uDD91-\uDD9A\uDE01\uDE1A\uDE2F\uDE32-\uDE36\uDE38-\uDE3A\uDE50\uDE51\uDF00-\uDF20\uDF2D-\uDF35\uDF37-\uDF43\uDF45-\uDF4A\uDF4C-\uDF7C\uDF7E-\uDF84\uDF86-\uDF93\uDFA0-\uDFC1\uDFC5\uDFC6\uDFC8\uDFC9\uDFCF-\uDFD3\uDFE0-\uDFF0\uDFF8-\uDFFF]|\uDDE6\uD83C[\uDDE8-\uDDEC\uDDEE\uDDF1\uDDF2\uDDF4\uDDF6-\uDDFA\uDDFC\uDDFD\uDDFF]|\uDDE7\uD83C[\uDDE6\uDDE7\uDDE9-\uDDEF\uDDF1-\uDDF4\uDDF6-\uDDF9\uDDFB\uDDFC\uDDFE\uDDFF]|\uDDE8\uD83C[\uDDE6\uDDE8\uDDE9\uDDEB-\uDDEE\uDDF0-\uDDF7\uDDFA-\uDDFF]|\uDDE9\uD83C[\uDDEA\uDDEC\uDDEF\uDDF0\uDDF2\uDDF4\uDDFF]|\uDDEA\uD83C[\uDDE6\uDDE8\uDDEA\uDDEC\uDDED\uDDF7-\uDDFA]|\uDDEB\uD83C[\uDDEE-\uDDF0\uDDF2\uDDF4\uDDF7]|\uDDEC\uD83C[\uDDE6\uDDE7\uDDE9-\uDDEE\uDDF1-\uDDF3\uDDF5-\uDDFA\uDDFC\uDDFE]|\uDDED\uD83C[\uDDF0\uDDF2\uDDF3\uDDF7\uDDF9\uDDFA]|\uDDEE\uD83C[\uDDE8-\uDDEA\uDDF1-\uDDF4\uDDF6-\uDDF9]|\uDDEF\uD83C[\uDDEA\uDDF2\uDDF4\uDDF5]|\uDDF0\uD83C[\uDDEA\uDDEC-\uDDEE\uDDF2\uDDF3\uDDF5\uDDF7\uDDFC\uDDFE\uDDFF]|\uDDF1\uD83C[\uDDE6-\uDDE8\uDDEE\uDDF0\uDDF7-\uDDFB\uDDFE]|\uDDF2\uD83C[\uDDE6\uDDE8-\uDDED\uDDF0-\uDDFF]|\uDDF3\uD83C[\uDDE6\uDDE8\uDDEA-\uDDEC\uDDEE\uDDF1\uDDF4\uDDF5\uDDF7\uDDFA\uDDFF]|\uDDF4\uD83C\uDDF2|\uDDF5\uD83C[\uDDE6\uDDEA-\uDDED\uDDF0-\uDDF3\uDDF7-\uDDF9\uDDFC\uDDFE]|\uDDF6\uD83C\uDDE6|\uDDF7\uD83C[\uDDEA\uDDF4\uDDF8\uDDFA\uDDFC]|\uDDF8\uD83C[\uDDE6-\uDDEA\uDDEC-\uDDF4\uDDF7-\uDDF9\uDDFB\uDDFD-\uDDFF]|\uDDF9\uD83C[\uDDE6\uDDE8\uDDE9\uDDEB-\uDDED\uDDEF-\uDDF4\uDDF7\uDDF9\uDDFB\uDDFC\uDDFF]|\uDDFA\uD83C[\uDDE6\uDDEC\uDDF2\uDDF3\uDDF8\uDDFE\uDDFF]|\uDDFB\uD83C[\uDDE6\uDDE8\uDDEA\uDDEC\uDDEE\uDDF3\uDDFA]|\uDDFC\uD83C[\uDDEB\uDDF8]|\uDDFD\uD83C\uDDF0|\uDDFE\uD83C[\uDDEA\uDDF9]|\uDDFF\uD83C[\uDDE6\uDDF2\uDDFC]|\uDF44(?:\u200D\uD83D\uDFEB)?|\uDF4B(?:\u200D\uD83D\uDFE9)?|\uDFC3(?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D(?:[\u2640\u2642]\uFE0F?(?:\u200D\u27A1\uFE0F?)?|\u27A1\uFE0F?))?|\uDFF3\uFE0F?(?:\u200D(?:\u26A7\uFE0F?|\uD83C\uDF08))?|\uDFF4(?:\u200D\u2620\uFE0F?|\uDB40\uDC67\uDB40\uDC62\uDB40(?:\uDC65\uDB40\uDC6E\uDB40\uDC67|\uDC73\uDB40\uDC63\uDB40\uDC74|\uDC77\uDB40\uDC6C\uDB40\uDC73)\uDB40\uDC7F)?)|\uD83D(?:[\uDC3F\uDCFD\uDD49\uDD4A\uDD6F\uDD70\uDD73\uDD76-\uDD79\uDD87\uDD8A-\uDD8D\uDDA5\uDDA8\uDDB1\uDDB2\uDDBC\uDDC2-\uDDC4\uDDD1-\uDDD3\uDDDC-\uDDDE\uDDE1\uDDE3\uDDE8\uDDEF\uDDF3\uDDFA\uDECB\uDECD-\uDECF\uDEE0-\uDEE5\uDEE9\uDEF0\uDEF3]\uFE0F?|[\uDC42\uDC43\uDC46-\uDC50\uDC66\uDC67\uDC6B-\uDC6D\uDC72\uDC74-\uDC76\uDC78\uDC7C\uDC83\uDC85\uDC8F\uDC91\uDCAA\uDD7A\uDD95\uDD96\uDE4C\uDE4F\uDEC0\uDECC](?:\uD83C[\uDFFB-\uDFFF])?|[\uDC6E-\uDC71\uDC73\uDC77\uDC81\uDC82\uDC86\uDC87\uDE45-\uDE47\uDE4B\uDE4D\uDE4E\uDEA3\uDEB4\uDEB5](?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDD74\uDD90](?:\uD83C[\uDFFB-\uDFFF]|\uFE0F)?|[\uDC00-\uDC07\uDC09-\uDC14\uDC16-\uDC25\uDC27-\uDC3A\uDC3C-\uDC3E\uDC40\uDC44\uDC45\uDC51-\uDC65\uDC6A\uDC79-\uDC7B\uDC7D-\uDC80\uDC84\uDC88-\uDC8E\uDC90\uDC92-\uDCA9\uDCAB-\uDCFC\uDCFF-\uDD3D\uDD4B-\uDD4E\uDD50-\uDD67\uDDA4\uDDFB-\uDE2D\uDE2F-\uDE34\uDE37-\uDE41\uDE43\uDE44\uDE48-\uDE4A\uDE80-\uDEA2\uDEA4-\uDEB3\uDEB7-\uDEBF\uDEC1-\uDEC5\uDED0-\uDED2\uDED5-\uDED8\uDEDC-\uDEDF\uDEEB\uDEEC\uDEF4-\uDEFC\uDFE0-\uDFEB\uDFF0]|\uDC08(?:\u200D\u2B1B)?|\uDC15(?:\u200D\uD83E\uDDBA)?|\uDC26(?:\u200D(?:\u2B1B|\uD83D\uDD25))?|\uDC3B(?:\u200D\u2744\uFE0F?)?|\uDC41\uFE0F?(?:\u200D\uD83D\uDDE8\uFE0F?)?|\uDC68(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDC68\uDC69]\u200D\uD83D(?:\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?)|[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?)|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]))|\uD83C(?:\uDFFB(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC30\u200D\uD83D\uDC68\uD83C[\uDFFC-\uDFFF])|\uD83E(?:[\uDD1D\uDEEF]\u200D\uD83D\uDC68\uD83C[\uDFFC-\uDFFF]|[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3])))?|\uDFFC(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC30\u200D\uD83D\uDC68\uD83C[\uDFFB\uDFFD-\uDFFF])|\uD83E(?:[\uDD1D\uDEEF]\u200D\uD83D\uDC68\uD83C[\uDFFB\uDFFD-\uDFFF]|[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3])))?|\uDFFD(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC30\u200D\uD83D\uDC68\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])|\uD83E(?:[\uDD1D\uDEEF]\u200D\uD83D\uDC68\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF]|[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3])))?|\uDFFE(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC30\u200D\uD83D\uDC68\uD83C[\uDFFB-\uDFFD\uDFFF])|\uD83E(?:[\uDD1D\uDEEF]\u200D\uD83D\uDC68\uD83C[\uDFFB-\uDFFD\uDFFF]|[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3])))?|\uDFFF(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC30\u200D\uD83D\uDC68\uD83C[\uDFFB-\uDFFE])|\uD83E(?:[\uDD1D\uDEEF]\u200D\uD83D\uDC68\uD83C[\uDFFB-\uDFFE]|[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3])))?))?|\uDC69(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?[\uDC68\uDC69]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?|\uDC69\u200D\uD83D(?:\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?))|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]))|\uD83C(?:\uDFFB(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC30\u200D\uD83D\uDC69\uD83C[\uDFFC-\uDFFF])|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFC-\uDFFF]|\uDEEF\u200D\uD83D\uDC69\uD83C[\uDFFC-\uDFFF])))?|\uDFFC(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC30\u200D\uD83D\uDC69\uD83C[\uDFFB\uDFFD-\uDFFF])|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB\uDFFD-\uDFFF]|\uDEEF\u200D\uD83D\uDC69\uD83C[\uDFFB\uDFFD-\uDFFF])))?|\uDFFD(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC30\u200D\uD83D\uDC69\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF]|\uDEEF\u200D\uD83D\uDC69\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])))?|\uDFFE(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC30\u200D\uD83D\uDC69\uD83C[\uDFFB-\uDFFD\uDFFF])|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB-\uDFFD\uDFFF]|\uDEEF\u200D\uD83D\uDC69\uD83C[\uDFFB-\uDFFD\uDFFF])))?|\uDFFF(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC30\u200D\uD83D\uDC69\uD83C[\uDFFB-\uDFFE])|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB-\uDFFE]|\uDEEF\u200D\uD83D\uDC69\uD83C[\uDFFB-\uDFFE])))?))?|\uDD75(?:\uD83C[\uDFFB-\uDFFF]|\uFE0F)?(?:\u200D[\u2640\u2642]\uFE0F?)?|\uDE2E(?:\u200D\uD83D\uDCA8)?|\uDE35(?:\u200D\uD83D\uDCAB)?|\uDE36(?:\u200D\uD83C\uDF2B\uFE0F?)?|\uDE42(?:\u200D[\u2194\u2195]\uFE0F?)?|\uDEB6(?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D(?:[\u2640\u2642]\uFE0F?(?:\u200D\u27A1\uFE0F?)?|\u27A1\uFE0F?))?)|\uD83E(?:[\uDD0C\uDD0F\uDD18-\uDD1F\uDD30-\uDD34\uDD36\uDD77\uDDB5\uDDB6\uDDBB\uDDD2\uDDD3\uDDD5\uDEC3-\uDEC5\uDEF0\uDEF2-\uDEF8](?:\uD83C[\uDFFB-\uDFFF])?|[\uDD26\uDD35\uDD37-\uDD39\uDD3C-\uDD3E\uDDB8\uDDB9\uDDCD\uDDCF\uDDD4\uDDD6-\uDDDD](?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDDDE\uDDDF](?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDD0D\uDD0E\uDD10-\uDD17\uDD20-\uDD25\uDD27-\uDD2F\uDD3A\uDD3F-\uDD45\uDD47-\uDD76\uDD78-\uDDB4\uDDB7\uDDBA\uDDBC-\uDDCC\uDDD0\uDDE0-\uDDFF\uDE70-\uDE7C\uDE80-\uDE8A\uDE8E-\uDEC2\uDEC6\uDEC8\uDECD-\uDEDC\uDEDF-\uDEEA\uDEEF]|\uDDCE(?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D(?:[\u2640\u2642]\uFE0F?(?:\u200D\u27A1\uFE0F?)?|\u27A1\uFE0F?))?|\uDDD1(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3\uDE70]|\uDD1D\u200D\uD83E\uDDD1|\uDDD1\u200D\uD83E\uDDD2(?:\u200D\uD83E\uDDD2)?|\uDDD2(?:\u200D\uD83E\uDDD2)?))|\uD83C(?:\uDFFB(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFC-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC30\u200D\uD83E\uDDD1\uD83C[\uDFFC-\uDFFF])|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3\uDE70]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF]|\uDEEF\u200D\uD83E\uDDD1\uD83C[\uDFFC-\uDFFF])))?|\uDFFC(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB\uDFFD-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC30\u200D\uD83E\uDDD1\uD83C[\uDFFB\uDFFD-\uDFFF])|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3\uDE70]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF]|\uDEEF\u200D\uD83E\uDDD1\uD83C[\uDFFB\uDFFD-\uDFFF])))?|\uDFFD(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC30\u200D\uD83E\uDDD1\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3\uDE70]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF]|\uDEEF\u200D\uD83E\uDDD1\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])))?|\uDFFE(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB-\uDFFD\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC30\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFD\uDFFF])|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3\uDE70]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF]|\uDEEF\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFD\uDFFF])))?|\uDFFF(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB-\uDFFE]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC30\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFE])|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3\uDE70]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF]|\uDEEF\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFE])))?))?|\uDEF1(?:\uD83C(?:\uDFFB(?:\u200D\uD83E\uDEF2\uD83C[\uDFFC-\uDFFF])?|\uDFFC(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB\uDFFD-\uDFFF])?|\uDFFD(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])?|\uDFFE(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB-\uDFFD\uDFFF])?|\uDFFF(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB-\uDFFE])?))?)/g;
     };
   }
 });
 
-// ../node_modules/ws/lib/constants.js
+// ../../node_modules/ws/lib/constants.js
 var require_constants2 = __commonJS({
-  "../node_modules/ws/lib/constants.js"(exports, module) {
+  "../../node_modules/ws/lib/constants.js"(exports, module) {
     "use strict";
     var BINARY_TYPES = ["nodebuffer", "arraybuffer", "fragments"];
     var hasBlob = typeof Blob !== "undefined";
@@ -23104,9 +23104,9 @@ var require_constants2 = __commonJS({
   }
 });
 
-// ../node_modules/ws/lib/buffer-util.js
+// ../../node_modules/ws/lib/buffer-util.js
 var require_buffer_util = __commonJS({
-  "../node_modules/ws/lib/buffer-util.js"(exports, module) {
+  "../../node_modules/ws/lib/buffer-util.js"(exports, module) {
     "use strict";
     var { EMPTY_BUFFER } = require_constants2();
     var FastBuffer = Buffer[Symbol.species];
@@ -23179,9 +23179,9 @@ var require_buffer_util = __commonJS({
   }
 });
 
-// ../node_modules/ws/lib/limiter.js
+// ../../node_modules/ws/lib/limiter.js
 var require_limiter = __commonJS({
-  "../node_modules/ws/lib/limiter.js"(exports, module) {
+  "../../node_modules/ws/lib/limiter.js"(exports, module) {
     "use strict";
     var kDone = /* @__PURE__ */ Symbol("kDone");
     var kRun = /* @__PURE__ */ Symbol("kRun");
@@ -23229,9 +23229,9 @@ var require_limiter = __commonJS({
   }
 });
 
-// ../node_modules/ws/lib/permessage-deflate.js
+// ../../node_modules/ws/lib/permessage-deflate.js
 var require_permessage_deflate = __commonJS({
-  "../node_modules/ws/lib/permessage-deflate.js"(exports, module) {
+  "../../node_modules/ws/lib/permessage-deflate.js"(exports, module) {
     "use strict";
     var zlib = __require("zlib");
     var bufferUtil = require_buffer_util();
@@ -23612,9 +23612,9 @@ var require_permessage_deflate = __commonJS({
   }
 });
 
-// ../node_modules/ws/lib/validation.js
+// ../../node_modules/ws/lib/validation.js
 var require_validation = __commonJS({
-  "../node_modules/ws/lib/validation.js"(exports, module) {
+  "../../node_modules/ws/lib/validation.js"(exports, module) {
     "use strict";
     var { isUtf8 } = __require("buffer");
     var { hasBlob } = require_constants2();
@@ -23813,9 +23813,9 @@ var require_validation = __commonJS({
   }
 });
 
-// ../node_modules/ws/lib/receiver.js
+// ../../node_modules/ws/lib/receiver.js
 var require_receiver = __commonJS({
-  "../node_modules/ws/lib/receiver.js"(exports, module) {
+  "../../node_modules/ws/lib/receiver.js"(exports, module) {
     "use strict";
     var { Writable } = __require("stream");
     var PerMessageDeflate2 = require_permessage_deflate();
@@ -24436,9 +24436,9 @@ var require_receiver = __commonJS({
   }
 });
 
-// ../node_modules/ws/lib/sender.js
+// ../../node_modules/ws/lib/sender.js
 var require_sender = __commonJS({
-  "../node_modules/ws/lib/sender.js"(exports, module) {
+  "../../node_modules/ws/lib/sender.js"(exports, module) {
     "use strict";
     var { Duplex } = __require("stream");
     var { randomFillSync } = __require("crypto");
@@ -24929,9 +24929,9 @@ var require_sender = __commonJS({
   }
 });
 
-// ../node_modules/ws/lib/event-target.js
+// ../../node_modules/ws/lib/event-target.js
 var require_event_target = __commonJS({
-  "../node_modules/ws/lib/event-target.js"(exports, module) {
+  "../../node_modules/ws/lib/event-target.js"(exports, module) {
     "use strict";
     var { kForOnEventAttribute, kListener } = require_constants2();
     var kCode = /* @__PURE__ */ Symbol("kCode");
@@ -25158,9 +25158,9 @@ var require_event_target = __commonJS({
   }
 });
 
-// ../node_modules/ws/lib/extension.js
+// ../../node_modules/ws/lib/extension.js
 var require_extension = __commonJS({
-  "../node_modules/ws/lib/extension.js"(exports, module) {
+  "../../node_modules/ws/lib/extension.js"(exports, module) {
     "use strict";
     var { tokenChars } = require_validation();
     function push(dest, name, elem) {
@@ -25311,9 +25311,9 @@ var require_extension = __commonJS({
   }
 });
 
-// ../node_modules/ws/lib/websocket.js
+// ../../node_modules/ws/lib/websocket.js
 var require_websocket = __commonJS({
-  "../node_modules/ws/lib/websocket.js"(exports, module) {
+  "../../node_modules/ws/lib/websocket.js"(exports, module) {
     "use strict";
     var EventEmitter3 = __require("events");
     var https = __require("https");
@@ -26220,9 +26220,9 @@ var require_websocket = __commonJS({
   }
 });
 
-// ../node_modules/ws/lib/stream.js
+// ../../node_modules/ws/lib/stream.js
 var require_stream = __commonJS({
-  "../node_modules/ws/lib/stream.js"(exports, module) {
+  "../../node_modules/ws/lib/stream.js"(exports, module) {
     "use strict";
     var WebSocket3 = require_websocket();
     var { Duplex } = __require("stream");
@@ -26318,9 +26318,9 @@ var require_stream = __commonJS({
   }
 });
 
-// ../node_modules/ws/lib/subprotocol.js
+// ../../node_modules/ws/lib/subprotocol.js
 var require_subprotocol = __commonJS({
-  "../node_modules/ws/lib/subprotocol.js"(exports, module) {
+  "../../node_modules/ws/lib/subprotocol.js"(exports, module) {
     "use strict";
     var { tokenChars } = require_validation();
     function parse(header) {
@@ -26363,9 +26363,9 @@ var require_subprotocol = __commonJS({
   }
 });
 
-// ../node_modules/ws/lib/websocket-server.js
+// ../../node_modules/ws/lib/websocket-server.js
 var require_websocket_server = __commonJS({
-  "../node_modules/ws/lib/websocket-server.js"(exports, module) {
+  "../../node_modules/ws/lib/websocket-server.js"(exports, module) {
     "use strict";
     var EventEmitter3 = __require("events");
     var http = __require("http");
@@ -26764,10 +26764,10 @@ var require_websocket_server = __commonJS({
   }
 });
 
-// ../node_modules/ws/wrapper.mjs
+// ../../node_modules/ws/wrapper.mjs
 var import_stream, import_extension, import_permessage_deflate, import_receiver, import_sender, import_subprotocol, import_websocket, import_websocket_server, wrapper_default;
 var init_wrapper = __esm({
-  "../node_modules/ws/wrapper.mjs"() {
+  "../../node_modules/ws/wrapper.mjs"() {
     import_stream = __toESM(require_stream(), 1);
     import_extension = __toESM(require_extension(), 1);
     import_permessage_deflate = __toESM(require_permessage_deflate(), 1);
@@ -26780,10 +26780,10 @@ var init_wrapper = __esm({
   }
 });
 
-// ../node_modules/ink/build/devtools-window-polyfill.js
+// ../../node_modules/ink/build/devtools-window-polyfill.js
 var customGlobal;
 var init_devtools_window_polyfill = __esm({
-  "../node_modules/ink/build/devtools-window-polyfill.js"() {
+  "../../node_modules/ink/build/devtools-window-polyfill.js"() {
     init_wrapper();
     customGlobal = global;
     customGlobal.WebSocket ||= wrapper_default;
@@ -26853,19 +26853,19 @@ var init_devtools_stub = __esm({
   }
 });
 
-// ../node_modules/ink/build/devtools.js
+// ../../node_modules/ink/build/devtools.js
 var devtools_exports = {};
 var init_devtools = __esm({
-  "../node_modules/ink/build/devtools.js"() {
+  "../../node_modules/ink/build/devtools.js"() {
     init_devtools_window_polyfill();
     init_devtools_stub();
     devtools_stub_default.connectToDevTools();
   }
 });
 
-// ../node_modules/cli-boxes/boxes.json
+// ../../node_modules/cli-boxes/boxes.json
 var require_boxes = __commonJS({
-  "../node_modules/cli-boxes/boxes.json"(exports, module) {
+  "../../node_modules/cli-boxes/boxes.json"(exports, module) {
     module.exports = {
       single: {
         topLeft: "\u250C",
@@ -26951,9 +26951,9 @@ var require_boxes = __commonJS({
   }
 });
 
-// ../node_modules/cli-boxes/index.js
+// ../../node_modules/cli-boxes/index.js
 var require_cli_boxes = __commonJS({
-  "../node_modules/cli-boxes/index.js"(exports, module) {
+  "../../node_modules/cli-boxes/index.js"(exports, module) {
     "use strict";
     var cliBoxes2 = require_boxes();
     module.exports = cliBoxes2;
@@ -26961,9 +26961,9 @@ var require_cli_boxes = __commonJS({
   }
 });
 
-// ../node_modules/mimic-fn/index.js
+// ../../node_modules/mimic-fn/index.js
 var require_mimic_fn = __commonJS({
-  "../node_modules/mimic-fn/index.js"(exports, module) {
+  "../../node_modules/mimic-fn/index.js"(exports, module) {
     "use strict";
     var mimicFn = (to, from) => {
       for (const prop of Reflect.ownKeys(from)) {
@@ -26976,9 +26976,9 @@ var require_mimic_fn = __commonJS({
   }
 });
 
-// ../node_modules/onetime/index.js
+// ../../node_modules/onetime/index.js
 var require_onetime = __commonJS({
-  "../node_modules/onetime/index.js"(exports, module) {
+  "../../node_modules/onetime/index.js"(exports, module) {
     "use strict";
     var mimicFn = require_mimic_fn();
     var calledFunctions = /* @__PURE__ */ new WeakMap();
@@ -27014,9 +27014,9 @@ var require_onetime = __commonJS({
   }
 });
 
-// ../node_modules/escape-string-regexp/index.js
+// ../../node_modules/escape-string-regexp/index.js
 var require_escape_string_regexp = __commonJS({
-  "../node_modules/escape-string-regexp/index.js"(exports, module) {
+  "../../node_modules/escape-string-regexp/index.js"(exports, module) {
     "use strict";
     var matchOperatorsRegex = /[|\\{}()[\]^$+*?.-]/g;
     module.exports = (string) => {
@@ -27028,9 +27028,9 @@ var require_escape_string_regexp = __commonJS({
   }
 });
 
-// ../node_modules/stack-utils/index.js
+// ../../node_modules/stack-utils/index.js
 var require_stack_utils = __commonJS({
-  "../node_modules/stack-utils/index.js"(exports, module) {
+  "../../node_modules/stack-utils/index.js"(exports, module) {
     "use strict";
     var escapeStringRegexp = require_escape_string_regexp();
     var cwd2 = typeof process === "object" && process && typeof process.cwd === "function" ? process.cwd() : ".";
@@ -27281,9 +27281,9 @@ var require_stack_utils = __commonJS({
   }
 });
 
-// ../node_modules/react/cjs/react-jsx-runtime.production.min.js
+// ../../node_modules/react/cjs/react-jsx-runtime.production.min.js
 var require_react_jsx_runtime_production_min = __commonJS({
-  "../node_modules/react/cjs/react-jsx-runtime.production.min.js"(exports) {
+  "../../node_modules/react/cjs/react-jsx-runtime.production.min.js"(exports) {
     "use strict";
     var f = require_react();
     var k = /* @__PURE__ */ Symbol.for("react.element");
@@ -27306,9 +27306,9 @@ var require_react_jsx_runtime_production_min = __commonJS({
   }
 });
 
-// ../node_modules/react/cjs/react-jsx-runtime.development.js
+// ../../node_modules/react/cjs/react-jsx-runtime.development.js
 var require_react_jsx_runtime_development = __commonJS({
-  "../node_modules/react/cjs/react-jsx-runtime.development.js"(exports) {
+  "../../node_modules/react/cjs/react-jsx-runtime.development.js"(exports) {
     "use strict";
     if (process.env.NODE_ENV !== "production") {
       (function() {
@@ -28199,9 +28199,9 @@ var require_react_jsx_runtime_development = __commonJS({
   }
 });
 
-// ../node_modules/react/jsx-runtime.js
+// ../../node_modules/react/jsx-runtime.js
 var require_jsx_runtime = __commonJS({
-  "../node_modules/react/jsx-runtime.js"(exports, module) {
+  "../../node_modules/react/jsx-runtime.js"(exports, module) {
     "use strict";
     if (process.env.NODE_ENV === "production") {
       module.exports = require_react_jsx_runtime_production_min();
@@ -28214,10 +28214,22 @@ var require_jsx_runtime = __commonJS({
 // src/entry.ts
 import { parseArgs } from "node:util";
 
+// src/app/choose-ui.ts
+function chooseUi(options) {
+  if (options.plain) return "plain";
+  if (!options.stdinIsTTY || !options.stdoutIsTTY) return "plain";
+  return "ink";
+}
+
+// src/app/session-params.ts
+function createTuiSessionParams(session) {
+  return { ...session, platform: "tui" };
+}
+
 // src/backend.ts
 import { spawn } from "node:child_process";
 
-// ../apps/shared/src/json-rpc-channel.ts
+// ../../packages/shared/src/json-rpc-channel.ts
 var RpcError = class extends Error {
   code;
   data;
@@ -28287,23 +28299,23 @@ var JsonRpcChannel = class {
     } catch {
       return;
     }
-    if (message["method"] === "event") {
-      const event = message["params"];
+    if (message.method === "event") {
+      const event = message.params;
       for (const handler of this.eventHandlers) handler(event);
       return;
     }
-    if (typeof message["method"] === "string") {
-      void this.answer(message["id"], message["method"], message["params"]);
+    if (typeof message.method === "string") {
+      void this.answer(message.id, message.method, message.params);
       return;
     }
-    const id = message["id"];
+    const id = message.id;
     const waiting = typeof id === "number" ? this.pending.get(id) : void 0;
     if (!waiting || typeof id !== "number") return;
     this.pending.delete(id);
     if (waiting.timer) clearTimeout(waiting.timer);
-    const error = message["error"];
+    const error = message.error;
     if (error) waiting.reject(new RpcError(error.code ?? 0, error.message ?? "error", error.data));
-    else waiting.resolve(message["result"]);
+    else waiting.resolve(message.result);
   }
   async answer(id, method, params) {
     if (id === void 0 || id === null) return;
@@ -28330,7 +28342,7 @@ var JsonRpcChannel = class {
   }
 };
 
-// ../apps/shared/src/gateway-client.ts
+// ../../packages/shared/src/gateway-client.ts
 var GatewayClient = class {
   channel;
   constructor(transport, options = {}) {
@@ -28372,7 +28384,92 @@ var GatewayClient = class {
   }
 };
 
-// ../apps/shared/src/transports.ts
+// ../../packages/shared/src/transcript.ts
+var emptyTranscript = { items: [], busy: false };
+function addUserMessage(state, text) {
+  return { ...state, items: [...state.items, { kind: "user", text }] };
+}
+function replaceLast(items, item) {
+  return [...items.slice(0, -1), item];
+}
+function reduce(state, event) {
+  const { items } = state;
+  const last = items[items.length - 1];
+  switch (event.type) {
+    case "turn.start":
+      return { ...state, busy: true };
+    case "message.delta":
+      if (last?.kind === "assistant" && last.streaming) {
+        return { ...state, items: replaceLast(items, { ...last, text: last.text + event.payload.text }) };
+      }
+      return { ...state, items: [...items, { kind: "assistant", text: event.payload.text, streaming: true }] };
+    case "reasoning.delta":
+      if (last?.kind === "reasoning") {
+        return { ...state, items: replaceLast(items, { ...last, text: last.text + event.payload.text }) };
+      }
+      return { ...state, items: [...items, { kind: "reasoning", text: event.payload.text }] };
+    case "message.complete":
+      if (last?.kind === "assistant" && last.streaming) {
+        return { ...state, items: replaceLast(items, { ...last, streaming: false }) };
+      }
+      return event.payload.text ? { ...state, items: [...items, { kind: "assistant", text: event.payload.text, streaming: false }] } : state;
+    case "tool.start":
+      return {
+        ...state,
+        items: [
+          ...items,
+          {
+            kind: "tool",
+            callId: event.payload.call_id,
+            name: event.payload.name,
+            preview: event.payload.preview,
+            status: "running",
+            duration: null
+          }
+        ]
+      };
+    case "tool.complete":
+      return {
+        ...state,
+        items: items.map(
+          (item) => item.kind === "tool" && item.callId === event.payload.call_id ? { ...item, status: event.payload.failed ? "failed" : "ok", duration: event.payload.duration } : item
+        )
+      };
+    case "status.update":
+      return {
+        ...state,
+        items: [...items, { kind: "notice", level: "info", text: `[${event.payload.kind}] ${event.payload.text}` }]
+      };
+    case "subagent.update": {
+      const { event: kind, index, tool, status, args, iteration, model } = event.payload;
+      const detail = kind === "tool" && args ? `${tool}(${args})` : tool || status;
+      const where = iteration ? ` [iter ${iteration}]` : "";
+      const on = model ? ` on ${model}` : "";
+      return {
+        ...state,
+        items: [
+          ...items,
+          { kind: "notice", level: "info", text: `subagent ${index + 1}${on}: ${kind} ${detail}${where}`.trim() }
+        ]
+      };
+    }
+    case "error":
+      return { ...state, items: [...items, { kind: "notice", level: "error", text: event.payload.message }] };
+    case "turn.complete": {
+      const settled = items.map(
+        (item) => item.kind === "assistant" && item.streaming ? { ...item, streaming: false } : item
+      );
+      if (event.payload.interrupted) settled.push({ kind: "notice", level: "info", text: "(interrupted)" });
+      else if (event.payload.error)
+        settled.push({ kind: "notice", level: "error", text: event.payload.final_response || event.payload.error });
+      return { items: settled, busy: false };
+    }
+    default:
+      return state;
+  }
+}
+
+// ../../packages/shared/src/transports.ts
 var LineSplitter = class {
   buffer = "";
   push(chunk) {
@@ -28426,7 +28523,7 @@ var LineTransport = class {
 // src/backend.ts
 var STDERR_LINES = 40;
 function resolvePython(env3 = process.env) {
-  return env3["CLITE_PYTHON"] || (process.platform === "win32" ? "python" : "python3");
+  return env3.CLITE_PYTHON || (process.platform === "win32" ? "python" : "python3");
 }
 function spawnBackend(options = {}) {
   const env3 = { ...process.env, ...options.env, CLITE_RPC_PLATFORM: "tui", PYTHONUNBUFFERED: "1" };
@@ -28448,9 +28545,14 @@ function spawnBackend(options = {}) {
       stop();
       resolve(payload);
     });
-    child.on("error", (error) => reject(new Error(`could not start the backend (${error.message}). Is Python installed?`)));
-    void exited.then((code) => reject(new Error(`the backend exited with code ${code} before it was ready.
-${stderr.join("\n")}`)));
+    child.on(
+      "error",
+      (error) => reject(new Error(`could not start the backend (${error.message}). Is Python installed?`))
+    );
+    void exited.then(
+      (code) => reject(new Error(`the backend exited with code ${code} before it was ready.
+${stderr.join("\n")}`))
+    );
   });
   ready.catch(() => {
   });
@@ -28469,27 +28571,18 @@ ${stderr.join("\n")}`)));
   };
 }
 
-// src/app/choose-ui.ts
-function chooseUi(options) {
-  if (options.plain) return "plain";
-  if (!options.stdinIsTTY || !options.stdoutIsTTY) return "plain";
-  return "ink";
-}
+// src/app/mount.tsx
+import { stdin, stdout } from "node:process";
 
-// src/app/session-params.ts
-function createTuiSessionParams(session) {
-  return { ...session, platform: "tui" };
-}
-
-// ../node_modules/ink/build/render.js
+// ../../node_modules/ink/build/render.js
 import { Stream } from "node:stream";
 import process12 from "node:process";
 
-// ../node_modules/ink/build/ink.js
+// ../../node_modules/ink/build/ink.js
 var import_react10 = __toESM(require_react(), 1);
 import process11 from "node:process";
 
-// ../node_modules/es-toolkit/dist/function/debounce.mjs
+// ../../node_modules/es-toolkit/dist/function/debounce.mjs
 function debounce(func, debounceMs, { signal, edges } = {}) {
   let pendingThis = void 0;
   let pendingArgs = null;
@@ -28543,7 +28636,7 @@ function debounce(func, debounceMs, { signal, edges } = {}) {
   return debounced;
 }
 
-// ../node_modules/es-toolkit/dist/compat/function/debounce.mjs
+// ../../node_modules/es-toolkit/dist/compat/function/debounce.mjs
 function debounce2(func, debounceMs = 0, options = {}) {
   if (typeof options !== "object") options = {};
   const { leading = false, trailing = true, maxWait } = options;
@@ -28579,7 +28672,7 @@ function debounce2(func, debounceMs = 0, options = {}) {
   return debounced;
 }
 
-// ../node_modules/es-toolkit/dist/compat/function/throttle.mjs
+// ../../node_modules/es-toolkit/dist/compat/function/throttle.mjs
 function throttle(func, throttleMs = 0, options = {}) {
   const { leading = true, trailing = true } = options;
   return debounce2(func, throttleMs, {
@@ -28589,7 +28682,7 @@ function throttle(func, throttleMs = 0, options = {}) {
   });
 }
 
-// ../node_modules/ansi-escapes/base.js
+// ../../node_modules/ansi-escapes/base.js
 var base_exports = {};
 __export(base_exports, {
   ConEmu: () => ConEmu,
@@ -28633,7 +28726,7 @@ __export(base_exports, {
 import process2 from "node:process";
 import os from "node:os";
 
-// ../node_modules/environment/index.js
+// ../../node_modules/environment/index.js
 var isBrowser = globalThis.window?.document !== void 0;
 var isNode = globalThis.process?.versions?.node !== void 0;
 var isBun = globalThis.process?.versions?.bun !== void 0;
@@ -28651,7 +28744,7 @@ var isLinux = platform === "Linux" || globalThis.navigator?.platform?.startsWith
 var isIos = platform === "iOS" || globalThis.navigator?.platform === "MacIntel" && globalThis.navigator?.maxTouchPoints > 1 || /iPad|iPhone|iPod/.test(globalThis.navigator?.platform);
 var isAndroid = platform === "Android" || globalThis.navigator?.platform === "Android" || globalThis.navigator?.userAgent?.includes(" Android ") === true || globalThis.process?.platform === "android";
 
-// ../node_modules/ansi-escapes/base.js
+// ../../node_modules/ansi-escapes/base.js
 var ESC = "\x1B[";
 var OSC = "\x1B]";
 var BEL = "\x07";
@@ -28791,12 +28884,12 @@ var ConEmu = {
 };
 var setCwd = (cwd2 = cwdFunction()) => iTerm.setCwd(cwd2) + ConEmu.setCwd(cwd2);
 
-// ../node_modules/is-in-ci/index.js
+// ../../node_modules/is-in-ci/index.js
 import { env } from "node:process";
 var isInCi = env.CI !== "0" && env.CI !== "false" && ("CI" in env || "CONTINUOUS_INTEGRATION" in env || Object.keys(env).some((key) => key.startsWith("CI_")));
 var is_in_ci_default = isInCi;
 
-// ../node_modules/auto-bind/index.js
+// ../../node_modules/auto-bind/index.js
 var getAllProperties = (object) => {
   const properties = /* @__PURE__ */ new Set();
   do {
@@ -28829,10 +28922,10 @@ function autoBind(self, { include, exclude } = {}) {
   return self;
 }
 
-// ../node_modules/ink/build/ink.js
+// ../../node_modules/ink/build/ink.js
 var import_signal_exit2 = __toESM(require_signal_exit(), 1);
 
-// ../node_modules/patch-console/dist/index.js
+// ../../node_modules/patch-console/dist/index.js
 import { PassThrough } from "node:stream";
 var consoleMethods = [
   "assert",
@@ -28878,7 +28971,7 @@ var patchConsole = (callback) => {
 };
 var dist_default = patchConsole;
 
-// ../node_modules/yoga-layout/dist/binaries/yoga-wasm-base64-esm.js
+// ../../node_modules/yoga-layout/dist/binaries/yoga-wasm-base64-esm.js
 var loadYoga = (() => {
   var _scriptDir = import.meta.url;
   return (function(loadYoga2) {
@@ -30109,7 +30202,7 @@ var loadYoga = (() => {
 })();
 var yoga_wasm_base64_esm_default = loadYoga;
 
-// ../node_modules/yoga-layout/dist/src/generated/YGEnums.js
+// ../../node_modules/yoga-layout/dist/src/generated/YGEnums.js
 var Align = /* @__PURE__ */ (function(Align2) {
   Align2[Align2["Auto"] = 0] = "Auto";
   Align2[Align2["FlexStart"] = 1] = "FlexStart";
@@ -30312,7 +30405,7 @@ var constants = {
 };
 var YGEnums_default = constants;
 
-// ../node_modules/yoga-layout/dist/src/wrapAssembly.js
+// ../../node_modules/yoga-layout/dist/src/wrapAssembly.js
 function wrapAssembly(lib) {
   function patch(prototype, name, fn) {
     const original = prototype[name];
@@ -30413,16 +30506,16 @@ function wrapAssembly(lib) {
   };
 }
 
-// ../node_modules/yoga-layout/dist/src/index.js
+// ../../node_modules/yoga-layout/dist/src/index.js
 var Yoga = wrapAssembly(await yoga_wasm_base64_esm_default());
 var src_default = Yoga;
 
-// ../node_modules/ink/build/reconciler.js
+// ../../node_modules/ink/build/reconciler.js
 var import_react_reconciler = __toESM(require_react_reconciler(), 1);
 var import_constants = __toESM(require_constants(), 1);
 import process3 from "node:process";
 
-// ../node_modules/ansi-regex/index.js
+// ../../node_modules/ansi-regex/index.js
 function ansiRegex({ onlyFirst = false } = {}) {
   const ST = "(?:\\u0007|\\u001B\\u005C|\\u009C)";
   const osc = `(?:(?:\\u001B\\]|\\u009D)[^\\u0007\\u001B\\u009C\\u009D]*${ST})`;
@@ -30431,7 +30524,7 @@ function ansiRegex({ onlyFirst = false } = {}) {
   return new RegExp(pattern, onlyFirst ? void 0 : "g");
 }
 
-// ../node_modules/strip-ansi/index.js
+// ../../node_modules/strip-ansi/index.js
 var regex = ansiRegex();
 function stripAnsi(string) {
   if (typeof string !== "string") {
@@ -30443,7 +30536,7 @@ function stripAnsi(string) {
   return string.replace(regex, "");
 }
 
-// ../node_modules/get-east-asian-width/lookup-data.js
+// ../../node_modules/get-east-asian-width/lookup-data.js
 var ambiguousMinimalCodePoint = 161;
 var ambiguousMaximumCodePoint = 1114109;
 var ambiguousRanges = [161, 161, 164, 164, 167, 168, 170, 170, 173, 174, 176, 180, 182, 186, 188, 191, 198, 198, 208, 208, 215, 216, 222, 225, 230, 230, 232, 234, 236, 237, 240, 240, 242, 243, 247, 250, 252, 252, 254, 254, 257, 257, 273, 273, 275, 275, 283, 283, 294, 295, 299, 299, 305, 307, 312, 312, 319, 322, 324, 324, 328, 331, 333, 333, 338, 339, 358, 359, 363, 363, 462, 462, 464, 464, 466, 466, 468, 468, 470, 470, 472, 472, 474, 474, 476, 476, 593, 593, 609, 609, 708, 708, 711, 711, 713, 715, 717, 717, 720, 720, 728, 731, 733, 733, 735, 735, 768, 879, 913, 929, 931, 937, 945, 961, 963, 969, 1025, 1025, 1040, 1103, 1105, 1105, 8208, 8208, 8211, 8214, 8216, 8217, 8220, 8221, 8224, 8226, 8228, 8231, 8240, 8240, 8242, 8243, 8245, 8245, 8251, 8251, 8254, 8254, 8308, 8308, 8319, 8319, 8321, 8324, 8364, 8364, 8451, 8451, 8453, 8453, 8457, 8457, 8467, 8467, 8470, 8470, 8481, 8482, 8486, 8486, 8491, 8491, 8531, 8532, 8539, 8542, 8544, 8555, 8560, 8569, 8585, 8585, 8592, 8601, 8632, 8633, 8658, 8658, 8660, 8660, 8679, 8679, 8704, 8704, 8706, 8707, 8711, 8712, 8715, 8715, 8719, 8719, 8721, 8721, 8725, 8725, 8730, 8730, 8733, 8736, 8739, 8739, 8741, 8741, 8743, 8748, 8750, 8750, 8756, 8759, 8764, 8765, 8776, 8776, 8780, 8780, 8786, 8786, 8800, 8801, 8804, 8807, 8810, 8811, 8814, 8815, 8834, 8835, 8838, 8839, 8853, 8853, 8857, 8857, 8869, 8869, 8895, 8895, 8978, 8978, 9312, 9449, 9451, 9547, 9552, 9587, 9600, 9615, 9618, 9621, 9632, 9633, 9635, 9641, 9650, 9651, 9654, 9655, 9660, 9661, 9664, 9665, 9670, 9672, 9675, 9675, 9678, 9681, 9698, 9701, 9711, 9711, 9733, 9734, 9737, 9737, 9742, 9743, 9756, 9756, 9758, 9758, 9792, 9792, 9794, 9794, 9824, 9825, 9827, 9829, 9831, 9834, 9836, 9837, 9839, 9839, 9886, 9887, 9919, 9919, 9926, 9933, 9935, 9939, 9941, 9953, 9955, 9955, 9960, 9961, 9963, 9969, 9972, 9972, 9974, 9977, 9979, 9980, 9982, 9983, 10045, 10045, 10102, 10111, 11094, 11097, 12872, 12879, 57344, 63743, 65024, 65039, 65533, 65533, 127232, 127242, 127248, 127277, 127280, 127337, 127344, 127373, 127375, 127376, 127387, 127404, 917760, 917999, 983040, 1048573, 1048576, 1114109];
@@ -30454,7 +30547,7 @@ var wideMinimalCodePoint = 4352;
 var wideMaximumCodePoint = 262141;
 var wideRanges = [4352, 4447, 8986, 8987, 9001, 9002, 9193, 9196, 9200, 9200, 9203, 9203, 9725, 9726, 9748, 9749, 9776, 9783, 9800, 9811, 9855, 9855, 9866, 9871, 9875, 9875, 9889, 9889, 9898, 9899, 9917, 9918, 9924, 9925, 9934, 9934, 9940, 9940, 9962, 9962, 9970, 9971, 9973, 9973, 9978, 9978, 9981, 9981, 9989, 9989, 9994, 9995, 10024, 10024, 10060, 10060, 10062, 10062, 10067, 10069, 10071, 10071, 10133, 10135, 10160, 10160, 10175, 10175, 11035, 11036, 11088, 11088, 11093, 11093, 11904, 11929, 11931, 12019, 12032, 12245, 12272, 12287, 12289, 12350, 12353, 12438, 12441, 12543, 12549, 12591, 12593, 12686, 12688, 12773, 12783, 12830, 12832, 12871, 12880, 42124, 42128, 42182, 43360, 43388, 44032, 55203, 63744, 64255, 65040, 65049, 65072, 65106, 65108, 65126, 65128, 65131, 94176, 94180, 94192, 94198, 94208, 101594, 101631, 101664, 101760, 101874, 101888, 102801, 102816, 102866, 110576, 110579, 110581, 110587, 110589, 110590, 110592, 110888, 110898, 110898, 110928, 110930, 110933, 110933, 110948, 110952, 110960, 111355, 119552, 119638, 119648, 119670, 126980, 126980, 127183, 127183, 127374, 127374, 127377, 127386, 127406, 127406, 127488, 127490, 127504, 127547, 127552, 127560, 127568, 127569, 127584, 127589, 127744, 127776, 127789, 127797, 127799, 127868, 127870, 127891, 127904, 127946, 127951, 127955, 127968, 127984, 127988, 127988, 127992, 128062, 128064, 128064, 128066, 128252, 128255, 128317, 128331, 128334, 128336, 128359, 128378, 128378, 128405, 128406, 128420, 128420, 128507, 128591, 128640, 128709, 128716, 128716, 128720, 128722, 128725, 128729, 128732, 128735, 128747, 128748, 128756, 128764, 128986, 128986, 128992, 129003, 129008, 129008, 129292, 129338, 129340, 129349, 129351, 129535, 129648, 129660, 129664, 129734, 129736, 129736, 129740, 129757, 129759, 129771, 129775, 129786, 131072, 196605, 196608, 262141];
 
-// ../node_modules/get-east-asian-width/utilities.js
+// ../../node_modules/get-east-asian-width/utilities.js
 var isInRange = (ranges, codePoint) => {
   let low = 0;
   let high = Math.floor(ranges.length / 2) - 1;
@@ -30472,7 +30565,7 @@ var isInRange = (ranges, codePoint) => {
   return false;
 };
 
-// ../node_modules/get-east-asian-width/lookup.js
+// ../../node_modules/get-east-asian-width/lookup.js
 var commonCjkCodePoint = 19968;
 var [wideFastPathStart, wideFastPathEnd] = /* @__PURE__ */ findWideFastPathRange(wideRanges);
 function findWideFastPathRange(ranges) {
@@ -30513,7 +30606,7 @@ var isWide = (codePoint) => {
   return isInRange(wideRanges, codePoint);
 };
 
-// ../node_modules/get-east-asian-width/index.js
+// ../../node_modules/get-east-asian-width/index.js
 function validate(codePoint) {
   if (!Number.isSafeInteger(codePoint)) {
     throw new TypeError(`Expected a code point, got \`${typeof codePoint}\`.`);
@@ -30527,7 +30620,7 @@ function eastAsianWidth(codePoint, { ambiguousAsWide = false } = {}) {
   return 1;
 }
 
-// ../node_modules/string-width/index.js
+// ../../node_modules/string-width/index.js
 var import_emoji_regex = __toESM(require_emoji_regex(), 1);
 var segmenter = new Intl.Segmenter();
 var defaultIgnorableCodePointRegex = new RegExp("^\\p{Default_Ignorable_Code_Point}$", "u");
@@ -30576,7 +30669,7 @@ function stringWidth(string, options = {}) {
   return width;
 }
 
-// ../node_modules/widest-line/index.js
+// ../../node_modules/widest-line/index.js
 function widestLine(string) {
   let lineWidth = 0;
   for (const line of string.split("\n")) {
@@ -30585,7 +30678,7 @@ function widestLine(string) {
   return lineWidth;
 }
 
-// ../node_modules/ink/build/measure-text.js
+// ../../node_modules/ink/build/measure-text.js
 var cache = {};
 var measureText = (text) => {
   if (text.length === 0) {
@@ -30605,7 +30698,7 @@ var measureText = (text) => {
 };
 var measure_text_default = measureText;
 
-// ../node_modules/ansi-styles/index.js
+// ../../node_modules/ansi-styles/index.js
 var ANSI_BACKGROUND_OFFSET = 10;
 var wrapAnsi16 = (offset = 0) => (code) => `\x1B[${code + offset}m`;
 var wrapAnsi256 = (offset = 0) => (code) => `\x1B[${38 + offset};5;${code}m`;
@@ -30791,7 +30884,7 @@ function assembleStyles() {
 var ansiStyles = assembleStyles();
 var ansi_styles_default = ansiStyles;
 
-// ../node_modules/wrap-ansi/index.js
+// ../../node_modules/wrap-ansi/index.js
 var ESCAPES = /* @__PURE__ */ new Set([
   "\x1B",
   "\x9B"
@@ -30946,7 +31039,7 @@ function wrapAnsi(string, columns, options) {
   return String(string).normalize().replaceAll("\r\n", "\n").split("\n").map((line) => exec(line, columns, options)).join("\n");
 }
 
-// ../node_modules/is-fullwidth-code-point/index.js
+// ../../node_modules/is-fullwidth-code-point/index.js
 function isFullwidthCodePoint(codePoint) {
   if (!Number.isInteger(codePoint)) {
     return false;
@@ -30969,7 +31062,7 @@ function isFullwidthCodePoint(codePoint) {
   131072 <= codePoint && codePoint <= 262141);
 }
 
-// ../node_modules/cli-truncate/node_modules/slice-ansi/index.js
+// ../../node_modules/cli-truncate/node_modules/slice-ansi/index.js
 var astralRegex = /^[\uD800-\uDBFF][\uDC00-\uDFFF]$/;
 var ESCAPES2 = [
   "\x1B",
@@ -31052,7 +31145,7 @@ function sliceAnsi(string, begin, end) {
   return output;
 }
 
-// ../node_modules/cli-truncate/index.js
+// ../../node_modules/cli-truncate/index.js
 function getIndexOfNearestSpace(string, wantedIndex, shouldSearchRight) {
   if (string.charAt(wantedIndex) === " ") {
     return wantedIndex;
@@ -31124,7 +31217,7 @@ function cliTruncate(text, columns, options = {}) {
   throw new Error(`Expected \`options.position\` to be either \`start\`, \`middle\` or \`end\`, got ${position}`);
 }
 
-// ../node_modules/ink/build/wrap-text.js
+// ../../node_modules/ink/build/wrap-text.js
 var cache2 = {};
 var wrapText = (text, maxWidth, wrapType) => {
   const cacheKey = text + String(maxWidth) + String(wrapType);
@@ -31154,7 +31247,7 @@ var wrapText = (text, maxWidth, wrapType) => {
 };
 var wrap_text_default = wrapText;
 
-// ../node_modules/ink/build/squash-text-nodes.js
+// ../../node_modules/ink/build/squash-text-nodes.js
 var squashTextNodes = (node) => {
   let text = "";
   for (let index = 0; index < node.childNodes.length; index++) {
@@ -31179,7 +31272,7 @@ var squashTextNodes = (node) => {
 };
 var squash_text_nodes_default = squashTextNodes;
 
-// ../node_modules/ink/build/dom.js
+// ../../node_modules/ink/build/dom.js
 var createNode = (nodeName) => {
   const node = {
     nodeName,
@@ -31289,7 +31382,7 @@ var setTextNodeValue = (node, text) => {
   markNodeAsDirty(node);
 };
 
-// ../node_modules/ink/build/styles.js
+// ../../node_modules/ink/build/styles.js
 var applyPositionStyles = (node, style) => {
   if ("position" in style) {
     node.setPositionType(style.position === "absolute" ? src_default.POSITION_TYPE_ABSOLUTE : src_default.POSITION_TYPE_RELATIVE);
@@ -31510,7 +31603,7 @@ var styles2 = (node, style = {}) => {
 };
 var styles_default = styles2;
 
-// ../node_modules/ink/build/reconciler.js
+// ../../node_modules/ink/build/reconciler.js
 if (process3.env["DEV"] === "true") {
   try {
     await Promise.resolve().then(() => (init_devtools(), devtools_exports));
@@ -31716,7 +31809,7 @@ var reconciler_default = (0, import_react_reconciler.default)({
   }
 });
 
-// ../node_modules/indent-string/index.js
+// ../../node_modules/indent-string/index.js
 function indentString(string, count = 1, options = {}) {
   const {
     indent = " ",
@@ -31749,16 +31842,16 @@ function indentString(string, count = 1, options = {}) {
   return string.replace(regex2, indent.repeat(count));
 }
 
-// ../node_modules/ink/build/get-max-width.js
+// ../../node_modules/ink/build/get-max-width.js
 var getMaxWidth = (yogaNode) => {
   return yogaNode.getComputedWidth() - yogaNode.getComputedPadding(src_default.EDGE_LEFT) - yogaNode.getComputedPadding(src_default.EDGE_RIGHT) - yogaNode.getComputedBorder(src_default.EDGE_LEFT) - yogaNode.getComputedBorder(src_default.EDGE_RIGHT);
 };
 var get_max_width_default = getMaxWidth;
 
-// ../node_modules/ink/build/render-border.js
+// ../../node_modules/ink/build/render-border.js
 var import_cli_boxes = __toESM(require_cli_boxes(), 1);
 
-// ../node_modules/chalk/source/vendor/ansi-styles/index.js
+// ../../node_modules/chalk/source/vendor/ansi-styles/index.js
 var ANSI_BACKGROUND_OFFSET2 = 10;
 var wrapAnsi162 = (offset = 0) => (code) => `\x1B[${code + offset}m`;
 var wrapAnsi2562 = (offset = 0) => (code) => `\x1B[${38 + offset};5;${code}m`;
@@ -31944,7 +32037,7 @@ function assembleStyles2() {
 var ansiStyles2 = assembleStyles2();
 var ansi_styles_default2 = ansiStyles2;
 
-// ../node_modules/chalk/source/vendor/supports-color/index.js
+// ../../node_modules/chalk/source/vendor/supports-color/index.js
 import process4 from "node:process";
 import os2 from "node:os";
 import tty from "node:tty";
@@ -32076,7 +32169,7 @@ var supportsColor = {
 };
 var supports_color_default = supportsColor;
 
-// ../node_modules/chalk/source/utilities.js
+// ../../node_modules/chalk/source/utilities.js
 function stringReplaceAll(string, substring, replacer) {
   let index = string.indexOf(substring);
   if (index === -1) {
@@ -32106,7 +32199,7 @@ function stringEncaseCRLFWithFirstIndex(string, prefix, postfix, index) {
   return returnValue;
 }
 
-// ../node_modules/chalk/source/index.js
+// ../../node_modules/chalk/source/index.js
 var { stdout: stdoutColor, stderr: stderrColor } = supports_color_default;
 var GENERATOR = /* @__PURE__ */ Symbol("GENERATOR");
 var STYLER = /* @__PURE__ */ Symbol("STYLER");
@@ -32253,7 +32346,7 @@ var chalk = createChalk();
 var chalkStderr = createChalk({ level: stderrColor ? stderrColor.level : 0 });
 var source_default = chalk;
 
-// ../node_modules/ink/build/colorize.js
+// ../../node_modules/ink/build/colorize.js
 var rgbRegex = /^rgb\(\s?(\d+),\s?(\d+),\s?(\d+)\s?\)$/;
 var ansiRegex2 = /^ansi256\(\s?(\d+)\s?\)$/;
 var isNamedColor = (color) => {
@@ -32295,7 +32388,7 @@ var colorize = (str, color, type) => {
 };
 var colorize_default = colorize;
 
-// ../node_modules/ink/build/render-border.js
+// ../../node_modules/ink/build/render-border.js
 var renderBorder = (x, y, node, output) => {
   if (node.style.borderStyle) {
     const width = node.yogaNode.getComputedWidth();
@@ -32356,7 +32449,7 @@ var renderBorder = (x, y, node, output) => {
 };
 var render_border_default = renderBorder;
 
-// ../node_modules/ink/build/render-node-to-output.js
+// ../../node_modules/ink/build/render-node-to-output.js
 var applyPaddingToText = (node, text) => {
   const yogaNode = node.childNodes[0]?.yogaNode;
   if (yogaNode) {
@@ -32427,7 +32520,7 @@ var renderNodeToOutput = (node, output, options) => {
 };
 var render_node_to_output_default = renderNodeToOutput;
 
-// ../node_modules/slice-ansi/node_modules/is-fullwidth-code-point/index.js
+// ../../node_modules/slice-ansi/node_modules/is-fullwidth-code-point/index.js
 function isFullwidthCodePoint2(codePoint) {
   if (!Number.isInteger(codePoint)) {
     return false;
@@ -32435,7 +32528,7 @@ function isFullwidthCodePoint2(codePoint) {
   return isFullwidth(codePoint) || isWide(codePoint);
 }
 
-// ../node_modules/slice-ansi/index.js
+// ../../node_modules/slice-ansi/index.js
 var ESCAPES3 = /* @__PURE__ */ new Set([27, 155]);
 var CODE_POINT_0 = "0".codePointAt(0);
 var CODE_POINT_9 = "9".codePointAt(0);
@@ -32566,7 +32659,7 @@ function sliceAnsi2(string, start, end) {
   return returnValue;
 }
 
-// ../node_modules/@alcalzone/ansi-tokenize/build/ansiCodes.js
+// ../../node_modules/@alcalzone/ansi-tokenize/build/ansiCodes.js
 var ESCAPES4 = /* @__PURE__ */ new Set([27, 155]);
 var endCodesSet2 = /* @__PURE__ */ new Set();
 var endCodesMap2 = /* @__PURE__ */ new Map();
@@ -32601,7 +32694,7 @@ function ansiCodesToString(codes) {
   return codes.map((code) => code.code).join("");
 }
 
-// ../node_modules/@alcalzone/ansi-tokenize/build/reduce.js
+// ../../node_modules/@alcalzone/ansi-tokenize/build/reduce.js
 function reduceAnsiCodes2(codes) {
   return reduceAnsiCodesIncremental([], codes);
 }
@@ -32620,7 +32713,7 @@ function reduceAnsiCodesIncremental(codes, newCodes) {
   return ret;
 }
 
-// ../node_modules/@alcalzone/ansi-tokenize/build/undo.js
+// ../../node_modules/@alcalzone/ansi-tokenize/build/undo.js
 function undoAnsiCodes2(codes) {
   return reduceAnsiCodes2(codes).reverse().map((code) => ({
     ...code,
@@ -32628,7 +32721,7 @@ function undoAnsiCodes2(codes) {
   }));
 }
 
-// ../node_modules/@alcalzone/ansi-tokenize/build/diff.js
+// ../../node_modules/@alcalzone/ansi-tokenize/build/diff.js
 function diffAnsiCodes(from, to) {
   const endCodesInTo = new Set(to.map((code) => code.endCode));
   const startCodesInFrom = new Set(from.map((code) => code.code));
@@ -32641,7 +32734,7 @@ function diffAnsiCodes(from, to) {
   ];
 }
 
-// ../node_modules/@alcalzone/ansi-tokenize/build/styledChars.js
+// ../../node_modules/@alcalzone/ansi-tokenize/build/styledChars.js
 function styledCharsFromTokens(tokens) {
   let codes = [];
   const ret = [];
@@ -32674,7 +32767,7 @@ function styledCharsToString(chars) {
   return ret;
 }
 
-// ../node_modules/@alcalzone/ansi-tokenize/build/tokenize.js
+// ../../node_modules/@alcalzone/ansi-tokenize/build/tokenize.js
 function findNumberIndex2(str) {
   for (let index = 0; index < str.length; index++) {
     const charCode = str.charCodeAt(index);
@@ -32741,7 +32834,7 @@ function tokenize2(str, endChar = Number.POSITIVE_INFINITY) {
   return ret;
 }
 
-// ../node_modules/ink/build/output.js
+// ../../node_modules/ink/build/output.js
 var Output = class {
   width;
   height;
@@ -32877,7 +32970,7 @@ var Output = class {
   }
 };
 
-// ../node_modules/ink/build/renderer.js
+// ../../node_modules/ink/build/renderer.js
 var renderer = (node) => {
   if (node.yogaNode) {
     const output = new Output({
@@ -32913,10 +33006,10 @@ var renderer = (node) => {
 };
 var renderer_default = renderer;
 
-// ../node_modules/cli-cursor/index.js
+// ../../node_modules/cli-cursor/index.js
 import process6 from "node:process";
 
-// ../node_modules/restore-cursor/index.js
+// ../../node_modules/restore-cursor/index.js
 var import_onetime = __toESM(require_onetime(), 1);
 var import_signal_exit = __toESM(require_signal_exit(), 1);
 import process5 from "node:process";
@@ -32927,7 +33020,7 @@ var restoreCursor = (0, import_onetime.default)(() => {
 });
 var restore_cursor_default = restoreCursor;
 
-// ../node_modules/cli-cursor/index.js
+// ../../node_modules/cli-cursor/index.js
 var isHidden = false;
 var cliCursor = {};
 cliCursor.show = (writableStream = process6.stderr) => {
@@ -32957,7 +33050,7 @@ cliCursor.toggle = (force, writableStream) => {
 };
 var cli_cursor_default = cliCursor;
 
-// ../node_modules/ink/build/log-update.js
+// ../../node_modules/ink/build/log-update.js
 var create = (stream, { showCursor = false } = {}) => {
   let previousLineCount = 0;
   let previousOutput = "";
@@ -32993,16 +33086,16 @@ var create = (stream, { showCursor = false } = {}) => {
 var logUpdate = { create };
 var log_update_default = logUpdate;
 
-// ../node_modules/ink/build/instances.js
+// ../../node_modules/ink/build/instances.js
 var instances = /* @__PURE__ */ new WeakMap();
 var instances_default = instances;
 
-// ../node_modules/ink/build/components/App.js
+// ../../node_modules/ink/build/components/App.js
 var import_react9 = __toESM(require_react(), 1);
 import { EventEmitter as EventEmitter2 } from "node:events";
 import process10 from "node:process";
 
-// ../node_modules/ink/build/components/AppContext.js
+// ../../node_modules/ink/build/components/AppContext.js
 var import_react = __toESM(require_react(), 1);
 var AppContext = (0, import_react.createContext)({
   exit() {
@@ -33011,7 +33104,7 @@ var AppContext = (0, import_react.createContext)({
 AppContext.displayName = "InternalAppContext";
 var AppContext_default = AppContext;
 
-// ../node_modules/ink/build/components/StdinContext.js
+// ../../node_modules/ink/build/components/StdinContext.js
 var import_react2 = __toESM(require_react(), 1);
 import { EventEmitter } from "node:events";
 import process7 from "node:process";
@@ -33028,7 +33121,7 @@ var StdinContext = (0, import_react2.createContext)({
 StdinContext.displayName = "InternalStdinContext";
 var StdinContext_default = StdinContext;
 
-// ../node_modules/ink/build/components/StdoutContext.js
+// ../../node_modules/ink/build/components/StdoutContext.js
 var import_react3 = __toESM(require_react(), 1);
 import process8 from "node:process";
 var StdoutContext = (0, import_react3.createContext)({
@@ -33039,7 +33132,7 @@ var StdoutContext = (0, import_react3.createContext)({
 StdoutContext.displayName = "InternalStdoutContext";
 var StdoutContext_default = StdoutContext;
 
-// ../node_modules/ink/build/components/StderrContext.js
+// ../../node_modules/ink/build/components/StderrContext.js
 var import_react4 = __toESM(require_react(), 1);
 import process9 from "node:process";
 var StderrContext = (0, import_react4.createContext)({
@@ -33050,7 +33143,7 @@ var StderrContext = (0, import_react4.createContext)({
 StderrContext.displayName = "InternalStderrContext";
 var StderrContext_default = StderrContext;
 
-// ../node_modules/ink/build/components/FocusContext.js
+// ../../node_modules/ink/build/components/FocusContext.js
 var import_react5 = __toESM(require_react(), 1);
 var FocusContext = (0, import_react5.createContext)({
   activeId: void 0,
@@ -33076,19 +33169,19 @@ var FocusContext = (0, import_react5.createContext)({
 FocusContext.displayName = "InternalFocusContext";
 var FocusContext_default = FocusContext;
 
-// ../node_modules/ink/build/components/ErrorOverview.js
+// ../../node_modules/ink/build/components/ErrorOverview.js
 var import_react8 = __toESM(require_react(), 1);
 var import_stack_utils = __toESM(require_stack_utils(), 1);
 import * as fs from "node:fs";
 import { cwd } from "node:process";
 
-// ../node_modules/convert-to-spaces/dist/index.js
+// ../../node_modules/convert-to-spaces/dist/index.js
 var convertToSpaces = (input, spaces = 2) => {
   return input.replace(/^\t+/gm, ($1) => " ".repeat($1.length * spaces));
 };
 var dist_default2 = convertToSpaces;
 
-// ../node_modules/code-excerpt/dist/index.js
+// ../../node_modules/code-excerpt/dist/index.js
 var generateLineNumbers = (line, around) => {
   const lineNumbers = [];
   const min = line - around;
@@ -33114,7 +33207,7 @@ var codeExcerpt = (source, line, options = {}) => {
 };
 var dist_default3 = codeExcerpt;
 
-// ../node_modules/ink/build/components/Box.js
+// ../../node_modules/ink/build/components/Box.js
 var import_react6 = __toESM(require_react(), 1);
 var Box = (0, import_react6.forwardRef)(({ children, ...style }, ref) => {
   return import_react6.default.createElement("ink-box", { ref, style: {
@@ -33132,7 +33225,7 @@ Box.defaultProps = {
 };
 var Box_default = Box;
 
-// ../node_modules/ink/build/components/Text.js
+// ../../node_modules/ink/build/components/Text.js
 var import_react7 = __toESM(require_react(), 1);
 function Text({ color, backgroundColor, dimColor = false, bold = false, italic = false, underline = false, strikethrough = false, inverse = false, wrap = "wrap", children }) {
   if (children === void 0 || children === null) {
@@ -33168,7 +33261,7 @@ function Text({ color, backgroundColor, dimColor = false, bold = false, italic =
   return import_react7.default.createElement("ink-text", { style: { flexGrow: 0, flexShrink: 1, flexDirection: "row", textWrap: wrap }, internal_transform: transform }, children);
 }
 
-// ../node_modules/ink/build/components/ErrorOverview.js
+// ../../node_modules/ink/build/components/ErrorOverview.js
 var cleanupPath = (path) => {
   return path?.replace(`file://${cwd()}/`, "");
 };
@@ -33271,7 +33364,7 @@ function ErrorOverview({ error }) {
   );
 }
 
-// ../node_modules/ink/build/components/App.js
+// ../../node_modules/ink/build/components/App.js
 var tab = "	";
 var shiftTab = "\x1B[Z";
 var escape = "\x1B";
@@ -33544,7 +33637,7 @@ var App = class extends import_react9.PureComponent {
   };
 };
 
-// ../node_modules/ink/build/ink.js
+// ../../node_modules/ink/build/ink.js
 var noop = () => {
 };
 var Ink = class {
@@ -33760,7 +33853,7 @@ var Ink = class {
   }
 };
 
-// ../node_modules/ink/build/render.js
+// ../../node_modules/ink/build/render.js
 var render = (node, options) => {
   const inkOptions = {
     stdout: process12.stdout,
@@ -33802,22 +33895,22 @@ var getInstance = (stdout2, createInstance) => {
   return instance;
 };
 
-// ../node_modules/ink/build/components/Static.js
+// ../../node_modules/ink/build/components/Static.js
 var import_react11 = __toESM(require_react(), 1);
 
-// ../node_modules/ink/build/components/Transform.js
+// ../../node_modules/ink/build/components/Transform.js
 var import_react12 = __toESM(require_react(), 1);
 
-// ../node_modules/ink/build/components/Newline.js
+// ../../node_modules/ink/build/components/Newline.js
 var import_react13 = __toESM(require_react(), 1);
 
-// ../node_modules/ink/build/components/Spacer.js
+// ../../node_modules/ink/build/components/Spacer.js
 var import_react14 = __toESM(require_react(), 1);
 
-// ../node_modules/ink/build/hooks/use-input.js
+// ../../node_modules/ink/build/hooks/use-input.js
 var import_react16 = __toESM(require_react(), 1);
 
-// ../node_modules/ink/build/parse-keypress.js
+// ../../node_modules/ink/build/parse-keypress.js
 import { Buffer as Buffer2 } from "node:buffer";
 var metaKeyCodeRe = /^(?:\x1b)([a-zA-Z0-9])$/;
 var fnKeyRe = /^(?:\x1b+)(O|N|\[|\[\[)(?:(\d+)(?:;(\d+))?([~^$])|(?:1;)?(\d+)?([a-zA-Z]))/;
@@ -34009,12 +34102,12 @@ var parseKeypress = (s = "") => {
 };
 var parse_keypress_default = parseKeypress;
 
-// ../node_modules/ink/build/hooks/use-stdin.js
+// ../../node_modules/ink/build/hooks/use-stdin.js
 var import_react15 = __toESM(require_react(), 1);
 var useStdin = () => (0, import_react15.useContext)(StdinContext_default);
 var use_stdin_default = useStdin;
 
-// ../node_modules/ink/build/hooks/use-input.js
+// ../../node_modules/ink/build/hooks/use-input.js
 var useInput = (inputHandler, options = {}) => {
   const { stdin: stdin2, setRawMode, internal_exitOnCtrlC, internal_eventEmitter } = use_stdin_default();
   (0, import_react16.useEffect)(() => {
@@ -34076,99 +34169,27 @@ var useInput = (inputHandler, options = {}) => {
 };
 var use_input_default = useInput;
 
-// ../node_modules/ink/build/hooks/use-app.js
+// ../../node_modules/ink/build/hooks/use-app.js
 var import_react17 = __toESM(require_react(), 1);
 var useApp = () => (0, import_react17.useContext)(AppContext_default);
 var use_app_default = useApp;
 
-// ../node_modules/ink/build/hooks/use-stdout.js
+// ../../node_modules/ink/build/hooks/use-stdout.js
 var import_react18 = __toESM(require_react(), 1);
 var useStdout = () => (0, import_react18.useContext)(StdoutContext_default);
 var use_stdout_default = useStdout;
 
-// ../node_modules/ink/build/hooks/use-stderr.js
+// ../../node_modules/ink/build/hooks/use-stderr.js
 var import_react19 = __toESM(require_react(), 1);
 
-// ../node_modules/ink/build/hooks/use-focus.js
+// ../../node_modules/ink/build/hooks/use-focus.js
 var import_react20 = __toESM(require_react(), 1);
 
-// ../node_modules/ink/build/hooks/use-focus-manager.js
+// ../../node_modules/ink/build/hooks/use-focus-manager.js
 var import_react21 = __toESM(require_react(), 1);
-
-// src/app/mount.tsx
-import { stdin, stdout } from "node:process";
 
 // src/app/App.tsx
 var import_react24 = __toESM(require_react(), 1);
-
-// ../apps/shared/src/transcript.ts
-var emptyTranscript = { items: [], busy: false };
-function addUserMessage(state, text) {
-  return { ...state, items: [...state.items, { kind: "user", text }] };
-}
-function replaceLast(items, item) {
-  return [...items.slice(0, -1), item];
-}
-function reduce(state, event) {
-  const { items } = state;
-  const last = items[items.length - 1];
-  switch (event.type) {
-    case "turn.start":
-      return { ...state, busy: true };
-    case "message.delta":
-      if (last?.kind === "assistant" && last.streaming) {
-        return { ...state, items: replaceLast(items, { ...last, text: last.text + event.payload.text }) };
-      }
-      return { ...state, items: [...items, { kind: "assistant", text: event.payload.text, streaming: true }] };
-    case "reasoning.delta":
-      if (last?.kind === "reasoning") {
-        return { ...state, items: replaceLast(items, { ...last, text: last.text + event.payload.text }) };
-      }
-      return { ...state, items: [...items, { kind: "reasoning", text: event.payload.text }] };
-    case "message.complete":
-      if (last?.kind === "assistant" && last.streaming) {
-        return { ...state, items: replaceLast(items, { ...last, streaming: false }) };
-      }
-      return event.payload.text ? { ...state, items: [...items, { kind: "assistant", text: event.payload.text, streaming: false }] } : state;
-    case "tool.start":
-      return {
-        ...state,
-        items: [
-          ...items,
-          { kind: "tool", callId: event.payload.call_id, name: event.payload.name, preview: event.payload.preview, status: "running", duration: null }
-        ]
-      };
-    case "tool.complete":
-      return {
-        ...state,
-        items: items.map(
-          (item) => item.kind === "tool" && item.callId === event.payload.call_id ? { ...item, status: event.payload.failed ? "failed" : "ok", duration: event.payload.duration } : item
-        )
-      };
-    case "status.update":
-      return { ...state, items: [...items, { kind: "notice", level: "info", text: `[${event.payload.kind}] ${event.payload.text}` }] };
-    case "subagent.update": {
-      const { event: kind, index, tool, status, args, iteration, model } = event.payload;
-      const detail = kind === "tool" && args ? `${tool}(${args})` : tool || status;
-      const where = iteration ? ` [iter ${iteration}]` : "";
-      const on = model ? ` on ${model}` : "";
-      return {
-        ...state,
-        items: [...items, { kind: "notice", level: "info", text: `subagent ${index + 1}${on}: ${kind} ${detail}${where}`.trim() }]
-      };
-    }
-    case "error":
-      return { ...state, items: [...items, { kind: "notice", level: "error", text: event.payload.message }] };
-    case "turn.complete": {
-      const settled = items.map((item) => item.kind === "assistant" && item.streaming ? { ...item, streaming: false } : item);
-      if (event.payload.interrupted) settled.push({ kind: "notice", level: "info", text: "(interrupted)" });
-      else if (event.payload.error) settled.push({ kind: "notice", level: "error", text: event.payload.final_response || event.payload.error });
-      return { items: settled, busy: false };
-    }
-    default:
-      return state;
-  }
-}
 
 // src/render.ts
 var CODES = { dim: "2", red: "31", green: "32", yellow: "33", cyan: "36", bold: "1" };
@@ -34176,7 +34197,7 @@ function paint(text, style, color) {
   return color ? `\x1B[${CODES[style]}m${text}\x1B[0m` : text;
 }
 function shouldUseColor(stream, env3 = process.env) {
-  return Boolean(stream.isTTY) && !("NO_COLOR" in env3) && env3["TERM"] !== "dumb";
+  return Boolean(stream.isTTY) && !("NO_COLOR" in env3) && env3.TERM !== "dumb";
 }
 function formatToolLine(item, color) {
   const mark = item.status === "failed" ? "\u2717" : item.status === "ok" ? "\u2713" : "\u2026";
@@ -34267,7 +34288,11 @@ function markdownStyle(color, skin) {
 function formatBanner(info, version, color) {
   return [
     paint(`C-lite ${version}`, "cyan", color),
-    paint(`${info.model} via ${info.provider} \xB7 ${info.tools.length} tools \xB7 session ${info.stored_session_id}`, "dim", color),
+    paint(
+      `${info.model} via ${info.provider} \xB7 ${info.tools.length} tools \xB7 session ${info.stored_session_id}`,
+      "dim",
+      color
+    ),
     paint(info.cwd, "dim", color),
     paint("Type a message, /help for commands. Ctrl+C interrupts a running turn; Ctrl+D exits.", "dim", color)
   ].join("\n");
@@ -34371,7 +34396,7 @@ function visibleLen(text) {
 function cut(text, limit) {
   if (visibleLen(text) <= limit) return text;
   if (limit <= 1) return "\u2026".slice(0, limit);
-  return text.slice(0, limit - 1) + "\u2026";
+  return `${text.slice(0, limit - 1)}\u2026`;
 }
 function padRight(text, width) {
   return text + " ".repeat(Math.max(0, width - text.length));
@@ -34398,10 +34423,10 @@ function renderLine(line, style, width) {
   const heading = HEADING.exec(line);
   if (heading) return style.paint("heading", inline(heading[2], style));
   const quote = QUOTE.exec(line);
-  if (quote) return style.paint("quote", "\u2502 " + inline(quote[1], style));
+  if (quote) return style.paint("quote", `\u2502 ${inline(quote[1], style)}`);
   if (["---", "***", "___"].includes(line.trim())) return style.paint("rule", RULE.repeat(Math.min(width, RULE_WIDTH)));
   const ordered = ORDERED.exec(line);
-  if (ordered) return `${ordered[1]}  ${style.paint("marker", ordered[2] + ".")} ${inline(ordered[3], style)}`;
+  if (ordered) return `${ordered[1]}  ${style.paint("marker", `${ordered[2]}.`)} ${inline(ordered[3], style)}`;
   const bullet = BULLET.exec(line);
   if (bullet) return `${bullet[1]}  ${style.paint("marker", "\u2022")} ${inline(bullet[2], style)}`;
   return inline(line, style);
@@ -34478,7 +34503,8 @@ var MarkdownStream = class {
     return out;
   }
   flushFence() {
-    const rendered = this.fenceBuffer.map((line) => renderFenceLine(line, this.style) + "\n").join("");
+    const rendered = this.fenceBuffer.map((line) => `${renderFenceLine(line, this.style)}
+`).join("");
     this.fenceBuffer = [];
     return rendered;
   }
@@ -34509,7 +34535,8 @@ var MarkdownStream = class {
         run.push(lines[index]);
         index += 1;
       }
-      out.push(...renderBlocks(run, this.style, this.width).map((line2) => line2 + "\n"));
+      out.push(...renderBlocks(run, this.style, this.width).map((line2) => `${line2}
+`));
     }
     if (closed && this.inFence && this.fenceBuffer.length > 0) {
       this.inFence = false;
@@ -34550,7 +34577,8 @@ function renderDiff(diff2, options = {}) {
     body.length = options.maxLines;
   }
   if (omitted) body.push(style.paint("diff_hunk", `\u2026 omitted ${omitted} diff line(s)`));
-  return body.join("\n") + "\n";
+  return `${body.join("\n")}
+`;
 }
 
 // src/app/CompletionMenu.tsx
@@ -34585,6 +34613,78 @@ function CompletionMenu({ candidates, selectedIndex }) {
   ] });
 }
 
+// src/app/completion.ts
+function getSlashCandidates(catalog, input) {
+  if (!input.startsWith("/")) {
+    return [];
+  }
+  const parts = input.slice(1).split(/\s+/);
+  const commandWord = (parts[0] ?? "").toLowerCase();
+  if (parts.length > 2) return [];
+  if (parts.length > 1) {
+    const argWord = (parts[1] ?? "").toLowerCase();
+    const parentCmd = catalog.find(
+      (c) => c.name.toLowerCase() === commandWord || c.aliases.some((a) => a.toLowerCase() === commandWord)
+    );
+    if (parentCmd?.subcommands && parentCmd.subcommands.length > 0) {
+      const matchingSubs = parentCmd.subcommands.filter((sub) => sub.toLowerCase().startsWith(argWord)).sort((a, b) => a.localeCompare(b));
+      return matchingSubs.map((sub) => ({
+        name: `${parentCmd.name} ${sub}`,
+        description: `Subcommand of /${parentCmd.name}`,
+        category: parentCmd.category,
+        aliases: [],
+        args_hint: "",
+        subcommands: [],
+        kind: parentCmd.kind
+      }));
+    }
+    return [];
+  }
+  const seen = /* @__PURE__ */ new Set();
+  const nameMatches = [];
+  const aliasMatches = [];
+  for (const cmd of catalog) {
+    if (seen.has(cmd.name)) continue;
+    const nameMatch = cmd.name.toLowerCase().startsWith(commandWord);
+    const aliasMatch = !nameMatch && cmd.aliases.some((a) => a.toLowerCase().startsWith(commandWord));
+    if (nameMatch) {
+      seen.add(cmd.name);
+      nameMatches.push(cmd);
+    } else if (aliasMatch) {
+      seen.add(cmd.name);
+      aliasMatches.push(cmd);
+    }
+  }
+  nameMatches.sort((a, b) => a.name.localeCompare(b.name));
+  aliasMatches.sort((a, b) => a.name.localeCompare(b.name));
+  return [...nameMatches, ...aliasMatches];
+}
+function applySlashCompletion(candidate) {
+  return `/${candidate.name} `;
+}
+function handleTabCompletion(input, catalog) {
+  const candidates = getSlashCandidates(catalog, input);
+  if (candidates.length === 1) {
+    return {
+      text: applySlashCompletion(candidates[0]),
+      menuOpen: false,
+      candidates
+    };
+  }
+  if (candidates.length > 1) {
+    return {
+      text: input,
+      menuOpen: true,
+      candidates
+    };
+  }
+  return {
+    text: input,
+    menuOpen: false,
+    candidates: []
+  };
+}
+
 // src/app/Dialogs.tsx
 var import_react22 = __toESM(require_react(), 1);
 
@@ -34611,7 +34711,11 @@ function parseClarifyAnswer(input, choices) {
 
 // src/app/Dialogs.tsx
 var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
-function ApprovalDialog({ command, description, onChoose }) {
+function ApprovalDialog({
+  command,
+  description,
+  onChoose
+}) {
   const [selected, setSelected] = (0, import_react22.useState)(0);
   use_input_default((input, key) => {
     if (key.leftArrow) setSelected((i) => Math.max(0, i - 1));
@@ -34629,7 +34733,7 @@ function ApprovalDialog({ command, description, onChoose }) {
       "):"
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { children: [
-      "  ",
+      " ",
       command
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Box_default, { marginTop: 1, children: APPROVAL_LABELS.map((label, index) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: index === selected ? "cyan" : void 0, children: [
@@ -34641,7 +34745,11 @@ function ApprovalDialog({ command, description, onChoose }) {
     ] }, label)) })
   ] });
 }
-function ClarifyDialog({ question, choices, onAnswer }) {
+function ClarifyDialog({
+  question,
+  choices,
+  onAnswer
+}) {
   const [selected, setSelected] = (0, import_react22.useState)(0);
   const [text, setText] = (0, import_react22.useState)("");
   use_input_default((input, key) => {
@@ -34658,13 +34766,13 @@ function ClarifyDialog({ question, choices, onAnswer }) {
     /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Text, { color: "yellow", children: question }),
     choices.map((choice, index) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { color: index === selected ? "cyan" : void 0, children: [
       index === selected ? "\u276F" : " ",
-      "  ",
+      " ",
       index + 1,
       ". ",
       choice
     ] }, index)),
     /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Text, { children: [
-      "  answer: ",
+      " answer: ",
       text
     ] })
   ] });
@@ -34815,7 +34923,7 @@ function formatStatus(state, width) {
   const outputTokens = state.outputTokens ?? 0;
   const tokens = inputTokens || outputTokens ? `${tokenCount(inputTokens)} in/${tokenCount(outputTokens)} out` : "";
   const session = sessionLabel(state);
-  const cwd2 = state.cwd ? state.cwd.replace(process.env["HOME"] ?? "", "~") : "";
+  const cwd2 = state.cwd ? state.cwd.replace(process.env.HOME ?? "", "~") : "";
   const known = (state.contextTotal ?? 0) > 0 || state.usagePercent > 0;
   const percent = Math.max(0, Math.min(100, state.usagePercent || 0));
   const filled = known ? Math.round(percent / 10) : 0;
@@ -34835,7 +34943,7 @@ function fitStatusLine(line, width) {
   if (!width || width <= 0 || line.length <= width) {
     return line;
   }
-  return line.slice(0, Math.max(0, width - 1)) + "\u2026";
+  return `${line.slice(0, Math.max(0, width - 1))}\u2026`;
 }
 
 // src/app/StatusBar.tsx
@@ -34845,76 +34953,6 @@ function StatusBar({ state, width }) {
   const columns = width ?? stdout2?.columns ?? 80;
   const line = fitStatusLine(formatStatus(state, columns), columns);
   return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Box_default, { height: 1, overflow: "hidden", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Text, { dimColor: true, wrap: "truncate", children: line }) });
-}
-
-// src/app/completion.ts
-function getSlashCandidates(catalog, input) {
-  if (!input.startsWith("/")) {
-    return [];
-  }
-  const parts = input.slice(1).split(/\s+/);
-  const commandWord = (parts[0] ?? "").toLowerCase();
-  if (parts.length > 2) return [];
-  if (parts.length > 1) {
-    const argWord = (parts[1] ?? "").toLowerCase();
-    const parentCmd = catalog.find((c) => c.name.toLowerCase() === commandWord || c.aliases.some((a) => a.toLowerCase() === commandWord));
-    if (parentCmd && parentCmd.subcommands && parentCmd.subcommands.length > 0) {
-      const matchingSubs = parentCmd.subcommands.filter((sub) => sub.toLowerCase().startsWith(argWord)).sort((a, b) => a.localeCompare(b));
-      return matchingSubs.map((sub) => ({
-        name: `${parentCmd.name} ${sub}`,
-        description: `Subcommand of /${parentCmd.name}`,
-        category: parentCmd.category,
-        aliases: [],
-        args_hint: "",
-        subcommands: [],
-        kind: parentCmd.kind
-      }));
-    }
-    return [];
-  }
-  const seen = /* @__PURE__ */ new Set();
-  const nameMatches = [];
-  const aliasMatches = [];
-  for (const cmd of catalog) {
-    if (seen.has(cmd.name)) continue;
-    const nameMatch = cmd.name.toLowerCase().startsWith(commandWord);
-    const aliasMatch = !nameMatch && cmd.aliases.some((a) => a.toLowerCase().startsWith(commandWord));
-    if (nameMatch) {
-      seen.add(cmd.name);
-      nameMatches.push(cmd);
-    } else if (aliasMatch) {
-      seen.add(cmd.name);
-      aliasMatches.push(cmd);
-    }
-  }
-  nameMatches.sort((a, b) => a.name.localeCompare(b.name));
-  aliasMatches.sort((a, b) => a.name.localeCompare(b.name));
-  return [...nameMatches, ...aliasMatches];
-}
-function applySlashCompletion(input, candidate) {
-  return `/${candidate.name} `;
-}
-function handleTabCompletion(input, catalog) {
-  const candidates = getSlashCandidates(catalog, input);
-  if (candidates.length === 1) {
-    return {
-      text: applySlashCompletion(input, candidates[0]),
-      menuOpen: false,
-      candidates
-    };
-  }
-  if (candidates.length > 1) {
-    return {
-      text: input,
-      menuOpen: true,
-      candidates
-    };
-  }
-  return {
-    text: input,
-    menuOpen: false,
-    candidates: []
-  };
 }
 
 // src/app/App.tsx
@@ -34935,7 +34973,13 @@ function Transcript({ state, color }) {
     state.busy && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Text, { dimColor: true, children: "\u2026" })
   ] });
 }
-function Composer({ onSubmit, onInterrupt, onQuit, prompt, catalog }) {
+function Composer({
+  onSubmit,
+  onInterrupt,
+  onQuit,
+  prompt,
+  catalog
+}) {
   const [value, setValue] = (0, import_react24.useState)("");
   const [menuOpen, setMenuOpen] = (0, import_react24.useState)(false);
   const [selectedIndex, setSelectedIndex] = (0, import_react24.useState)(0);
@@ -34961,7 +35005,7 @@ function Composer({ onSubmit, onInterrupt, onQuit, prompt, catalog }) {
     if (key.tab) {
       const picked = menuOpen ? candidates[selectedIndex] : void 0;
       if (picked) {
-        setValue(applySlashCompletion(value, picked));
+        setValue(applySlashCompletion(picked));
         setMenuOpen(false);
         setSelectedIndex(0);
         return;
@@ -34984,7 +35028,7 @@ function Composer({ onSubmit, onInterrupt, onQuit, prompt, catalog }) {
       if (key.return) {
         const picked = candidates[selectedIndex];
         if (picked) {
-          setValue(applySlashCompletion(value, picked));
+          setValue(applySlashCompletion(picked));
           setMenuOpen(false);
           return;
         }
@@ -35025,7 +35069,7 @@ function App2({ client, session }) {
   const { exit } = use_app_default();
   const { stdout: stdout2 } = use_stdout_default();
   const sessionId = session.session_id;
-  const color = stdout2.isTTY && !process.env["NO_COLOR"];
+  const color = stdout2.isTTY && !process.env.NO_COLOR;
   const [state, dispatch] = (0, import_react24.useReducer)(appReducer, emptyTranscript);
   const prompt = "\u276F";
   const turnId = (0, import_react24.useRef)(null);
@@ -35052,109 +35096,130 @@ function App2({ client, session }) {
     });
   }, [client, sessionId]);
   (0, import_react24.useEffect)(() => {
-    client.onServerRequest("approval.request", (params) => new Promise((resolve) => {
-      setPending({
-        kind: "approval",
-        command: params.command,
-        description: params.description,
-        resolve: (choice) => resolve({ choice })
-      });
-    }));
-    client.onServerRequest("clarify.request", (params) => new Promise((resolve) => {
-      setPending({
-        kind: "clarify",
-        question: params.question,
-        choices: params.choices ?? [],
-        resolve: (answer) => resolve({ answer })
-      });
-    }));
+    client.onServerRequest(
+      "approval.request",
+      (params) => new Promise((resolve) => {
+        setPending({
+          kind: "approval",
+          command: params.command,
+          description: params.description,
+          resolve: (choice) => resolve({ choice })
+        });
+      })
+    );
+    client.onServerRequest(
+      "clarify.request",
+      (params) => new Promise((resolve) => {
+        setPending({
+          kind: "clarify",
+          question: params.question,
+          choices: params.choices ?? [],
+          resolve: (answer) => resolve({ answer })
+        });
+      })
+    );
   }, [client]);
   const closeDialog = (0, import_react24.useCallback)(() => setPending(null), []);
-  (0, import_react24.useEffect)(() => client.onEvent((event) => {
-    dispatch({ kind: "event", event });
-    if (event.type === "session.info") {
-      const info = event.payload;
-      setStatus((s) => ({
-        ...s,
-        model: info.model || s.model,
-        provider: info.provider || s.provider,
-        cwd: info.cwd || s.cwd,
-        busy: info.busy,
-        usagePercent: info.context?.usage_percent ?? s.usagePercent,
-        contextUsed: info.context?.last_prompt_tokens ?? s.contextUsed,
-        contextTotal: info.context?.context_length ?? s.contextTotal,
-        sessionId: info.stored_session_id || info.session_id || s.sessionId,
-        title: info.title || s.title,
-        activity: info.busy ? "busy" : "idle"
-      }));
-    } else if (event.type === "turn.start") {
-      setStatus((s) => ({ ...s, busy: true, activity: "thinking" }));
-    } else if (event.type === "turn.step") {
-      setStatus((s) => ({ ...s, busy: true, activity: `thinking #${event.payload.iteration}` }));
-    } else if (event.type === "tool.start") {
-      setStatus((s) => ({ ...s, busy: true, activity: `tool ${event.payload.name}` }));
-    } else if (event.type === "tool.complete") {
-      setStatus((s) => ({ ...s, busy: true, activity: "thinking" }));
-    } else if (event.type === "turn.complete") {
-      setStatus((s) => ({
-        ...s,
-        busy: false,
-        activity: "idle",
-        inputTokens: event.payload.usage.input_tokens,
-        outputTokens: event.payload.usage.output_tokens
-      }));
-    }
-  }), [client]);
+  (0, import_react24.useEffect)(
+    () => client.onEvent((event) => {
+      dispatch({ kind: "event", event });
+      if (event.type === "session.info") {
+        const info = event.payload;
+        setStatus((s) => ({
+          ...s,
+          model: info.model || s.model,
+          provider: info.provider || s.provider,
+          cwd: info.cwd || s.cwd,
+          busy: info.busy,
+          usagePercent: info.context?.usage_percent ?? s.usagePercent,
+          contextUsed: info.context?.last_prompt_tokens ?? s.contextUsed,
+          contextTotal: info.context?.context_length ?? s.contextTotal,
+          sessionId: info.stored_session_id || info.session_id || s.sessionId,
+          title: info.title || s.title,
+          activity: info.busy ? "busy" : "idle"
+        }));
+      } else if (event.type === "turn.start") {
+        setStatus((s) => ({ ...s, busy: true, activity: "thinking" }));
+      } else if (event.type === "turn.step") {
+        setStatus((s) => ({ ...s, busy: true, activity: `thinking #${event.payload.iteration}` }));
+      } else if (event.type === "tool.start") {
+        setStatus((s) => ({ ...s, busy: true, activity: `tool ${event.payload.name}` }));
+      } else if (event.type === "tool.complete") {
+        setStatus((s) => ({ ...s, busy: true, activity: "thinking" }));
+      } else if (event.type === "turn.complete") {
+        setStatus((s) => ({
+          ...s,
+          busy: false,
+          activity: "idle",
+          inputTokens: event.payload.usage.input_tokens,
+          outputTokens: event.payload.usage.output_tokens
+        }));
+      }
+    }),
+    [client]
+  );
   const quit = (0, import_react24.useCallback)(async () => {
     await client.request("session.close", { session_id: sessionId }).catch(() => {
     });
     exit();
   }, [client, sessionId, exit]);
-  const submit = (0, import_react24.useCallback)(async (text) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    if (trimmed === "/model" || trimmed === "/models") {
-      try {
-        const res = await client.request("model.list", {});
-        setPicker({ kind: "model", models: res.models || [], current: res.current || status.model });
-        return;
-      } catch {
+  const submit = (0, import_react24.useCallback)(
+    async (text) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      if (trimmed === "/model" || trimmed === "/models") {
+        try {
+          const res = await client.request("model.list", {});
+          setPicker({ kind: "model", models: res.models || [], current: res.current || status.model });
+          return;
+        } catch {
+        }
       }
-    }
-    if (trimmed === "/session" || trimmed === "/resume" || trimmed === "/sessions") {
-      try {
-        const res = await client.request("session.list", {});
-        setPicker({ kind: "session", sessions: res.sessions || [] });
-        return;
-      } catch {
+      if (trimmed === "/session" || trimmed === "/resume" || trimmed === "/sessions") {
+        try {
+          const res = await client.request("session.list", {});
+          setPicker({ kind: "session", sessions: res.sessions || [] });
+          return;
+        } catch {
+        }
       }
-    }
-    if (trimmed.startsWith("/")) {
-      try {
-        const result = await client.request("slash.exec", { session_id: sessionId, command: trimmed });
-        if (result.text) dispatch({ kind: "notice", text: result.text });
-        if (result.action === "quit") {
-          await quit();
+      if (trimmed.startsWith("/")) {
+        try {
+          const result = await client.request("slash.exec", {
+            session_id: sessionId,
+            command: trimmed
+          });
+          if (result.text) dispatch({ kind: "notice", text: result.text });
+          if (result.action === "quit") {
+            await quit();
+            return;
+          }
+          if (result.action === "submit") {
+            turnId.current = result.turn_id || null;
+            return;
+          }
+          return;
+        } catch (error) {
+          dispatch({
+            kind: "event",
+            event: { type: "error", payload: { message: String(error) }, session_id: sessionId }
+          });
           return;
         }
-        if (result.action === "submit") {
-          turnId.current = result.turn_id || null;
-          return;
-        }
-        return;
+      }
+      dispatch({ kind: "user", text });
+      try {
+        const result = await client.request("prompt.submit", { session_id: sessionId, text });
+        turnId.current = result.turn_id;
       } catch (error) {
-        dispatch({ kind: "event", event: { type: "error", payload: { message: String(error) }, session_id: sessionId } });
-        return;
+        dispatch({
+          kind: "event",
+          event: { type: "error", payload: { message: String(error) }, session_id: sessionId }
+        });
       }
-    }
-    dispatch({ kind: "user", text });
-    try {
-      const result = await client.request("prompt.submit", { session_id: sessionId, text });
-      turnId.current = result.turn_id;
-    } catch (error) {
-      dispatch({ kind: "event", event: { type: "error", payload: { message: String(error) }, session_id: sessionId } });
-    }
-  }, [client, sessionId, status.model, quit]);
+    },
+    [client, sessionId, status.model, quit]
+  );
   const interrupt = (0, import_react24.useCallback)(async () => {
     await client.request("session.interrupt", { session_id: sessionId }).catch(() => {
     });
@@ -35380,7 +35445,8 @@ var PlainTui = class {
           this.markdownPrinted = "";
           this.streamed = true;
         }
-        if (!this.streamed && event.payload.text) this.write(renderMarkdown(event.payload.text, { style: markdownStyle(this.color) }));
+        if (!this.streamed && event.payload.text)
+          this.write(renderMarkdown(event.payload.text, { style: markdownStyle(this.color) }));
         else if (this.midLine) this.line();
         this.streamed = false;
         break;
@@ -35403,7 +35469,8 @@ var PlainTui = class {
             this.color
           )
         );
-        if (event.payload.diff) this.write(renderDiff(event.payload.diff, { style: markdownStyle(this.color), maxLines: this.diffLines }));
+        if (event.payload.diff)
+          this.write(renderDiff(event.payload.diff, { style: markdownStyle(this.color), maxLines: this.diffLines }));
         break;
       }
       case "status.update":
@@ -35427,7 +35494,8 @@ var PlainTui = class {
         this.releaseWaiters();
         if (this.midLine) this.line();
         if (event.payload.interrupted) this.line(paint("(interrupted)", "yellow", this.color));
-        else if (event.payload.error) this.line(paint(event.payload.final_response || event.payload.error, "red", this.color));
+        else if (event.payload.error)
+          this.line(paint(event.payload.final_response || event.payload.error, "red", this.color));
         this.prompt();
         break;
       default:
@@ -35450,7 +35518,7 @@ var PlainTui = class {
     });
     this.client.onServerRequest("clarify.request", async (params) => {
       this.line(paint(params.question, "yellow", this.color));
-      params.choices.forEach((choice, index) => this.line(`  ${index + 1}. ${choice}`));
+      for (const [index, choice] of params.choices.entries()) this.line(`  ${index + 1}. ${choice}`);
       return { answer: parseChoice(await this.ask("  answer > "), params.choices) };
     });
   }
@@ -35474,7 +35542,9 @@ var PlainTui = class {
       if (text.startsWith("/")) await this.runSlash(text);
       else this.awaitTurn((await this.client.request("prompt.submit", { session_id: this.sessionId, text })).turn_id);
     } catch (error) {
-      this.line(paint(error instanceof RpcError || error instanceof Error ? error.message : String(error), "red", this.color));
+      this.line(
+        paint(error instanceof RpcError || error instanceof Error ? error.message : String(error), "red", this.color)
+      );
       this.prompt();
     }
   }
@@ -35609,8 +35679,10 @@ async function main() {
       await backend.stop();
       return code2;
     } catch (error) {
-      process.stderr.write(`The full-screen UI could not start (${error instanceof Error ? error.message : String(error)}). Falling back to --plain.
-`);
+      process.stderr.write(
+        `The full-screen UI could not start (${error instanceof Error ? error.message : String(error)}). Falling back to --plain.
+`
+      );
     }
   }
   const tui = new PlainTui({

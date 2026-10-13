@@ -1,0 +1,48 @@
+{
+  // Format and lint for the TypeScript workspaces; ruff does the same for Python.
+  // `npx biome check --write` fixes what it can; scripts/run_tests.sh runs `biome ci`.
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": [
+      "apps/**/*.ts",
+      "apps/**/*.tsx",
+      "apps/**/*.mjs",
+      "apps/**/*.cjs",
+      "apps/**/*.css",
+      "packages/**/*.ts",
+      // Generated from the Python contracts by scripts/gen_rpc_contracts.py.
+      "!packages/shared/src/contracts.generated.ts"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "style": {
+        // tsconfig turns on noUncheckedIndexedAccess, so `x[i]!` is how code states that an
+        // index it has just checked is there.
+        "noNonNullAssertion": "off"
+      },
+      "suspicious": {
+        // The lists rendered here carry no ids: transcripts only grow, and panels replace a
+        // list whole when it reloads, so an item's position is its identity.
+        "noArrayIndexKey": "off"
+      }
+    }
+  },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } }
+}

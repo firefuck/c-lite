@@ -134,7 +134,8 @@ TELEGRAM_BOT_TOKEN=...
 
 ### `state.db`
 
-SQLite dengan FTS5. Skema ada di `src/clite/state/schema.py`, kontraknya di
+SQLite dengan FTS5. Skema dan migrasinya ada di `src/clite/state/schema.py`, teks yang
+diindeks FTS di `src/clite/state/search.py`, kontraknya di
 [spesifikasi state](../spesifikasi/state.md). Satu baris `messages` adalah satu pesan dalam
 format di atas; `content` berstruktur disimpan sebagai JSON dengan `content_is_json=1`.
 
@@ -293,8 +294,8 @@ event ada di [katalog](../referensi/katalog.md#protokol-json-rpc-versi-1).
 
 | File | Dibuat oleh | Dijaga oleh |
 |---|---|---|
-| `apps/shared/src/contracts.generated.ts` | `scripts/gen_rpc_contracts.py` | `test_typescript_contracts_match_the_python_contracts` |
+| `packages/shared/src/contracts.generated.ts` | `scripts/gen_rpc_contracts.py` | `test_typescript_contracts_match_the_python_contracts` |
 | `docs/referensi/katalog.md`, `docs/referensi/peta-modul.md` | `scripts/gen_docs.py` | `test_generated_reference_pages_are_current` |
-| `src/clite/tui_dist/clite-tui.mjs`, `src/clite/tui_dist/build-info.json` | `ui-tui/build.mjs` | `test_the_committed_bundle_was_built_from_the_current_sources` |
+| `src/clite/tui_dist/clite-tui.mjs`, `src/clite/tui_dist/build-info.json` | `apps/tui/build.mjs` | `test_the_committed_bundle_was_built_from_the_current_sources` |
 
 Ketiganya di-commit. Mengubah sumbernya tanpa menjalankan ulang pembuatnya menggagalkan suite.

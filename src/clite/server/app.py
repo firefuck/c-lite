@@ -32,7 +32,7 @@ import asyncio
 import hmac
 import inspect
 import logging
-from collections.abc import Callable, Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -57,7 +57,7 @@ from clite.state.db import get_session_db
 
 logger = logging.getLogger("clite.server")
 
-# The dashboard as built from web/ (`npm run build` there): index.html and assets/.
+# The dashboard as built from apps/web/ (`npm run build` there): index.html and assets/.
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 WS_UNAUTHORIZED = 4401
 WS_MESSAGE_TOO_BIG = 1009  # RFC 6455 "message too big"
@@ -196,16 +196,19 @@ class _Gate:
         audit("token_rejected", address=address, delay=f"{delay:.2f}s")
         return False, "", delay
 
-    def guarded(self, handler: Callable[[Request], Any]) -> Callable[[Request], Any]:
+    def guarded(self, handler: Callable[[Request], Any]) -> Callable[[Request], Awaitable[Response]]:
         async def wrapper(request: Request) -> Response:
             allowed, _name, delay = self.authorize(request)
             if not allowed:
                 if delay:
                     await asyncio.sleep(delay)  # the throttle is a wait, not just a count
                 return JSONResponse({"error": "unauthorized"}, status_code=401)
+            response: Response
             if inspect.iscoroutinefunction(handler):
-                return await handler(request)
-            return await asyncio.to_thread(handler, request)
+                response = await handler(request)
+            else:
+                response = await asyncio.to_thread(handler, request)
+            return response
 
         return wrapper
 
@@ -218,7 +221,7 @@ async def _health(request: Request) -> Response:
 
 
 def _status(request: Request) -> Response:
-    from clite.rpc.methods import system_info
+    from clite.rpc.methods.system import system_info
 
     return JSONResponse(system_info(None, None).model_dump(mode="json"))  # type: ignore[arg-type]
 

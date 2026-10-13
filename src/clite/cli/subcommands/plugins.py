@@ -92,8 +92,10 @@ def _describe(info: PluginInfo) -> list[str]:
         lines.append(f"{'installed':<12} {where}")
     if info.manifest.requires_env:
         lines.append(f"{'requires':<12} {', '.join(info.manifest.requires_env)} (in .env)")
-    for command in dependency_commands(info.manifest):
-        lines.append(f"{'dependency':<12} {command}   (run it yourself; nothing is installed for you)")
+    lines.extend(
+        f"{'dependency':<12} {command}   (run it yourself; nothing is installed for you)"
+        for command in dependency_commands(info.manifest)
+    )
     if info.manifest.provides_hooks:
         lines.append(f"{'hooks':<12} {', '.join(info.manifest.provides_hooks)}")
     return lines
@@ -187,7 +189,7 @@ def run_remove(args: argparse.Namespace) -> int:
     return 0
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("plugins", help="list, enable, disable, install or remove plugins")
     parser.set_defaults(handler=run_list)
     actions = parser.add_subparsers(dest="plugins_action")

@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | Kode | `src/clite/rpc/` |
-| Klien | `apps/shared/src/` (TypeScript), `web/src/` (dashboard di browser dan desktop) |
-| Tes | `tests/rpc/`, `apps/shared/test/` |
+| Klien | `packages/shared/src/` (TypeScript), `apps/web/src/` (dashboard di browser dan desktop) |
+| Tes | `tests/rpc/`, `packages/shared/test/` |
 | Lapisan | 8. Boleh mengimpor `runtime` dan semua di bawahnya. Tidak mengimpor `gateway`, `server`, `cli` |
 | Bedah Hermes | [09-tui-dan-rpc](../hermes/09-tui-dan-rpc.md) |
 
@@ -22,7 +22,8 @@ dashboard. Satu protokol, dua transport: stdio (satu dokumen JSON per baris) dan
 | `contracts/schema.py` | Deklarasi protokol sebagai model Pydantic |
 | `server.py` | `RpcServer`: satu instance per koneksi klien |
 | `session.py` | `RpcSession`: `ChatSession` yang callback-nya menjadi event |
-| `methods.py` | Handler method |
+| `methods/` | Handler method, satu modul per domain: `system`, `session`, `prompt`, `config`, `model`, `extensions`, `memory`, `cron`. `__init__.py` mengimpor semuanya sehingga setiap method terdaftar; docstring-nya memetakan awalan nama method ke modulnya |
+| `replay.py` | `EventLog` (event yang terlewat saat klien tersambung ulang) dan `DetachedSessions` (sesi yang bertahan sebentar setelah koneksinya putus) |
 | `transport.py` | `StdioTransport`, `WebSocketTransport`, `MemoryTransport` (tes) |
 | `entry.py` | `python -m clite.rpc.entry`: entry point stdio untuk TUI |
 
@@ -34,7 +35,7 @@ Daftar lengkap method, event, dan permintaan server ada di
 
 **Kontrak adalah sumber kebenaran**
 - Setiap method, event, dan permintaan server dideklarasikan sekali sebagai model Pydantic.
-  `scripts/gen_rpc_contracts.py` menghasilkan `apps/shared/src/contracts.generated.ts` dari
+  `scripts/gen_rpc_contracts.py` menghasilkan `packages/shared/src/contracts.generated.ts` dari
   sana. File hasil generate tidak pernah disunting dengan tangan. Dijaga tes.
 - `Params` menolak bidang tak dikenal. Menambah bidang opsional kompatibel ke belakang;
   menghapus atau mengganti nama tidak: buat method baru.
@@ -147,10 +148,10 @@ Daftar lengkap method, event, dan permintaan server ada di
 
 | Fitur | Status | Catatan |
 |---|---|---|
-| 49 method, 13 event, 2 permintaan server | ✅ | Hermes: 251 method, 69 event, 13 permintaan server |
+| 50 method, 13 event, 2 permintaan server | ✅ | Hermes: 251 method, 69 event, 13 permintaan server |
 | Transport stdio dan WebSocket | ✅ | |
 | Generator TypeScript dan pemeriksaan kesegaran | ✅ | |
-| Klien TypeScript bersama (`apps/shared`) | ✅ | 21 tes |
+| Klien TypeScript bersama (`packages/shared`) | ✅ | Dijaga `packages/shared/test/` |
 | Pemutaran ulang event setelah sambung ulang | ✅ | F5-T5: `session.attach` + penyangga berbatas di `rpc/replay.py` |
 | Lampiran gambar pada prompt | ✅ | `prompt.submit.attachments` (bidang opsional baru); path buruk menjadi galat 4004, bukan giliran gagal. Berkas yang tidak bisa dipakai agen langsung disimpan lewat `attachment.save` |
 | Method untuk profil, MCP, hook, log | ✅ | `hooks.status`, `mcp.status`, `logs.tail`; method profil: F5-T5 |

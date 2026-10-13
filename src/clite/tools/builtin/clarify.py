@@ -48,7 +48,7 @@ def clarify_tool(args: dict[str, Any], ctx: ToolContext | None = None) -> str:
         )
     try:
         answer = ask(question, choices)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 - a failed question is a tool error for the model
         return tool_error(f"could not ask the user: {exc}")
     if answer is None or not str(answer).strip():
         return tool_result(

@@ -168,7 +168,7 @@ def _ask_from_table(prompt: str, table: tuple[tuple[str, Any], ...]) -> Any:
     return table[labels.index(_choose(prompt, labels, default_index=0))][1]
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("setup", help="choose a provider, store its API key and pick a model")
     parser.add_argument("--provider", help="provider name (skips the questions)")
     parser.add_argument("--api-key", help="API key to store in .env")

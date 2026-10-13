@@ -139,7 +139,7 @@ class AcpServer:
         self._lock = threading.RLock()
         self._next_request = 0
         self._in_flight = 0  # requests submitted but not yet answered
-        self._pending: dict[str, concurrent.futures.Future] = {}
+        self._pending: dict[str, concurrent.futures.Future[Any]] = {}
         # What to run once a request's reply has gone out (see ``after_reply``), kept per
         # thread: two requests answer on two workers and their replies are not ours to reorder.
         self._after_reply = threading.local()
@@ -161,7 +161,7 @@ class AcpServer:
         with self._lock:
             self._next_request += 1
             request_id = f"acp-{self._next_request}"
-            future: concurrent.futures.Future = concurrent.futures.Future()
+            future: concurrent.futures.Future[Any] = concurrent.futures.Future()
             self._pending[request_id] = future
         if not self.transport.write({"jsonrpc": "2.0", "id": request_id, "method": method, "params": params}):
             self._pending.pop(request_id, None)

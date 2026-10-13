@@ -26,7 +26,7 @@ _UNSET = object()
 _HOME_OVERRIDE: ContextVar[object] = ContextVar("clite_home_override", default=_UNSET)
 
 
-def set_home_override(path: str | Path | None) -> Token:
+def set_home_override(path: str | Path | None) -> Token[object]:
     """Bind a context-local home and return the reset token.
 
     Deliberately leaves ``os.environ`` alone: the environment is shared by every thread,
@@ -35,7 +35,7 @@ def set_home_override(path: str | Path | None) -> Token:
     return _HOME_OVERRIDE.set(_UNSET if path is None else str(path))
 
 
-def reset_home_override(token: Token) -> None:
+def reset_home_override(token: Token[object]) -> None:
     _HOME_OVERRIDE.reset(token)
 
 

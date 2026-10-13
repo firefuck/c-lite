@@ -4,6 +4,15 @@
 
 Tes: `pytest tests/state -q`
 
+## File
+
+| File | Isi |
+|---|---|
+| `db.py` | `SessionDB` dan `get_session_db`: koneksi dan kuncinya, tulis-baca sesi dan pesan, pemetaan pesan ke baris dan kembali |
+| `schema.py` | Tabel, `COLUMN_ADDITIONS`, `MIGRATIONS`, dan `prepare_schema` yang menerapkan semuanya setiap kali database dibuka |
+| `search.py` | Teks yang diindeks (`search_text_of`) dan pernyataan pencarian FTS5 beserta cadangan `LIKE`-nya |
+| `insights.py` | Kueri analitik di balik `get_insights` dan laporan teksnya (`format_insights`) |
+
 ## Aturan yang tidak boleh dilanggar
 
 1. **Riwayat hanya bertambah.** Jangan menambah method yang mengubah atau menghapus isi pesan
@@ -13,8 +22,11 @@ Tes: `pytest tests/state -q`
    punya default, dan didaftarkan di `COLUMN_ADDITIONS`. Menaikkan `SCHEMA_VERSION` hanya
    untuk mengubah data yang sudah ada, dengan SQL di `MIGRATIONS`.
 3. **Semua akses lewat kunci `self._lock`.** Koneksi dipakai bersama antar-thread.
-4. **Teks pengguna tidak pernah menjadi sintaks SQL atau FTS.** Pakai parameter dan
-   `_fts_query`.
+   `prepare_schema` dan `collect_insights` menerima koneksi itu dari `SessionDB`, yang
+   memegang kuncinya selama keduanya berjalan. `search.py` hanya menyusun pernyataan; yang
+   menjalankannya tetap `SessionDB`.
+4. **Teks pengguna tidak pernah menjadi sintaks SQL atau FTS.** Pakai parameter, `fts_query`,
+   dan `escape_like` (`search.py`).
 5. **Hanya mengimpor `core`.**
 
 ## Resep

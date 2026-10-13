@@ -35,7 +35,7 @@ os.environ.setdefault("CLITE_HOME", tempfile.mkdtemp(prefix="clite-plugins-index
 for _name in [key for key in os.environ if key.startswith("CLITE_") and key != "CLITE_HOME"]:
     del os.environ[_name]
 
-from clite.plugins.hub import build_index  # noqa: E402
+from clite.plugins.hub import build_index  # noqa: E402 - after the environment is cleaned above
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -37,6 +37,7 @@ class FakeDiscordServer:
                         return self._reply({"message": "401: Unauthorized"}, status=401)
                     return self._reply({"id": "bot-999", "username": "clite_bot"})
                 self._reply({}, status=404)
+                return None
 
             def do_POST(self):
                 length = int(self.headers.get("Content-Length", 0))
@@ -48,6 +49,7 @@ class FakeDiscordServer:
                 if "/typing" in self.path:
                     return self._reply({})
                 self._reply({})
+                return None
 
             def _reply(self, payload, status=200):
                 data = json.dumps(payload).encode("utf-8")

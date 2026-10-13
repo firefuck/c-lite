@@ -7,14 +7,49 @@ GitHub-nya (`python scripts/release.py notes`).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-13
+
+### Keamanan
+- `clite backup restore` menolak arsip yang anggotanya berupa tautan ke luar home. Sebelumnya
+  arsip buatan orang lain bisa menulis file di luar home lewat symlink atau hardlink.
+
+### Ditambah
+- Metadata paket: penulis, tautan ke repositori, isu, dokumentasi, dan catatan perubahan,
+  serta klasifikasi PyPI.
+- Kebijakan keamanan (`SECURITY.md`) dengan saluran pelaporan privat, panduan kontribusi, dan
+  kode etik.
+- Penanda `py.typed`: plugin yang mengimpor `clite` ikut mendapat tipenya.
+
 ### Diubah
+- Dashboard web ditulis ulang dengan React dan Vite. Fitur dan perilakunya sama, dijaga 24 tes
+  browser dashboard lama.
 - Perapian kode tanpa perubahan perilaku: fungsi panjang dipecah dan kompleksitas tiap fungsi
-  dibatasi 15, format kode dan komentar `noqa` beralasan diperiksa di CI, dan setiap fungsi
-  wajib beranotasi tipe.
+  dibatasi 15, format kode dan komentar `noqa` beralasan diperiksa di CI, mypy berjalan dalam
+  mode `strict`, dan kode TypeScript diformat serta diperiksa Biome. Empat modul terbesar dipecah menurut tanggung jawab: runner gateway,
+  gerbang persetujuan perintah, handler RPC (kini paket `clite.rpc.methods`), dan penyimpanan
+  sesi.
+- Tata letak monorepo: aplikasi di `apps/` (`apps/tui`, `apps/web`, `apps/desktop`) dan klien
+  protokol bersama di `packages/shared`, yang kini diimpor kedua aplikasi lewat nama paketnya
+  (`@clite/shared`).
 - Backend eksekusi `local`, `docker`, dan `ssh` memakai satu loop yang sama untuk menunggu
   perintah (batas output, timeout, interupsi).
 - Gateway menawarkan pemilih `/model` dan tombol persetujuan menurut kemampuan adapter, bukan
   nama platform; Telegram berperilaku seperti sebelumnya.
+
+### Diperbaiki
+- Tombol tutup percakapan dan tombol hapus lampiran di dashboard kini tombol sungguhan yang bisa
+  dijangkau keyboard dan dibacakan pembaca layar; tombol tutup tidak lagi tersarang di dalam
+  tombol percakapan.
+- Wheel kini menyertakan berkas lisensi skill bawaan `docx`, `pdf`, `powerpoint`, dan `xlsx`;
+  sebelumnya tertinggal karena tidak berekstensi, dan pemeriksaan isi wheel menolak rilis.
+- Endpoint token OAuth yang menjawab dengan JSON bukan objek kini dibaca sebagai teks mentah,
+  tidak lagi diteruskan sebagai tipe yang salah.
+
+### Diketahui
+- Aplikasi desktop, macOS, dan platform pesan selain Telegram belum pernah dijalankan terhadap
+  layanan sungguhan; daftar lengkapnya di `docs/STATUS.md`.
+- Belum ada sandbox: perintah yang lolos gerbang persetujuan berjalan dengan hak penuh
+  pengguna, kecuali bila backend `docker` dipilih.
 
 ## [1.0.0] - 2026-10-13
 

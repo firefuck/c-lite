@@ -12,9 +12,9 @@ dan alurnya. Kontrak yang dijaga tes ada di [spesifikasi rpc](../spesifikasi/rpc
 
 | Klien | Transport | Backend dijalankan sebagai | Kode klien |
 |---|---|---|---|
-| TUI | stdio: satu dokumen JSON per baris | `python -m clite.rpc.entry` (proses anak TUI) | `apps/shared/src/` |
+| TUI | stdio: satu dokumen JSON per baris | `python -m clite.rpc.entry` (proses anak TUI) | `packages/shared/src/` |
 | Desktop | WebSocket: satu dokumen JSON per frame teks | `clite serve` (proses anak Electron) | Dashboard yang dimuat jendelanya |
-| Dashboard | WebSocket | `clite dashboard` atau `clite serve` | `apps/shared/src/` lewat `web/src/state/dashboard.ts` |
+| Dashboard | WebSocket | `clite dashboard` atau `clite serve` | `packages/shared/src/` lewat `apps/web/src/state/dashboard.ts` |
 
 Server (`RpcServer`) tidak tahu transport mana yang dipakai. Satu koneksi klien adalah satu
 `RpcServer`; memutus koneksi mengakhiri semua sesinya.
@@ -90,7 +90,7 @@ Dua id sesi berbeda dan tidak boleh tertukar:
 `status.update` (kompresi, coba ulang, fallback) dan `subagent.update` bisa muncul di antara
 event itu. `session.info` dikirim ulang ketika sesuatu pada sesi berubah, misalnya judul.
 
-Klien membangun transkrip dari event, tidak dari balasan. `apps/shared/src/transcript.ts`
+Klien membangun transkrip dari event, tidak dari balasan. `packages/shared/src/transcript.ts`
 adalah reducer murni untuk itu, dipakai TUI dan disiapkan untuk renderer desktop.
 
 ## Masukan saat giliran berjalan
@@ -167,10 +167,11 @@ generate, handler, tes, klien**:
 
 1. Deklarasi di `src/clite/rpc/contracts/schema.py`.
 2. `python scripts/gen_rpc_contracts.py` dan `python scripts/gen_docs.py`.
-3. Handler di `src/clite/rpc/methods.py`, atau `self._emit(...)` di `src/clite/rpc/session.py`.
+3. Handler di modul domainnya, `src/clite/rpc/methods/<domain>.py` (domain baru: modul baru yang
+   diimpor `src/clite/rpc/methods/__init__.py`), atau `self._emit(...)` di `src/clite/rpc/session.py`.
 4. Tes di `tests/rpc/test_rpc.py`.
-5. Klien: `apps/shared/src/` dan `web/src/`, lalu bangun ulang kedua bundle (`npm run build` di
-   `ui-tui/` dan di `web/`).
+5. Klien: `packages/shared/src/` dan `apps/web/src/`, lalu bangun ulang kedua bundle (`npm run build` di
+   `apps/tui/` dan di `apps/web/`).
 
 Tiga tes menggagalkan suite bila sebuah langkah terlewat:
 `test_every_declared_method_has_a_handler_and_the_reverse`,

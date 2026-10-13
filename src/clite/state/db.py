@@ -8,6 +8,11 @@ Contracts the agent loop relies on:
 * Messages round-trip in the internal OpenAI-style shape (see ``docs/arsitektur``). Two
   extra keys ride along: ``provider_data`` (opaque data the same provider wants back) and
   ``turn_context`` (text that was sent with a user message but is not the user's words).
+
+``SessionDB`` owns the one connection and the lock around it, and maps messages to rows and
+back. What it runs but does not define lives beside it: the tables and their migrations in
+:mod:`clite.state.schema`, the indexed text and the search statements in
+:mod:`clite.state.search`, and the usage analytics in :mod:`clite.state.insights`.
 """
 
 from __future__ import annotations
@@ -22,20 +27,12 @@ from pathlib import Path
 from typing import Any
 
 from clite.core.constants import ensure_dir, get_state_db_path, home_key
-from clite.state.schema import (
-    COLUMN_ADDITIONS,
-    FTS_SQL,
-    MIGRATIONS,
-    SCHEMA_SQL,
-    SCHEMA_VERSION,
-    UPDATABLE_SESSION_COLUMNS,
-)
+from clite.state.insights import collect_insights
+from clite.state.schema import UPDATABLE_SESSION_COLUMNS, prepare_schema
+from clite.state.search import escape_like, search_statements, search_text_of
 
 _OPEN: dict[str, SessionDB] = {}
 _OPEN_LOCK = threading.Lock()
-
-# Message keys stored in their own columns. Anything else on a message is dropped on write.
-_JSON_FIELDS = ("tool_calls", "provider_data")
 
 
 def new_session_id() -> str:
@@ -81,65 +78,7 @@ class SessionDB:
             self._conn.execute("PRAGMA journal_mode=WAL")
             self._conn.execute("PRAGMA foreign_keys=ON")
             self._conn.execute("PRAGMA busy_timeout=30000")
-            self._conn.executescript(SCHEMA_SQL)
-            self._reconcile_columns()
-            migrated = self._run_migrations()
-            if migrated:
-                self._backfill_search_text()
-            try:
-                self._conn.executescript(FTS_SQL)
-                self.fts_enabled = True
-                if migrated:
-                    # A migration that dropped the FTS table left it empty; external-content
-                    # FTS only repopulates from its triggers or an explicit rebuild.
-                    self._conn.execute("INSERT INTO messages_fts(messages_fts) VALUES ('rebuild')")
-            except sqlite3.OperationalError:
-                # SQLite built without FTS5: search falls back to LIKE.
-                self.fts_enabled = False
-            self._conn.commit()
-
-    def _reconcile_columns(self) -> None:
-        for table, columns in COLUMN_ADDITIONS.items():
-            existing = {row["name"] for row in self._conn.execute(f"PRAGMA table_info({table})")}
-            for column, definition in columns.items():
-                if column not in existing:
-                    self._conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
-
-    def _backfill_search_text(self) -> None:
-        """Fill ``search_text`` for rows a migration left NULL.
-
-        The migration handles plain-string content in SQL. A row whose content is a JSON list
-        takes more than SQL to interpret, so it is done here: the parts' text, if any. Rows
-        that had no text stay NULL and are simply not indexed.
-        """
-        rows = self._conn.execute(
-            "SELECT id, content FROM messages WHERE search_text IS NULL AND content IS NOT NULL"
-        ).fetchall()
-        for row in rows:
-            raw = row["content"]
-            try:
-                parsed = json.loads(raw)
-            except (TypeError, ValueError):
-                parsed = raw
-            self._conn.execute(
-                "UPDATE messages SET search_text = ? WHERE id = ?", (_search_text_of(parsed), row["id"])
-            )
-
-    def _run_migrations(self) -> bool:
-        """Run pending migrations. Returns True when the schema was transformed."""
-        row = self._conn.execute("SELECT version FROM schema_version LIMIT 1").fetchone()
-        if row is None:
-            self._conn.execute("INSERT INTO schema_version(version) VALUES (?)", (SCHEMA_VERSION,))
-            return False
-        version = int(row["version"])
-        migrated = False
-        while version < SCHEMA_VERSION:
-            for statement in MIGRATIONS.get(version, []):
-                self._conn.execute(statement)
-            version += 1
-            migrated = True
-            self._conn.execute("UPDATE schema_version SET version = ?", (version,))
-        return migrated
+            self.fts_enabled = prepare_schema(self._conn)
 
     def close(self) -> None:
         with self._lock:
@@ -263,48 +202,30 @@ class SessionDB:
         cost_usd: float | None = None,
     ) -> None:
         with self._lock:
-            if cost_usd is not None:
-                self._conn.execute(
-                    """UPDATE sessions SET
-                         input_tokens = input_tokens + ?, output_tokens = output_tokens + ?,
-                         cache_read_tokens = cache_read_tokens + ?,
-                         cache_write_tokens = cache_write_tokens + ?,
-                         reasoning_tokens = reasoning_tokens + ?, api_call_count = api_call_count + ?,
-                         estimated_cost_usd = COALESCE(estimated_cost_usd, 0) + ?,
-                         last_activity_at = ?
-                       WHERE id = ?""",
-                    (
-                        input_tokens,
-                        output_tokens,
-                        cache_read_tokens,
-                        cache_write_tokens,
-                        reasoning_tokens,
-                        api_calls,
-                        cost_usd,
-                        time.time(),
-                        session_id,
-                    ),
-                )
-            else:
-                self._conn.execute(
-                    """UPDATE sessions SET
-                         input_tokens = input_tokens + ?, output_tokens = output_tokens + ?,
-                         cache_read_tokens = cache_read_tokens + ?,
-                         cache_write_tokens = cache_write_tokens + ?,
-                         reasoning_tokens = reasoning_tokens + ?, api_call_count = api_call_count + ?,
-                         last_activity_at = ?
-                       WHERE id = ?""",
-                    (
-                        input_tokens,
-                        output_tokens,
-                        cache_read_tokens,
-                        cache_write_tokens,
-                        reasoning_tokens,
-                        api_calls,
-                        time.time(),
-                        session_id,
-                    ),
-                )
+            # An unknown cost leaves the column as it is: NULL marks a session nobody could price.
+            self._conn.execute(
+                """UPDATE sessions SET
+                     input_tokens = input_tokens + ?, output_tokens = output_tokens + ?,
+                     cache_read_tokens = cache_read_tokens + ?,
+                     cache_write_tokens = cache_write_tokens + ?,
+                     reasoning_tokens = reasoning_tokens + ?, api_call_count = api_call_count + ?,
+                     estimated_cost_usd = CASE WHEN ? IS NULL THEN estimated_cost_usd
+                                               ELSE COALESCE(estimated_cost_usd, 0) + ? END,
+                     last_activity_at = ?
+                   WHERE id = ?""",
+                (
+                    input_tokens,
+                    output_tokens,
+                    cache_read_tokens,
+                    cache_write_tokens,
+                    reasoning_tokens,
+                    api_calls,
+                    cost_usd,
+                    cost_usd,
+                    time.time(),
+                    session_id,
+                ),
+            )
             self._conn.commit()
 
     def list_sessions(
@@ -349,7 +270,7 @@ class SessionDB:
             if row is None:
                 matches = self._conn.execute(
                     "SELECT * FROM sessions WHERE id LIKE ? ESCAPE '\\' LIMIT 2",
-                    (_escape_like(reference) + "%",),
+                    (escape_like(reference) + "%",),
                 ).fetchall()
                 row = matches[0] if len(matches) == 1 else None
         return dict(row) if row else None
@@ -405,10 +326,8 @@ class SessionDB:
         return self.append_messages(session_id, [message])[0]
 
     def append_messages(self, session_id: str, messages: Iterable[dict[str, Any]]) -> list[int]:
-        row_ids: list[int] = []
         with self._lock:
-            for message in messages:
-                row_ids.append(self._insert_message(session_id, message))
+            row_ids = [self._insert_message(session_id, message) for message in messages]
             if row_ids:
                 self._refresh_counts(session_id)
             self._conn.commit()
@@ -416,7 +335,7 @@ class SessionDB:
 
     def _insert_message(self, session_id: str, message: dict[str, Any]) -> int:
         content = message.get("content")
-        search_text = _search_text_of(content)
+        search_text = search_text_of(content)
         content_is_json = 0
         if content is not None and not isinstance(content, str):
             content, content_is_json = json.dumps(content, ensure_ascii=False), 1
@@ -530,45 +449,20 @@ class SessionDB:
         exclude_session_ids: Sequence[str] = (),
     ) -> list[dict[str, Any]]:
         """Full-text search across every stored message, newest first."""
-        query = query.strip()
-        if not query:
-            return []
-        filters, params = [], []
-        if session_id:
-            filters.append("m.session_id = ?")
-            params.append(session_id)
-        if exclude_session_ids:
-            filters.append(f"m.session_id NOT IN ({','.join('?' * len(exclude_session_ids))})")
-            params.extend(exclude_session_ids)
-        extra = (" AND " + " AND ".join(filters)) if filters else ""
-        columns = (
-            "m.id AS message_id, m.session_id, m.role, m.timestamp, m.tool_name, "
-            "s.title AS session_title, s.source AS session_source"
+        statements = search_statements(
+            query, limit=limit, session_id=session_id, exclude_session_ids=exclude_session_ids
         )
+        if statements is None:
+            return []
+        fts, like = statements
         with self._lock:
             if self.fts_enabled:
                 try:
-                    rows = self._conn.execute(
-                        f"""SELECT {columns},
-                                   snippet(messages_fts, 0, '>>', '<<', ' … ', 24) AS snippet
-                            FROM messages_fts
-                            JOIN messages m ON m.id = messages_fts.rowid
-                            JOIN sessions s ON s.id = m.session_id
-                            WHERE messages_fts MATCH ?{extra}
-                            ORDER BY m.timestamp DESC LIMIT ?""",
-                        (_fts_query(query), *params, limit),
-                    ).fetchall()
+                    rows = self._conn.execute(*fts).fetchall()
                     return [dict(row) for row in rows]
                 except sqlite3.OperationalError:
                     pass  # malformed FTS expression: fall through to LIKE
-            like = "%" + _escape_like(query) + "%"
-            rows = self._conn.execute(
-                f"""SELECT {columns}, substr(m.search_text, 1, 200) AS snippet
-                    FROM messages m JOIN sessions s ON s.id = m.session_id
-                    WHERE m.search_text LIKE ? ESCAPE '\\'{extra}
-                    ORDER BY m.timestamp DESC LIMIT ?""",
-                (like, *params, limit),
-            ).fetchall()
+            rows = self._conn.execute(*like).fetchall()
         return [dict(row) for row in rows]
 
     def get_message_window(self, session_id: str, message_id: int, window: int = 5) -> list[dict[str, Any]]:
@@ -596,218 +490,15 @@ class SessionDB:
             )
             self._conn.commit()
 
+    # ── usage analytics ──────────────────────────────────────────────────────────────────
+
     def get_insights(self, days: int = 30) -> dict[str, Any]:
-        """Aggregate usage analytics across sessions and messages.
+        """Usage analytics for the last ``days`` days, or for all time when ``days`` is 0 or less.
 
-        Rules:
-        - Subagents (parent_session_id IS NOT NULL) are attributed to their parent session
-          when counting sessions and platform distributions, never double-counted.
-        - Token usage and costs are aggregated per model and per day.
-        - Sessions without cost estimation are counted in `unpriced_sessions`, not zeroed out.
+        What is counted, and how, is documented on :func:`clite.state.insights.collect_insights`.
         """
-        cutoff = time.time() - (days * 86400) if days > 0 else 0.0
         with self._lock:
-            platforms, subagents = self._insight_sessions(cutoff)
-            totals = self._insight_totals(cutoff)
-            return {
-                "days": days,
-                "total_sessions": sum(platforms.values()),
-                "total_subagents": subagents,
-                "total_messages": totals["messages"],
-                "tokens": totals["tokens"],
-                "cost": totals["cost"],
-                "models": self._insight_models(cutoff),
-                "platforms": platforms,
-                "tools": self._insight_tools(cutoff),
-                "daily": self._insight_daily(cutoff),
-            }
-
-    # The ``_insight_*`` queries below run with ``self._lock`` held by ``get_insights``.
-
-    def _insight_sessions(self, cutoff: float) -> tuple[dict[str, int], int]:
-        """Root sessions per platform, and the number of subagent sessions."""
-        cur = self._conn.execute(
-            "SELECT source, COUNT(*) FROM sessions WHERE started_at >= ? AND parent_session_id IS NULL GROUP BY source",
-            (cutoff,),
-        )
-        platforms = {row[0]: row[1] for row in cur.fetchall()}
-        cur = self._conn.execute(
-            "SELECT COUNT(*) FROM sessions WHERE started_at >= ? AND parent_session_id IS NOT NULL",
-            (cutoff,),
-        )
-        return platforms, cur.fetchone()[0]
-
-    def _insight_totals(self, cutoff: float) -> dict[str, Any]:
-        """Token, message and cost totals across all sessions in the period."""
-        cur = self._conn.execute(
-            """
-            SELECT
-                COALESCE(SUM(input_tokens), 0),
-                COALESCE(SUM(output_tokens), 0),
-                COALESCE(SUM(cache_read_tokens), 0),
-                COALESCE(SUM(cache_write_tokens), 0),
-                COALESCE(SUM(reasoning_tokens), 0),
-                COALESCE(SUM(message_count), 0),
-                COALESCE(SUM(CASE WHEN estimated_cost_usd IS NOT NULL THEN estimated_cost_usd ELSE 0.0 END), 0.0),
-                COUNT(CASE WHEN estimated_cost_usd IS NULL THEN 1 END),
-                COUNT(CASE WHEN estimated_cost_usd IS NOT NULL THEN 1 END)
-            FROM sessions
-            WHERE started_at >= ?
-            """,
-            (cutoff,),
-        )
-        in_tok, out_tok, cr_tok, cw_tok, reas_tok, total_msgs, total_cost, unpriced, priced = cur.fetchone()
-        return {
-            "messages": total_msgs,
-            "tokens": {
-                "input": in_tok,
-                "output": out_tok,
-                "cache_read": cr_tok,
-                "cache_write": cw_tok,
-                "reasoning": reas_tok,
-                "total": in_tok + out_tok,
-            },
-            "cost": {
-                "total_usd": round(total_cost, 6),
-                "unpriced_sessions": unpriced,
-                "priced_sessions": priced,
-                "has_unpriced": bool(unpriced > 0),
-            },
-        }
-
-    def _insight_models(self, cutoff: float) -> list[dict[str, Any]]:
-        cur = self._conn.execute(
-            """
-            SELECT
-                model,
-                COALESCE(SUM(input_tokens), 0),
-                COALESCE(SUM(output_tokens), 0),
-                COALESCE(SUM(CASE WHEN estimated_cost_usd IS NOT NULL THEN estimated_cost_usd ELSE 0.0 END), 0.0),
-                COUNT(CASE WHEN estimated_cost_usd IS NULL THEN 1 END)
-            FROM sessions
-            WHERE started_at >= ?
-            GROUP BY model
-            ORDER BY (SUM(input_tokens) + SUM(output_tokens)) DESC
-            """,
-            (cutoff,),
-        )
-        return [
-            {
-                "model": name or "unknown",
-                "input_tokens": tokens_in,
-                "output_tokens": tokens_out,
-                "total_tokens": tokens_in + tokens_out,
-                "cost_usd": round(cost, 6),
-                "unpriced_sessions": unpriced,
-            }
-            for name, tokens_in, tokens_out, cost, unpriced in cur.fetchall()
-        ]
-
-    def _insight_tools(self, cutoff: float) -> list[dict[str, Any]]:
-        cur = self._conn.execute(
-            """
-            SELECT tool_name, COUNT(*) as cnt
-            FROM messages
-            WHERE role = 'tool' AND tool_name IS NOT NULL AND timestamp >= ?
-            GROUP BY tool_name
-            ORDER BY cnt DESC
-            LIMIT 20
-            """,
-            (cutoff,),
-        )
-        return [{"name": row[0], "count": row[1]} for row in cur.fetchall()]
-
-    def _insight_daily(self, cutoff: float) -> list[dict[str, Any]]:
-        cur = self._conn.execute(
-            """
-            SELECT
-                date(started_at, 'unixepoch') as day,
-                COUNT(CASE WHEN parent_session_id IS NULL THEN 1 END) as sess_count,
-                COALESCE(SUM(input_tokens + output_tokens), 0) as tok_count,
-                COALESCE(SUM(CASE WHEN estimated_cost_usd IS NOT NULL THEN estimated_cost_usd ELSE 0.0 END), 0.0) as day_cost
-            FROM sessions
-            WHERE started_at >= ?
-            GROUP BY day
-            ORDER BY day DESC
-            LIMIT 30
-            """,
-            (cutoff,),
-        )
-        return [
-            {"date": day, "sessions": sessions, "tokens": tokens, "cost_usd": round(cost, 6)}
-            for day, sessions, tokens, cost in cur.fetchall()
-            if day
-        ]
-
-
-def format_insights(data: dict[str, Any]) -> str:
-    """Format aggregate insights dictionary into clean terminal output."""
-    lines = [
-        f"C-lite Usage Insights (Past {data['days']} Days)",
-        "─" * 58,
-    ]
-    plat_str = ", ".join(f"{k}: {v}" for k, v in data["platforms"].items()) or "none"
-    lines.append(f"Sessions:     {data['total_sessions']} ({plat_str})")
-    if data["total_subagents"]:
-        lines.append(f"Subagents:    {data['total_subagents']}")
-    lines.append(f"Messages:     {data['total_messages']:,}")
-    tok = data["tokens"]
-    lines.append(f"Total Tokens: {tok['total']:,} (in: {tok['input']:,}, out: {tok['output']:,})")
-
-    cost = data["cost"]
-    cost_str = f"${cost['total_usd']:.4f}"
-    if cost["unpriced_sessions"]:
-        cost_str += (
-            f" ({cost['unpriced_sessions']} unpriced session{'s' if cost['unpriced_sessions'] > 1 else ''})"
-        )
-    lines.append(f"Cost:         {cost_str}")
-
-    if data["models"]:
-        lines.append("\nTop Models:")
-        for m in data["models"][:5]:
-            c = (
-                f"${m['cost_usd']:.4f}"
-                if m["cost_usd"] > 0
-                else ("(unpriced)" if m["unpriced_sessions"] else "$0.00")
-            )
-            lines.append(f"  • {m['model']:<20} {m['total_tokens']:,} tokens ({c})")
-
-    if data["tools"]:
-        lines.append("\nTop Tools:")
-        for t in data["tools"][:5]:
-            lines.append(f"  • {t['name']:<20} {t['count']:,} calls")
-
-    if data["daily"]:
-        lines.append("\nDaily Activity:")
-        for d in data["daily"][:7]:
-            lines.append(
-                f"  • {d['date']}: {d['sessions']} sessions, {d['tokens']:,} tokens, ${d['cost_usd']:.4f}"
-            )
-
-    return "\n".join(lines)
-
-
-def _search_text_of(content: Any) -> str | None:
-    """The plain text of a message's content, for the search index.
-
-    A string is its own text. A list of parts contributes only its ``text`` parts: a user
-    message with an image would otherwise put a base64 blob into the FTS index, making it as
-    large as the picture for no benefit to search.
-    """
-    if content is None:
-        return None
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        return (
-            "".join(
-                part.get("text", "")
-                for part in content
-                if isinstance(part, dict) and part.get("type") == "text"
-            )
-            or None
-        )
-    return None
+            return collect_insights(self._conn, days)
 
 
 def _row_to_message(row: sqlite3.Row) -> dict[str, Any]:
@@ -835,13 +526,3 @@ def _row_to_message(row: sqlite3.Row) -> dict[str, Any]:
         message["display_kind"] = row["display_kind"]
     message["timestamp"] = row["timestamp"]
     return message
-
-
-def _fts_query(query: str) -> str:
-    """Quote every term so user text can never be read as FTS5 syntax."""
-    terms = [term.replace('"', '""') for term in query.split()]
-    return " ".join(f'"{term}"' for term in terms if term)
-
-
-def _escape_like(text: str) -> str:
-    return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")

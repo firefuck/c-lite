@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from clite.tools import approval
+from clite.tools import approval, command_patterns
 
 
 @pytest.mark.parametrize(
@@ -23,7 +23,9 @@ from clite.tools import approval
     ],
 )
 def test_windows_home_is_a_hardline_delete_target(monkeypatch, command):
-    monkeypatch.setattr(approval, "Path", SimpleNamespace(home=lambda: PureWindowsPath("C:/Users/tester")))
+    monkeypatch.setattr(
+        command_patterns, "Path", SimpleNamespace(home=lambda: PureWindowsPath("C:/Users/tester"))
+    )
     assert approval.detect_hardline(command, cwd="C:\\Users\\tester")
     decision = approval.check_command(
         command, approval.ToolContext(approval_mode="off"), cwd="C:\\Users\\tester"
@@ -33,7 +35,9 @@ def test_windows_home_is_a_hardline_delete_target(monkeypatch, command):
 
 @pytest.mark.parametrize("command", [r"rm -rf C:\Users\tester\build", r"rm -rf C:\Users\tester-backup"])
 def test_windows_home_children_and_similar_names_are_not_hardline_targets(monkeypatch, command):
-    monkeypatch.setattr(approval, "Path", SimpleNamespace(home=lambda: PureWindowsPath("C:/Users/tester")))
+    monkeypatch.setattr(
+        command_patterns, "Path", SimpleNamespace(home=lambda: PureWindowsPath("C:/Users/tester"))
+    )
     assert approval.detect_hardline(command) is None
 
 

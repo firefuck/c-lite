@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Kode | `src/clite/server/`; dashboard di `web/`, dibangun ke `src/clite/server/static/` |
-| Tes | `tests/server/` (HTTP dan WebSocket sungguhan; dashboard di Chromium sungguhan), `web/test/` |
+| Kode | `src/clite/server/`; dashboard di `apps/web/`, dibangun ke `src/clite/server/static/` |
+| Tes | `tests/server/` (HTTP dan WebSocket sungguhan; dashboard di Chromium sungguhan), `apps/web/test/` |
 | Lapisan | 9. Boleh mengimpor `rpc` dan semua di bawahnya |
 | Bedah Hermes | [10-gui-desktop-dashboard](../hermes/10-gui-desktop-dashboard.md) |
 
@@ -68,13 +68,13 @@ pemeriksaan kesehatan.
 - Satu `RpcServer` per koneksi WebSocket. Memutus koneksi mengakhiri sesi milik koneksi itu.
 
 **Dashboard**
-- React + TypeScript di `web/`, dibangun Vite (`npm run build` di `web/`) ke
+- React + TypeScript di `apps/web/`, dibangun Vite (`npm run build` di `apps/web/`) ke
   `src/clite/server/static/`: `index.html`, `assets/app.js`, `assets/app.css`, dan
   `build-info.json` berisi hash sumbernya. Bundle itu di-commit dan dikirim di dalam wheel, jadi
   pengguna tidak butuh Node. `test_the_committed_bundle_was_built_from_the_current_sources`
   gagal bila sumbernya berubah tanpa membangun ulang.
-- State dan semua yang mengubahnya ada di `web/src/state/dashboard.ts`, tanpa DOM dan tanpa
-  React, di atas `GatewayClient` dari `apps/shared`; komponen hanya membaca snapshot-nya.
+- State dan semua yang mengubahnya ada di `apps/web/src/state/dashboard.ts`, tanpa DOM dan tanpa
+  React, di atas `GatewayClient` dari `packages/shared`; komponen hanya membaca snapshot-nya.
 - Semua teks dari model dan tool dimasukkan sebagai teks, tidak pernah sebagai HTML
   (`test_the_bundle_never_sets_html_from_data`).
 - Fitur: obrolan dengan streaming, tampilan tool call dan hasilnya, dialog persetujuan dan
@@ -111,7 +111,7 @@ luar event loop dijaga oleh `tests/server/test_context.py`.
 | Dashboard obrolan | ✅ | Tes browser di `tests/server/test_dashboard_browser.py` |
 | Halaman sesi, config, kredensial, cron, memori, log, hook/MCP | ✅ | F5-T2 |
 | Halaman analitik | ⬜ | Belum ada task-nya |
-| Dashboard React + Vite | ✅ | F5-T3 (F5-T7 sampai F5-T11): 24 tes browser dashboard lama lulus tanpa diubah, 10 tes `web/test/dashboard.test.ts`, kesegaran bundle dijaga `tests/server/test_dashboard_bundle.py` |
+| Dashboard React + Vite | ✅ | F5-T3 (F5-T7 sampai F5-T11): 24 tes browser dashboard lama lulus (selector daftar percakapan disesuaikan sejak tombol tutupnya menjadi tombol tersendiri), 10 tes `apps/web/test/dashboard.test.ts`, kesegaran bundle dijaga `tests/server/test_dashboard_bundle.py` |
 | Token bernama, pembatasan laju, batas ukuran pesan, TLS, daftar host, log audit | ✅ | F5-T6 |
 | Autentikasi pengguna (login, banyak akun) | ⬜ | Belum ada task-nya |
 | Endpoint kompatibel OpenAI (`/v1/chat/completions`) | ✅ | Nonstreaming dan SSE, token API, serta penolakan Host asing pada loopback dijaga `tests/server/test_server.py`: F4-T10 |

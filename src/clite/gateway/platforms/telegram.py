@@ -186,7 +186,7 @@ class TelegramAdapter(BasePlatformAdapter):
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
-            with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
+            with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310 - the Bot API base URL from config
                 body = json.loads(response.read())
         except urllib.error.HTTPError as exc:
             try:
@@ -383,8 +383,8 @@ class TelegramAdapter(BasePlatformAdapter):
             raise MediaError(f"Telegram did not return a path for {attachment.describe()}")
         request = urllib.request.Request(f"{self.base_url}/file/bot{self.token}/{file_path}")  # noqa: S310 - the Bot API base URL from config
         try:
-            with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310
-                data = response.read(max_bytes + 1)
+            with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310 - the request built above
+                data: bytes = response.read(max_bytes + 1)
         except Exception as exc:  # a failed download is reported, not raised raw
             raise MediaError(f"could not download {attachment.describe()}: {exc}") from exc
         if len(data) > max_bytes:
@@ -427,9 +427,9 @@ class TelegramAdapter(BasePlatformAdapter):
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=120) as response:  # noqa: S310
+            with urllib.request.urlopen(request, timeout=120) as response:  # noqa: S310 - the Bot API base URL from config
                 payload = json.loads(response.read())
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 - a failed upload is reported, not raised
             return SendResult(False, error=redact(str(exc)))
         result = payload.get("result") or {}
         return SendResult(True, message_id=str(result.get("message_id", "")))
@@ -448,7 +448,7 @@ class TelegramAdapter(BasePlatformAdapter):
             payload["message_thread_id"] = int(thread_id)
         try:
             result = self._call("sendMessage", payload)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 - a failed send is reported, not raised
             if not _is_markdown_parse_error(exc):
                 return SendResult(False, error=str(exc))
             # Formatting must never make a reply disappear. Preserve the original text if Telegram
@@ -457,7 +457,7 @@ class TelegramAdapter(BasePlatformAdapter):
             payload["text"] = text
             try:
                 result = self._call("sendMessage", payload)
-            except Exception as fallback_exc:  # noqa: BLE001
+            except Exception as fallback_exc:  # noqa: BLE001 - a failed send is reported, not raised
                 return SendResult(False, error=str(fallback_exc))
         return SendResult(True, message_id=str(result.get("message_id", "")))
 
@@ -476,7 +476,7 @@ class TelegramAdapter(BasePlatformAdapter):
             payload["message_thread_id"] = int(thread_id)
         try:
             result = self._call("sendMessage", payload)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 - a failed send is reported, not raised
             return SendResult(False, error=str(exc))
         return SendResult(True, message_id=str(result.get("message_id", "")))
 
@@ -492,7 +492,7 @@ class TelegramAdapter(BasePlatformAdapter):
         try:
             self._call("editMessageText", payload, timeout=15)
             return True
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 - a failed edit is cosmetic; the caller sends anew
             logger.debug("telegram model picker edit failed for %s: %s", message_id, exc)
             return False
 
@@ -508,7 +508,7 @@ class TelegramAdapter(BasePlatformAdapter):
             payload["message_thread_id"] = int(thread_id)
         try:
             result = self._call("sendMessage", payload)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 - a failed send is reported, not raised
             return SendResult(False, error=str(exc))
         return SendResult(True, message_id=str(result.get("message_id", "")))
 
@@ -524,7 +524,7 @@ class TelegramAdapter(BasePlatformAdapter):
         try:
             self._call("editMessageText", payload, timeout=15)
             return True
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 - a failed edit is cosmetic; the caller sends anew
             logger.debug("telegram approval prompt edit failed for %s: %s", message_id, exc)
             return False
 
@@ -569,7 +569,7 @@ class TelegramAdapter(BasePlatformAdapter):
                 try:
                     self._call("editMessageText", payload, timeout=15)
                     return True
-                except Exception as fallback_exc:  # noqa: BLE001
+                except Exception as fallback_exc:  # noqa: BLE001 - a failed edit is cosmetic; the caller sends anew
                     logger.debug("telegram plain-text edit failed for %s: %s", message_id, fallback_exc)
                     return False
             logger.debug("telegram edit failed for %s: %s", message_id, exc)

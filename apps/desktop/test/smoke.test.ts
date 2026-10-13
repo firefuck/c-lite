@@ -58,7 +58,7 @@ function electronBinary(): string | null {
 /** Why this test cannot run here, or false when it can. */
 function skipReason(): string | false {
   if (!electronBinary()) return "the electron package is not installed";
-  if (process.platform === "linux" && !process.env["DISPLAY"] && !process.env["WAYLAND_DISPLAY"]) {
+  if (process.platform === "linux" && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) {
     return "no display; run under xvfb-run (Linux) or a desktop session";
   }
   return false;
@@ -192,13 +192,16 @@ async function shutdown(): Promise<void> {
   }
 }
 
-test("the app opens the dashboard, sends a message to the mock provider, and shows the answer", { skip: skipReason(), timeout: 120_000 }, async () => {
+test("the app opens the dashboard, sends a message to the mock provider, and shows the answer", {
+  skip: skipReason(),
+  timeout: 120_000,
+}, async () => {
   const binary = electronBinary();
   assert.ok(binary, "electron is installed");
   const debugPort = await freePort();
-  const python = process.env["CLITE_PYTHON"] ?? "python3";
+  const python = process.env.CLITE_PYTHON ?? "python3";
   // Chromium switches must come before the app path, or Electron hands them to the app instead.
-  const flags = (process.env["CLITE_SMOKE_FLAGS"] ?? "--disable-gpu --no-sandbox").split(/\s+/).filter(Boolean);
+  const flags = (process.env.CLITE_SMOKE_FLAGS ?? "--disable-gpu --no-sandbox").split(/\s+/).filter(Boolean);
 
   electron = spawn(binary, [`--remote-debugging-port=${debugPort}`, ...flags, appRoot], {
     cwd: appRoot,
@@ -206,7 +209,7 @@ test("the app opens the dashboard, sends a message to the mock provider, and sho
       ...process.env,
       CLITE_HOME: sandbox,
       CLITE_DESKTOP_BACKEND: `${python} -m clite`,
-      PYTHONPATH: [join(repoRoot, "src"), process.env["PYTHONPATH"]].filter(Boolean).join(":"),
+      PYTHONPATH: [join(repoRoot, "src"), process.env.PYTHONPATH].filter(Boolean).join(":"),
       PYTHONUNBUFFERED: "1",
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -218,11 +221,15 @@ test("the app opens the dashboard, sends a message to the mock provider, and sho
   let cdp: CdpConnection | null = null;
   let backendPort = 0;
   try {
-    const page = await waitFor(async () => {
-      const response = await fetch(`http://127.0.0.1:${debugPort}/json/list`);
-      const targets = (await response.json()) as CdpTarget[];
-      return targets.find((target) => target.type === "page" && target.url.startsWith("http://127.0.0.1")) ?? null;
-    }, START_TIMEOUT_MS, `the dashboard window (stderr: ${stderr.join("").trim() || "empty"})`);
+    const page = await waitFor(
+      async () => {
+        const response = await fetch(`http://127.0.0.1:${debugPort}/json/list`);
+        const targets = (await response.json()) as CdpTarget[];
+        return targets.find((target) => target.type === "page" && target.url.startsWith("http://127.0.0.1")) ?? null;
+      },
+      START_TIMEOUT_MS,
+      `the dashboard window (stderr: ${stderr.join("").trim() || "empty"})`,
+    );
 
     backendPort = Number(new URL(page.url).port);
     assert.ok(backendPort > 0, "the page was served by the backend");
@@ -230,7 +237,8 @@ test("the app opens the dashboard, sends a message to the mock provider, and sho
     cdp = await connectCdp(page.webSocketDebuggerUrl ?? "");
     const pageErrors: string[] = [];
     cdp.on("Runtime.exceptionThrown", (params) => {
-      const details = (params as { exceptionDetails?: { text?: string; exception?: { description?: string } } }).exceptionDetails;
+      const details = (params as { exceptionDetails?: { text?: string; exception?: { description?: string } } })
+        .exceptionDetails;
       pageErrors.push(details?.exception?.description ?? details?.text ?? "unknown page error");
     });
     await cdp.send("Runtime.enable");

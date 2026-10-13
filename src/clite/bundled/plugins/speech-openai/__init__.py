@@ -338,8 +338,7 @@ class GeminiTranscriptionProvider(TranscriptionProvider):
             if candidates:
                 content = candidates[0].get("content") or {}
                 parts = content.get("parts") or []
-                text = "".join(part.get("text", "") for part in parts).strip()
-                return text
+                return "".join(part.get("text", "") for part in parts).strip()
         except (json.JSONDecodeError, KeyError, IndexError) as exc:
             raise RuntimeError(f"Gemini returned unexpected response format: {exc}") from exc
 

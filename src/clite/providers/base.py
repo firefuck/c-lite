@@ -10,6 +10,7 @@ core code.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
@@ -27,6 +28,10 @@ API_MODE_MOCK = "mock"
 
 # Sentinel for ``fixed_temperature``: do not send a temperature at all.
 OMIT_TEMPERATURE = object()
+
+
+# Posts a form to a URL and returns the decoded JSON body (``oauth._http_post``).
+FormPost = Callable[..., dict[str, Any]]
 
 
 @dataclass
@@ -223,7 +228,7 @@ class ProviderProfile:
         return f"{self.oauth_authorize_url}?{urlencode(params)}"
 
     def exchange_oauth_code(
-        self, *, code: str, code_verifier: str, redirect_uri: str, http_post: Any
+        self, *, code: str, code_verifier: str, redirect_uri: str, http_post: FormPost
     ) -> dict[str, Any]:
         """Exchange authorization code for tokens."""
         data = {
@@ -237,7 +242,7 @@ class ProviderProfile:
             data["client_secret"] = self.oauth_client_secret
         return http_post(self.oauth_token_url, form_data=data)
 
-    def refresh_oauth_token(self, *, refresh_token: str, http_post: Any) -> dict[str, Any]:
+    def refresh_oauth_token(self, *, refresh_token: str, http_post: FormPost) -> dict[str, Any]:
         """Exchange a refresh token for a new access token."""
         data = {
             "grant_type": "refresh_token",
@@ -248,7 +253,7 @@ class ProviderProfile:
             data["client_secret"] = self.oauth_client_secret
         return http_post(self.oauth_token_url, form_data=data)
 
-    def request_device_code(self, *, http_post: Any) -> dict[str, Any]:
+    def request_device_code(self, *, http_post: FormPost) -> dict[str, Any]:
         """Request device and user codes for device authorization flow."""
         data: dict[str, str] = {
             "client_id": self.oauth_client_id,
@@ -257,7 +262,7 @@ class ProviderProfile:
             data["scope"] = " ".join(self.oauth_scopes)
         return http_post(self.oauth_device_code_url, form_data=data)
 
-    def poll_device_token(self, *, device_code: str, http_post: Any) -> dict[str, Any]:
+    def poll_device_token(self, *, device_code: str, http_post: FormPost) -> dict[str, Any]:
         """Poll the token endpoint with a device code."""
         data = {
             "grant_type": "urn:ietf:params:oauth:grant-type:device_code",

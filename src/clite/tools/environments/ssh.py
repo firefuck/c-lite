@@ -226,7 +226,7 @@ class SSHEnvironment(BaseEnvironment):
         if key:
             argv += ["-i", os.path.expanduser(key)]
         argv += ["--", self._host, remote]
-        return subprocess.Popen(  # noqa: S603
+        return subprocess.Popen(  # noqa: S603 - the ssh client with a fixed argv; the command runs on the host
             argv,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -255,7 +255,7 @@ class SSHEnvironment(BaseEnvironment):
         remote = f"cd {shlex.quote(workdir)} 2>/dev/null; {command}"
 
         try:
-            process = subprocess.Popen(  # noqa: S603
+            process = subprocess.Popen(  # noqa: S603 - the ssh client with a fixed argv; the command runs on the host
                 [*self._ssh_base(), "--", self._host, remote],
                 stdin=subprocess.PIPE if stdin_data is not None else subprocess.DEVNULL,
                 stdout=subprocess.PIPE,

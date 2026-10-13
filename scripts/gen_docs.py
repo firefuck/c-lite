@@ -67,13 +67,12 @@ def first_sentence(text: str | None) -> str:
 
 
 def public_symbols(tree: ast.Module) -> list[str]:
-    names = []
-    for node in tree.body:
-        if isinstance(
-            node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef
-        ) and not node.name.startswith("_"):
-            names.append(node.name + ("()" if not isinstance(node, ast.ClassDef) else ""))
-    return names
+    return [
+        node.name + ("" if isinstance(node, ast.ClassDef) else "()")
+        for node in tree.body
+        if isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef)
+        and not node.name.startswith("_")
+    ]
 
 
 def module_map() -> str:

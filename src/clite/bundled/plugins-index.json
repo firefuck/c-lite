@@ -47,7 +47,7 @@
     },
     {
       "description": "Receive and send Matrix room messages through the Client-Server API",
-      "hash": "sha256:0599f390e8ec89ba8e7254b633ca9fd9bbd639f7d5772604792002f90a49c02d",
+      "hash": "sha256:dca89a651d5a03a477107219e69c05ade8279b2aa18d84a1d0eaba35d796afdc",
       "identifier": "dragovics/clite/src/clite/bundled/plugins/matrix",
       "kind": "platform",
       "name": "matrix",
@@ -74,7 +74,7 @@
     },
     {
       "description": "Voice messages and spoken replies via the OpenAI Audio API (requires OPENAI_API_KEY)",
-      "hash": "sha256:b261a8d238dcda3090358689465869a063fab75ae4702a04228d646e119de538",
+      "hash": "sha256:4d9274b513ab65e4807275fedb17c9dfe7d15e3c7e41024edce30eeaa577a264",
       "identifier": "dragovics/clite/src/clite/bundled/plugins/speech-openai",
       "kind": "backend",
       "name": "speech-openai",
@@ -92,7 +92,7 @@
     },
     {
       "description": "Web search via the Tavily API (requires TAVILY_API_KEY)",
-      "hash": "sha256:98a1a512393f97fbe7a4b57ff0f738848ea1c59b67282b91af5d4948ebe68317",
+      "hash": "sha256:bce0333fc9dc0a4b8ee312aa99fd2ba49465fe9a55d159a26f82d0e5d66d8649",
       "identifier": "dragovics/clite/src/clite/bundled/plugins/web-search-tavily",
       "kind": "backend",
       "name": "web-search-tavily",

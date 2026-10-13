@@ -186,7 +186,7 @@ class HttpClient:
         request_headers.update(getattr(connection, "_clite_proxy_headers", {}))
         try:
             if cancel is not None and cancel.cancelled:
-                raise Cancelled()
+                raise Cancelled
             connection.connect()
             connection.sock.settimeout(timeout or self.timeout)
             if cancel is not None:
@@ -199,7 +199,7 @@ class HttpClient:
         except (OSError, http.client.HTTPException) as exc:
             connection.close()
             if cancel is not None and cancel.cancelled:
-                raise Cancelled() from exc
+                raise Cancelled from exc
             raise
         if response.status >= 400:
             text = response.read().decode("utf-8", errors="replace")
@@ -229,7 +229,7 @@ class HttpClient:
             text = response.read().decode("utf-8", errors="replace")
         except (OSError, http.client.HTTPException) as exc:
             if cancel is not None and cancel.cancelled:
-                raise Cancelled() from exc
+                raise Cancelled from exc
             raise
         finally:
             connection.close()
@@ -273,12 +273,12 @@ class HttpClient:
             yield from parse_sse(_lines(response))
         except (OSError, http.client.HTTPException, ValueError) as exc:
             if cancel is not None and cancel.cancelled:
-                raise Cancelled() from exc
+                raise Cancelled from exc
             raise
         finally:
             connection.close()
         if cancel is not None and cancel.cancelled:
-            raise Cancelled()
+            raise Cancelled
 
 
 def _lines(response: http.client.HTTPResponse) -> Iterator[str]:

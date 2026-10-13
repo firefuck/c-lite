@@ -7,9 +7,11 @@
     python scripts/release.py notes                  this version's CHANGELOG section (release body)
     python scripts/release.py tag                    annotated tag v<version> on a clean HEAD
 
-The version is written in one place, ``__version__`` in ``src/<package>/__init__.py``.
+The version is decided in one place, ``__version__`` in ``src/<package>/__init__.py``.
 ``pyproject.toml`` reads it from there (``[tool.setuptools.dynamic]``), ``clite --version``
-prints it, and the tag is ``v`` followed by it; ``check`` fails when any of them disagree.
+prints it, and the tag is ``v`` followed by it. npm cannot read it, so ``bump`` also writes it
+into each Node workspace's ``package.json`` (the desktop installer is named after it) and into
+their entries in ``package-lock.json``; ``check`` fails when any of them disagree.
 Publishing happens in ``.github/workflows/release.yml`` when a tag is pushed: it builds,
 tests the wheel in a clean environment, then attaches wheel and sdist to a GitHub Release.
 This script never pushes and never publishes.
@@ -21,6 +23,7 @@ keeps working after ``scripts/rename_project.py``.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import shutil
 import subprocess
@@ -110,13 +113,50 @@ def check(root: Path, tag: str | None = None) -> list[str]:
         changelog_section(root, version)
     except ReleaseError as exc:
         problems.append(str(exc))
+    for name in node_workspaces(root):
+        declared_version = json.loads((root / name / "package.json").read_text(encoding="utf-8")).get(
+            "version"
+        )
+        if declared_version != version:
+            problems.append(f"{name}/package.json has version {declared_version!r}, expected {version!r}")
     if tag is not None and tag != tag_for(version):
         problems.append(f"tag {tag} does not match version {version}: expected {tag_for(version)}")
     return problems
 
 
+def node_workspaces(root: Path) -> list[str]:
+    """The Node workspaces listed in the root ``package.json``; none without one."""
+    manifest = root / "package.json"
+    if not manifest.is_file():
+        return []
+    workspaces: list[str] = json.loads(manifest.read_text(encoding="utf-8")).get("workspaces", [])
+    return workspaces
+
+
+def _write_json(path: Path, data: object) -> None:
+    # The layout npm itself writes, so `npm install` leaves the files as they are.
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def _write_node_versions(root: Path, version: str) -> None:
+    workspaces = node_workspaces(root)
+    for name in workspaces:
+        manifest = root / name / "package.json"
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        data["version"] = version
+        _write_json(manifest, data)
+    lockfile = root / "package-lock.json"
+    if workspaces and lockfile.is_file():
+        lock = json.loads(lockfile.read_text(encoding="utf-8"))
+        for name in workspaces:
+            entry = lock.get("packages", {}).get(name)
+            if entry is not None:
+                entry["version"] = version
+        _write_json(lockfile, lock)
+
+
 def bump(root: Path, part: str) -> str:
-    """Write the next version into the one file that holds it and return it."""
+    """Write the next version where it is kept (see the module docstring) and return it."""
     old = current_version(root)
     if SEMVER.match(part):
         new = part
@@ -138,6 +178,7 @@ def bump(root: Path, part: str) -> str:
         VERSION_LINE.sub(f'__version__ = "{new}"', path.read_text(encoding="utf-8"), count=1),
         encoding="utf-8",
     )
+    _write_node_versions(root, new)
     return new
 
 
@@ -246,7 +287,9 @@ def main(argv: list[str] | None = None) -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     check_parser = commands.add_parser("check", help="versions, changelog and (optionally) a tag agree")
     check_parser.add_argument("--tag", help="the tag being released, e.g. v0.1.0")
-    bump_parser = commands.add_parser("bump", help="write a new version into the one place that holds it")
+    bump_parser = commands.add_parser(
+        "bump", help="write a new version into the package and the Node workspaces"
+    )
     bump_parser.add_argument("part", help="major, minor, patch, or an explicit X.Y.Z")
     commands.add_parser("build", help="build wheel and sdist into dist/ and check the wheel")
     commands.add_parser("notes", help="print this version's CHANGELOG section")

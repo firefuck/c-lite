@@ -74,6 +74,10 @@ dijalankan.
 
 Gerbang persetujuan (`src/clite/tools/approval.py`) memeriksa teks setiap perintah `terminal`
 sebelum dijalankan. Urutannya ada di [spesifikasi tools](../spesifikasi/tools.md#kontrak).
+Yang dicari gerbang itu ditulis di sebelahnya: pola berbahaya dan terlarang mutlak di
+`src/clite/tools/command_patterns.py`, jangkauan ke pengaturan agent sendiri di
+`src/clite/tools/self_access.py`, dan cara perintah dibaca, termasuk batas penguraiannya, di
+`src/clite/tools/shell_reading.py`.
 
 Teks kode yang dijalankan `execute_code` melewati gerbang yang sama. Kode adalah perintah:
 `shutil.rmtree(...)`, `os.remove(...)`, `subprocess.run(["rm", …])`, dan `os.system("rm -rf …")`
@@ -189,6 +193,17 @@ semua yang dibaca model dikirim ke provider dan disimpan di database sesi.
 `test_credential_files_cannot_be_read`,
 `test_credentials_are_redacted_from_what_the_model_reads`,
 `test_the_allowlist_cannot_be_written_with_the_file_tools`.
+
+### Arsip backup
+
+`clite backup restore` membongkar arsip ke home, dan arsip itu bisa datang dari mana saja.
+Sebelum satu file pun ditulis, setiap anggotanya diperiksa (`src/clite/cli/subcommands/backup.py`):
+path absolut, `..`, dan tautan (symlink atau hardlink) yang menuju ke luar home ditolak, karena
+anggota berikutnya dengan nama yang sama akan ditulis menembus tautan itu. Pemeriksaannya memakai
+filter `data` milik `tarfile`; Python tanpa filter (sebelum 3.11.4) hanya menerima file dan
+direktori biasa.
+
+**Tes**: `test_a_backup_with_a_link_out_of_the_home_is_refused_and_writes_nothing`.
 
 ### Kredensial
 

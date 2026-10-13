@@ -37,7 +37,7 @@ Tes: `pytest tests/cli -q`
 
 Tambahkan di `add_chat_arguments` (`subcommands/chat.py`), teruskan lewat `session_options`,
 dan pastikan `ChatSession` menerimanya. Bila TUI juga perlu, tambahkan ke
-`subcommands/tui.py::tui_arguments` dan ke `ui-tui/src/entry.ts`; kalau tidak, tambahkan ke
+`subcommands/tui.py::tui_arguments` dan ke `apps/tui/src/entry.ts`; kalau tidak, tambahkan ke
 syarat di `wants_tui`.
 
 ## Jebakan

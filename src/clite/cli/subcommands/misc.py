@@ -186,7 +186,8 @@ def run_acp(args: argparse.Namespace) -> int:
 def run_insights(args: argparse.Namespace) -> int:
     import json
 
-    from clite.state.db import format_insights, get_session_db
+    from clite.state.db import get_session_db
+    from clite.state.insights import format_insights
 
     db = get_session_db()
     data = db.get_insights(days=args.days)
@@ -197,7 +198,7 @@ def run_insights(args: argparse.Namespace) -> int:
     return 0
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     subparsers.add_parser("version", help="print version information").set_defaults(handler=run_version)
     subparsers.add_parser("status", help="show what is configured").set_defaults(handler=run_status)
     doctor = subparsers.add_parser("doctor", help="check the installation")

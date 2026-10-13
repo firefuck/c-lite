@@ -45,7 +45,7 @@ def _switch(name: str, disable: bool) -> int:
     return 0
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("tools", help="list, enable or disable toolsets")
     parser.set_defaults(handler=run_list, verbose=False)
     actions = parser.add_subparsers(dest="tools_action")

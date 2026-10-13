@@ -14,8 +14,10 @@ These tests read the source instead of running it. They exist so that a rule wri
 from __future__ import annotations
 
 import ast
+import re
 import subprocess
 import sys
+import tokenize
 from pathlib import Path
 
 import pytest
@@ -379,6 +381,66 @@ def test_only_the_command_line_prints():
     )
 
 
+# ── suppressions ─────────────────────────────────────────────────────────────────────────
+
+_NOQA = re.compile(r"#\s*noqa\b")
+_NOQA_WITH_REASON = re.compile(r"#\s*noqa:\s*[A-Z]+\d+(?:\s*,\s*[A-Z]+\d+)*\s+-\s+\S")
+
+
+def test_every_noqa_names_its_rule_and_its_reason():
+    """`# noqa: <code> - <reason>`: a bare suppression hides why the rule does not apply there.
+    Skills ported from elsewhere keep their own comments."""
+    bare = []
+    for directory in ("src", "scripts", "tests"):
+        for path in sorted((REPO_ROOT / directory).rglob("*.py")):
+            if "bundled/skills" in path.as_posix():
+                continue
+            with path.open("rb") as source:
+                comments = [
+                    token
+                    for token in tokenize.tokenize(source.readline)
+                    if token.type == tokenize.COMMENT and _NOQA.search(token.string)
+                ]
+            bare.extend(
+                f"{path.relative_to(REPO_ROOT)}:{token.start[0]}: {token.string}"
+                for token in comments
+                if not _NOQA_WITH_REASON.search(token.string)
+            )
+    assert not bare, "write `# noqa: <code> - <reason>`:\n" + "\n".join(bare)
+
+
+# ── front-end workspaces ─────────────────────────────────────────────────────────────────
+
+_TS_IMPORT = re.compile(r"""(?:from|import)\s*\(?\s*["']([^"']+)["']""")
+
+
+def _typescript_imports(directory: Path) -> list[tuple[Path, str]]:
+    return [
+        (path, specifier)
+        for path in sorted(directory.rglob("*.ts*"))
+        if "node_modules" not in path.parts and "dist" not in path.parts
+        for specifier in _TS_IMPORT.findall(path.read_text(encoding="utf-8"))
+    ]
+
+
+def test_apps_use_the_shared_client_by_its_package_name_and_it_uses_no_app():
+    apps, shared = REPO_ROOT / "apps", REPO_ROOT / "packages" / "shared"
+    if not shared.is_dir():
+        pytest.skip("not a source checkout")
+    reaching_in = [
+        f"{path.relative_to(REPO_ROOT)}: {specifier}"
+        for path, specifier in _typescript_imports(apps)
+        if "packages/" in specifier
+    ]
+    assert not reaching_in, "import `@clite/shared`, not a file inside packages/:\n" + "\n".join(reaching_in)
+    reaching_out = [
+        f"{path.relative_to(REPO_ROOT)}: {specifier}"
+        for path, specifier in _typescript_imports(shared)
+        if "apps/" in specifier or specifier.startswith("@clite/")
+    ]
+    assert not reaching_out, "packages/shared must not import an app:\n" + "\n".join(reaching_out)
+
+
 # ── generated code ───────────────────────────────────────────────────────────────────────
 
 
@@ -395,7 +457,7 @@ def test_typescript_contracts_match_the_python_contracts():
         env=_env_with_source_path(),
     )
     assert result.returncode == 0, (
-        "apps/shared/src/contracts.generated.ts is out of date. Run `python scripts/gen_rpc_contracts.py`.\n"
+        "packages/shared/src/contracts.generated.ts is out of date. Run `python scripts/gen_rpc_contracts.py`.\n"
         + result.stdout
         + result.stderr
     )

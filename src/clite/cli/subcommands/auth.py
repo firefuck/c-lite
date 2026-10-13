@@ -79,7 +79,7 @@ def run_logout(args: argparse.Namespace) -> int:
     return 0
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("auth", help="manage OAuth authentication for model providers")
     parser.set_defaults(handler=run_status)
     actions = parser.add_subparsers(dest="auth_action")

@@ -23,7 +23,7 @@ def find_tui_bundle() -> Path | None:
         if os.environ.get(f"{ENV_PREFIX}_TUI_DIR")
         else None,
         package_root / "tui_dist" / BUNDLE_NAME,
-        package_root.parents[1] / "ui-tui" / "dist" / BUNDLE_NAME,
+        package_root.parents[1] / "apps" / "tui" / "dist" / BUNDLE_NAME,
     ]
     return next((path for path in candidates if path is not None and path.is_file()), None)
 
@@ -51,21 +51,21 @@ def launch_tui(arguments: list[str], *, fallback_options: dict[str, Any] | None 
         missing = (
             "Node.js (version 22 or newer)"
             if node is None
-            else "the TUI bundle (build it with `npm run build` in ui-tui/)"
+            else "the TUI bundle (build it with `npm run build` in apps/tui/)"
         )
         print(f"The TUI needs {missing}. Starting the classic CLI instead.", file=sys.stderr)
         from clite.cli.repl import Repl
 
         return Repl(**(fallback_options or {})).run()
     env = {**os.environ, f"{ENV_PREFIX}_PYTHON": sys.executable}
-    return subprocess.call([node, str(bundle), *arguments], env=env)  # noqa: S603
+    return subprocess.call([node, str(bundle), *arguments], env=env)  # noqa: S603 - node runs the TUI bundle shipped in the package
 
 
 def run_tui(args: argparse.Namespace) -> int:
     return launch_tui([arg for arg in getattr(args, "extra_args", []) if arg != "--"])
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     # Everything after `tui` belongs to the TUI, including -h: the TUI prints its own help,
     # which lists the options it really takes. (argparse.REMAINDER cannot do this: it stops
     # at the first argument that looks like an option.)

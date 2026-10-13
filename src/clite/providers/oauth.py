@@ -155,9 +155,10 @@ def _http_post(
         with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - the provider's token endpoint from its profile
             raw = resp.read().decode("utf-8")
             try:
-                return json.loads(raw)
+                parsed = json.loads(raw)
             except json.JSONDecodeError:
                 return {"raw": raw}
+            return parsed if isinstance(parsed, dict) else {"raw": raw}
     except urllib.error.HTTPError as exc:
         raw_error = exc.read().decode("utf-8", errors="replace")
         try:

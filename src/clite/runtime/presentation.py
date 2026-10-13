@@ -55,11 +55,11 @@ def tool_diffs(result: str) -> list[tuple[str, str]]:
         return []
     if not isinstance(payload, dict):
         return []
-    pairs: list[tuple[str, str]] = []
-    for entry in payload.get("files") or []:
-        if isinstance(entry, dict) and isinstance(entry.get("diff"), str) and entry["diff"].strip():
-            pairs.append((str(entry.get("path", "")), entry["diff"]))
-    return pairs
+    return [
+        (str(entry.get("path", "")), entry["diff"])
+        for entry in payload.get("files") or []
+        if isinstance(entry, dict) and isinstance(entry.get("diff"), str) and entry["diff"].strip()
+    ]
 
 
 # The semantic roles a Markdown/diff renderer needs, and the skin key that colours each one.

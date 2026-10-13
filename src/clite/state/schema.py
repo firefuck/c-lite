@@ -1,11 +1,17 @@
-"""SQLite schema for sessions and messages.
+"""SQLite schema for sessions and messages, and how a database is brought up to it.
 
 ``SCHEMA_VERSION`` is bumped only when an existing database must be transformed; the
 transform goes in :data:`MIGRATIONS`. New nullable columns are added through
 ``COLUMN_ADDITIONS`` and reconciled on open, so old databases gain them without a migration.
+:func:`prepare_schema` applies all of it every time a database is opened.
 """
 
 from __future__ import annotations
+
+import json
+import sqlite3
+
+from clite.state.search import search_text_of
 
 SCHEMA_VERSION = 2
 
@@ -132,7 +138,7 @@ COLUMN_ADDITIONS: dict[str, dict[str, str]] = {
 # (idempotent, safe when the column is already there). The old FTS table and its triggers are
 # dropped here (FTS_SQL recreates them against `search_text` after the migrations run), the
 # plain text of every existing row is copied over, and the index is rebuilt from the external
-# content by `_init_schema`.
+# content by `prepare_schema`.
 MIGRATIONS: dict[int, list[str]] = {
     1: [
         "UPDATE messages SET search_text = content WHERE content_is_json = 0 AND search_text IS NULL",
@@ -165,3 +171,73 @@ UPDATABLE_SESSION_COLUMNS = frozenset(
         "parent_session_id",
     }
 )
+
+
+def prepare_schema(conn: sqlite3.Connection) -> bool:
+    """Create the schema on ``conn``, or bring an older database up to it, and commit.
+
+    Returns whether SQLite has FTS5; without it search falls back to ``LIKE``. ``conn`` must
+    return :class:`sqlite3.Row` rows, and a caller that shares it between threads holds its
+    lock throughout (``SessionDB`` does both).
+    """
+    conn.executescript(SCHEMA_SQL)
+    _reconcile_columns(conn)
+    migrated = _run_migrations(conn)
+    if migrated:
+        _backfill_search_text(conn)
+    try:
+        conn.executescript(FTS_SQL)
+        fts_enabled = True
+        if migrated:
+            # A migration that dropped the FTS table left it empty; external-content
+            # FTS only repopulates from its triggers or an explicit rebuild.
+            conn.execute("INSERT INTO messages_fts(messages_fts) VALUES ('rebuild')")
+    except sqlite3.OperationalError:
+        # SQLite built without FTS5: search falls back to LIKE.
+        fts_enabled = False
+    conn.commit()
+    return fts_enabled
+
+
+def _reconcile_columns(conn: sqlite3.Connection) -> None:
+    for table, columns in COLUMN_ADDITIONS.items():
+        existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+        for column, definition in columns.items():
+            if column not in existing:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
+def _run_migrations(conn: sqlite3.Connection) -> bool:
+    """Run pending migrations. Returns True when the schema was transformed."""
+    row = conn.execute("SELECT version FROM schema_version LIMIT 1").fetchone()
+    if row is None:
+        conn.execute("INSERT INTO schema_version(version) VALUES (?)", (SCHEMA_VERSION,))
+        return False
+    version = int(row["version"])
+    migrated = False
+    while version < SCHEMA_VERSION:
+        for statement in MIGRATIONS.get(version, []):
+            conn.execute(statement)
+        version += 1
+        migrated = True
+        conn.execute("UPDATE schema_version SET version = ?", (version,))
+    return migrated
+
+
+def _backfill_search_text(conn: sqlite3.Connection) -> None:
+    """Fill ``search_text`` for rows a migration left NULL.
+
+    The migration handles plain-string content in SQL. A row whose content is a JSON list
+    takes more than SQL to interpret, so it is done here: the parts' text, if any. Rows
+    that had no text stay NULL and are simply not indexed.
+    """
+    rows = conn.execute(
+        "SELECT id, content FROM messages WHERE search_text IS NULL AND content IS NOT NULL"
+    ).fetchall()
+    for row in rows:
+        raw = row["content"]
+        try:
+            parsed = json.loads(raw)
+        except (TypeError, ValueError):
+            parsed = raw
+        conn.execute("UPDATE messages SET search_text = ? WHERE id = ?", (search_text_of(parsed), row["id"]))

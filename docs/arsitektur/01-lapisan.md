@@ -88,7 +88,7 @@ mempertimbangkan import ke atas.
 | Platform chat baru | `gateway/platforms/<nama>.py` atau plugin berjenis `platform` | Adapter hanya menerima, mengirim, memutus |
 | Slash command | `runtime/commands.py` + `runtime/slash.py` | Otomatis tersedia di semua surface |
 | Sub-perintah `clite` | `cli/subcommands/<nama>.py` | Punya `register(subparsers)` |
-| Method atau event RPC | `rpc/contracts/schema.py` + `rpc/methods.py` | Lalu `scripts/gen_rpc_contracts.py` |
+| Method atau event RPC | `rpc/contracts/schema.py` + `rpc/methods/<domain>.py` | Lalu `scripts/gen_rpc_contracts.py`; modul domain baru diimpor di `rpc/methods/__init__.py` |
 | Sesuatu yang dipakai dua surface | `runtime/` | Bukan di salah satu surface |
 | Pengaturan | `core/config_defaults.py` | Harus punya pembaca, kalau tidak suite gagal |
 | Reaksi atas event siklus hidup | Hook di plugin, atau shell hook | Bukan cabang baru di inti |
@@ -120,10 +120,13 @@ terhubung ke backend **hanya** lewat protokol JSON-RPC ([05-protokol-rpc.md](05-
 
 | Bagian | Bergantung pada | Tidak boleh |
 |---|---|---|
-| `apps/shared/` (klien protokol, reducer transkrip) | Kontrak hasil generate | Mengimpor dari `ui-tui` atau `apps/desktop` |
-| `ui-tui/` (TUI) | `apps/shared` | Membaca file di home secara langsung |
+| `packages/shared/` (klien protokol, reducer transkrip) | Kontrak hasil generate | Mengimpor dari aplikasi mana pun di `apps/` |
+| `apps/tui/` (TUI) | `@clite/shared` | Menjangkau file di dalam `packages/shared/src/`; membaca file di home secara langsung |
+| `apps/web/` (dashboard; bundle-nya di `src/clite/server/static/`) | `@clite/shared` | Menjangkau file di dalam `packages/shared/src/`; membaca file di home secara langsung |
 | `apps/desktop/` (cangkang Electron) | `clite serve` sebagai proses anak | Punya UI sendiri: jendelanya memuat dashboard backend |
-| `web/` (dashboard; bundle-nya di `src/clite/server/static/`) | `apps/shared` | Membaca file di home secara langsung |
+
+Arah import antara aplikasi dan paket bersama dijaga
+`test_apps_use_the_shared_client_by_its_package_name_and_it_uses_no_app`.
 
 Front-end tidak pernah membaca `config.yaml`, `state.db`, atau `.env`. Bila sebuah front-end
 membutuhkan data, tambahkan method RPC.

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Kode | `apps/desktop/` |
-| Tes | `apps/desktop/test/` (11 tes untuk bagian tanpa Electron, 5 di antaranya tentang pemaketan) |
+| Tes | `apps/desktop/test/`: bagian tanpa Electron, termasuk pemaketan, dan satu tes asap yang butuh layar dan biner Electron. Jumlah terkininya di [STATUS](../STATUS.md#dijaga-tes) |
 | Bergantung pada | `clite serve` ([server](server.md)) dan dashboard statisnya |
 | Bedah Hermes | [10-gui-desktop-dashboard](../hermes/10-gui-desktop-dashboard.md) |
 
@@ -84,7 +84,7 @@ tempat yang tahu cara memanggil backend.
 Aplikasi desktop Hermes adalah aplikasi React besar (788 ribu baris TypeScript di
 `apps/desktop/`) dengan renderer sendiri. Di sini cangkangnya sengaja tipis: satu dashboard
 melayani browser dan desktop, sehingga hanya ada satu UI untuk dipelihara. Bila kelak
-dibutuhkan renderer khusus desktop, `apps/shared` (klien dan reducer transkrip) sudah
+dibutuhkan renderer khusus desktop, `packages/shared` (klien dan reducer transkrip) sudah
 disiapkan untuk itu.
 
 ## Celah yang diketahui

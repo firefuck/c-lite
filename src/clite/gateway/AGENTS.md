@@ -7,8 +7,10 @@ Tes: `pytest tests/gateway -q`
 ## Aturan yang tidak boleh dilanggar
 
 1. **Kebijakan di runner, bukan di adapter.** Otorisasi, pengarahan sesi, slash command,
-   kebijakan sibuk, persetujuan: semuanya di `runner.py`, sehingga setiap platform berperilaku
-   sama. Adapter hanya menerjemahkan.
+   kebijakan sibuk, persetujuan: semuanya di runner, yaitu `runner.py` dan modul yang menerima
+   delegasinya (`questions.py`, `model_picker.py`, `attachments.py`, `voice.py`,
+   `live_reply.py`), tidak pernah di adapter, sehingga setiap platform berperilaku sama.
+   Adapter hanya menerjemahkan.
 2. **Orang asing tidak pernah mencapai agent.** Setiap jalur pesan masuk melewati
    `is_authorized`. Di grup, orang asing diabaikan tanpa balasan.
 3. **Diam berarti tolak** untuk persetujuan.
@@ -53,8 +55,9 @@ Platform sebagai plugin (di luar repositori): sama, tetapi didaftarkan dengan
 
 ## Jebakan
 
-- Callback `approve` dan `clarify` memblokir thread giliran sampai pengguna menjawab atau
-  batas waktu habis. Pesan jawaban datang lewat `dispatch` di thread lain dan melepaskannya.
+- Callback `approve` dan `clarify` (`PendingQuestions` di `questions.py`) memblokir thread
+  giliran sampai pengguna menjawab atau batas waktu habis. Pesan jawaban datang lewat
+  `dispatch` di thread lain dan melepaskannya.
 - Kunci sesi memuat id pengguna di grup. Mengubah `build_session_key` memutus semua sesi yang
   tersimpan di `sessions.json`.
 - `client_factory` di `GatewayRunner` hanya untuk tes (menyuntikkan `ScriptedClient`).

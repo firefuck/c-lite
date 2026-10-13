@@ -55,7 +55,7 @@ class LLMClient:
         params = params or RequestParams()
         transport = get_transport(route.api_mode)
         if transport.local:
-            return transport.run(route, messages, tools, params, on_delta=on_delta, cancel=cancel)  # type: ignore[attr-defined]
+            return transport.run(route, messages, tools, params, on_delta=on_delta, cancel=cancel)
 
         request = transport.build_request(route, messages, tools, params, stream=stream)
         if route.profile is not None:
@@ -94,7 +94,7 @@ class LLMClient:
                 if not accumulator.feed(event.event, event.data):
                     break
             if handle.cancelled:
-                raise Cancelled()
+                raise Cancelled
             return accumulator.finish()
         except Cancelled as exc:
             raise InterruptedError("model call cancelled") from exc

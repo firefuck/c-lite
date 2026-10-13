@@ -43,7 +43,7 @@ function pythonFacts(): { version: string; displayName: string } {
     "from clite.core.brand import DISPLAY_NAME",
     "print(json.dumps({'version': __version__, 'displayName': DISPLAY_NAME}))",
   ].join("\n");
-  const out = execFileSync(process.env["CLITE_PYTHON"] ?? "python3", ["-c", source], {
+  const out = execFileSync(process.env.CLITE_PYTHON ?? "python3", ["-c", source], {
     env: { ...process.env, PYTHONPATH: join(repoRoot, "src") },
     encoding: "utf8",
   });
@@ -111,7 +111,7 @@ test("the menu is the standard one, and its shape follows the platform", () => {
 
   // File quits the app on Linux; on macOS the app menu already has Quit, so File closes.
   const fileItem = (template: ReturnType<typeof menuTemplate>): unknown =>
-    (template.find((item) => item.label === "File")?.submenu as { role: string }[])[0]?.role;
+    (template.find((item) => item.label === "File")?.submenu as { role: string }[] | undefined)?.[0]?.role;
   assert.equal(fileItem(linux), "quit");
   assert.equal(fileItem(mac), "close");
 

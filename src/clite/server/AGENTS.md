@@ -16,18 +16,18 @@ dilewati).
 3. **Token tidak pernah masuk log, baris perintah, atau query string yang dicetak.**
 4. **Default hanya loopback.** Jangan mengubah host default.
 5. **Dashboard tidak pernah memasang HTML dari model atau tool.** React merender teks; tidak
-   ada `dangerouslySetInnerHTML` atau `innerHTML` di `web/src/`
+   ada `dangerouslySetInnerHTML` atau `innerHTML` di `apps/web/src/`
    (`test_the_bundle_never_sets_html_from_data`).
-6. **`static/` adalah hasil build, bukan sumber.** Sumbernya di `web/` (lihat `web/AGENTS.md`).
-   Setelah mengubah `web/src/`, `web/index.html`, atau `apps/shared/src/`, jalankan
-   `npm run build` di `web/` dan commit `src/clite/server/static/`.
+6. **`static/` adalah hasil build, bukan sumber.** Sumbernya di `apps/web/` (lihat `apps/web/AGENTS.md`).
+   Setelah mengubah `apps/web/src/`, `apps/web/index.html`, atau `packages/shared/src/`, jalankan
+   `npm run build` di `apps/web/` dan commit `src/clite/server/static/`.
 
 ## Resep
 
 ### Menambah sesuatu ke dashboard
 
 1. Bila butuh data baru: tambahkan method RPC dulu (lihat `src/clite/rpc/AGENTS.md`).
-2. Ubah `web/src/` (resepnya di `web/AGENTS.md`), lalu `npm run build` di `web/`.
+2. Ubah `apps/web/src/` (resepnya di `apps/web/AGENTS.md`), lalu `npm run build` di `apps/web/`.
 3. Tambahkan tes di `tests/server/test_dashboard_browser.py`. Tes itu menjalankan server
    sungguhan dengan provider `mock` dan mengendalikan Chromium.
 4. Hasil build harus cocok dengan pola `server/static/**` di `pyproject.toml`, kalau tidak ia

@@ -75,8 +75,7 @@ def _inline(text: str, style: MarkdownStyle) -> str:
     text = _LINK.sub(lambda m: m.group(1), text)
     text = _INLINE_CODE.sub(lambda m: style.paint("code", m.group(1)), text)
     text = _BOLD.sub(lambda m: style.paint("heading", (m.group(1) or m.group(2) or "")), text)
-    text = _ITALIC.sub(lambda m: style.paint("quote", (m.group(1) or m.group(2) or "")), text)
-    return text
+    return _ITALIC.sub(lambda m: style.paint("quote", (m.group(1) or m.group(2) or "")), text)
 
 
 # ── tables ───────────────────────────────────────────────────────────────────────────────
@@ -86,10 +85,8 @@ _TABLE_DIVIDER_CELL = re.compile(r"^\s*:?-{3,}:?\s*$")
 
 def _split_row(row: str) -> list[str]:
     s = row.strip()
-    if s.startswith("|"):
-        s = s[1:]
-    if s.endswith("|"):
-        s = s[:-1]
+    s = s.removeprefix("|")
+    s = s.removesuffix("|")
     return [cell.strip() for cell in s.split("|")]
 
 

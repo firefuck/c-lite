@@ -43,25 +43,14 @@ TEST_NAME = re.compile(r"test_[a-z0-9_]+")
 HERMES_WORD = re.compile(r"\bHermes\b")
 LOCAL_WORD = re.compile(rf"(?<!\w){re.escape(DISPLAY)}(?!\w)")
 
-SKIP_DIRS = frozenset(
-    {
-        ".git",
-        "node_modules",
-        "build",
-        "dist",
-        "__pycache__",
-        ".pytest_cache",
-        ".mypy_cache",
-        ".ruff_cache",
-        ".venv",
-        "venv",
-    }
-)
+# Besides these, every hidden directory but .github is skipped: hidden directories hold tool
+# state (git, caches, virtualenvs, editor and agent workspaces), never project files.
+SKIP_DIRS = frozenset({"node_modules", "build", "dist", "__pycache__", "venv"})
 # Shipped content (skills, plugin READMEs) is not project documentation.
 SKIP_DOC_DIRS = SKIP_DIRS | {"bundled"}
-ROOT_PREFIXES = ("src/", "tests/", "scripts/", "docs/", "apps/", "ui-tui/", ".github/")
+ROOT_PREFIXES = ("src/", "tests/", "scripts/", "docs/", "apps/", "packages/", ".github/")
 # Produced by a build step and ignored by git: a document may name them, a checkout lacks them.
-BUILD_OUTPUT = ("ui-tui/dist/", "apps/desktop/dist/", "apps/shared/dist/")
+BUILD_OUTPUT = ("apps/tui/dist/", "apps/desktop/dist/", "packages/shared/dist/")
 CODE_SUFFIXES = (".py", ".ts", ".tsx", ".mjs", ".cjs", ".js", ".sh")
 FILE_SUFFIXES = (
     *CODE_SUFFIXES,
@@ -84,11 +73,15 @@ _NOT_A_PATH = re.compile(r"[\s<>*{}$|=,;]|\.\.\.|…")
 _LINE_SUFFIX = re.compile(r":\d+(?:-\d+)?$")
 
 
+def _walked(name: str, skip: frozenset[str]) -> bool:
+    return name not in skip and (not name.startswith(".") or name == ".github")
+
+
 def documents(root: Path) -> list[Path]:
     """Every Markdown document that belongs to the project, sorted."""
     found: list[Path] = []
     for directory, subdirectories, names in os.walk(root):
-        subdirectories[:] = [name for name in subdirectories if name not in SKIP_DOC_DIRS]
+        subdirectories[:] = [name for name in subdirectories if _walked(name, SKIP_DOC_DIRS)]
         found.extend(Path(directory) / name for name in names if name.endswith(".md"))
     return sorted(found)
 
@@ -97,7 +90,7 @@ def repository_files(root: Path) -> set[str]:
     """Relative POSIX paths of every file and directory, without caches and build output."""
     found: set[str] = set()
     for directory, subdirectories, names in os.walk(root):
-        subdirectories[:] = [name for name in subdirectories if name not in SKIP_DIRS]
+        subdirectories[:] = [name for name in subdirectories if _walked(name, SKIP_DIRS)]
         relative = Path(directory).relative_to(root)
         if relative.parts:
             found.add(relative.as_posix())
@@ -232,7 +225,7 @@ def check_local_path(token: str, files: set[str], root: Path) -> str | None:
 
     * A path from the repository root (``src/clite/...``, ``tests/...``, ``docs/...``) must
       exist exactly.
-    * ``src/...`` may also be relative to a package (``src/plain.ts`` in ``ui-tui``), and a
+    * ``src/...`` may also be relative to a package (``src/plain.ts`` in ``apps/tui``), and a
       shorter path or a bare file name (``turn/context.py``, ``loop.py``) is relative to
       whatever directory the passage is about: some file must end with it.
     * Only source files are checked that way. ``config.yaml`` or ``SKILL.md`` name files in

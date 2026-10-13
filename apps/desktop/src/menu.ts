@@ -79,9 +79,7 @@ export function menuTemplate(
     },
     {
       label: "Help",
-      submenu: [
-        { label: `${displayName} documentation`, click: () => hooks.openExternal(hooks.docsUrl) },
-      ],
+      submenu: [{ label: `${displayName} documentation`, click: () => hooks.openExternal(hooks.docsUrl) }],
     },
   );
 

@@ -9,6 +9,7 @@ import json
 import os
 import subprocess
 import sys
+import tarfile
 import threading
 
 import pytest
@@ -846,6 +847,52 @@ def test_backup_and_restore(clite_home, tmp_path):
     assert (new_home / "sessions" / "sess-1.json").read_text() == '{"title": "test session"}'
     assert (new_home / "memories" / "facts.json").read_text() == '{"facts": ["user is azis"]}'
     assert (new_home / "skills" / "my_skill.md").read_text() == "# Test skill"
+
+
+def _link_member(name: str, kind: bytes, target: str) -> tarfile.TarInfo:
+    member = tarfile.TarInfo(name)
+    member.type = kind
+    member.linkname = target
+    return member
+
+
+@pytest.mark.platforms("posix")
+@pytest.mark.parametrize(
+    ("kind", "target"),
+    [(tarfile.SYMTYPE, "absolute"), (tarfile.SYMTYPE, "../outside"), (tarfile.LNKTYPE, "absolute")],
+    ids=["absolute-symlink", "relative-symlink", "hardlink"],
+)
+def test_a_backup_with_a_link_out_of_the_home_is_refused_and_writes_nothing(tmp_path, kind, target):
+    from unittest.mock import patch
+
+    from clite.cli.subcommands.backup import restore_backup
+    from clite.core.errors import CliteError
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    victim = outside / "victim.txt"
+    victim.write_text("untouched")
+    link_target = str(victim if kind == tarfile.LNKTYPE else outside) if target == "absolute" else target
+    # The link comes first; the file after it is written through the link when nothing stops it.
+    name = "config.yaml" if kind == tarfile.LNKTYPE else "skills"
+    planted = "config.yaml" if kind == tarfile.LNKTYPE else "skills/victim.txt"
+    archive = tmp_path / "crafted.tar.gz"
+    payload = b"overwritten"
+    with tarfile.open(archive, "w:gz") as tar:
+        tar.addfile(_link_member(name, kind, link_target))
+        member = tarfile.TarInfo(planted)
+        member.size = len(payload)
+        tar.addfile(member, io.BytesIO(payload))
+
+    home = tmp_path / "home"
+    with (
+        patch("clite.cli.subcommands.backup.get_home", return_value=home),
+        pytest.raises(CliteError, match="unsafe member in archive"),
+    ):
+        restore_backup(archive)
+
+    assert victim.read_text() == "untouched"
+    assert list(home.iterdir()) == []
 
 
 def test_update_check_and_status(monkeypatch, capsys):

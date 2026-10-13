@@ -1,9 +1,8 @@
 # Berkontribusi ke C-lite
 
-Terima kasih sudah mau ikut membangun C-lite. Halaman ini adalah pintu masuk untuk manusia;
-aturan kerja lengkapnya, yang juga dipakai agent AI yang mengerjakan repositori ini, ada di
-[AGENTS.md](AGENTS.md) dan di `AGENTS.md` tiap area. Bila keduanya tampak berbeda, `AGENTS.md`
-yang berlaku.
+Terima kasih sudah mau ikut membangun C-lite. Halaman ini adalah pintu masuk; aturan kerja
+lengkapnya ada di [AGENTS.md](AGENTS.md) dan di `AGENTS.md` tiap area. Bila keduanya tampak
+berbeda, `AGENTS.md` yang berlaku.
 
 ## Menyiapkan lingkungan
 
@@ -13,7 +12,8 @@ Butuh Python 3.11 atau lebih baru dan Node 22 atau lebih baru.
 pip install -e ".[dev]"
 npm install
 git config core.hooksPath scripts/hooks   # semua pemeriksaan jalan sebelum setiap push
-scripts/run_tests.sh                      # ruff, mypy, pytest, tes TypeScript
+scripts/run_tests.sh                      # ruff, mypy, biome, pytest, tes TypeScript
+npx biome check --write .                 # format TypeScript sebelum commit
 python -m clite chat -q "halo" --provider mock
 ```
 

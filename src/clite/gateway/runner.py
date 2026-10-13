@@ -14,6 +14,11 @@ A voice message is transcribed on the way in, so the turn sees words; where a pl
 for it, the answer to a voice message is spoken on the way out.
 
 A turn runs on its own thread, so one long task never blocks another chat.
+
+This module keeps that order, the sessions and the turns. The steps that have rules of their own
+sit beside it and are called from here: ``questions.py`` (approvals and clarifying questions),
+``model_picker.py`` (the ``/model`` buttons), ``attachments.py`` and ``voice.py`` (files and
+speech), and ``live_reply.py`` (the typing indicator and the answer as it is written).
 """
 
 from __future__ import annotations
@@ -22,7 +27,6 @@ import contextlib
 import logging
 import threading
 import time
-from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -31,21 +35,15 @@ from clite.core.config import get_path, load_config
 from clite.core.errors import CliteError
 from clite.core.threads import start_thread
 from clite.gateway import media
-from clite.gateway.controls import (
-    APPROVAL_PREFIX,
-    MODEL_PICKER_PREFIX,
-    Keyboard,
-    ModelPicker,
-    approval_keyboard,
-    model_picker_view,
-)
+from clite.gateway.attachments import collect_attachments
 from clite.gateway.event import CHAT_DM, MessageEvent, SessionSource
-from clite.gateway.media import MediaError
-from clite.gateway.media import store as media_store
+from clite.gateway.live_reply import LiveReply, start_typing
+from clite.gateway.model_picker import ModelPickerFlow
 from clite.gateway.pairing import PairingStore
 from clite.gateway.platforms.base import PLATFORMS, BasePlatformAdapter, split_message
+from clite.gateway.questions import Pending, PendingQuestions
 from clite.gateway.session import HomeChannels, SessionMap, build_session_key
-from clite.gateway.stream import ProgressReporter, StreamSender, tool_line, tool_message
+from clite.gateway.voice import speak_reply
 from clite.plugins.hooks import has_hook, invoke_hook
 from clite.plugins.manager import ensure_plugins_loaded
 from clite.runtime.commands import BUSY_ALLOW, resolve_command, split_command
@@ -58,7 +56,6 @@ from clite.runtime.session import (
     Turn,
     TurnQueue,
 )
-from clite.tools import speech
 
 logger = logging.getLogger("clite.gateway")
 
@@ -67,145 +64,6 @@ logger = logging.getLogger("clite.gateway")
 # cleared on stop, so a stopped runner is never handed to the model.
 _ACTIVE_RUNNERS: list[GatewayRunner] = []
 _ACTIVE_LOCK = threading.Lock()
-
-DEFAULT_TYPING_INTERVAL = 3.5
-
-
-class _TypingKeeper:
-    """Keep a chat typing indicator active until stopped.
-
-    Platforms like Telegram drop the typing action after 4-5 seconds. This helper fires
-    an initial typing indicator and repeats it periodically until closed. Thread-safe:
-    calling :meth:`stop` or exiting the context immediately stops the heartbeat loop.
-    """
-
-    def __init__(
-        self,
-        adapter: BasePlatformAdapter,
-        chat_id: str,
-        *,
-        thread_id: str | None = None,
-        interval: float = DEFAULT_TYPING_INTERVAL,
-    ) -> None:
-        self.adapter = adapter
-        self.chat_id = chat_id
-        self.thread_id = thread_id
-        self.interval = interval
-        self._stop_event = threading.Event()
-        self._thread: threading.Thread | None = None
-
-    def start(self) -> _TypingKeeper:
-        self.adapter.send_typing(self.chat_id, thread_id=self.thread_id)
-        self._thread = start_thread(self._run, name=f"clite-typing-{self.chat_id}")
-        return self
-
-    def _run(self) -> None:
-        while not self._stop_event.wait(self.interval):
-            try:
-                self.adapter.send_typing(self.chat_id, thread_id=self.thread_id)
-            except Exception:  # cosmetic heartbeat failure
-                logger.debug("typing heartbeat failed for %s", self.chat_id, exc_info=True)
-
-    def stop(self) -> None:
-        self._stop_event.set()
-        if self._thread is not None and self._thread is not threading.current_thread():
-            self._thread.join(timeout=1.0)
-
-    def __enter__(self) -> _TypingKeeper:
-        return self.start()
-
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        self.stop()
-
-
-def _typing_keeper(
-    adapter: BasePlatformAdapter | None,
-    chat_id: str,
-    *,
-    thread_id: str | None = None,
-    interval: float | None = None,
-) -> _TypingKeeper | None:
-    if adapter is None:
-        return None
-    keeper = _TypingKeeper(
-        adapter,
-        chat_id,
-        thread_id=thread_id,
-        interval=DEFAULT_TYPING_INTERVAL if interval is None else interval,
-    )
-    keeper.start()
-    return keeper
-
-
-class _LiveReply:
-    """How one turn's answer reaches a chat while it is being written.
-
-    A chat that can edit a sent message gets the answer as it is written and one status
-    message for tool activity. A chat that cannot keeps the old behaviour: typing indicator,
-    then the whole answer. ``message`` mode instead gets one separate chat message per tool
-    call, sent as the call starts.
-    """
-
-    def __init__(
-        self,
-        adapter: BasePlatformAdapter,
-        source: SessionSource,
-        *,
-        reply_to: str | None,
-        typing_keeper: _TypingKeeper | None,
-        tool_progress: str,
-    ) -> None:
-        self.adapter = adapter
-        self.chat_id, self.thread_id = source.chat_id, source.thread_id
-        self.reply_to = reply_to
-        self.typing_keeper = typing_keeper
-        self._first_send = True
-        self.stream: StreamSender | None = None
-        self.progress: ProgressReporter | None = None
-        self.per_tool_message = False
-        if adapter.can_edit():
-            self.stream = StreamSender(self.send, self.edit, max_length=adapter.max_message_length)
-            if tool_progress not in ("off", "message"):
-                self.progress = ProgressReporter(self.send, self.edit)
-            self.per_tool_message = tool_progress == "message"
-
-    def send(self, text: str) -> str | None:
-        if self.typing_keeper is not None:
-            self.typing_keeper.stop()
-        result = self.adapter.send(
-            self.chat_id,
-            text,
-            reply_to=self.reply_to if self._first_send else None,
-            thread_id=self.thread_id,
-        )
-        if result.success:
-            self._first_send = False
-        return result.message_id if result.success else None
-
-    def edit(self, message_id: str, text: str) -> bool:
-        return self.adapter.edit(self.chat_id, message_id, text)
-
-    @contextlib.contextmanager
-    def wired(self, callbacks: AgentCallbacks) -> Iterator[None]:
-        """Point the session's streaming callbacks at this chat for the turn, then restore them."""
-        saved = (callbacks.on_delta, callbacks.on_tool_complete, callbacks.on_tool_start)
-        stream, progress = self.stream, self.progress
-        if stream is not None:
-            callbacks.on_delta = stream.push
-        if progress is not None:
-            callbacks.on_tool_complete = lambda _call_id, name, args, result, seconds: progress.note(
-                tool_line(name, args, result, seconds)
-            )
-        if self.per_tool_message:
-
-            def on_tool_start(_call_id: str, name: str, args: dict[str, Any]) -> None:
-                self.send(tool_message(name, args))
-
-            callbacks.on_tool_start = on_tool_start
-        try:
-            yield
-        finally:
-            callbacks.on_delta, callbacks.on_tool_complete, callbacks.on_tool_start = saved
 
 
 def active_runner() -> GatewayRunner | None:
@@ -223,53 +81,6 @@ def reset_active_runners() -> None:
         _ACTIVE_RUNNERS.clear()
 
 
-_APPROVAL_WORDS = {
-    "approve": "once",
-    "yes": "once",
-    "y": "once",
-    "ok": "once",
-    "once": "once",
-    "session": "session",
-    "always": "always",
-    "deny": "deny",
-    "no": "deny",
-    "n": "deny",
-}
-_APPROVAL_TRAILING_PUNCTUATION = ".,;:!?"
-
-
-@dataclass
-class _Pending:
-    """A question the agent asked that the next message from this chat answers."""
-
-    kind: str  # "approval" | "clarify"
-    choices: list[str] = field(default_factory=list)
-    answered: threading.Event = field(default_factory=threading.Event)
-    answer: str = ""
-
-
-@dataclass
-class _PickerTap:
-    """One tap on a model picker button, with what is needed to answer it."""
-
-    adapter: BasePlatformAdapter
-    source: SessionSource
-    callback_id: str
-    message_id: str
-    value: str
-
-
-@dataclass
-class _ApprovalPrompt:
-    """An approval button prompt tied to the one pending question that created it."""
-
-    key: str
-    session_key: str
-    source: SessionSource
-    pending: _Pending
-    message_id: str
-
-
 @dataclass
 class GatewaySession:
     key: str
@@ -277,7 +88,7 @@ class GatewaySession:
     chat: ChatSession
     last_used: float = field(default_factory=time.monotonic)
     turns: TurnQueue | None = None  # set by the runner; owns the queue, the worker and the policy
-    pending: _Pending | None = None
+    pending: Pending | None = None
 
     @property
     def busy(self) -> bool:
@@ -294,10 +105,10 @@ class GatewayRunner:
         self.home_channels = HomeChannels(self.config)
         self.now_fn = time.time
         self.pairing = PairingStore()
-        self._model_pickers: dict[str, ModelPicker] = {}
-        self._approval_prompts: dict[str, _ApprovalPrompt] = {}
         self.on_restart: Any = None
         self._lock = threading.RLock()
+        self._model_picker = ModelPickerFlow(self)
+        self._questions = PendingQuestions(self, lock=self._lock)
         self._scheduler: Any = None
         self.running = False
         self.accepting = True
@@ -309,7 +120,7 @@ class GatewayRunner:
         import clite.gateway.platforms.discord
         import clite.gateway.platforms.local  # registers the built-in adapters
         import clite.gateway.platforms.slack
-        import clite.gateway.platforms.telegram  # noqa: F401
+        import clite.gateway.platforms.telegram  # noqa: F401 - importing registers the adapter
 
         ensure_plugins_loaded()  # plugins may register more platforms
         started = []
@@ -468,45 +279,15 @@ class GatewayRunner:
                 allowed.add(entry.strip())
         return allowed
 
-    def send_to(self, target: str, text: str, *, origin: dict[str, Any] | None = None) -> str:
-        """Send ``text`` to ``target`` from the agent, enforcing the destination allowlist.
+    def _allowed_destination(
+        self, target: str, origin: dict[str, Any] | None
+    ) -> tuple[BasePlatformAdapter, str, str]:
+        """The adapter, platform and chat that ``target`` names, once the agent may send there.
 
-        ``target`` is a platform name (its home channel) or ``platform:chat``. Returns a short
-        description of where the message went. Raises :class:`CliteError` when the platform is
-        not connected or the destination is not allowed, naming what to change.
+        ``target`` is a platform name (its home channel) or ``platform:chat``. Raises
+        :class:`CliteError` when the platform is not connected or the destination is not
+        allowed, naming what to change.
         """
-        text = text.strip()
-        if not text:
-            raise CliteError("the message text is empty; nothing was sent")
-        raw = target.strip()
-        if not raw:
-            raise CliteError("a target is required: a platform name or 'platform:chat id'")
-        if ":" in raw:
-            platform, _, chat_id = raw.partition(":")
-            chat_id = chat_id.strip()
-        else:
-            platform, chat_id = raw, self.home_channels.get(raw) or ""
-        if not platform or not chat_id:
-            raise CliteError(
-                f"target {target!r} has no chat id and no home channel is set; use "
-                f"'platform:chat id' or run /sethome in that chat first"
-            )
-        if platform not in self.adapters:
-            raise CliteError(f"platform {platform!r} is not connected; connect it in gateway.platforms first")
-        destination = f"{platform}:{chat_id}"
-        if destination not in self._allowed_send_targets(origin):
-            raise CliteError(
-                f"destination {destination!r} is not allowed; add it to gateway.send_targets "
-                f"or run /sethome in that chat"
-            )
-        self.reply(SessionSource(platform=platform, chat_id=chat_id), text)
-        logger.info("send_message delivered to %s (%d chars)", destination, len(text))
-        return destination
-
-    def send_file_to(
-        self, target: str, path: str, *, caption: str = "", origin: dict[str, Any] | None = None
-    ) -> str:
-        """Send a local file to ``target``, under the same destination rules as ``send_to``."""
         raw = target.strip()
         if not raw:
             raise CliteError("a target is required: a platform name or 'platform:chat id'")
@@ -529,265 +310,51 @@ class GatewayRunner:
                 f"destination {destination!r} is not allowed; add it to gateway.send_targets "
                 f"or run /sethome in that chat"
             )
+        return adapter, platform, chat_id
+
+    def send_to(self, target: str, text: str, *, origin: dict[str, Any] | None = None) -> str:
+        """Send ``text`` to ``target`` from the agent, enforcing the destination allowlist.
+
+        ``target`` is a platform name (its home channel) or ``platform:chat``. Returns a short
+        description of where the message went. Raises :class:`CliteError` when the platform is
+        not connected or the destination is not allowed, naming what to change.
+        """
+        text = text.strip()
+        if not text:
+            raise CliteError("the message text is empty; nothing was sent")
+        _adapter, platform, chat_id = self._allowed_destination(target, origin)
+        destination = f"{platform}:{chat_id}"
+        self.reply(SessionSource(platform=platform, chat_id=chat_id), text)
+        logger.info("send_message delivered to %s (%d chars)", destination, len(text))
+        return destination
+
+    def send_file_to(
+        self, target: str, path: str, *, caption: str = "", origin: dict[str, Any] | None = None
+    ) -> str:
+        """Send a local file to ``target``, under the same destination rules as ``send_to``."""
+        adapter, platform, chat_id = self._allowed_destination(target, origin)
+        destination = f"{platform}:{chat_id}"
         result = adapter.send_file(chat_id, path, caption=caption)
         if not result.success:
             raise CliteError(f"could not send {path}: {result.error or 'the platform refused it'}")
         logger.info("send_file delivered %s to %s", path, destination)
         return destination
 
-    # ── model picker buttons ─────────────────────────────────────────────────────────────
-
-    def _model_picker_view(self, picker: ModelPicker, session: GatewaySession) -> tuple[str, Keyboard]:
-        adapter = self.adapters.get(picker.source.platform)
-        route = session.chat.agent.route
-        return model_picker_view(
-            picker,
-            current_provider=route.provider,
-            current_model=route.model,
-            label_bytes=adapter.max_button_label_bytes if adapter is not None else None,
-        )
-
-    def _send_model_picker(self, session: GatewaySession) -> bool:
-        """The button form of an argument-less ``/model``, on platforms that can show buttons."""
-        adapter = self.adapters.get(session.source.platform)
-        if adapter is None or not adapter.can_send_buttons():
-            return False
-        from clite.providers.registry import list_providers
-
-        current = session.chat.agent.route.provider
-        providers = [
-            profile.name for profile in list_providers(session.chat.agent.config) if profile.is_configured()
-        ]
-        if current not in providers:
-            providers.insert(0, current)
-        providers = list(dict.fromkeys(providers))
-        if not providers:
-            return False
-        import secrets
-
-        key = secrets.token_hex(4)
-        picker = ModelPicker(key=key, session_key=session.key, source=session.source, providers=providers)
-        text, keyboard = self._model_picker_view(picker, session)
-        result = adapter.send_model_picker(
-            session.source.chat_id, text, keyboard, thread_id=session.source.thread_id
-        )
-        if not result.success:
-            logger.warning("could not send the model picker: %s", result.error)
-            return False
-        self._model_pickers[key] = picker
-        return True
+    # ── button presses ───────────────────────────────────────────────────────────────────
+    # The entry points adapters with buttons call, kept here so an adapter only knows the
+    # runner; what a press may do is decided in `model_picker.py` and `questions.py`.
 
     def handle_model_picker_callback(
         self, source: SessionSource, callback_id: str, data: str, message_id: str
     ) -> None:
         """Apply a model picker tap after the runner's usual authorization and busy checks."""
-        adapter = self.adapters.get(source.platform)
-        if adapter is None:
-            return
-        parts = data.split(":", 3)
-        if len(parts) not in (3, 4) or parts[0] != MODEL_PICKER_PREFIX:
-            adapter.answer_callback(callback_id, "Invalid model selection.")
-            return
-        _prefix, key, action = parts[:3]
-        tap = _PickerTap(
-            adapter=adapter,
-            source=source,
-            callback_id=callback_id,
-            message_id=message_id,
-            value=parts[3] if len(parts) == 4 else "",
-        )
-        found = self._picker_for_tap(tap, key)
-        if found is None:
-            return
-        picker, session = found
-        if action == "noop":
-            adapter.answer_callback(callback_id)
-            return
-        handler = {
-            "cancel": self._picker_cancel,
-            "page": self._picker_page,
-            "back": self._picker_back,
-            "provider": self._picker_provider,
-            "select": self._picker_select,
-        }.get(action)
-        if handler is None:
-            adapter.answer_callback(callback_id, "Invalid model selection.")
-            return
-        handler(tap, picker, session)
-
-    def _picker_for_tap(self, tap: _PickerTap, key: str) -> tuple[ModelPicker, GatewaySession] | None:
-        """The picker a tap belongs to, once the tapper may use it and the session is idle."""
-        adapter, callback_id = tap.adapter, tap.callback_id
-        if not self.is_authorized(tap.source):
-            adapter.answer_callback(callback_id, "You are not authorized.")
-            return None
-        picker = self._model_pickers.get(key)
-        if (
-            picker is None
-            or picker.source.user_id != tap.source.user_id
-            or picker.source.chat_id != tap.source.chat_id
-        ):
-            adapter.answer_callback(callback_id, "This model picker has expired. Run /model again.")
-            return None
-        session = self._get_session(tap.source)
-        if session.key != picker.session_key:
-            adapter.answer_callback(callback_id, "This model picker has expired. Run /model again.")
-            return None
-        if session.busy:
-            adapter.answer_callback(callback_id, "The model change has to wait until the current turn ends.")
-            return None
-        return picker, session
-
-    def _redraw_picker(self, tap: _PickerTap, picker: ModelPicker, session: GatewaySession) -> None:
-        text, keyboard = self._model_picker_view(picker, session)
-        tap.adapter.edit_model_picker(tap.source.chat_id, tap.message_id, text, keyboard)
-        tap.adapter.answer_callback(tap.callback_id)
-
-    def _picker_cancel(self, tap: _PickerTap, picker: ModelPicker, session: GatewaySession) -> None:
-        tap.adapter.edit_model_picker(tap.source.chat_id, tap.message_id, "Model selection cancelled.", [])
-        self._model_pickers.pop(picker.key, None)
-        tap.adapter.answer_callback(tap.callback_id)
-
-    def _picker_page(self, tap: _PickerTap, picker: ModelPicker, session: GatewaySession) -> None:
-        try:
-            picker.page = int(tap.value)
-        except ValueError:
-            tap.adapter.answer_callback(tap.callback_id, "Invalid model page.")
-            return
-        self._redraw_picker(tap, picker, session)
-
-    def _picker_back(self, tap: _PickerTap, picker: ModelPicker, session: GatewaySession) -> None:
-        picker.provider = None
-        picker.models = []
-        picker.page = 0
-        self._redraw_picker(tap, picker, session)
-
-    def _picker_provider(self, tap: _PickerTap, picker: ModelPicker, session: GatewaySession) -> None:
-        try:
-            provider = picker.providers[int(tap.value)]
-        except (ValueError, IndexError):
-            tap.adapter.answer_callback(tap.callback_id, "Invalid provider selection.")
-            return
-        from clite.providers.models import list_models
-
-        route = session.chat.agent.route
-        models = [
-            model.id for model in list_models(provider, route=route if provider == route.provider else None)
-        ]
-        if provider == route.provider and route.model not in models:
-            models.insert(0, route.model)
-        models = list(dict.fromkeys(models))
-        if not models:
-            tap.adapter.answer_callback(tap.callback_id, "That provider has no models available.")
-            return
-        picker.provider = provider
-        picker.models = models
-        picker.page = 0
-        self._redraw_picker(tap, picker, session)
-
-    def _picker_select(self, tap: _PickerTap, picker: ModelPicker, session: GatewaySession) -> None:
-        if picker.provider is None:
-            tap.adapter.answer_callback(tap.callback_id, "Invalid model selection.")
-            return
-        try:
-            model = picker.models[int(tap.value)]
-        except (ValueError, IndexError):
-            tap.adapter.answer_callback(tap.callback_id, "Invalid model selection.")
-            return
-        result = session.chat.switch_model(f"{picker.provider}:{model}")
-        text = f"Switched to {session.chat.agent.route.model}." if result.success else result.message
-        tap.adapter.edit_model_picker(tap.source.chat_id, tap.message_id, text, [])
-        if result.success:
-            self._model_pickers.pop(picker.key, None)
-            tap.adapter.answer_callback(tap.callback_id, "Model switched.")
-        else:
-            tap.adapter.answer_callback(tap.callback_id, "Could not switch model.")
-
-    # ── approval buttons ─────────────────────────────────────────────────────────────────
-
-    def _send_approval_buttons(
-        self, session: GatewaySession, pending: _Pending, command: str, description: str
-    ) -> bool:
-        """Send approval buttons and bind them to this exact pending question."""
-        adapter = self.adapters.get(session.source.platform)
-        if adapter is None or not adapter.can_send_buttons():
-            return False
-        import secrets
-
-        key = secrets.token_urlsafe(8)
-        keyboard = approval_keyboard(key)
-        text = f"This command needs your approval ({description}):\n\n{command}\n\nChoose an approval option."
-        result = adapter.send_approval_prompt(
-            session.source.chat_id, text, keyboard, thread_id=session.source.thread_id
-        )
-        if not result.success or not result.message_id:
-            return False
-        with self._lock:
-            still_pending = session.pending is pending
-            if still_pending:
-                self._approval_prompts[key] = _ApprovalPrompt(
-                    key, session.key, session.source, pending, result.message_id
-                )
-        if not still_pending:
-            # A text reply may arrive between sendMessage returning and this bookkeeping step.
-            # Do not leave a live keyboard for an approval that was already resolved.
-            adapter.edit_approval_prompt(session.source.chat_id, result.message_id, "Approval: expired.", [])
-        return True
-
-    def _close_approval_prompt(self, prompt: _ApprovalPrompt, text: str) -> None:
-        """Disable consumed or expired buttons. A failed cosmetic edit never reopens approval."""
-        with self._lock:
-            if self._approval_prompts.get(prompt.key) is not prompt:
-                return
-            self._approval_prompts.pop(prompt.key, None)
-        adapter = self.adapters.get(prompt.source.platform)
-        if adapter is not None:
-            adapter.edit_approval_prompt(prompt.source.chat_id, prompt.message_id, text, [])
-
-    def _close_approval_prompt_for(self, pending: _Pending, text: str) -> None:
-        """Remove the buttons of an approval answered by text or left to time out."""
-        with self._lock:
-            prompt = next(
-                (candidate for candidate in self._approval_prompts.values() if candidate.pending is pending),
-                None,
-            )
-        if prompt is not None:
-            self._close_approval_prompt(prompt, text)
+        self._model_picker.handle_callback(source, callback_id, data, message_id)
 
     def handle_approval_callback(
         self, source: SessionSource, callback_id: str, data: str, message_id: str
     ) -> None:
         """Resolve an approval button only for its authorized owner and live pending session."""
-        adapter = self.adapters.get(source.platform)
-        if adapter is None:
-            return
-        parts = data.split(":", 2)
-        if len(parts) != 3 or parts[0] != APPROVAL_PREFIX or parts[2] not in _APPROVAL_WORDS.values():
-            adapter.answer_callback(callback_id, "Invalid approval selection.")
-            return
-        _prefix, key, choice = parts
-        if not self.is_authorized(source):
-            adapter.answer_callback(callback_id, "You are not authorized.")
-            return
-        with self._lock:
-            prompt = self._approval_prompts.get(key)
-            if (
-                prompt is None
-                or prompt.message_id != message_id
-                or prompt.source.platform != source.platform
-                or prompt.source.chat_id != source.chat_id
-                or prompt.source.thread_id != source.thread_id
-                or prompt.source.user_id != source.user_id
-                or prompt.pending.answered.is_set()
-                or not (session := self.sessions.get(prompt.session_key))
-                or session.pending is not prompt.pending
-            ):
-                adapter.answer_callback(callback_id, "This approval has expired.")
-                return
-            prompt.pending.answer = choice
-            prompt.pending.answered.set()
-        self._close_approval_prompt(prompt, f"Approval: {choice}.")
-        adapter.answer_callback(callback_id, "Approval recorded.")
+        self._questions.handle_approval_callback(source, callback_id, data, message_id)
 
     # ── authorization ────────────────────────────────────────────────────────────────────
 
@@ -819,35 +386,12 @@ class GatewayRunner:
         timeout = float(get_path(self.config, "approvals.timeout", 300) or 300)
 
         def approve(*, command: str, description: str, pattern_keys: list[str]) -> str:
-            message = (
-                f"This command needs your approval ({description}):\n\n{command}\n\n"
-                "Reply /approve (once), /approve session, /approve always, or /deny."
+            return self._questions.approve(
+                key, source, command=command, description=description, timeout=timeout
             )
-            pending = _Pending("approval")
-            session = self.sessions.get(key)
-            if session is None:
-                return "deny"
-            session.pending = pending
-            if not self._send_approval_buttons(session, pending, command, description):
-                self.reply(source, message)
-            pending.answered.wait(timeout)
-            self._close_approval_prompt_for(pending, f"Approval: {pending.answer or 'denied'}.")
-            session.pending = None
-            return pending.answer or "deny"  # silence is a no
-
-        def ask(pending: _Pending, message: str) -> str:
-            session = self.sessions.get(key)
-            if session is None:
-                return ""
-            session.pending = pending
-            self.reply(source, message)
-            pending.answered.wait(timeout)
-            session.pending = None
-            return pending.answer
 
         def clarify(question: str, choices: list[str]) -> str:
-            options = "".join(f"\n{number}. {choice}" for number, choice in enumerate(choices, start=1))
-            return ask(_Pending("clarify", choices), f"{question}{options}")
+            return self._questions.clarify(key, source, question, choices, timeout=timeout)
 
         def on_status(kind: str, text: str) -> None:
             if kind in ("fallback", "compressed"):
@@ -879,7 +423,8 @@ class GatewayRunner:
             return dt_last < cutoff_yesterday
         return False
 
-    def _get_session(self, source: SessionSource) -> GatewaySession:
+    def session_for(self, source: SessionSource) -> GatewaySession:
+        """The session a message from ``source`` belongs to, resumed or started as needed."""
         key = build_session_key(
             source,
             group_sessions_per_user=bool(get_path(self.config, "gateway.group_sessions_per_user", True)),
@@ -966,11 +511,11 @@ class GatewayRunner:
             self._handle_unauthorized(event.source)
             return
 
-        session = self._get_session(event.source)
-        if session.pending is not None and self._answer_pending(session, text):
+        session = self.session_for(event.source)
+        if session.pending is not None and self._questions.answer(session, text):
             return
 
-        if text == "/model" and not session.busy and self._send_model_picker(session):
+        if text == "/model" and not session.busy and self._model_picker.offer(session):
             return
 
         if split_command(text)[0]:
@@ -1024,7 +569,13 @@ class GatewayRunner:
 
     def _submit_message(self, session: GatewaySession, event: MessageEvent, text: str) -> None:
         """Turn the message and its attachments into the next turn."""
-        images, notes, transcript = self._collect_attachments(session, event)
+        images, notes, transcript = collect_attachments(
+            event,
+            session.key,
+            adapter=self.adapters.get(event.source.platform),
+            config=self.config,
+            reply=self.reply,
+        )
         if transcript:
             text = f"{text}\n\n{transcript}".strip() if text else transcript
         if notes:
@@ -1036,135 +587,6 @@ class GatewayRunner:
             payload["voice"] = True  # the turn came from a recording; how to answer is a policy
         payload["reply_to"] = event.reply_to or event.message_id
         self._submit(session, text, payload=payload)
-
-    def _collect_attachments(
-        self, session: GatewaySession, event: MessageEvent
-    ) -> tuple[list[str], str, str]:
-        """Store the message's files and say what the model gets.
-
-        An image becomes a content part; a voice message becomes the words the transcription
-        provider heard; anything else is announced as a path the model can read with its file
-        tools. A file over the size limit is refused with a message to the user -- it is never
-        written, so nothing large lands on disk.
-        """
-        if not event.attachments:
-            return [], "", ""
-        max_bytes = int(get_path(self.config, "attachments.max_bytes", 5_000_000) or 5_000_000)
-        adapter = self.adapters.get(event.source.platform)
-        images: list[str] = []
-        notes: list[str] = []
-        spoken: list[str] = []
-        for attachment in event.attachments:
-            try:
-                if attachment.data is None:
-                    fetch = getattr(adapter, "fetch_attachment", None)
-                    if fetch is None:
-                        raise MediaError(
-                            f"{attachment.describe()} cannot be downloaded by the {event.source.platform} adapter"
-                        )
-                    attachment.data = fetch(attachment, max_bytes=max_bytes)
-                stored = media_store(attachment, session.key, max_bytes=max_bytes)
-            except MediaError as exc:
-                self.reply(event.source, f"I could not take that file: {exc}")
-                continue
-            if stored.kind == media.IMAGE:
-                images.append(str(stored.path))
-            elif stored.kind == media.AUDIO:
-                words, note = self._hear(attachment, stored)
-                if words:
-                    spoken.append(words)
-                else:
-                    notes.append(note)
-            else:
-                notes.append(
-                    f"The user attached {attachment.describe()}, saved at {stored.path}. "
-                    "Read it with the file tools if it is relevant."
-                )
-        logger.info(
-            "session %s took %d attachment(s): %d image(s), %d voice note(s)",
-            session.key,
-            len(event.attachments),
-            len(images),
-            len(spoken),
-        )
-        return images, "\n".join(notes), "\n\n".join(spoken)
-
-    def _hear(self, attachment: media.Attachment, stored: media.StoredFile) -> tuple[str, str]:
-        """The words in one voice message, or the note explaining why there are none.
-
-        Nothing here fails the turn. Without a provider, over the length or size ceiling, or
-        with a provider that errors, the model still gets the file and the user is told what
-        happened -- a voice message that ends in silence is worse than one that ends in text.
-        """
-        limits = speech.speech_limits()
-        try:
-            size = stored.path.stat().st_size
-        except OSError as exc:
-            return "", f"{attachment.describe()} could not be read back: {exc}"
-        # A recording this large is not worth paying a transcription API for. Only a
-        # ``speech.max_bytes`` set below ``attachments.max_bytes`` can bite: the larger file is
-        # already refused, and the user told so, before it ever reaches this point.
-        if limits["max_bytes"] and size > limits["max_bytes"]:
-            return "", (
-                f"{attachment.describe()} is larger than the "
-                f"{limits['max_bytes']:,.0f} byte limit for transcription, so it was not "
-                f"transcribed; it is saved at {stored.path}."
-            )
-        seconds = speech.audio_seconds(stored.path)
-        if limits["max_seconds"] and seconds is not None and seconds > limits["max_seconds"]:
-            return "", (
-                f"The user sent a voice message of {seconds:.0f} seconds, longer than the "
-                f"{limits['max_seconds']:.0f} second limit, so it was not transcribed; it is "
-                f"saved at {stored.path}."
-            )
-        provider = speech.get_transcription_provider()
-        if provider is None:
-            return "", (
-                f"The user attached {attachment.describe()}, saved at {stored.path}. "
-                "No speech-to-text provider is configured, so it was not transcribed; read it "
-                "with the file tools if it is relevant."
-            )
-        settings = speech.transcription_settings()
-        try:
-            # A provider that answers anything but a string is as broken as one that raises, and
-            # the turn has to survive both the same way.
-            words = provider.transcribe(
-                stored.path, model=settings["model"], language=settings["language"]
-            ).strip()
-        except Exception as exc:  # a broken provider is reported, not fatal
-            logger.warning("transcription failed for %s", stored.path, exc_info=True)
-            return "", (
-                f"The user's voice message could not be transcribed "
-                f"({type(exc).__name__}: {exc}); it is saved at {stored.path}."
-            )
-        if not words:
-            return "", (
-                f"The user's voice message held no speech that could be transcribed; it is "
-                f"saved at {stored.path}."
-            )
-        return words, ""
-
-    def _answer_pending(self, session: GatewaySession, text: str) -> bool:
-        pending = session.pending
-        assert pending is not None
-        if pending.kind == "approval":
-            words = text.lower().lstrip("/").split()
-            word = words[1] if len(words) > 1 and words[0] == "approve" else (words[0] if words else "")
-            choice = _APPROVAL_WORDS.get(word.rstrip(_APPROVAL_TRAILING_PUNCTUATION))
-            if choice is None:
-                self.reply(
-                    session.source, "Please answer /approve, /approve session, /approve always, or /deny."
-                )
-                return True
-            pending.answer = choice
-        else:
-            pending.answer = (
-                pending.choices[int(text) - 1]
-                if text.isdigit() and 1 <= int(text) <= len(pending.choices)
-                else text
-            )
-        pending.answered.set()
-        return True
 
     def _merge_bursts(self) -> bool:
         """Several messages sent in quick succession are one thought: answer them together.
@@ -1181,13 +603,13 @@ class GatewayRunner:
             return
         adapter = self.adapters.get(session.source.platform)
         typing_keeper = (
-            _typing_keeper(adapter, session.source.chat_id, thread_id=session.source.thread_id)
+            start_typing(adapter, session.source.chat_id, thread_id=session.source.thread_id)
             if adapter is not None
             else None
         )
         reply_to = str((turn.payload or {}).get("reply_to") or "") or None
         live = (
-            _LiveReply(
+            LiveReply(
                 adapter,
                 session.source,
                 reply_to=reply_to,
@@ -1221,62 +643,10 @@ class GatewayRunner:
             return  # the user moved on; whatever interrupted this turn runs next
         if stream is None:
             self.reply(session.source, result.final_response or "(no response)", reply_to=reply_to)
-        self._speak_reply(
-            session,
+        speak_reply(
+            session.source,
+            session.key,
             adapter,
             result.final_response or "",
             voice=bool((turn.payload or {}).get("voice")),
         )
-
-    def _speak_reply(
-        self,
-        session: GatewaySession,
-        adapter: BasePlatformAdapter | None,
-        text: str,
-        *,
-        voice: bool,
-    ) -> None:
-        """Answer a voice message with a voice message, on the platforms that asked for that.
-
-        The text answer is already in the chat, so this is a second, listenable copy, and nothing
-        depends on it: no provider, no policy for this platform, an answer too long to speak, or a
-        provider that fails all leave the turn exactly as it was. A long answer is left as text
-        rather than spoken in part, because half an answer read aloud is worse than one read.
-        """
-        if not voice or adapter is None or not text.strip():
-            return
-        if not speech.speaks_on(session.source.platform):
-            return
-        provider = speech.get_speech_provider()
-        if provider is None:
-            return
-        max_chars = speech.speech_limits()["max_chars"]
-        if max_chars and len(text) > max_chars:
-            logger.info("session %s: a %d character answer is too long to speak", session.key, len(text))
-            return
-        settings = speech.speech_settings()
-        directory = media.media_dir(session.key) / "spoken"
-        target = directory / f"reply-{int(time.time() * 1000)}.{provider.output_format}"
-        try:
-            directory.mkdir(parents=True, exist_ok=True)
-            provider.synthesize(text, target, voice=settings["voice"], model=settings["model"])
-            sent = adapter.send_file(session.source.chat_id, str(target), thread_id=session.source.thread_id)
-        except Exception:  # the text answer already landed; the voice copy is a bonus
-            logger.warning("session %s: could not speak the reply", session.key, exc_info=True)
-            try:  # a half-written file is worse than none, but failing to remove it is not a turn
-                target.unlink()
-            except OSError:
-                pass
-            return
-        if not sent.success:
-            # ``send_file`` reports a refusal rather than raising, so it is checked here too.
-            logger.warning(
-                "session %s: %s refused the spoken reply: %s",
-                session.key,
-                session.source.platform,
-                sent.error or "no reason given",
-            )
-            try:
-                target.unlink()
-            except OSError:
-                pass

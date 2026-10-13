@@ -83,7 +83,7 @@ def run_logs(args: argparse.Namespace) -> int:
 
 def run_status(args: argparse.Namespace) -> int:
     import clite.gateway.platforms.local
-    import clite.gateway.platforms.telegram  # noqa: F401
+    import clite.gateway.platforms.telegram  # noqa: F401 - importing registers the adapters
     from clite.gateway.platforms.base import PLATFORMS
     from clite.plugins.manager import ensure_plugins_loaded
 
@@ -141,7 +141,7 @@ def run_pair_revoke(args: argparse.Namespace) -> int:
     return 0
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("gateway", help="run the messaging gateway")
     parser.set_defaults(handler=run_status)
     actions = parser.add_subparsers(dest="gateway_action")

@@ -43,18 +43,18 @@ _COMPILED = [(re.compile(pattern, re.IGNORECASE), name) for pattern, name in _PA
 
 # Characters that are invisible when rendered and are used to hide instructions.
 _INVISIBLE = {
-    "​": "zero_width_space",
-    "‌": "zero_width_non_joiner",
-    "‍": "zero_width_joiner",
-    "⁠": "word_joiner",
-    "﻿": "byte_order_mark",
-    "‪": "bidi_embedding",
-    "‫": "bidi_embedding",
-    "‭": "bidi_override",
-    "‮": "bidi_override",
-    "⁦": "bidi_isolate",
-    "⁧": "bidi_isolate",
-    "⁨": "bidi_isolate",
+    "\u200b": "zero_width_space",
+    "\u200c": "zero_width_non_joiner",
+    "\u200d": "zero_width_joiner",
+    "\u2060": "word_joiner",
+    "\ufeff": "byte_order_mark",
+    "\u202a": "bidi_embedding",
+    "\u202b": "bidi_embedding",
+    "\u202d": "bidi_override",
+    "\u202e": "bidi_override",
+    "\u2066": "bidi_isolate",
+    "\u2067": "bidi_isolate",
+    "\u2068": "bidi_isolate",
 }
 
 
@@ -69,7 +69,7 @@ def scan_text(text: str) -> list[Threat]:
     found: dict[str, Threat] = {}
     for char, name in _INVISIBLE.items():
         # A BOM at the very start of a file is an encoding artefact, not an attack.
-        if char in (text[1:] if char == "﻿" else text):
+        if char in (text[1:] if char == "\ufeff" else text):
             found.setdefault(f"invisible_unicode:{name}", Threat(f"invisible_unicode:{name}", repr(char)))
     for pattern, name in _COMPILED:
         match = pattern.search(text)
