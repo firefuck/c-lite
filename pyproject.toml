@@ -93,6 +93,8 @@ clite = [
   "bundled/**/*.json",
   "bundled/**/*.txt",
   "bundled/**/*.sh",
+  # The licence a bundled skill came with ships beside it.
+  "bundled/**/LICENSE",
   "server/static/*.html",
   "server/static/*.json",
   "server/static/assets/*.css",

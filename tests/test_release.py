@@ -220,6 +220,28 @@ def test_the_wheel_check_accepts_a_complete_wheel_and_names_what_is_missing(tmp_
     assert release.inspect_wheel(short, REPO_ROOT) == [f"missing from the wheel: {skill}"]
 
 
+def _glob_pattern(glob: str) -> re.Pattern[str]:
+    """A setuptools package-data glob as a regex: ``**/`` spans directories, ``*`` does not."""
+    parts = re.split(r"(\*\*/|\*)", glob)
+    translated = {"**/": "(?:.*/)?", "*": "[^/]*"}
+    return re.compile("".join(translated.get(part, re.escape(part)) for part in parts) + "$")
+
+
+def test_every_data_file_the_wheel_must_ship_is_named_by_the_package_data():
+    """Building the wheel would catch it too, but only at release time; this runs in the suite."""
+    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    patterns = [_glob_pattern(glob) for glob in project["tool"]["setuptools"]["package-data"][APP_NAME]]
+    prefix = f"{APP_NAME}/"
+    data = sorted(
+        name.removeprefix(prefix)
+        for name in release.expected_wheel_files(REPO_ROOT)
+        # Modules of importable packages ship as code; everything else needs a package-data glob.
+        if not name.endswith(".py") or name.startswith(f"{prefix}bundled/")
+    )
+    unnamed = [name for name in data if not any(pattern.match(name) for pattern in patterns)]
+    assert not unnamed, "add a [tool.setuptools.package-data] glob for:\n" + "\n".join(unnamed)
+
+
 def test_area_instructions_for_contributors_are_not_expected_in_the_wheel():
     assert not any(name.endswith("/AGENTS.md") for name in release.expected_wheel_files(REPO_ROOT))
 
