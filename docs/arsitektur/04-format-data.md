@@ -134,7 +134,8 @@ TELEGRAM_BOT_TOKEN=...
 
 ### `state.db`
 
-SQLite dengan FTS5. Skema ada di `src/clite/state/schema.py`, kontraknya di
+SQLite dengan FTS5. Skema dan migrasinya ada di `src/clite/state/schema.py`, teks yang
+diindeks FTS di `src/clite/state/search.py`, kontraknya di
 [spesifikasi state](../spesifikasi/state.md). Satu baris `messages` adalah satu pesan dalam
 format di atas; `content` berstruktur disimpan sebagai JSON dengan `content_is_json=1`.
 

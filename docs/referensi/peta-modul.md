@@ -302,8 +302,10 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | Session storage: one SQLite file per profile with FTS5 search. |  |
-| `db.py` | ``SessionDB``: durable sessions and messages in ``<home>/state.db``. | `new_session_id()`, `get_session_db()`, `close_all_session_dbs()`, `SessionDB`, `format_insights()` |
-| `schema.py` | SQLite schema for sessions and messages. |  |
+| `db.py` | ``SessionDB``: durable sessions and messages in ``<home>/state.db``. | `new_session_id()`, `get_session_db()`, `close_all_session_dbs()`, `SessionDB` |
+| `insights.py` | Usage analytics over the session store: aggregate queries and their plain-text report. | `collect_insights()`, `format_insights()` |
+| `schema.py` | SQLite schema for sessions and messages, and how a database is brought up to it. | `prepare_schema()` |
+| `search.py` | Message search: the text a message is indexed by, and the statements that look it up. | `search_text_of()`, `search_statements()`, `fts_query()`, `escape_like()` |
 
 ## `clite/tools/`
 
@@ -364,4 +366,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 223 modul.
+Jumlah: 225 modul.

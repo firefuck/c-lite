@@ -186,7 +186,8 @@ def run_acp(args: argparse.Namespace) -> int:
 def run_insights(args: argparse.Namespace) -> int:
     import json
 
-    from clite.state.db import format_insights, get_session_db
+    from clite.state.db import get_session_db
+    from clite.state.insights import format_insights
 
     db = get_session_db()
     data = db.get_insights(days=args.days)

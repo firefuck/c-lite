@@ -12,6 +12,18 @@
 Penyimpanan sesi dan pesan yang tahan lama: satu file SQLite per profil
 (`<home>/state.db`) dengan pencarian teks penuh.
 
+## Bagian-bagian
+
+| File | Isi |
+|---|---|
+| `db.py` | `SessionDB` dan `get_session_db`: koneksi dan kuncinya, tulis-baca sesi dan pesan, pemetaan pesan ke baris dan kembali |
+| `schema.py` | Tabel, kolom tambahan (`COLUMN_ADDITIONS`), migrasi (`MIGRATIONS`), dan `prepare_schema` yang menerapkannya saat database dibuka |
+| `search.py` | Teks yang diindeks (`search_text_of`) dan pernyataan pencarian: FTS5, dengan cadangan `LIKE` |
+| `insights.py` | Kueri analitik pemakaian di balik `get_insights`, dan laporan teksnya untuk `/insights` dan `clite insights` |
+
+Hanya `SessionDB` yang memegang koneksi. Tiga modul lainnya menyusun pernyataan atau
+menjalankan kueri pada koneksi yang diserahkan `SessionDB` sambil memegang kuncinya.
+
 ## Skema
 
 | Tabel | Isi |
@@ -71,7 +83,8 @@ saat menulis.
 
 ## Yang sengaja berbeda dari Hermes
 
-- **Satu modul.** Hermes memecah state ke 30 lebih file `hermes_state_*.py`.
+- **Satu kelas.** Hermes memecah state ke 30 lebih file `hermes_state_*.py`. Di sini semua
+  akses lewat `SessionDB`, dibantu tiga modul kecil (lihat [Bagian-bagian](#bagian-bagian)).
 - **Kompaksi di tempat**, bukan sesi anak baru per kompresi.
 - **`turn_context` sebagai kolom.** Lihat [agent](agent.md).
 

@@ -682,7 +682,7 @@ def _handle_insights(session: ChatSession, args: str) -> SlashResult:
     db = session.agent.db
     if db is None:
         return SlashResult("Database not available.")
-    from clite.state.db import format_insights
+    from clite.state.insights import format_insights
 
     data = db.get_insights(days=days)
     return SlashResult(format_insights(data))
