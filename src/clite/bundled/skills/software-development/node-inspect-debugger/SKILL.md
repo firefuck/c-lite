@@ -29,7 +29,6 @@ Two tools, pick one:
 
 - A Node test fails and you need to see intermediate state
 - the C-lite TUI (`apps/tui`) crashes or behaves wrong and you want to inspect React/Ink state pre-render
-- tui_gateway child processes (`_SlashWorker`, PTY bridge workers) misbehave
 - You need to inspect a value in a closure that `console.log` can't reach without patching
 - Perf: attach to a running process to capture a CPU profile or heap snapshot
 
@@ -177,37 +176,39 @@ NODE_PATH=~/.clite/cache/scratch/cdp-tools/node_modules node ~/.clite/cache/scra
 
 ## Debugging the C-lite TUI
 
-The TUI is built Ink + tsx. Two common scenarios:
+The TUI is Ink + React in TypeScript, bundled by esbuild into one file, `clite-tui.mjs`.
+`clite tui` runs that bundle with Node, and the bundle starts the Python backend
+(`python -m clite.rpc.entry`) as its child. Two common scenarios:
 
-### Debugging a single Ink component under dev
+### Debugging from the source
 
-`apps/tui/package.json` has `npm run dev` (tsx --watch). Add `--inspect-brk` by running tsx directly:
+Node cannot load the `.tsx` components directly, so debug the bundle that `npm run build`
+writes to `apps/tui/dist/` (`npm run dev` builds it and runs it):
 
 ```bash
 cd <clite-repo>/apps/tui
-npm run build    # produce dist/ once so transpile isn't needed on first load
-node --inspect-brk dist/entry.js
+node build.mjs
+node --inspect-brk dist/clite-tui.mjs
 # In another terminal:
 node inspect -p <node pid>
 ```
 
-Then inside `debug>`:
+Then inside `debug>`, break on the bundled code (esbuild keeps one function per source
+function and comments each module with its source path):
 
 ```
-sb('dist/app.js', 220)     # or wherever the suspect render is
+sb('dist/clite-tui.mjs', 34900)   # or search the bundle for the suspect function
 cont
 ```
 
 When it pauses, `repl` → inspect `props`, state refs, `useInput` handler values, etc.
 
-### Debugging a running `clite --tui`
-
-The TUI spawns Node from the Python CLI. Easiest path:
+### Debugging a running `clite tui`
 
 ```bash
-# 1. Launch TUI
-clite --tui &
-TUI_PID=$(pgrep -f 'apps/tui/dist/entry' | head -1)
+# 1. Launch the TUI
+clite tui &
+TUI_PID=$(pgrep -f 'clite-tui.mjs' | head -1)
 
 # 2. Enable inspector on that Node PID
 kill -SIGUSR1 "$TUI_PID"
@@ -221,21 +222,26 @@ node inspect ws://127.0.0.1:9229/<uuid>
 
 Interacting with the TUI (typing in its window) continues to advance execution; your debugger can pause it on a breakpoint at any `sb(...)`.
 
-### Debugging `_SlashWorker` / PTY child processes
+### Debugging the backend
 
-Those are Python, not Node — use the `python-debugpy` skill for them. Only Node portions (Ink UI, tui_gateway client, tsx-run tests under `ui-tui/`) use this skill.
+The backend the TUI starts is Python, not Node: use the `python-debugpy` skill for it. Only
+the Node side (Ink UI, the protocol client in `packages/shared`, and the tests under
+`apps/tui/test/`) uses this skill.
 
-## Running Vitest Tests Under the Debugger
+## Running Tests Under the Debugger
+
+C-lite's TypeScript tests use Node's own runner, `node --test`:
 
 ```bash
 cd <clite-repo>/apps/tui
 # Run a single test file paused on entry
-node --inspect-brk ./node_modules/vitest/vitest.mjs run --no-file-parallelism src/app/foo.test.tsx
+node --inspect-brk --test --test-concurrency=1 test/render.test.ts
 ```
 
-In another terminal: `node inspect -p <pid>`, then `sb('src/app/foo.tsx', 42)`, `cont`.
+In another terminal: `node inspect -p <pid>`, then `sb('src/render.ts', 42)`, `cont`.
 
-Use `--no-file-parallelism` (vitest) or `--runInBand` (jest) so only one worker exists — debugging a pool is painful.
+`--test-concurrency=1` keeps a single test process, so there is only one target to attach
+to. For a project on Vitest, the equivalent is `--no-file-parallelism`; on Jest, `--runInBand`.
 
 ## Heap Snapshots & CPU Profiles (Non-interactive)
 

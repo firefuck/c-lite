@@ -192,7 +192,7 @@
     {
       "category": "software-development",
       "description": "Debug Node.js via --inspect + Chrome DevTools Protocol CLI.",
-      "hash": "sha256:fb3ecc5f830d088eca83e14b3f1f19407e244853685b7721691004e0619a8b0e",
+      "hash": "sha256:6ad3b3ca6e6e617a99d050c1cbdcd89e221dbc47ab250ae559c6cb5807505d72",
       "identifier": "dragovics/clite/src/clite/bundled/skills/software-development/node-inspect-debugger",
       "name": "node-inspect-debugger",
       "source": "github",
