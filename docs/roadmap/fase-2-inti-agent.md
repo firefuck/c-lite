@@ -350,19 +350,11 @@ tanpa variabel host) dan `SSHEnvironment` (satu koneksi ControlMaster per `task_
 `terminal.ssh.host`, file ops lewat `cat`/atomic-write/`ls`/`stat`). Keduanya didaftarkan dengan
 `register_environment_backend` dan dipilih lewat `terminal.backend`. Dijaga
 `tests/tools/test_environments.py` (14 tes, 3 bertanda `docker` yang terlewati tanpa daemon) dan
-suite tool file + terminal lama yang lulus tanpa perubahan. **Docker dan SSH asli belum pernah
-dijalankan**: Docker CLI ada tetapi tidak ada daemon di mesin ini, dan SSH tidak diuji terhadap
-host sungguhan. Rujukan Hermes tidak tersedia.
-
-**Belum diverifikasi.** Docker: perintah sungguhan di dalam container, mount langsung, isolasi
-berkas di luar mount, dan pembersihan container. SSH: koneksi ControlMaster sungguhan, transfer
-berkas, dan interaksi dengan `~/.ssh/config`. Lihat `docs/STATUS.md`.
+suite tool file + terminal lama yang lulus tanpa perubahan. Verifikasi integrasi nyata pada VM-36 kemudian lulus: Docker 3/3 (perintah dalam container, baca/tulis lewat mount, dan isolasi file di luar workspace) dan SSH localhost 3/3 (perintah, write/read/list/stat file, dan cleanup). Suite F2-T7 seluruhnya 20 lulus; `ruff check src tests scripts` bersih. Rujukan Hermes tidak tersedia.
 
 **Ukuran.** L
 
 **Bergantung pada.** -
-
-**Butuh dari Anda.** Docker di mesin pengembangan untuk menjalankan tesnya.
 
 ---
 
