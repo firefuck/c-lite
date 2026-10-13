@@ -43,20 +43,9 @@ TEST_NAME = re.compile(r"test_[a-z0-9_]+")
 HERMES_WORD = re.compile(r"\bHermes\b")
 LOCAL_WORD = re.compile(rf"(?<!\w){re.escape(DISPLAY)}(?!\w)")
 
-SKIP_DIRS = frozenset(
-    {
-        ".git",
-        "node_modules",
-        "build",
-        "dist",
-        "__pycache__",
-        ".pytest_cache",
-        ".mypy_cache",
-        ".ruff_cache",
-        ".venv",
-        "venv",
-    }
-)
+# Besides these, every hidden directory but .github is skipped: hidden directories hold tool
+# state (git, caches, virtualenvs, editor and agent workspaces), never project files.
+SKIP_DIRS = frozenset({"node_modules", "build", "dist", "__pycache__", "venv"})
 # Shipped content (skills, plugin READMEs) is not project documentation.
 SKIP_DOC_DIRS = SKIP_DIRS | {"bundled"}
 ROOT_PREFIXES = ("src/", "tests/", "scripts/", "docs/", "apps/", "ui-tui/", ".github/")
@@ -84,11 +73,15 @@ _NOT_A_PATH = re.compile(r"[\s<>*{}$|=,;]|\.\.\.|…")
 _LINE_SUFFIX = re.compile(r":\d+(?:-\d+)?$")
 
 
+def _walked(name: str, skip: frozenset[str]) -> bool:
+    return name not in skip and (not name.startswith(".") or name == ".github")
+
+
 def documents(root: Path) -> list[Path]:
     """Every Markdown document that belongs to the project, sorted."""
     found: list[Path] = []
     for directory, subdirectories, names in os.walk(root):
-        subdirectories[:] = [name for name in subdirectories if name not in SKIP_DOC_DIRS]
+        subdirectories[:] = [name for name in subdirectories if _walked(name, SKIP_DOC_DIRS)]
         found.extend(Path(directory) / name for name in names if name.endswith(".md"))
     return sorted(found)
 
@@ -97,7 +90,7 @@ def repository_files(root: Path) -> set[str]:
     """Relative POSIX paths of every file and directory, without caches and build output."""
     found: set[str] = set()
     for directory, subdirectories, names in os.walk(root):
-        subdirectories[:] = [name for name in subdirectories if name not in SKIP_DIRS]
+        subdirectories[:] = [name for name in subdirectories if _walked(name, SKIP_DIRS)]
         relative = Path(directory).relative_to(root)
         if relative.parts:
             found.add(relative.as_posix())

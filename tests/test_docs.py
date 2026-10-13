@@ -43,6 +43,23 @@ def _where(path: Path, line: int) -> str:
     return f"{path.relative_to(REPO_ROOT)}:{line}"
 
 
+def test_hidden_tool_directories_are_neither_documents_nor_repository_files(tmp_path):
+    for relative in (
+        "docs/guide.md",
+        ".github/pull_request_template.md",
+        ".venv/lib/README.md",
+        ".workspace/copy/docs/guide.md",
+        "node_modules/pkg/README.md",
+    ):
+        (tmp_path / relative).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / relative).write_text("# x\n", encoding="utf-8")
+    documents = [path.relative_to(tmp_path).as_posix() for path in doc_refs.documents(tmp_path)]
+    assert documents == [".github/pull_request_template.md", "docs/guide.md"]
+    files = doc_refs.repository_files(tmp_path)
+    assert "docs/guide.md" in files
+    assert not any(name.startswith((".venv", ".workspace", "node_modules")) for name in files)
+
+
 # ── links ────────────────────────────────────────────────────────────────────────────────
 
 
