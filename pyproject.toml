@@ -57,6 +57,9 @@ images = ["Pillow>=10,<13"]
 # back to the standard-library REPL, which stays supported and tested.
 cli = ["prompt_toolkit>=3.0,<4"]
 dev = [
+  # The optional extras whose code is type-checked and tested: without them strict mypy reads
+  # their classes as Any, and their tests are skipped.
+  "c-lite[cli,images]",
   "pytest>=8,<10",
   "ruff>=0.6,<1",
   "mypy>=1.10,<3",

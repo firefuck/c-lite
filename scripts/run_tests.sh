@@ -27,9 +27,11 @@ run_lint() {
   else
     echo "== ruff is not installed: lint skipped (pip install -e '.[dev]')"
   fi
-  if command -v mypy >/dev/null; then
+  # The project's interpreter, not whichever mypy is on PATH: one installed in an environment of
+  # its own cannot see the dependencies, and strict mode rejects every class it reads as Any.
+  if "$python" -m mypy --version >/dev/null 2>&1; then
     echo "== mypy"
-    mypy || failed=1
+    "$python" -m mypy || failed=1
   else
     echo "== mypy is not installed: type check skipped (pip install -e '.[dev]')"
   fi
