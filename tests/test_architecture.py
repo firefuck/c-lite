@@ -17,6 +17,7 @@ import ast
 import re
 import subprocess
 import sys
+import tokenize
 from pathlib import Path
 
 import pytest
@@ -378,6 +379,34 @@ def test_only_the_command_line_prints():
         "print() outside clite/cli: use logging, return the text to the surface, or emit a callback. "
         f"Found in {printing}; allowed in {sorted(PRINT_ALLOWED)}."
     )
+
+
+# ── suppressions ─────────────────────────────────────────────────────────────────────────
+
+_NOQA = re.compile(r"#\s*noqa\b")
+_NOQA_WITH_REASON = re.compile(r"#\s*noqa:\s*[A-Z]+\d+(?:\s*,\s*[A-Z]+\d+)*\s+-\s+\S")
+
+
+def test_every_noqa_names_its_rule_and_its_reason():
+    """`# noqa: <code> - <reason>`: a bare suppression hides why the rule does not apply there.
+    Skills ported from elsewhere keep their own comments."""
+    bare = []
+    for directory in ("src", "scripts", "tests"):
+        for path in sorted((REPO_ROOT / directory).rglob("*.py")):
+            if "bundled/skills" in path.as_posix():
+                continue
+            with path.open("rb") as source:
+                comments = [
+                    token
+                    for token in tokenize.tokenize(source.readline)
+                    if token.type == tokenize.COMMENT and _NOQA.search(token.string)
+                ]
+            bare.extend(
+                f"{path.relative_to(REPO_ROOT)}:{token.start[0]}: {token.string}"
+                for token in comments
+                if not _NOQA_WITH_REASON.search(token.string)
+            )
+    assert not bare, "write `# noqa: <code> - <reason>`:\n" + "\n".join(bare)
 
 
 # ── front-end workspaces ─────────────────────────────────────────────────────────────────

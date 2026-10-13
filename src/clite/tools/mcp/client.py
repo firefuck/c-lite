@@ -703,20 +703,18 @@ def mcp_servers_snapshot() -> list[dict[str, Any]]:
     """Every known server and its state, for `clite mcp list` and `/mcp`."""
     with _SERVERS_LOCK:
         servers = list(_SERVERS.values())
-    rows = []
-    for server in servers:
-        rows.append(
-            {
-                "name": server.name,
-                "transport": "http" if server.is_http else "stdio",
-                "alive": server.is_alive(),
-                "tools": list(server.registered),
-                "resources": len(server.resources),
-                "prompts": len(server.prompts),
-                "tools_changed": server.tools_changed,
-            }
-        )
-    return rows
+    return [
+        {
+            "name": server.name,
+            "transport": "http" if server.is_http else "stdio",
+            "alive": server.is_alive(),
+            "tools": list(server.registered),
+            "resources": len(server.resources),
+            "prompts": len(server.prompts),
+            "tools_changed": server.tools_changed,
+        }
+        for server in servers
+    ]
 
 
 # ── prompts as slash commands ─────────────────────────────────────────────────────────────

@@ -101,8 +101,10 @@ tes, atau task yang tidak ada; `tests/test_docs.py` memeriksanya.
   modul. Komentar menjelaskan *mengapa*, bukan *apa*.
 - Tidak ada kode mati, tidak ada pengaturan yang tidak dibaca, tidak ada parameter "untuk
   nanti".
-- `except Exception`, `urlopen`, dan `subprocess` yang ditandai ruff diberi
-  `# noqa: <kode> - <alasan>`. Ruff menolak `noqa` yang tidak lagi dibutuhkan.
+- Setiap `noqa` ditulis `# noqa: <kode> - <alasan>`, termasuk untuk `except Exception`,
+  `urlopen`, dan `subprocess` yang ditandai ruff (dijaga
+  `test_every_noqa_names_its_rule_and_its_reason`). Ruff menolak `noqa` yang tidak lagi
+  dibutuhkan.
 - Kompleksitas fungsi dibatasi 15 (ruff `C901`). Fungsi yang melewatinya dipecah, bukan
   dikecualikan.
 - Pesan galat untuk pengguna dan untuk model menyebut apa yang salah dan apa yang bisa

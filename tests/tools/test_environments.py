@@ -270,10 +270,11 @@ class _FakeSSH:
         import shlex
 
         directory = shlex.split(command.split("for f in", 1)[0].replace("cd", "").strip())[0]
-        lines = []
-        for name in sorted(self.files):
-            if name.rsplit("/", 1)[0] == directory:
-                lines.append(f"clite-ls-entry\tf\t{name.rsplit('/', 1)[-1]}\t{len(self.files[name])}")
+        lines = [
+            f"clite-ls-entry\tf\t{name.rsplit('/', 1)[-1]}\t{len(self.files[name])}"
+            for name in sorted(self.files)
+            if name.rsplit("/", 1)[0] == directory
+        ]
         return ExecResult("\n".join(lines), 0)
 
     def _stat(self, command: str) -> ExecResult:

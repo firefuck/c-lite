@@ -62,15 +62,14 @@ class TavilyProvider(WebSearchProvider):
         )
         with urllib.request.urlopen(request, timeout=15) as response:  # noqa: S310 - https
             data = json.loads(response.read())
-        results: list[dict[str, str]] = []
-        for hit in data.get("results", []):
-            results.append(
-                {
-                    "title": str(hit.get("title") or ""),
-                    "url": str(hit.get("url") or ""),
-                    "snippet": str(hit.get("content") or ""),
-                }
-            )
+        results: list[dict[str, str]] = [
+            {
+                "title": str(hit.get("title") or ""),
+                "url": str(hit.get("url") or ""),
+                "snippet": str(hit.get("content") or ""),
+            }
+            for hit in data.get("results", [])
+        ]
         return results[:max_results]
 
 

@@ -1302,7 +1302,7 @@ def test_tool_progress_keeps_only_the_last_lines():
 
 def test_a_tool_message_shows_the_tool_emoji_name_and_preview():
     import clite.tools.builtin.file_tools  # registers the emoji in the registry
-    import clite.tools.builtin.terminal  # noqa: F401
+    import clite.tools.builtin.terminal  # noqa: F401 - importing registers the emoji
     from clite.gateway.stream import tool_message
 
     assert tool_message("read_file", {"path": "/tmp/report.txt"}) == "📖 read_file\n/tmp/report.txt"

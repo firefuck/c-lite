@@ -40,39 +40,39 @@ def test_responses_every_request_repeats_the_previous_one_and_adds_to_its_end(fa
         probe,
         origin="test",
     )
-    outputs = []
-    for n in (1, 2):
-        outputs.append(
-            [
-                {
-                    "type": "reasoning",
-                    "id": f"rs_{n}",
-                    "encrypted_content": f"opaque-{n}",
-                    "summary": [{"type": "summary_text", "text": f"plan {n}"}],
-                },
-                {
-                    "type": "function_call",
-                    "id": f"fc_{n}",
-                    "call_id": f"call_{n}",
-                    "name": "probe",
-                    "arguments": json.dumps({"n": n}),
-                    "status": "completed",
-                },
-            ]
-        )
-    for n in (3, 4, 5):
-        outputs.append(
-            [
-                {
-                    "type": "message",
-                    "id": f"msg_{n}",
-                    "role": "assistant",
-                    "status": "completed",
-                    "phase": "final_answer",
-                    "content": [{"type": "output_text", "text": "done", "annotations": []}],
-                }
-            ]
-        )
+    # Two rounds that call the tool, then three that answer.
+    outputs = [
+        [
+            {
+                "type": "reasoning",
+                "id": f"rs_{n}",
+                "encrypted_content": f"opaque-{n}",
+                "summary": [{"type": "summary_text", "text": f"plan {n}"}],
+            },
+            {
+                "type": "function_call",
+                "id": f"fc_{n}",
+                "call_id": f"call_{n}",
+                "name": "probe",
+                "arguments": json.dumps({"n": n}),
+                "status": "completed",
+            },
+        ]
+        for n in (1, 2)
+    ]
+    outputs.extend(
+        [
+            {
+                "type": "message",
+                "id": f"msg_{n}",
+                "role": "assistant",
+                "status": "completed",
+                "phase": "final_answer",
+                "content": [{"type": "output_text", "text": "done", "annotations": []}],
+            }
+        ]
+        for n in (3, 4, 5)
+    )
     replies = []
     for output in outputs:
         payload = {

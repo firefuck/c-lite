@@ -552,7 +552,7 @@ def test_the_image_command_queues_a_file_for_the_next_message(make_session, tmp_
 def test_the_image_command_with_a_caption_submits_in_one_step(make_session, tmp_path):
     session, client = make_session([text_response("ok")])
     outcome = session.handle_input(f"/image {_png(tmp_path / 'a.png')} what colour is it?")
-    assert not isinstance(outcome, type(None)) and client.calls
+    assert outcome is not None and client.calls
     content = client.calls[0]["messages"][1]["content"]
     assert content[0] == {"type": "text", "text": "what colour is it?"}
     assert content[1]["type"] == "image_url"

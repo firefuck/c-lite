@@ -152,7 +152,7 @@ class _Registry:
                 try:
                     if not provider.is_available():
                         continue
-                except Exception:  # noqa: BLE001
+                except Exception:  # noqa: BLE001 - a provider whose check fails is skipped
                     continue
             elif provider.requires_api_key:
                 keys = getattr(provider, "api_key_envs", ()) or (

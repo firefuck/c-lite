@@ -205,7 +205,7 @@ def _build_fork(agent: AIAgent) -> AIAgent:
     max_turns = int(
         get_path(agent.config, "background_review.max_turns", REVIEW_MAX_TURNS) or REVIEW_MAX_TURNS
     )
-    fork = _AIAgent(
+    return _AIAgent(
         agent.route,
         platform=agent.platform,
         cwd=agent.cwd,
@@ -220,7 +220,6 @@ def _build_fork(agent: AIAgent) -> AIAgent:
         stream=False,
         auto_title=False,
     )
-    return fork
 
 
 def run_review(agent: AIAgent, state: TurnState, *, timeout: float | None = None) -> ReviewOutcome:

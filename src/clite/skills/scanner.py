@@ -73,13 +73,11 @@ class ScanReport:
 
     def lines(self) -> list[str]:
         """The report as plain lines, one finding per line, for a terminal or a test."""
-        out: list[str] = []
-        for path, what in sorted(self.threats.items()):
-            out.append(f"refused  {path}: {what}")
-        for path in sorted(self.binaries):
-            out.append(f"refused  {path}: not a text file")
-        for path, commands in sorted(self.scripts.items()):
-            out.append(f"script   {path}: {', '.join(commands)}")
+        out = [f"refused  {path}: {what}" for path, what in sorted(self.threats.items())]
+        out.extend(f"refused  {path}: not a text file" for path in sorted(self.binaries))
+        out.extend(
+            f"script   {path}: {', '.join(commands)}" for path, commands in sorted(self.scripts.items())
+        )
         if self.hosts:
             out.append(f"hosts    {', '.join(self.hosts)}")
         return out

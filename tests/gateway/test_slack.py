@@ -51,6 +51,7 @@ class FakeSlackServer:
                     )
 
                 self._reply({"ok": True})
+                return None
 
             def _reply(self, payload, status=200):
                 data = json.dumps(payload).encode("utf-8")

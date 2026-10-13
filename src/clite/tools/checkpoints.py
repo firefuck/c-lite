@@ -140,8 +140,10 @@ class RollbackResult:
         if self.empty:
             return "No checkpoints to roll back."
         parts = [
-            f"Rolled back {len(self.restored_groups)} turn(s): "
-            f"{len(self.restored)} file(s) restored, {len(self.removed)} file(s) removed."
+            (
+                f"Rolled back {len(self.restored_groups)} turn(s): "
+                f"{len(self.restored)} file(s) restored, {len(self.removed)} file(s) removed."
+            )
         ]
         for path, reason in self.skipped:
             parts.append(f"  skipped {path} ({reason})")

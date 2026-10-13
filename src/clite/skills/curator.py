@@ -77,8 +77,5 @@ def run_curator(
     :func:`find_stale_skills`.
     """
     stale = find_stale_skills(stale_days, now=now)
-    archived = []
-    if not dry_run:
-        for entry in stale:
-            archived.append(str(archive_skill(entry["name"])))
+    archived = [] if dry_run else [str(archive_skill(entry["name"])) for entry in stale]
     return {"stale": stale, "archived": archived, "dry_run": dry_run}

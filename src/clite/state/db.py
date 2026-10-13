@@ -344,10 +344,8 @@ class SessionDB:
         return self.append_messages(session_id, [message])[0]
 
     def append_messages(self, session_id: str, messages: Iterable[dict[str, Any]]) -> list[int]:
-        row_ids: list[int] = []
         with self._lock:
-            for message in messages:
-                row_ids.append(self._insert_message(session_id, message))
+            row_ids = [self._insert_message(session_id, message) for message in messages]
             if row_ids:
                 self._refresh_counts(session_id)
             self._conn.commit()

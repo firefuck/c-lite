@@ -121,7 +121,7 @@ class GitHubSource(SkillSource):
             headers["Authorization"] = f"Bearer {token}"
         request = urllib.request.Request(url, headers=headers)  # noqa: S310 - https hosts from the API
         try:
-            with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
+            with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - the request built above
                 body: bytes = response.read() if limit is None else response.read(limit + 1)
                 return body
         except urllib.error.HTTPError as exc:
@@ -439,7 +439,7 @@ def _read_url(url: str) -> str:
     if token and urllib.parse.urlsplit(url).netloc in _GITHUB_DOWNLOAD_HOSTS:
         request.add_header("Authorization", f"Bearer {token}")
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
+        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - a download URL the index or the API listed
             body: bytes = response.read(MAX_BUNDLE_BYTES)
             return body.decode("utf-8", errors="replace")
     except urllib.error.HTTPError as exc:

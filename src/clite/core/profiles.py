@@ -76,9 +76,11 @@ def list_profiles() -> list[ProfileInfo]:
     found = [ProfileInfo("default", get_default_root(), active == "default")]
     root = get_profiles_root()
     if root.is_dir():
-        for child in sorted(root.iterdir()):
-            if child.is_dir() and not child.name.startswith("."):
-                found.append(ProfileInfo(child.name, child, active == child.name))
+        found.extend(
+            ProfileInfo(child.name, child, active == child.name)
+            for child in sorted(root.iterdir())
+            if child.is_dir() and not child.name.startswith(".")
+        )
     return found
 
 

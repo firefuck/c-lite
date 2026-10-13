@@ -100,8 +100,10 @@ def skill_roots(
     if project is not None:
         roots.append((TIER_PROJECT, project / PROJECT_DIRNAME / "skills"))
     roots.append((TIER_LOCAL, get_skills_dir()))
-    for external in (cfg.get("skills") or {}).get("external_dirs") or []:
-        roots.append((TIER_EXTERNAL, Path(os.path.expanduser(os.path.expandvars(str(external))))))
+    roots.extend(
+        (TIER_EXTERNAL, Path(os.path.expanduser(os.path.expandvars(str(external)))))
+        for external in (cfg.get("skills") or {}).get("external_dirs") or []
+    )
     roots.extend((TIER_EXTERNAL, directory) for directory in _EXTRA_ROOTS.get(home_key(), ()))
     roots.append((TIER_BUNDLED, bundled_dir() / "skills"))
     return roots

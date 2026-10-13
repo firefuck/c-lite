@@ -58,7 +58,7 @@ def launch_tui(arguments: list[str], *, fallback_options: dict[str, Any] | None 
 
         return Repl(**(fallback_options or {})).run()
     env = {**os.environ, f"{ENV_PREFIX}_PYTHON": sys.executable}
-    return subprocess.call([node, str(bundle), *arguments], env=env)  # noqa: S603
+    return subprocess.call([node, str(bundle), *arguments], env=env)  # noqa: S603 - node runs the TUI bundle shipped in the package
 
 
 def run_tui(args: argparse.Namespace) -> int:

@@ -145,7 +145,7 @@ def _within_edge(raw: bytes, max_edge: int) -> bool:
     try:
         with Image.open(BytesIO(raw)) as opened:
             return max(opened.size) <= max_edge
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 - an image Pillow cannot read is left to the byte ceiling
         return True
 
 

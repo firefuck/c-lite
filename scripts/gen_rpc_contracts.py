@@ -18,10 +18,15 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from pydantic import BaseModel  # noqa: E402
+from pydantic import BaseModel  # noqa: E402 - after the sys.path setup above
 
 from clite.rpc.contracts import schema  # noqa: E402, F401 - importing registers everything
-from clite.rpc.contracts.base import EVENTS, METHODS, PROTOCOL_VERSION, SERVER_REQUESTS  # noqa: E402
+from clite.rpc.contracts.base import (  # noqa: E402 - after the sys.path setup above
+    EVENTS,
+    METHODS,
+    PROTOCOL_VERSION,
+    SERVER_REQUESTS,
+)
 
 OUTPUT = ROOT / "packages" / "shared" / "src" / "contracts.generated.ts"
 _PRIMITIVES = {

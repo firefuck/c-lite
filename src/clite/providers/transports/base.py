@@ -129,7 +129,7 @@ def _ensure_builtin() -> None:
         if _BUILTIN_LOADED:
             return
         registered_first = dict(_TRANSPORTS)  # a plugin may have registered before first use
-        from clite.providers.transports import (  # noqa: F401
+        from clite.providers.transports import (  # noqa: F401 - importing registers the built-in transports
             anthropic_messages,
             chat_completions,
             mock,

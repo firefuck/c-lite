@@ -120,7 +120,7 @@ class GatewayRunner:
         import clite.gateway.platforms.discord
         import clite.gateway.platforms.local  # registers the built-in adapters
         import clite.gateway.platforms.slack
-        import clite.gateway.platforms.telegram  # noqa: F401
+        import clite.gateway.platforms.telegram  # noqa: F401 - importing registers the adapter
 
         ensure_plugins_loaded()  # plugins may register more platforms
         started = []

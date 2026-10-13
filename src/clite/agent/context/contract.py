@@ -44,8 +44,10 @@ def contract_messages() -> list[dict[str, Any]]:
         }
     )
     messages.append({"role": "tool", "tool_call_id": "call_contract", "name": "terminal", "content": "ok"})
-    for index in range(11, 20):
-        messages.append({"role": "user" if index % 2 == 0 else "assistant", "content": f"message {index}"})
+    messages.extend(
+        {"role": "user" if index % 2 == 0 else "assistant", "content": f"message {index}"}
+        for index in range(11, 20)
+    )
     return messages
 
 

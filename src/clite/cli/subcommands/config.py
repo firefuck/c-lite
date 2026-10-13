@@ -72,7 +72,7 @@ def run_edit(args: argparse.Namespace) -> int:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.touch(exist_ok=True)
     editor = os.environ.get("VISUAL") or os.environ.get("EDITOR") or ("notepad" if os.name == "nt" else "vi")
-    return subprocess.call([*shlex.split(editor), str(path)])  # noqa: S603
+    return subprocess.call([*shlex.split(editor), str(path)])  # noqa: S603 - the user's own editor on their own config file
 
 
 def run_migrate(args: argparse.Namespace) -> int:

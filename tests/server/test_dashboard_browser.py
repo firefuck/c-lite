@@ -15,7 +15,7 @@ import pytest
 
 sync_api = pytest.importorskip("playwright.sync_api")
 
-from clite.server.run import serve  # noqa: E402
+from clite.server.run import serve  # noqa: E402 - after the importorskip above
 
 pytestmark = [pytest.mark.browser, pytest.mark.platforms("posix")]
 

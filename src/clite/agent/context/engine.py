@@ -45,18 +45,16 @@ def repair_tool_pairs(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for message in repaired:
         result.append(message)
-        for call in message.get("tool_calls") or []:
-            if call.get("id") not in answered:
-                result.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": call.get("id"),
-                        "name": (call.get("function") or {}).get("name"),
-                        "content": json.dumps(
-                            {"error": "result unavailable (removed during context compression)"}
-                        ),
-                    }
-                )
+        result.extend(
+            {
+                "role": "tool",
+                "tool_call_id": call.get("id"),
+                "name": (call.get("function") or {}).get("name"),
+                "content": json.dumps({"error": "result unavailable (removed during context compression)"}),
+            }
+            for call in message.get("tool_calls") or []
+            if call.get("id") not in answered
+        )
     return result
 
 

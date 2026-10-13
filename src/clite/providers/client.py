@@ -94,7 +94,7 @@ class LLMClient:
                 if not accumulator.feed(event.event, event.data):
                     break
             if handle.cancelled:
-                raise Cancelled()
+                raise Cancelled
             return accumulator.finish()
         except Cancelled as exc:
             raise InterruptedError("model call cancelled") from exc

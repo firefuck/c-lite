@@ -71,7 +71,7 @@ def test_the_bundle_is_self_contained_with_no_external_npm_imports():
     imports = re.findall(r"""(?:^|\n)\s*import\s+.*?from\s*["']([^"']+)["']""", bundle_code)
     for specifier in imports:
         # Allowed runtime imports: Node built-ins (node:*) or relative imports
-        assert specifier.startswith("node:") or specifier.startswith("./") or specifier.startswith("../"), (
+        assert specifier.startswith(("node:", "./", "../")), (
             f"Bundle has unbundled external npm dependency: {specifier}"
         )
 

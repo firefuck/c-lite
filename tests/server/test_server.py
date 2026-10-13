@@ -15,9 +15,9 @@ import pytest
 
 websockets_client = pytest.importorskip("websockets.sync.client")
 
-from clite import __version__  # noqa: E402
-from clite.core.brand import BACKEND_READY_SENTINEL  # noqa: E402
-from clite.server.run import dashboard_url, serve  # noqa: E402
+from clite import __version__  # noqa: E402 - after the importorskip above
+from clite.core.brand import BACKEND_READY_SENTINEL  # noqa: E402 - after the importorskip above
+from clite.server.run import dashboard_url, serve  # noqa: E402 - after the importorskip above
 
 
 class Backend:
@@ -564,8 +564,6 @@ dashboard:
 
 
 def write_page_plugin(clite_home, *, enabled=True, name="board"):
-    from clite.plugins.manifest import parse_manifest  # noqa: F401  (keeps the shape obvious)
-
     directory = clite_home / "plugins" / name
     (directory / "dashboard").mkdir(parents=True)
     (directory / "plugin.yaml").write_text(PAGE_PLUGIN.replace("board", name))

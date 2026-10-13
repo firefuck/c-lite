@@ -773,6 +773,7 @@ def test_a_plugin_can_refuse_a_memory_write(clite_home):
         seen.append((action, target, content or old_text))
         if "password" in content:
             return {"action": "block", "message": "Secrets do not belong in memory."}
+        return None
 
     get_hook_bus().register("pre_memory_write", guard, plugin="redactor")
 

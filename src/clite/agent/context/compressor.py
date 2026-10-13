@@ -241,8 +241,7 @@ def _split_excerpt(excerpt: str, budget: int) -> list[str]:
             if current:
                 chunks.append(current)
                 current = ""
-            for start in range(0, len(block), budget):
-                chunks.append(block[start : start + budget])
+            chunks.extend(block[start : start + budget] for start in range(0, len(block), budget))
         else:
             current = f"{current}\n\n{block}" if current else block
     if current:

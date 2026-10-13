@@ -236,3 +236,21 @@ def test_hermes_reference_checker_reports_a_missing_checkout(tmp_path):
     )
     assert result.returncode == 2
     assert "not a Hermes checkout" in result.stderr
+
+
+def test_hermes_reference_checker_tells_paths_from_home_files_and_host_names():
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    try:
+        import check_hermes_refs
+    finally:
+        sys.path.pop(0)
+    looks_like_a_path = check_hermes_refs.looks_like_a_path
+    assert looks_like_a_path("agent/redact.py", set())
+    assert looks_like_a_path("gateway/platforms/", set())  # a directory
+    assert looks_like_a_path("docs/guide.md", set())  # a known file suffix
+    assert looks_like_a_path("plugins/model-providers", {"plugins"})  # a known top-level folder
+    assert looks_like_a_path("run_agent.py", set())  # a bare name that is clearly code
+    assert not looks_like_a_path("config.yaml", set())  # a file in the user's home
+    assert not looks_like_a_path("api.example.sh", set())  # a host name
+    assert not looks_like_a_path(".env", set())
+    assert not looks_like_a_path("some/thing", set())

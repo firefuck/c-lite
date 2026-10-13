@@ -189,7 +189,9 @@ def test_delivery_and_the_silent_marker():
         now=NOW,
     )
     delivered = []
-    deliver = lambda job, text: delivered.append((job["origin"]["chat_id"], text))  # noqa: E731
+
+    def deliver(job, text):
+        delivered.append((job["origin"]["chat_id"], text))
 
     tick(NOW + 3600, client=ScriptedClient([text_response("[SILENT]")]), deliver=deliver)
     assert delivered == []  # nothing worth reporting: stay quiet

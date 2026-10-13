@@ -73,7 +73,7 @@ class MatrixAdapter:
             method=method,
         )
         try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
+            with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310 - the homeserver URL from config
                 parsed = json.loads(response.read())
         except Exception as exc:  # noqa: BLE001 - receive and send failures stay on their paths
             raise RuntimeError(f"Matrix {method} {path.split('?', 1)[0]} failed: {exc}") from None

@@ -471,7 +471,7 @@ def test_vertex_token_exchange_preserves_cancellation(fake_api, service_account)
     class CancelledExchange(HttpClient):
         def request_json(self, *args, **kwargs):
             kwargs["cancel"].cancel()
-            raise Cancelled()
+            raise Cancelled
 
     route = resolve_runtime_provider(
         "vertex", "model", api_key=json.dumps(service_account), base_url=fake_api.url, config={}

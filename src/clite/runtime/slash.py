@@ -568,8 +568,10 @@ def _handle_status(session: ChatSession, args: str) -> SlashResult:
     lines = [
         f"Session:  {info['session_id']}" + (f"  ({info['title']})" if info["title"] else ""),
         f"Model:    {info['model']} via {info['provider']}",
-        f"Context:  {context['last_prompt_tokens']:,} / {context['context_length']:,} tokens "
-        f"({context['usage_percent']}%), {info['message_count']} messages, {context['compression_count']} compressions",
+        (
+            f"Context:  {context['last_prompt_tokens']:,} / {context['context_length']:,} tokens "
+            f"({context['usage_percent']}%), {info['message_count']} messages, {context['compression_count']} compressions"
+        ),
         f"Tools:    {len(info['tools'])} from {', '.join(info['toolsets']) or 'no toolsets'}",
         f"Folder:   {info['cwd']}",
         f"State:    {'working' if info['busy'] else 'idle'}" + ("; approvals OFF" if info["yolo"] else ""),

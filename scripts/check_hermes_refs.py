@@ -36,7 +36,7 @@ def looks_like_a_path(path: str, top_level: set[str]) -> bool:
         # A bare name is checked only when it is clearly source code. `config.yaml` and
         # `MEMORY.md` are files in the user's home, and `api.example.sh` is a host name.
         return path.endswith(doc_refs.CODE_SUFFIXES) and not (path.endswith(".sh") and path.count(".") > 1)
-    if path.endswith("/") or path.endswith(doc_refs.FILE_SUFFIXES):
+    if path.endswith(("/", *doc_refs.FILE_SUFFIXES)):
         return True
     return path.split("/", 1)[0] in top_level  # e.g. `plugins/model-providers`
 

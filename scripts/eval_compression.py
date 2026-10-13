@@ -27,12 +27,15 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from clite.agent.context.compressor import ContextCompressor, missing_summary_sections  # noqa: E402
-from clite.core.config import load_config  # noqa: E402
-from clite.providers.auxiliary import resolve_auxiliary_route  # noqa: E402
-from clite.providers.client import LLMClient  # noqa: E402
-from clite.providers.runtime import resolve_runtime_provider  # noqa: E402
-from clite.providers.transports.types import RequestParams  # noqa: E402
+from clite.agent.context.compressor import (  # noqa: E402 - after the sys.path setup above
+    ContextCompressor,
+    missing_summary_sections,
+)
+from clite.core.config import load_config  # noqa: E402 - after the sys.path setup above
+from clite.providers.auxiliary import resolve_auxiliary_route  # noqa: E402 - after the sys.path setup above
+from clite.providers.client import LLMClient  # noqa: E402 - after the sys.path setup above
+from clite.providers.runtime import resolve_runtime_provider  # noqa: E402 - after the sys.path setup above
+from clite.providers.transports.types import RequestParams  # noqa: E402 - after the sys.path setup above
 
 # Each fact is a string that a good handoff note keeps: a file path, a decision, a failed
 # command with its reason, and a piece of unfinished work.

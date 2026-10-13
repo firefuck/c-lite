@@ -112,9 +112,9 @@ def get_secret(name: str, default: str | None = None) -> str | None:
     scope = _SECRET_SCOPE.get()
     if scope is not None:
         value = scope.get(name)
-        return value if value else default
+        return value or default
     value = os.environ.get(name)
-    return value if value else default
+    return value or default
 
 
 def save_secret(name: str, value: str, path: Path | None = None) -> None:

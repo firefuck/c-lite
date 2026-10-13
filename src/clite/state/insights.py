@@ -191,14 +191,13 @@ def format_insights(data: dict[str, Any]) -> str:
 
     if data["tools"]:
         lines.append("\nTop Tools:")
-        for t in data["tools"][:5]:
-            lines.append(f"  • {t['name']:<20} {t['count']:,} calls")
+        lines.extend(f"  • {t['name']:<20} {t['count']:,} calls" for t in data["tools"][:5])
 
     if data["daily"]:
         lines.append("\nDaily Activity:")
-        for d in data["daily"][:7]:
-            lines.append(
-                f"  • {d['date']}: {d['sessions']} sessions, {d['tokens']:,} tokens, ${d['cost_usd']:.4f}"
-            )
+        lines.extend(
+            f"  • {d['date']}: {d['sessions']} sessions, {d['tokens']:,} tokens, ${d['cost_usd']:.4f}"
+            for d in data["daily"][:7]
+        )
 
     return "\n".join(lines)
