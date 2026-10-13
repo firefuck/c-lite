@@ -105,12 +105,12 @@ jaringan.
 `agent/error_classifier.py`, `agent/reasoning_summaries.py`.
 
 **Selesai bila.**
-- [ ] Tes jaringan lulus terhadap Anthropic dan satu provider kompatibel OpenAI.
+- [x] Tes jaringan lulus terhadap Anthropic dan satu provider kompatibel OpenAI (dinyatakan pemilik proyek pada 13 Oktober 2026).
 - [ ] Setiap perbaikan yang lahir dari tes jaringan punya tes tanpa jaringan dengan fixture.
 - [ ] Teks penalaran model generasi 5 tampil bila `display.show_reasoning: true`.
 - [ ] Tabel "Aturan model Claude yang sudah diverifikasi" di spesifikasi providers diperbarui
       dengan tanggal dan apa yang benar-benar diamati.
-- [ ] Baris "Panggilan ke provider sungguhan" berubah dari "belum diverifikasi".
+- [x] Baris "Panggilan ke provider sungguhan" berubah dari "belum diverifikasi".
 
 **Ukuran.** M
 
@@ -128,6 +128,10 @@ beberapa ronde tool, giliran kedua, `/compress`, dan ganti model, serta klasifik
 salah, model tidak ada, konteks meluap, permintaan tidak sah). Batas laju dan penolakan tidak
 bisa dipicu sesuka hati dan tidak dites. Sisa: jalankan tes jaringan dengan kunci, simpan
 fixture dari respons asli, dan perbarui tabel aturan model Claude dengan pengamatan.
+
+**Catatan 13 Oktober 2026.** Pemilik proyek menyatakan tes jaringan sudah dijalankan dan lulus.
+Fixture dari respons asli dan pengamatan per model belum tersimpan di repositori, sehingga
+kriteria itu, juga tampilan teks penalaran, tetap terbuka sampai ada catatannya.
 
 ---
 
@@ -153,10 +157,10 @@ fixture dari respons asli, dan perbarui tabel aturan model Claude dengan pengama
 `plugins/platforms/telegram/telegram_network.py`, `gateway/delivery.py`.
 
 **Selesai bila.**
-- [ ] Daftar periksa di atas dijalankan dan hasilnya dicatat di `docs/STATUS.md`.
+- [x] Daftar periksa di atas dijalankan dan hasilnya dicatat di `docs/STATUS.md` (dinyatakan pemilik proyek pada 13 Oktober 2026; grup dilewati atas keputusan pemilik).
 - [x] `deliver: <platform>:<chat id>` punya tes, dan nilainya divalidasi saat job dibuat.
 - [x] Ada tes bahwa galat jaringan adapter tidak menulis token ke log.
-- [ ] Baris adapter Telegram di spesifikasi gateway menjadi ✅.
+- [x] Baris adapter Telegram di spesifikasi gateway menjadi ✅.
 
 **Ukuran.** S
 

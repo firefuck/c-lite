@@ -5,9 +5,10 @@ CLI, TUI, dashboard web, aplikasi desktop, dan gateway pesan. Arsitekturnya ditu
 [Hermes Agent](https://github.com/NousResearch/hermes-agent) milik Nous Research.
 
 **Status: v1.0.1.** Seluruh task roadmap awal selesai dan dijaga tes, tetapi sebagian belum pernah
-dijalankan terhadap hal yang sebenarnya (API provider asli, Telegram asli, Electron, Windows).
-Daftar pastinya ada di [docs/STATUS.md](docs/STATUS.md). Ukurannya kira-kira dua persen dari
-Hermes; yang ada di sini adalah fondasi dan peta kerja untuk menumbuhkan sisanya.
+dijalankan terhadap hal yang sebenarnya (aplikasi desktop, macOS, Windows sejak refactor, dan
+platform pesan selain Telegram). Daftar pastinya ada di [docs/STATUS.md](docs/STATUS.md).
+Ukurannya kira-kira dua persen dari Hermes; yang ada di sini adalah fondasi dan peta kerja untuk
+menumbuhkan sisanya.
 
 ## Yang sudah ada
 

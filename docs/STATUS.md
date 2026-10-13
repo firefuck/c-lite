@@ -63,7 +63,8 @@ ada di [riwayat per task](#riwayat-per-task).
 | Backend terminal Docker | VM-36: 3/3 tes perintah dalam container, baca/tulis lewat mount, penolakan file di luar workspace | F2-T7 |
 | Backend terminal SSH | VM-36, ke localhost: 3/3 tes perintah, operasi file, dan cleanup | F2-T7 |
 | Installer desktop Linux | AppImage 0.1.0 dibangun dan dijalankan; jendela memuat dashboard lama dari backend-nya sendiri | F5-T4 |
-| Token bot Telegram | `getMe` terhadap Bot API asli dan `clite gateway run` hidup dengan token itu (10 Oktober 2026). Percakapan dua arah belum | F1-T3 |
+| Panggilan ke provider sungguhan | Tes jaringan `tests/providers/test_live.py` lulus terhadap Anthropic dan satu provider kompatibel OpenAI, dinyatakan pemilik proyek pada 13 Oktober 2026. Log run, fixture dari respons asli, dan pengamatan per model tidak tersimpan di repositori | F1-T2 |
+| Gateway Telegram dua arah | `getMe` dan `clite gateway run` dengan bot sungguhan (10 Oktober 2026, rinciannya di riwayat F1-T3). Sisa daftar periksa F1-T3 sudah dijalankan, dinyatakan pemilik proyek pada 13 Oktober 2026, kecuali grup yang dilewati atas keputusan pemilik; hasil per butir tidak tersimpan di repositori | F1-T3 |
 
 Pada 6 Oktober 2026 CI repo `https://github.com/dragovics/clite` run `37356398420` pada
 commit `6e6669c` lulus di semua job. Job Python memasang paket dari registry dan
@@ -81,20 +82,17 @@ F1-T1 selesai.
 Semua butir ini punya kode, dan sebagian punya tes terhadap tiruan, tetapi belum pernah
 dijalankan terhadap hal yang sebenarnya. Anggap belum berfungsi sampai terbukti.
 
-Catatan: indeks roadmap menandai F1-T2 dan F1-T3 ✅ (commit `6b4a052`, 13 Oktober 2026),
-tetapi kriteria "Selesai bila" di `docs/roadmap/fase-1-fondasi.md` untuk keduanya belum
-dicentang dan tidak ada catatan uji sungguhan di halaman ini. Sampai catatannya ditambahkan,
-butir di bawah yang merujuk F1-T2 dan F1-T3 tetap dianggap belum diverifikasi.
+Catatan: F1-T2 dan F1-T3 dinyatakan terverifikasi oleh pemilik proyek pada 13 Oktober 2026 dan
+dipindah ke tabel di atas. Dua kriteria F1-T2 yang butuh artefak, yaitu fixture dari respons
+asli dan tabel pengamatan model Claude di spesifikasi providers, masih terbuka.
 
 | Hal | Keadaan | Task |
 |---|---|---|
-| Panggilan ke provider sungguhan | Belum pernah tercatat. Transport `anthropic_messages`, `chat_completions`, dan `responses` hanya diuji terhadap server tiruan, termasuk pemutaran ulang blok penalaran bertanda tangan model Claude generasi 5 (aturannya dari dokumentasi, bukan pengamatan) dan `thinking.display: summarized` | F1-T2, F2-T1 |
-| Tes jaringan provider (`tests/providers/test_live.py`) | Ditulis, belum pernah dijalankan: menunggu kunci Anthropic dan satu provider kompatibel OpenAI | F1-T2 |
+| Transport `responses` dengan provider sungguhan | Hanya diuji terhadap server tiruan; uji sungguhan F1-T2 mencakup `anthropic_messages` dan `chat_completions` | F2-T1 |
 | Persetujuan `smart` dengan model sungguhan | Hanya diuji dengan model berskrip | F1-T2 |
 | Profil provider tambahan | Rute, bentuk HTTP, dan discovery diuji dengan server lokal. API asli, LM Studio/vLLM sungguhan, dan cloud Azure/Bedrock/Vertex belum pernah dipanggil | F2-T2 |
 | Gambar: masukan, `vision_analyze`, `image-gen-openai` | Bentuk permintaan diuji terhadap transport dan HTTP loopback. Provider berpenglihatan dan OpenAI Images asli belum pernah dipanggil | F2-T6 |
 | Pencarian web (`web-search-ddg`, `web-search-tavily`) | Diuji terhadap server HTTP lokal; DuckDuckGo dan Tavily asli belum | F2-T5 |
-| Gateway Telegram dua arah | Daftar periksa F1-T3 (pesan langsung, pairing, grup, jawaban panjang, `/approve`, klarifikasi, interupsi, restart, cron `deliver: origin`) belum dijalankan. Pengiriman cron ke `<platform>:<chat id>` diuji dengan adapter `local` saja | F1-T3 |
 | Platform pesan lain (Discord, Slack, WhatsApp, Signal, Matrix, email) | Hanya terhadap layanan tiruan | F4-T1, F4-T2, F4-T3 |
 | macOS | Belum pernah dijalankan | F1-T1 |
 | Installer desktop macOS dan Windows | Belum pernah dibangun; pekerjaan `desktop` di `release.yml` belum pernah berjalan; installer tidak bertanda tangan | F5-T4 |
