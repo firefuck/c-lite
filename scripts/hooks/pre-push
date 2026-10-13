@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Run every check before a push leaves this machine.
+#
+# GitHub Actions cannot run for this repository, so this hook is what keeps a broken commit
+# from reaching the remote. Turn it on once per clone:
+#
+#   git config core.hooksPath scripts/hooks
+#
+# It runs scripts/run_tests.sh, the same checks the CI workflow lists. A push that only deletes
+# remote refs has nothing to check and goes through. `git push --no-verify` skips the hook;
+# use it only when you know why.
+set -euo pipefail
+
+zero="0000000000000000000000000000000000000000"
+has_commits=0
+# Git passes one line per ref: <local ref> <local sha> <remote ref> <remote sha>.
+while read -r _local_ref local_sha _remote_ref _remote_sha; do
+  if [ -n "${local_sha:-}" ] && [ "$local_sha" != "$zero" ]; then
+    has_commits=1
+  fi
+done
+
+if [ "$has_commits" -eq 0 ]; then
+  exit 0
+fi
+
+cd "$(git rev-parse --show-toplevel)"
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+  echo "pre-push: note: uncommitted changes are checked too, but they are not part of this push." >&2
+fi
+echo "pre-push: running scripts/run_tests.sh (git push --no-verify skips it)" >&2
+if ! scripts/run_tests.sh; then
+  echo "pre-push: checks failed; nothing was pushed. Fix them, or push with --no-verify if you must." >&2
+  exit 1
+fi
