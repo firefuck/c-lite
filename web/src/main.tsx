@@ -1,14 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-
-function App() {
-  return (
-    <div style={{ fontFamily: "sans-serif", padding: "20px" }}>
-      <h1>C-lite Dashboard (React + Vite)</h1>
-      <p>Status: Ready</p>
-    </div>
-  );
-}
+import { App } from "./App.tsx";
 
 const rootElement = document.getElementById("root");
 if (rootElement) {
