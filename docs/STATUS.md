@@ -8,7 +8,7 @@ log verifikasi bertanggal di [catatan verifikasi](#catatan-verifikasi).
 ## Dijaga tes
 
 Pemeriksaan terbaru dijalankan 13 Oktober 2026 di Linux, Python 3.13.16, Node 22.22.0 dan
-Chromium 1194, pada `7a110cc` (rilis 1.0.1), lewat hook `pre-push` (`scripts/run_tests.sh`).
+Chromium 1194, pada `d5c1426`, lewat hook `pre-push` (`scripts/run_tests.sh`).
 Electron tidak terpasang di lingkungan itu.
 
 | Pemeriksaan | Hasil |
@@ -17,7 +17,7 @@ Electron tidak terpasang di lingkungan itu.
 | `ruff format --check src tests scripts` | Bersih (dijalankan juga di `scripts/run_tests.sh lint` dan workflow CI) |
 | `biome ci` (TypeScript, `biome.jsonc`) | Bersih: format dan lint semua workspace, dijalankan di `scripts/run_tests.sh lint` (13 Oktober 2026) |
 | `mypy` (233 file sumber) | Bersih dalam mode `strict` (anotasi lengkap, generik berparameter, tanpa `Any` yang bocor lewat nilai kembali) sejak 13 Oktober 2026 |
-| Tes Python (`pytest tests`) | 1700 lulus, 43 terlewati (jaringan, Windows, Docker, SSH, paket opsional). Tanpa identitas git (`user.name`, `user.email`), `tests/test_release.py::test_tagging_needs_a_clean_tree_and_creates_the_tag_for_the_version` gagal karena lingkungan |
+| Tes Python (`pytest tests`) | 1702 lulus, 43 terlewati (jaringan, Windows, Docker, SSH, paket opsional). Tanpa identitas git (`user.name`, `user.email`), `tests/test_release.py::test_tagging_needs_a_clean_tree_and_creates_the_tag_for_the_version` gagal karena lingkungan |
 | Tes TypeScript `packages/shared` | 22 lulus; `tsc --noEmit` bersih (13 Oktober 2026) |
 | Tes TypeScript `apps/tui` | 60 lulus; `tsc --noEmit` bersih (13 Oktober 2026) |
 | Tes TypeScript `apps/web` (dashboard) | 10 lulus terhadap server tiruan; `tsc --noEmit` bersih (13 Oktober 2026) |
