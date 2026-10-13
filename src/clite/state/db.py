@@ -202,48 +202,30 @@ class SessionDB:
         cost_usd: float | None = None,
     ) -> None:
         with self._lock:
-            if cost_usd is not None:
-                self._conn.execute(
-                    """UPDATE sessions SET
-                         input_tokens = input_tokens + ?, output_tokens = output_tokens + ?,
-                         cache_read_tokens = cache_read_tokens + ?,
-                         cache_write_tokens = cache_write_tokens + ?,
-                         reasoning_tokens = reasoning_tokens + ?, api_call_count = api_call_count + ?,
-                         estimated_cost_usd = COALESCE(estimated_cost_usd, 0) + ?,
-                         last_activity_at = ?
-                       WHERE id = ?""",
-                    (
-                        input_tokens,
-                        output_tokens,
-                        cache_read_tokens,
-                        cache_write_tokens,
-                        reasoning_tokens,
-                        api_calls,
-                        cost_usd,
-                        time.time(),
-                        session_id,
-                    ),
-                )
-            else:
-                self._conn.execute(
-                    """UPDATE sessions SET
-                         input_tokens = input_tokens + ?, output_tokens = output_tokens + ?,
-                         cache_read_tokens = cache_read_tokens + ?,
-                         cache_write_tokens = cache_write_tokens + ?,
-                         reasoning_tokens = reasoning_tokens + ?, api_call_count = api_call_count + ?,
-                         last_activity_at = ?
-                       WHERE id = ?""",
-                    (
-                        input_tokens,
-                        output_tokens,
-                        cache_read_tokens,
-                        cache_write_tokens,
-                        reasoning_tokens,
-                        api_calls,
-                        time.time(),
-                        session_id,
-                    ),
-                )
+            # An unknown cost leaves the column as it is: NULL marks a session nobody could price.
+            self._conn.execute(
+                """UPDATE sessions SET
+                     input_tokens = input_tokens + ?, output_tokens = output_tokens + ?,
+                     cache_read_tokens = cache_read_tokens + ?,
+                     cache_write_tokens = cache_write_tokens + ?,
+                     reasoning_tokens = reasoning_tokens + ?, api_call_count = api_call_count + ?,
+                     estimated_cost_usd = CASE WHEN ? IS NULL THEN estimated_cost_usd
+                                               ELSE COALESCE(estimated_cost_usd, 0) + ? END,
+                     last_activity_at = ?
+                   WHERE id = ?""",
+                (
+                    input_tokens,
+                    output_tokens,
+                    cache_read_tokens,
+                    cache_write_tokens,
+                    reasoning_tokens,
+                    api_calls,
+                    cost_usd,
+                    cost_usd,
+                    time.time(),
+                    session_id,
+                ),
+            )
             self._conn.commit()
 
     def list_sessions(
