@@ -20,6 +20,7 @@ multi-file mode adds atomicity, not a new route past the guards.
 
 from __future__ import annotations
 
+import difflib
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -258,60 +259,69 @@ def parse_v4a_patch(patch_text: str) -> ParsedPatch:
     lines = patch_text.splitlines()
     hunks: list[PatchHunk] = []
     i = 0
-    n = len(lines)
-    while i < n:
-        line = lines[i]
-        stripped = line.strip()
-        if not stripped:
+    try:
+        while i < len(lines):
+            stripped = lines[i].strip()
             i += 1
-            continue
-        if not stripped.startswith("*** "):
-            i += 1
-            continue
-        header_body = stripped[4:]
-        if ":" in header_body:
-            op_label, path = header_body.split(":", 1)
-        else:
-            parts = header_body.split(None, 1)
-            if len(parts) != 2:
-                return ParsedPatch(hunks, f"malformed file header: {line!r}")
-            op_label, path = parts
-        op = op_label.strip().lower()
-        path = path.strip()
-        if op not in _V4A_HEADERS:
-            return ParsedPatch(hunks, f"unknown patch op {op_label!r}; expected Update/Add/Delete File")
-        if not path:
-            return ParsedPatch(hunks, f"file header missing a path: {line!r}")
-        op_verb = op.split()[0]
-        i += 1
-        context = ""
-        removed: list[str] = []
-        added: list[str] = []
-        # Optional @@ context hint @@
-        if i < n and lines[i].lstrip().startswith("@@") and lines[i].rstrip().endswith("@@"):
-            context = lines[i].strip()
-            i += 1
-        while i < n:
-            body = lines[i]
-            if body.startswith("*** "):
-                break
-            if body.startswith("-"):
-                removed.append(body[1:])
-            elif body.startswith("+"):
-                added.append(body[1:])
-            elif body.startswith(" "):
-                # context line — belongs to neither side but anchors the hunk
-                pass
-            elif body.strip() == "":
-                # blank line inside a hunk is treated as a context blank
-                pass
-            else:
-                return ParsedPatch(hunks, f"unexpected line in hunk for {path}: {body!r}")
-            i += 1
-        hunks.append(PatchHunk(op=op_verb, path=path, context=context, removed=removed, added=added))
+            if not stripped.startswith("*** "):
+                continue  # blank lines and anything before the first header
+            hunk, i = _parse_hunk(lines, i, stripped)
+            hunks.append(hunk)
+    except _PatchSyntaxError as exc:
+        return ParsedPatch(hunks, str(exc))
     if not hunks:
         return ParsedPatch([], "patch contains no file headers")
     return ParsedPatch(hunks)
+
+
+class _PatchSyntaxError(ValueError):
+    """A V4A patch that cannot be parsed; the message is what the model is told."""
+
+
+def _parse_hunk(lines: list[str], i: int, header: str) -> tuple[PatchHunk, int]:
+    """Parse the hunk whose ``*** Op File: path`` header line was ``lines[i - 1]``.
+
+    Returns the hunk and the index of the line after it.
+    """
+    op, path = _parse_header(header, lines[i - 1])
+    context = ""
+    # Optional @@ context hint @@
+    if i < len(lines) and lines[i].lstrip().startswith("@@") and lines[i].rstrip().endswith("@@"):
+        context = lines[i].strip()
+        i += 1
+    removed: list[str] = []
+    added: list[str] = []
+    while i < len(lines) and not lines[i].startswith("*** "):
+        body = lines[i]
+        if body.startswith("-"):
+            removed.append(body[1:])
+        elif body.startswith("+"):
+            added.append(body[1:])
+        elif not body.startswith(" ") and body.strip():
+            # A context line (leading space) or a blank line anchors the hunk but belongs to
+            # neither side; anything else is not V4A.
+            raise _PatchSyntaxError(f"unexpected line in hunk for {path}: {body!r}")
+        i += 1
+    return PatchHunk(op=op, path=path, context=context, removed=removed, added=added), i
+
+
+def _parse_header(header: str, line: str) -> tuple[str, str]:
+    """``("update" | "add" | "delete", path)`` from a stripped ``*** Op File: path`` line."""
+    header_body = header[4:]
+    if ":" in header_body:
+        op_label, path = header_body.split(":", 1)
+    else:
+        parts = header_body.split(None, 1)
+        if len(parts) != 2:
+            raise _PatchSyntaxError(f"malformed file header: {line!r}")
+        op_label, path = parts
+    op = op_label.strip().lower()
+    path = path.strip()
+    if op not in _V4A_HEADERS:
+        raise _PatchSyntaxError(f"unknown patch op {op_label!r}; expected Update/Add/Delete File")
+    if not path:
+        raise _PatchSyntaxError(f"file header missing a path: {line!r}")
+    return op.split()[0], path
 
 
 # ── atomic application ─────────────────────────────────────────────────────────────────
@@ -373,89 +383,77 @@ def apply_v4a_patch(patch_text: str, resolve) -> MultiFileResult:
         planned.append((hunk, path))
 
     applied: list[_AppliedFile] = []
-    import difflib
-
     for hunk, path in planned:
-        existed = path.is_file()
-        before = path.read_text(encoding="utf-8") if existed else None
-
-        if hunk.op == "add":
-            new_content = "\n".join(hunk.added)
-            if not new_content.endswith("\n") and new_content:
-                new_content += "\n"
-            try:
-                atomic_write_text(path, new_content)
-            except OSError as exc:
-                _rollback(applied)
-                return MultiFileResult(applied=[], rolled_back=True, error=f"could not write {path}: {exc}")
-            diff = "".join(
-                difflib.unified_diff(
-                    [],
-                    new_content.splitlines(keepends=True),
-                    fromfile=f"a/{path.name}",
-                    tofile=f"b/{path.name}",
-                    n=2,
-                )
-            )
-            applied.append(_AppliedFile(path=path, created=not existed, before=before, diff=diff))
-            continue
-
-        if hunk.op == "delete":
-            if not existed:
-                continue  # nothing to delete; treat as applied-no-op
-            try:
-                path.unlink()
-            except OSError as exc:
-                _rollback(applied)
-                return MultiFileResult(applied=[], rolled_back=True, error=f"could not delete {path}: {exc}")
-            diff = "".join(
-                difflib.unified_diff(
-                    (before or "").splitlines(keepends=True),
-                    [],
-                    fromfile=f"a/{path.name}",
-                    tofile=f"b/{path.name}",
-                    n=2,
-                )
-            )
-            applied.append(_AppliedFile(path=path, created=False, before=before, diff=diff))
-            continue
-
-        # op == "update"
-        if not existed:
-            _rollback(applied)
-            return MultiFileResult(applied=[], rolled_back=True, error=f"file not found: {path}")
-        content = before or ""
-        old, new, _ = _hunk_to_replacement(hunk)
-        if not old:
-            _rollback(applied)
-            return MultiFileResult(
-                applied=[],
-                rolled_back=True,
-                error=f"update hunk for {path} has no removed lines; use *** Add File to create content",
-            )
-        match = find_tolerant_match(content, old)
-        if not match.found or match.span is None:
-            reason = "not found" if match.matches == 0 else f"{match.matches} matches"
-            _rollback(applied)
-            return MultiFileResult(applied=[], rolled_back=True, error=f"old_string {reason} in {path}")
-        updated = apply_replacement(content, match.span, new)
         try:
-            atomic_write_text(path, updated)
-        except OSError as exc:
+            entry = _apply_hunk(hunk, path)
+        except _HunkFailedError as exc:
             _rollback(applied)
-            return MultiFileResult(applied=[], rolled_back=True, error=f"could not write {path}: {exc}")
-        diff = "".join(
-            difflib.unified_diff(
-                content.splitlines(keepends=True),
-                updated.splitlines(keepends=True),
-                fromfile=f"a/{path.name}",
-                tofile=f"b/{path.name}",
-                n=2,
-            )
-        )
-        applied.append(_AppliedFile(path=path, created=False, before=before, diff=diff))
-
+            return MultiFileResult(applied=[], rolled_back=True, error=str(exc))
+        if entry is not None:
+            applied.append(entry)
     return MultiFileResult(applied=applied, rolled_back=False)
+
+
+class _HunkFailedError(Exception):
+    """One hunk could not be applied; the batch is rolled back and the message reported."""
+
+
+def _apply_hunk(hunk: PatchHunk, path: Path) -> _AppliedFile | None:
+    """Write one hunk to disk. ``None`` for a delete of a file that is already gone."""
+    existed = path.is_file()
+    before = path.read_text(encoding="utf-8") if existed else None
+
+    if hunk.op == "add":
+        new_content = "\n".join(hunk.added)
+        if not new_content.endswith("\n") and new_content:
+            new_content += "\n"
+        _write(path, new_content)
+        return _AppliedFile(path=path, created=not existed, before=before, diff=_diff(path, "", new_content))
+
+    if hunk.op == "delete":
+        if not existed:
+            return None  # nothing to delete; treat as applied-no-op
+        try:
+            path.unlink()
+        except OSError as exc:
+            raise _HunkFailedError(f"could not delete {path}: {exc}") from exc
+        return _AppliedFile(path=path, created=False, before=before, diff=_diff(path, before or "", ""))
+
+    # op == "update"
+    if not existed:
+        raise _HunkFailedError(f"file not found: {path}")
+    content = before or ""
+    old, new, _ = _hunk_to_replacement(hunk)
+    if not old:
+        raise _HunkFailedError(
+            f"update hunk for {path} has no removed lines; use *** Add File to create content"
+        )
+    match = find_tolerant_match(content, old)
+    if not match.found or match.span is None:
+        reason = "not found" if match.matches == 0 else f"{match.matches} matches"
+        raise _HunkFailedError(f"old_string {reason} in {path}")
+    updated = apply_replacement(content, match.span, new)
+    _write(path, updated)
+    return _AppliedFile(path=path, created=False, before=before, diff=_diff(path, content, updated))
+
+
+def _write(path: Path, content: str) -> None:
+    try:
+        atomic_write_text(path, content)
+    except OSError as exc:
+        raise _HunkFailedError(f"could not write {path}: {exc}") from exc
+
+
+def _diff(path: Path, before: str, after: str) -> str:
+    return "".join(
+        difflib.unified_diff(
+            before.splitlines(keepends=True),
+            after.splitlines(keepends=True),
+            fromfile=f"a/{path.name}",
+            tofile=f"b/{path.name}",
+            n=2,
+        )
+    )
 
 
 def _rollback(applied: list[_AppliedFile]) -> None:
