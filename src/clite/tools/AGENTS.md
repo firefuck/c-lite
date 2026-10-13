@@ -47,20 +47,21 @@ Contoh terkecil: `builtin/todo.py`.
 
 ### Menambah pola berbahaya
 
-Tambahkan `(regex, kunci, deskripsi)` ke `DANGEROUS_PATTERNS` di `approval.py`, lalu satu
-baris ke tes parametris `test_dangerous_commands_are_detected` dan satu perintah mirip yang
+Tambahkan `(regex, kunci, deskripsi)` ke `DANGEROUS_PATTERNS` di `command_patterns.py`, lalu
+satu baris ke tes parametris `test_dangerous_commands_are_detected` dan satu perintah mirip yang
 tidak boleh kena ke `test_ordinary_commands_are_not_flagged`. `kunci` adalah yang diingat
 ketika pengguna menjawab "always", jadi pola yang sejenis memakai kunci yang sama.
 
 Pola di `DANGEROUS_PATTERNS` bisa disetujui untuk satu sesi atau selamanya. Perintah yang
-menjangkau pengaturan atau kredensial agent sendiri ditangani `detect_self_access` dan tidak
-pernah diingat. Sub-perintah `clite` baru yang mengubah pengaturan ditambahkan ke daftar di
-`OWN_CLI_SUBCOMMANDS`, dengan satu baris di
+menjangkau pengaturan atau kredensial agent sendiri ditangani `detect_self_access` di
+`self_access.py` dan tidak pernah diingat. Sub-perintah `clite` baru yang mengubah pengaturan
+ditambahkan ke daftar di `OWN_CLI_SUBCOMMANDS`, dengan satu baris di
 `test_commands_that_reach_for_the_agents_own_settings_are_flagged`.
 
-Setiap pendeteksi membaca perintah dua kali: seperti tertulis dan lewat `shell_plain` (tanpa
-tanda kutip, garis miring terbalik, dan ejaan lain yang diabaikan shell). Pola baru cukup
-ditulis untuk ejaan polosnya; jangan menulis pola yang bergantung pada tanda kutip.
+Setiap pendeteksi membaca perintah dua kali: seperti tertulis dan lewat `shell_plain` di
+`shell_reading.py` (tanpa tanda kutip, garis miring terbalik, dan ejaan lain yang diabaikan
+shell). Pola baru cukup ditulis untuk ejaan polosnya; jangan menulis pola yang bergantung pada
+tanda kutip.
 
 ### Menambah file kebijakan atau kredensial di home
 

@@ -287,14 +287,14 @@ def test_every_installed_console_script_counts_as_the_agents_own_command(monkeyp
     """A renamed or aliased install must not leave a second name the gate does not know."""
     from types import SimpleNamespace
 
-    from clite.tools import approval
+    from clite.tools import self_access
 
     scripts = [
         SimpleNamespace(name="helper", value="clite.cli.main:main"),
         SimpleNamespace(name="other", value="otherpkg.cli:main"),
     ]
     monkeypatch.setattr("importlib.metadata.entry_points", lambda **_kwargs: scripts)
-    approval.reset_approval_state()
+    self_access.reset_own_command_cache()
     assert detect_self_access("helper config set approvals.mode off") is not None
     assert detect_self_access("other config set something") is None
 

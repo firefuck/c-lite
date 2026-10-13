@@ -317,14 +317,17 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | File | Isi | Simbol publik |
 | --- | --- | --- |
 | `__init__.py` | Tools: the registry, toolsets, the dispatch entry points and the built-in tools. |  |
-| `approval.py` | Command approval: the gate between the model and a destructive shell command. | `DangerMatch`, `ApprovalDecision`, `CommandTooComplexError`, `shell_plain()`, `own_command_names()`, `detect_self_access()`, `reset_approval_state()`, `normalize_command()`, `detect_dangerous_command()`, `detect_hardline()`, … (+2) |
+| `approval.py` | Command approval: the gate between the model and a destructive shell command. | `ApprovalDecision`, `reset_approval_state()`, `smart_verdict()`, `check_command()` |
 | `checkpoints.py` | Per-session file checkpoints, so the agent's own edits can be rolled back. | `reset_turn_tracking()`, `Change`, `TurnGroup`, `RollbackResult`, `session_dir()`, `turn_id_for()`, `record_change()`, `rollback()`, `list_checkpoints()`, `total_size()`, … (+1) |
+| `command_patterns.py` | Dangerous and forbidden commands: the pattern catalogues and the detectors that read them. | `DangerMatch`, `detect_dangerous_command()`, `detect_hardline()` |
 | `context.py` | ``ToolContext``: what a tool handler may know about the call it is serving. | `ToolContext` |
 | `dispatch.py` | The two entry points the agent loop uses: tool definitions in, tool results out. | `reset_definition_cache()`, `resolve_enabled_tools()`, `get_tool_definitions()`, `coerce_args()`, `cap_result()`, `handle_function_call()` |
 | `file_safety.py` | Path guards for the file tools. | `protected_path()`, `write_denied_reason()`, `read_denied_reason()` |
 | `image_gen.py` | ``ImageProvider``: a pluggable backend for the ``image_generate`` tool. | `GeneratedImage`, `ImageProvider`, `register_image_provider()`, `unregister_image_provider()`, `reset_image_providers()`, `provider_names()`, `has_image_provider()`, `get_image_provider()` |
 | `patching.py` | Tolerant patch matching and V4A multi-file patch application. | `MatchResult`, `find_tolerant_match()`, `apply_replacement()`, `PatchHunk`, `ParsedPatch`, `parse_v4a_patch()`, `MultiFileResult`, `apply_v4a_patch()` |
 | `registry.py` | Tool registry: one process-wide table of every tool the model can call. | `ToolEntry`, `ToolRegistry`, `get_background_loop()`, `run_async()`, `tool_error()`, `tool_result()`, `discover_builtin_tools()`, `reset_check_cache()` |
+| `self_access.py` | Whether a command reaches for the agent's own settings or credentials. | `own_command_names()`, `reset_own_command_cache()`, `detect_self_access()` |
+| `shell_reading.py` | Reading a command the way a shell would, for the approval gate's detectors. | `normalize_command()`, `CommandTooComplexError`, `guard_parse_limits()`, `contained()`, `variable_values()`, `expand_variables()`, `code_payloads()`, `shell_plain()`, `readings()`, `position_readings()`, … (+2) |
 | `speech.py` | ``TranscriptionProvider`` and ``SpeechProvider``: the two pluggable backends behind voice. | `TranscriptionProvider`, `SpeechProvider`, `register_transcription_provider()`, `unregister_transcription_provider()`, `transcription_provider_names()`, `get_transcription_provider()`, `has_transcription_provider()`, `register_speech_provider()`, `unregister_speech_provider()`, `speech_provider_names()`, … (+8) |
 | `toolsets.py` | Toolsets: named groups of tools, composable through ``includes``. | `register_toolset()`, `toolset_exists()`, `resolve_toolset()`, `resolve_toolsets()`, `all_toolsets()`, `toolset_for_tool()` |
 | `web_search.py` | ``WebSearchProvider``: a pluggable backend for the ``web_search`` tool. | `WebSearchProvider`, `register_web_search_provider()`, `unregister_web_search_provider()`, `reset_web_search_providers()`, `provider_names()`, `has_web_search_provider()`, `get_web_search_provider()` |
@@ -371,4 +374,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 230 modul.
+Jumlah: 233 modul.

@@ -20,7 +20,10 @@ dispatch, gerbang persetujuan perintah, lingkungan eksekusi, tool bawaan, dan kl
 | Toolset | `toolsets.py` | Kelompok tool bernama yang bisa saling menyertakan |
 | Dispatch | `dispatch.py` | `get_tool_definitions` dan `handle_function_call` |
 | Konteks | `context.py` | `ToolContext`: apa yang boleh diketahui handler tentang panggilannya |
-| Persetujuan | `approval.py` | Pola berbahaya, pola terlarang mutlak, mode `manual` / `smart` / `off` |
+| Persetujuan | `approval.py` | `check_command`: urutan pemeriksaan, mode `manual` / `smart` / `off`, jawaban yang diingat per sesi dan di `command_allowlist` |
+| Pola perintah | `command_patterns.py` | Pola berbahaya (`DANGEROUS_PATTERNS`), pola terlarang mutlak (`HARDLINE_PATTERNS`, `rm` rekursif atas root, home, atau `SYSTEM_DIRECTORIES`), dan pendeteksinya |
+| Pengaturan agent sendiri | `self_access.py` | `detect_self_access`: perintah yang menjangkau pengaturan atau kredensial agent sendiri, termasuk CLI pengelolaannya (`OWN_CLI_SUBCOMMANDS`) |
+| Pembacaan perintah | `shell_reading.py` | Membaca perintah seperti shell (`shell_plain`): normalisasi, bagian berkutip yang data atau kode, muatan kode, variabel di baris yang sama, batas penguraian |
 | Penjaga file | `file_safety.py` | Path yang tidak boleh ditulis atau dibaca tool file; `PROTECTED_PATHS` adalah daftar file terlindung di tiap home agent, dipakai juga oleh gerbang persetujuan |
 | Lingkungan | `environments/` | `BaseEnvironment` + operasi file, backend `local`, `docker`, `ssh`; `capture.py` menunggu perintah (batas output, timeout, interupsi) untuk ketiganya |
 | Tool bawaan | `builtin/` | 23 tool (lihat [katalog](../referensi/katalog.md)) |

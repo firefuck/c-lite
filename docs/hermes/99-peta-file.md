@@ -84,7 +84,7 @@ Sebelum membawa sesuatu, baca
 | `tools/registry.py` | `src/clite/tools/registry.py` | |
 | `toolsets.py` | `src/clite/tools/toolsets.py` | |
 | `model_tools.py` | `src/clite/tools/dispatch.py` | `get_tool_definitions`, `handle_function_call` |
-| `tools/approval.py`, `tools/approval_detection.py`, `tools/approval_smart.py` | `src/clite/tools/approval.py` | Pola di Hermes jauh lebih banyak |
+| `tools/approval.py`, `tools/approval_detection.py`, `tools/approval_smart.py` | `src/clite/tools/approval.py` (keputusan), `src/clite/tools/command_patterns.py`, `src/clite/tools/self_access.py`, `src/clite/tools/shell_reading.py` (deteksi) | Pola di Hermes jauh lebih banyak |
 | `agent/file_safety.py`, `tools/path_security.py` | `src/clite/tools/file_safety.py` | |
 | `agent/redact.py` | `src/clite/core/redact.py` | |
 | `tools/threat_patterns.py` | `src/clite/core/threats.py` | |

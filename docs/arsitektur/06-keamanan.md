@@ -74,6 +74,10 @@ dijalankan.
 
 Gerbang persetujuan (`src/clite/tools/approval.py`) memeriksa teks setiap perintah `terminal`
 sebelum dijalankan. Urutannya ada di [spesifikasi tools](../spesifikasi/tools.md#kontrak).
+Yang dicari gerbang itu ditulis di sebelahnya: pola berbahaya dan terlarang mutlak di
+`src/clite/tools/command_patterns.py`, jangkauan ke pengaturan agent sendiri di
+`src/clite/tools/self_access.py`, dan cara perintah dibaca, termasuk batas penguraiannya, di
+`src/clite/tools/shell_reading.py`.
 
 Teks kode yang dijalankan `execute_code` melewati gerbang yang sama. Kode adalah perintah:
 `shutil.rmtree(...)`, `os.remove(...)`, `subprocess.run(["rm", …])`, dan `os.system("rm -rf …")`
