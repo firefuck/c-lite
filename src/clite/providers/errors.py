@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import http.client
 import socket
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -134,7 +135,14 @@ def _classify_http(error: ProviderHTTPError) -> ClassifiedError:
     def result(reason: FailoverReason, **hints: bool) -> ClassifiedError:
         return ClassifiedError(reason, message, status, retry_after=retry_after, **hints)
 
-    # Symbolic codes also occur inside successful HTTP responses and SSE error events.
+    return _classify_code(code, result) or _classify_status(status, text, result)
+
+
+_Result = Callable[..., ClassifiedError]
+
+
+def _classify_code(code: str, result: _Result) -> ClassifiedError | None:
+    """Symbolic codes also occur inside successful HTTP responses and SSE error events."""
     if code == "invalid_encrypted_content":
         return result(FailoverReason.THINKING_SIGNATURE, should_drop_replay=True)
     if code in ("invalid_api_key", "authentication_error"):
@@ -145,8 +153,11 @@ def _classify_http(error: ProviderHTTPError) -> ClassifiedError:
         )
     if code == "server_error":
         return result(FailoverReason.SERVER_ERROR, retryable=True, should_fallback=True)
+    return None
 
-    # Message checks first: providers disagree on which status carries which problem.
+
+def _classify_status(status: int, text: str, result: _Result) -> ClassifiedError:
+    """Message checks first: providers disagree on which status carries which problem."""
     if _has(text, _CONTEXT_PHRASES) and status in (400, 413, 422, 429):
         return result(FailoverReason.CONTEXT_OVERFLOW, should_compress=True)
     if status == 413:
