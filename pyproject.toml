@@ -81,6 +81,7 @@ markers = [
   "network: needs real network access (never run in CI)",
   "browser: drives the dashboard in a real browser (needs playwright and Chromium)",
   "docker: needs a working Docker daemon; skipped when Docker is absent",
+  "ssh: needs a reachable SSH endpoint and configured test key; run explicitly",
 ]
 
 [tool.mypy]

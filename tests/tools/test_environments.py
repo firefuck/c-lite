@@ -359,3 +359,73 @@ def test_kill_process_tree_is_reused_from_local():
     process = subprocess.Popen(["sleep", "30"], start_new_session=True)
     kill_process_tree(process)
     assert process.wait(2.0) is not None
+
+# ── SSH live tests (local loopback; opt in with -m ssh) ───────────────────────────────
+
+
+_LIVE_SSH_KEY = "/root/.ssh/id_ed25519_test"
+
+
+def _configure_live_ssh(clite_home) -> None:
+    import clite.core.config as config
+
+    (clite_home / "config.yaml").write_text(
+        "terminal:\n"
+        "  ssh:\n"
+        "    host: root@localhost\n"
+        f"    key: {_LIVE_SSH_KEY}\n"
+    )
+    config.reset_config_cache()
+
+
+@pytest.mark.ssh
+@pytest.mark.platforms("linux", "macos")
+def test_ssh_runs_commands_over_a_real_connection(tmp_path, clite_home):
+    from clite.tools.environments.ssh import SSHEnvironment
+
+    _configure_live_ssh(clite_home)
+    environment = SSHEnvironment(cwd=str(tmp_path))
+    try:
+        result = environment.execute("printf hello-ssh-live", timeout=30)
+    finally:
+        environment.cleanup()
+
+    assert result.exit_code == 0
+    assert result.output == "hello-ssh-live"
+
+
+@pytest.mark.ssh
+@pytest.mark.platforms("linux", "macos")
+def test_ssh_read_and_write_files_over_a_real_connection(tmp_path, clite_home):
+    from clite.tools.environments.ssh import SSHEnvironment
+
+    _configure_live_ssh(clite_home)
+    environment = SSHEnvironment(cwd=str(tmp_path))
+    remote_file = str(tmp_path / "greeting.txt")
+    try:
+        environment.write_file(remote_file, "hello from SSH live test\n")
+        result = environment.read_file(remote_file)
+        names = {entry.name for entry in environment.list_dir(str(tmp_path))}
+        info = environment.stat(remote_file)
+    finally:
+        environment.cleanup()
+
+    assert result.content == "hello from SSH live test\n"
+    assert "greeting.txt" in names
+    assert info.is_file and info.exists
+
+
+@pytest.mark.ssh
+@pytest.mark.platforms("linux", "macos")
+def test_ssh_execute_uses_the_configured_remote_cwd(tmp_path, clite_home):
+    from clite.tools.environments.ssh import SSHEnvironment
+
+    _configure_live_ssh(clite_home)
+    environment = SSHEnvironment(cwd=str(tmp_path))
+    try:
+        result = environment.execute("pwd", timeout=30)
+    finally:
+        environment.cleanup()
+
+    assert result.exit_code == 0
+    assert result.output.strip() == str(tmp_path)
