@@ -65,7 +65,7 @@ def run_tui(args: argparse.Namespace) -> int:
     return launch_tui([arg for arg in getattr(args, "extra_args", []) if arg != "--"])
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     # Everything after `tui` belongs to the TUI, including -h: the TUI prints its own help,
     # which lists the options it really takes. (argparse.REMAINDER cannot do this: it stops
     # at the first argument that looks like an option.)

@@ -9,8 +9,8 @@ GitHub-nya (`python scripts/release.py notes`).
 
 ### Diubah
 - Perapian kode tanpa perubahan perilaku: fungsi panjang dipecah dan kompleksitas tiap fungsi
-  dibatasi 15, format kode dan komentar `noqa` beralasan diperiksa di CI, dan setiap fungsi
-  wajib beranotasi tipe.
+  dibatasi 15, format kode dan komentar `noqa` beralasan diperiksa di CI, dan mypy berjalan
+  dalam mode `strict`.
 - Backend eksekusi `local`, `docker`, dan `ssh` memakai satu loop yang sama untuk menunggu
   perintah (batas output, timeout, interupsi).
 - Gateway menawarkan pemilih `/model` dan tombol persetujuan menurut kemampuan adapter, bukan

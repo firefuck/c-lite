@@ -118,7 +118,7 @@ def _fit(raw: bytes, media_type: str, *, max_bytes: int, max_edge: int) -> tuple
     try:
         from io import BytesIO
 
-        from PIL import Image  # type: ignore[import-not-found]  # optional `images` extra
+        from PIL import Image  # optional `images` extra
     except ImportError:
         return raw, False
     try:
@@ -139,7 +139,7 @@ def _within_edge(raw: bytes, max_edge: int) -> bool:
     try:
         from io import BytesIO
 
-        from PIL import Image  # type: ignore[import-not-found]
+        from PIL import Image
     except ImportError:
         return True  # cannot tell; the byte ceiling still applies
     try:

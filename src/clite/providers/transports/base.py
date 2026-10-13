@@ -81,6 +81,19 @@ class ProviderTransport(ABC):
         self, on_delta: Callable[[str], None] | None = None, on_reasoning: Callable[[str], None] | None = None
     ) -> StreamAccumulator: ...
 
+    def run(
+        self,
+        route: RuntimeRoute,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]] | None,
+        params: RequestParams,
+        *,
+        on_delta: Callable[[str], None] | None = None,
+        cancel: threading.Event | None = None,
+    ) -> NormalizedResponse:
+        """Answer without HTTP. Only a ``local`` transport implements it."""
+        raise NotImplementedError(f"the {self.api_mode} transport answers over HTTP")
+
 
 _TRANSPORTS: dict[str, ProviderTransport] = {}
 _BUILTIN_LOADED = False

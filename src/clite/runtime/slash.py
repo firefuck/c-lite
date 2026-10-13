@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import time
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from clite.agent.messages import content_text, is_internal
 from clite.agent.prompt.builder import build_prompt_tiers
@@ -550,7 +550,7 @@ def _handle_cron(session: ChatSession, args: str) -> SlashResult:
 
 
 def _handle_help(session: ChatSession, args: str) -> SlashResult:
-    grouped: dict[str, list[dict]] = {}
+    grouped: dict[str, list[dict[str, Any]]] = {}
     for entry in command_catalog(session.platform, cwd=session.agent.cwd):
         grouped.setdefault(entry["category"], []).append(entry)
     lines = []

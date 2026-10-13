@@ -141,7 +141,7 @@ def run_pair_revoke(args: argparse.Namespace) -> int:
     return 0
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("gateway", help="run the messaging gateway")
     parser.set_defaults(handler=run_status)
     actions = parser.add_subparsers(dest="gateway_action")

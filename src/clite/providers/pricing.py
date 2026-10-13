@@ -128,8 +128,9 @@ def _match_override(model: str, provider: str, overrides: dict[str, Any]) -> dic
 
     # Exact matches first
     for cand in candidates:
-        if cand in overrides and isinstance(overrides[cand], dict):
-            return overrides[cand]
+        override = overrides.get(cand)
+        if isinstance(override, dict):
+            return override
 
     # Prefix matches, longest match wins
     matches: list[tuple[str, dict[str, Any]]] = []

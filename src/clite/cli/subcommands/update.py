@@ -94,7 +94,7 @@ def run_update(args: argparse.Namespace) -> int:
     return 0
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("update", help="check for updates and upgrade c-lite")
     parser.add_argument("--check", action="store_true", help="only check for newer version without upgrading")
     parser.add_argument("--index-url", help="custom package index JSON URL to check against")

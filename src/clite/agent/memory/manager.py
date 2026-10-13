@@ -10,7 +10,7 @@ import logging
 import re
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 from clite.agent.memory.provider import MemoryProvider
 from clite.agent.memory.store import MemoryStore
@@ -20,6 +20,8 @@ from clite.core.io import atomic_write_json, read_json
 from clite.core.locking import exclusive_lock
 
 logger = logging.getLogger("clite.agent.memory")
+
+T = TypeVar("T")
 
 _PROVIDER_FACTORIES: dict[str, Callable[[], MemoryProvider]] = {}
 _CONTEXT_BLOCK = re.compile(r"<memory-context>.*?</memory-context>\s*", re.DOTALL)
@@ -88,7 +90,7 @@ class MemoryManager:
         except Exception:
             logger.warning("memory provider failed to start", exc_info=True)
 
-    def _guard(self, action: str, default: Any, call: Callable[[MemoryProvider], Any]) -> Any:
+    def _guard(self, action: str, default: T, call: Callable[[MemoryProvider], T]) -> T:
         """Run ``call(provider)``; with no provider, or when it raises, return ``default``."""
         if self.provider is None:
             return default

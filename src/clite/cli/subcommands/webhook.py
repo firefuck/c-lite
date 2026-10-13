@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import re
 import secrets
+from typing import Any
 
 from clite.core.config import atomic_config_update, get_path, load_config
 from clite.core.env import remove_secret, save_secret
@@ -19,7 +20,7 @@ def run_add(args: argparse.Namespace) -> int:
         return 2
     secret = secrets.token_urlsafe(32)
 
-    def update(document: dict) -> None:
+    def update(document: dict[str, Any]) -> None:
         document.setdefault("webhooks", {})[args.name] = {
             "enabled": True,
             "prompt": args.prompt,
@@ -45,7 +46,7 @@ def run_list(args: argparse.Namespace) -> int:
 def run_remove(args: argparse.Namespace) -> int:
     removed = False
 
-    def update(document: dict) -> None:
+    def update(document: dict[str, Any]) -> None:
         nonlocal removed
         hooks = document.get("webhooks", {})
         if args.name in hooks:
@@ -58,7 +59,7 @@ def run_remove(args: argparse.Namespace) -> int:
     return 0 if removed else 1
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("webhook", help="manage inbound HMAC webhooks")
     actions = parser.add_subparsers(dest="webhook_action", required=True)
     add = actions.add_parser("add", help="add a webhook and print its one-time secret")

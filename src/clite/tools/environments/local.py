@@ -77,7 +77,7 @@ def find_shell() -> list[str]:
     return [shutil.which("bash") or "/bin/sh", "-c"]
 
 
-def kill_process_tree(process: subprocess.Popen, *, force: bool = False) -> None:
+def kill_process_tree(process: subprocess.Popen[str], *, force: bool = False) -> None:
     """Signal the whole process group so children of the shell die with it."""
     if process.poll() is not None:
         return
@@ -94,7 +94,7 @@ def kill_process_tree(process: subprocess.Popen, *, force: bool = False) -> None
         pass
 
 
-def _stop_tree(process: subprocess.Popen) -> None:
+def _stop_tree(process: subprocess.Popen[str]) -> None:
     """End a timed-out or interrupted command: ask the group to stop, then force it."""
     kill_process_tree(process)
     try:

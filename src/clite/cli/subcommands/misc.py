@@ -197,7 +197,7 @@ def run_insights(args: argparse.Namespace) -> int:
     return 0
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     subparsers.add_parser("version", help="print version information").set_defaults(handler=run_version)
     subparsers.add_parser("status", help="show what is configured").set_defaults(handler=run_status)
     doctor = subparsers.add_parser("doctor", help="check the installation")

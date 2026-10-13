@@ -460,3 +460,11 @@ def test_openrouter_pkce_quirks(mock_oauth_server, clite_home):
     )
     assert tokens["access_token"] == "sk-or-v1-pkce-key-12345678"
     assert "callback_url" in mock_oauth_server.last_params
+
+
+def test_a_token_endpoint_answering_with_a_non_object_is_kept_as_raw_text(fake_api):
+    from clite.providers.oauth import _http_post
+
+    fake_api.on("POST", "/token", (200, ["not", "an", "object"]))
+    answer = _http_post(f"{fake_api.url}/token", form_data={"grant_type": "x"})
+    assert answer == {"raw": '["not", "an", "object"]'}

@@ -80,7 +80,7 @@ def run_migrate(args: argparse.Namespace) -> int:
     return 0
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("config", help="show or change settings")
     parser.set_defaults(handler=run_show, all=False)
     actions = parser.add_subparsers(dest="config_action")

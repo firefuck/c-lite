@@ -116,7 +116,7 @@ def _add_token_commands(serve: argparse.ArgumentParser) -> None:
     revoke.set_defaults(handler=run_token_revoke)
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     serve = subparsers.add_parser(
         "serve", help="run the headless backend (for the desktop app or a remote client)", epilog=TOKEN_NOTE
     )

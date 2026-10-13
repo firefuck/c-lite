@@ -52,7 +52,7 @@ def run_providers(args: argparse.Namespace) -> int:
     return 0
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("model", help="show, list or set the model")
     parser.set_defaults(handler=run_show)
     actions = parser.add_subparsers(dest="model_action")

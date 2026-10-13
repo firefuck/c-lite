@@ -274,4 +274,5 @@ class RpcSession:
 def _jsonable(data: dict[str, Any]) -> dict[str, Any]:
     import json
 
-    return json.loads(json.dumps(data, default=str))
+    result: dict[str, Any] = json.loads(json.dumps(data, default=str))
+    return result

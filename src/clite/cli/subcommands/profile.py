@@ -66,7 +66,7 @@ def run_delete(args: argparse.Namespace) -> int:
     return 0
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("profile", help="manage profiles (separate homes)")
     parser.set_defaults(handler=run_list)
     actions = parser.add_subparsers(dest="profile_action")

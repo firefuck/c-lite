@@ -55,7 +55,7 @@ class LLMClient:
         params = params or RequestParams()
         transport = get_transport(route.api_mode)
         if transport.local:
-            return transport.run(route, messages, tools, params, on_delta=on_delta, cancel=cancel)  # type: ignore[attr-defined]
+            return transport.run(route, messages, tools, params, on_delta=on_delta, cancel=cancel)
 
         request = transport.build_request(route, messages, tools, params, stream=stream)
         if route.profile is not None:

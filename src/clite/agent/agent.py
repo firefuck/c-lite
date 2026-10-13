@@ -42,8 +42,9 @@ _SESSION_META_KEYS = ("session_key", "user_id", "chat_id", "chat_type", "thread_
 def _summary_text(messages: list[dict[str, Any]]) -> str:
     """The summary a compression left behind, for the plugins watching ``on_compaction``."""
     for message in messages:
-        if message.get("is_summary") and isinstance(message.get("content"), str):
-            return message["content"]
+        content = message.get("content")
+        if message.get("is_summary") and isinstance(content, str):
+            return content
     return ""
 
 

@@ -222,7 +222,7 @@ def run_curate(args: argparse.Namespace) -> int:
     return 0
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("skills", help="list, search, install and curate skills")
     parser.set_defaults(handler=run_list)
     actions = parser.add_subparsers(dest="skills_action")

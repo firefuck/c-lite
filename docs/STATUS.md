@@ -15,7 +15,7 @@ Electron tidak terpasang di lingkungan itu.
 |---|---|
 | `ruff check src tests scripts` | Bersih, termasuk batas kompleksitas 15 (`C901`) dan `noqa` beralasan (`BLE001`, `S310`, `S603`, `S607`, `RUF100`) sejak 13 Oktober 2026 |
 | `ruff format --check src tests scripts` | Bersih (dijalankan juga di `scripts/run_tests.sh lint` dan workflow CI) |
-| `mypy` (215 file sumber) | Bersih, dengan `disallow_untyped_defs`: setiap fungsi beranotasi lengkap sejak 13 Oktober 2026 |
+| `mypy` (215 file sumber) | Bersih dalam mode `strict` (anotasi lengkap, generik berparameter, tanpa `Any` yang bocor lewat nilai kembali) sejak 13 Oktober 2026 |
 | Tes Python (`pytest tests`) | 1683 lulus, 43 terlewati (jaringan, Windows, Docker, SSH, paket opsional). Tanpa identitas git (`user.name`, `user.email`), `tests/test_release.py::test_tagging_needs_a_clean_tree_and_creates_the_tag_for_the_version` gagal karena lingkungan |
 | Tes TypeScript `apps/shared` | 22 lulus; `tsc --noEmit` bersih (13 Oktober 2026) |
 | Tes TypeScript `ui-tui` | 60 lulus; `tsc --noEmit` bersih (13 Oktober 2026) |

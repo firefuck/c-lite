@@ -16,6 +16,7 @@ import argparse
 import json
 import re
 import sys
+from typing import Any
 
 from clite.core.config import atomic_config_update, load_config
 from clite.core.errors import CliteError
@@ -70,7 +71,7 @@ def run_add(args: argparse.Namespace) -> int:
     if args.disabled:
         spec["enabled"] = False
 
-    def mutate(document: dict) -> None:
+    def mutate(document: dict[str, Any]) -> None:
         servers = document.get("mcp_servers")
         if not isinstance(servers, dict):
             servers = document["mcp_servers"] = {}
@@ -127,7 +128,7 @@ def run_list(args: argparse.Namespace) -> int:
 def run_remove(args: argparse.Namespace) -> int:
     removed = False
 
-    def mutate(document: dict) -> None:
+    def mutate(document: dict[str, Any]) -> None:
         nonlocal removed
         servers = document.get("mcp_servers")
         if isinstance(servers, dict) and args.name in servers:
@@ -187,7 +188,7 @@ def run_test(args: argparse.Namespace) -> int:
     return 0
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("mcp", help="add, list, remove and test MCP servers")
     parser.set_defaults(handler=run_list)
     actions = parser.add_subparsers(dest="mcp_action")

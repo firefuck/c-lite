@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from typing import Any
 
 from clite.core.config import config_get
 from clite.core.errors import CliteError
@@ -48,7 +49,7 @@ def add_chat_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def session_options(args: argparse.Namespace) -> dict:
+def session_options(args: argparse.Namespace) -> dict[str, Any]:
     session_id = None
     if getattr(args, "resume", None):
         row = get_session_db().find_session(args.resume)
@@ -82,13 +83,13 @@ def session_options(args: argparse.Namespace) -> dict:
     }
 
 
-def wants_tui(args: argparse.Namespace, options: dict) -> bool:
+def wants_tui(args: argparse.Namespace, options: dict[str, Any]) -> bool:
     """Whether an interactive chat should open in the TUI.
 
     An explicit ``--tui`` or ``--classic`` wins. Otherwise ``display.interface`` decides, but
     only on a real terminal and only when every option given is one the TUI takes.
     """
-    choice = getattr(args, "interface", None)
+    choice: str | None = getattr(args, "interface", None)
     if choice is not None:
         return choice == "tui"
     if str(config_get("display.interface", "cli") or "cli").lower() != "tui":
@@ -112,7 +113,7 @@ def run_chat(args: argparse.Namespace) -> int:
     return Repl(images=images, **options).run()
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("chat", help="talk to the agent (default command)")
     add_chat_arguments(parser)
     parser.set_defaults(handler=run_chat)

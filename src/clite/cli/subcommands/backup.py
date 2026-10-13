@@ -78,7 +78,7 @@ def run_backup(args: argparse.Namespace) -> int:
     return 1
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("backup", help="archive or restore the agent's home directory")
     actions = parser.add_subparsers(dest="backup_action", required=True)
 

@@ -22,7 +22,7 @@ from clite.tools.toolsets import resolve_toolsets
 
 logger = logging.getLogger("clite.tools.dispatch")
 
-_DEFINITION_CACHE: OrderedDict[tuple, list[dict[str, Any]]] = OrderedDict()
+_DEFINITION_CACHE: OrderedDict[tuple[tuple[str, ...], int], list[dict[str, Any]]] = OrderedDict()
 _DEFINITION_CACHE_MAX = 8
 _CACHE_LOCK = threading.Lock()
 

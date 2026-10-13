@@ -91,8 +91,9 @@ files = ["src/clite"]
 # Bundled plugin directories are data (their names contain hyphens), not importable packages.
 exclude = ["bundled/"]
 ignore_missing_imports = true
-# Every function states its parameter and return types; an untyped one fails the check.
-disallow_untyped_defs = true
+# Every function is fully typed, generics carry their parameters, and no Any leaks out of a
+# typed return; `strict` also rejects a `type: ignore` that is no longer needed.
+strict = true
 
 [tool.ruff]
 line-length = 110

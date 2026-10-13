@@ -203,7 +203,7 @@ class _Watchdog:
                 break
         if "error" in box:
             raise box["error"]
-        result = box.get("result")
+        result: TurnResult | None = box.get("result")
         if result is None:
             raise TimeoutError(f"no activity for {int(self.timeout)}s")
         return result

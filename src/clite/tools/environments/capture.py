@@ -41,7 +41,7 @@ def read_output_chunks(stream: IO[str]) -> Iterator[str]:
         yield tail
 
 
-def kill_client(process: subprocess.Popen) -> None:
+def kill_client(process: subprocess.Popen[str]) -> None:
     """Stop a client process (``docker exec``, ``ssh``) whose command lives elsewhere.
 
     The remote side keeps its own state; a client that does not die in time is left to the
@@ -55,14 +55,14 @@ def kill_client(process: subprocess.Popen) -> None:
 
 
 def capture(
-    process: subprocess.Popen,
+    process: subprocess.Popen[str],
     *,
     timeout: int,
     stdin_data: str | None,
     interrupt: threading.Event | None,
     on_output: Callable[[str], None] | None,
     max_output_chars: int | None,
-    stop: Callable[[subprocess.Popen], None],
+    stop: Callable[[subprocess.Popen[str]], None],
     reader_name: str,
 ) -> ExecResult:
     """Feed ``stdin_data``, collect output until ``process`` exits, and describe how it ended.
@@ -119,7 +119,9 @@ def capture(
     return ExecResult(output, exit_code, timed_out, interrupted, truncated)
 
 
-def _wait(process: subprocess.Popen, deadline: float, interrupt: threading.Event | None) -> tuple[bool, bool]:
+def _wait(
+    process: subprocess.Popen[str], deadline: float, interrupt: threading.Event | None
+) -> tuple[bool, bool]:
     """Wait for ``process`` to exit. ``(timed_out, interrupted)``; both false when it exited."""
     while process.poll() is None:
         if interrupt is not None and interrupt.is_set():

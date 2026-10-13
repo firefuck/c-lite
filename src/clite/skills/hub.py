@@ -122,7 +122,8 @@ class GitHubSource(SkillSource):
         request = urllib.request.Request(url, headers=headers)  # noqa: S310 - https hosts from the API
         try:
             with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
-                return response.read() if limit is None else response.read(limit + 1)
+                body: bytes = response.read() if limit is None else response.read(limit + 1)
+                return body
         except urllib.error.HTTPError as exc:
             raise SkillError(self._http_error(exc, has_token=bool(token))) from None
         except (urllib.error.URLError, OSError) as exc:
@@ -439,7 +440,8 @@ def _read_url(url: str) -> str:
         request.add_header("Authorization", f"Bearer {token}")
     try:
         with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
-            return response.read(MAX_BUNDLE_BYTES).decode("utf-8", errors="replace")
+            body: bytes = response.read(MAX_BUNDLE_BYTES)
+            return body.decode("utf-8", errors="replace")
     except urllib.error.HTTPError as exc:
         raise SkillError(f"cannot read the skill index at {url}: HTTP {exc.code}") from exc
     except (urllib.error.URLError, OSError) as exc:

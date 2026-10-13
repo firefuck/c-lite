@@ -187,7 +187,7 @@ def run_remove(args: argparse.Namespace) -> int:
     return 0
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("plugins", help="list, enable, disable, install or remove plugins")
     parser.set_defaults(handler=run_list)
     actions = parser.add_subparsers(dest="plugins_action")

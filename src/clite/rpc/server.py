@@ -23,7 +23,7 @@ import time
 import uuid
 from collections.abc import Callable
 from contextvars import copy_context
-from typing import Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from pydantic import BaseModel, ValidationError
 
@@ -32,6 +32,9 @@ from clite.core.errors import AuthError, CliteError
 from clite.rpc.contracts.base import EVENTS, METHODS, PROTOCOL_VERSION, SERVER_REQUESTS
 from clite.rpc.replay import get_detached_sessions, get_event_log
 from clite.rpc.transport import Transport
+
+if TYPE_CHECKING:
+    from clite.rpc.session import RpcSession
 
 logger = logging.getLogger("clite.rpc")
 
@@ -97,10 +100,10 @@ class RpcServer:
         # Told what a client answered to a server request (an approval, a clarification), for
         # callers that must record it. The RPC layer stays unaware of who is listening.
         self.on_server_answer = on_server_answer
-        self.sessions: dict[str, Any] = {}  # runtime session id -> RpcSession
+        self.sessions: dict[str, RpcSession] = {}  # keyed by runtime session id
         self._lock = threading.RLock()
         self._next_request = 0
-        self._pending: dict[str, concurrent.futures.Future] = {}
+        self._pending: dict[str, concurrent.futures.Future[Any]] = {}
         self._pool = concurrent.futures.ThreadPoolExecutor(max_workers=8, thread_name_prefix="clite-rpc")
         self.closed = False
 
@@ -136,7 +139,7 @@ class RpcServer:
         with self._lock:
             self._next_request += 1
             request_id = f"srq-{self._next_request}"
-            future: concurrent.futures.Future = concurrent.futures.Future()
+            future: concurrent.futures.Future[Any] = concurrent.futures.Future()
             self._pending[request_id] = future
         if not self.transport.write({"jsonrpc": "2.0", "id": request_id, "method": name, "params": body}):
             self._pending.pop(request_id, None)
@@ -237,14 +240,14 @@ class RpcServer:
 
     # ── sessions ─────────────────────────────────────────────────────────────────────────
 
-    def get_session(self, session_id: str) -> Any:
+    def get_session(self, session_id: str) -> RpcSession:
         with self._lock:
             session = self.sessions.get(session_id)
         if session is None:
             raise RpcError(SESSION_NOT_FOUND, f"no session {session_id!r}; call session.create first")
         return session
 
-    def add_session(self, session: Any) -> str:
+    def add_session(self, session: RpcSession) -> str:
         session_id = uuid.uuid4().hex[:12]
         with self._lock:
             self.sessions[session_id] = session

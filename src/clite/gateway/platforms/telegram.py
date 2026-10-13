@@ -384,7 +384,7 @@ class TelegramAdapter(BasePlatformAdapter):
         request = urllib.request.Request(f"{self.base_url}/file/bot{self.token}/{file_path}")  # noqa: S310 - the Bot API base URL from config
         try:
             with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310
-                data = response.read(max_bytes + 1)
+                data: bytes = response.read(max_bytes + 1)
         except Exception as exc:  # a failed download is reported, not raised raw
             raise MediaError(f"could not download {attachment.describe()}: {exc}") from exc
         if len(data) > max_bytes:

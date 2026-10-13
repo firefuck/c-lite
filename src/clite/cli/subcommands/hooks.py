@@ -98,7 +98,7 @@ def run_test(args: argparse.Namespace) -> int:
     return 0
 
 
-def register(subparsers: argparse._SubParsersAction) -> None:
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("hooks", help="review, approve or test shell hooks from config.yaml")
     parser.set_defaults(handler=run_list)
     actions = parser.add_subparsers(dest="hooks_action")
