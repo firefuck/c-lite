@@ -4,7 +4,7 @@
 |---|---|
 | Kode | `apps/tui/` (TUI), `packages/shared/` (klien protokol) |
 | Bundle yang dikirim | `src/clite/tui_dist/clite-tui.mjs` (dibangun dari dua direktori di atas) |
-| Tes | `apps/tui/test/` (18), `packages/shared/test/` (21), `tests/cli/test_tui_bundle.py` |
+| Tes | `apps/tui/test/`, `packages/shared/test/`, `tests/cli/test_tui_bundle.py`. Jumlah terkininya di [STATUS](../STATUS.md#dijaga-tes) |
 | Bahasa | TypeScript, dijalankan langsung oleh Node 22 (type stripping) |
 | Bedah Hermes | [09-tui-dan-rpc](../hermes/09-tui-dan-rpc.md) |
 

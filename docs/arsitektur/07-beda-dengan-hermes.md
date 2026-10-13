@@ -88,28 +88,25 @@ loop sendiri di thread adapter. Itu harga dari runner yang sinkron.
 
 ## Yang belum dibawa
 
-Daftar ini sengaja lengkap supaya tidak ada yang mengira fitur itu sudah ada. Setiap butir
-punya task di [roadmap](../roadmap/README.md).
-
-**Catatan 13 Oktober 2026:** daftar ini ditulis sebelum roadmap dikerjakan. Semua task roadmap
-kini bertanda ✅, jadi sebagian besar butir di bawah sudah ada. Daftar ini perlu diaudit ulang
-terhadap clone Hermes sebelum dipakai lagi sebagai daftar celah.
+Daftar ini disusun ulang pada 13 Oktober 2026 dengan memeriksa setiap butir daftar lama
+terhadap kode di repositori ini; butir yang sudah ada dihapus (antara lain transport Responses
+API, Bedrock, Vertex, Azure, OAuth provider, harga, Docker, SSH, review latar belakang,
+delegasi asinkron, platform Discord, Slack, WhatsApp, Signal, Matrix, dan email, skrip pra-jalan
+dan riwayat cron, endpoint kompatibel OpenAI, webhook, hub skill, katalog plugin, server ACP,
+batch runner, dan lintasan pelatihan). Clone Hermes tidak tersedia saat itu, sehingga fitur
+Hermes yang tidak pernah masuk daftar lama tidak tercakup. Sebelum dipakai sebagai daftar celah
+yang lengkap, daftar ini perlu diaudit terhadap clone Hermes.
 
 | Kelompok | Yang ada di Hermes dan belum ada di sini |
 |---|---|
-| Provider | Transport Responses API, Bedrock, Vertex, Azure, Gemini native, OAuth, harga dan biaya, puluhan profil lain |
-| Tool | Pencarian web, browser, eksekusi kode, gambar (analisis dan pembuatan), suara, `send_message`, checkpoint dan rollback, patch multi-file |
-| Lingkungan eksekusi | Docker, SSH, dan backend jarak jauh lain |
-| MCP | Sampling, OAuth, sinkronisasi otomatis daftar tool saat sesi berjalan |
-| Agent | Review latar belakang (memori dan skill), delegasi asinkron, mode campuran model |
-| CLI | Input saat agent bekerja, multi-baris, render Markdown, wizard setup, update, backup, pelengkapan shell, `/insights` |
-| TUI | Layar penuh dengan panel, pemilih model dan sesi, tema |
-| Gateway | Discord, Slack, WhatsApp, Signal, Matrix, email, dan lainnya; lampiran; jawaban streaming; layanan sistem; kebijakan reset sesi |
-| Cron | Skrip pra-jalan, riwayat eksekusi, pengiriman ke banyak tujuan |
-| Server | Halaman dashboard untuk config, cron, log, analitik; endpoint kompatibel OpenAI; webhook masuk |
-| Desktop | Renderer khusus, pemaketan, pembaruan otomatis |
-| Ekosistem | Hub skill, katalog plugin, server ACP (`acp_adapter/`), batch runner, lintasan pelatihan |
-| Keamanan | Deteksi perintah berbahaya yang jauh lebih luas (`tools/approval_detection.py`), pemindai eksternal, redaksi yang lebih luas (`agent/redact.py`) |
+| Provider | Gemini lewat API native-nya; profil `gemini` di sini memakai endpoint kompatibel OpenAI |
+| Tool | Browser |
+| Lingkungan eksekusi | Backend jarak jauh selain Docker dan SSH |
+| MCP | Sampling, dan OAuth untuk server HTTP |
+| Agent | Mode campuran model |
+| Cron | Satu tugas yang dikirim ke banyak tujuan sekaligus |
+| Desktop | Pembaruan otomatis. Renderer khusus sengaja tidak dibawa: satu dashboard melayani browser dan desktop |
+| Keamanan | Pemindai eksternal untuk perintah. Cakupan deteksi perintah dan redaksi belum dibandingkan ulang dengan `tools/approval_detection.py` dan `agent/redact.py` |
 
 ## Memindahkan fitur dari Hermes
 

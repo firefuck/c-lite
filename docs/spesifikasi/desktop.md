@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Kode | `apps/desktop/` |
-| Tes | `apps/desktop/test/` (11 tes untuk bagian tanpa Electron, 5 di antaranya tentang pemaketan) |
+| Tes | `apps/desktop/test/`: bagian tanpa Electron, termasuk pemaketan, dan satu tes asap yang butuh layar dan biner Electron. Jumlah terkininya di [STATUS](../STATUS.md#dijaga-tes) |
 | Bergantung pada | `clite serve` ([server](server.md)) dan dashboard statisnya |
 | Bedah Hermes | [10-gui-desktop-dashboard](../hermes/10-gui-desktop-dashboard.md) |
 

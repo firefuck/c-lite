@@ -114,10 +114,11 @@ Hal lain yang perlu diketahui:
 ## Belum ada
 
 Semua task di [roadmap](roadmap/README.md) bertanda ✅; pekerjaan baru belum direncanakan di
-sana. Daftar "Yang belum dibawa" di
-[arsitektur/07-beda-dengan-hermes.md](arsitektur/07-beda-dengan-hermes.md#yang-belum-dibawa)
-ditulis sebelum roadmap dikerjakan dan perlu diaudit ulang terhadap clone Hermes sebelum
-dipakai sebagai daftar celah.
+sana. Yang diketahui belum ada (antara lain browser, sampling dan OAuth MCP, mode campuran
+model, pengiriman cron ke banyak tujuan, pembaruan otomatis desktop) didaftar di
+[arsitektur/07-beda-dengan-hermes.md](arsitektur/07-beda-dengan-hermes.md#yang-belum-dibawa).
+Daftar itu diperiksa terhadap kode pada 13 Oktober 2026, tetapi belum terhadap clone Hermes,
+sehingga fitur Hermes di luar daftar lama belum tercakup.
 
 Celah keamanan yang diketahui didaftar tersendiri di
 [arsitektur/06-keamanan.md](arsitektur/06-keamanan.md#celah-yang-diketahui). Yang terpenting:
