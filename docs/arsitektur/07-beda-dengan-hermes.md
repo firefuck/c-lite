@@ -91,6 +91,10 @@ loop sendiri di thread adapter. Itu harga dari runner yang sinkron.
 Daftar ini sengaja lengkap supaya tidak ada yang mengira fitur itu sudah ada. Setiap butir
 punya task di [roadmap](../roadmap/README.md).
 
+**Catatan 13 Oktober 2026:** daftar ini ditulis sebelum roadmap dikerjakan. Semua task roadmap
+kini bertanda ✅, jadi sebagian besar butir di bawah sudah ada. Daftar ini perlu diaudit ulang
+terhadap clone Hermes sebelum dipakai lagi sebagai daftar celah.
+
 | Kelompok | Yang ada di Hermes dan belum ada di sini |
 |---|---|
 | Provider | Transport Responses API, Bedrock, Vertex, Azure, Gemini native, OAuth, harga dan biaya, puluhan profil lain |
