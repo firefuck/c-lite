@@ -15,6 +15,7 @@ import pytest
 
 websockets_client = pytest.importorskip("websockets.sync.client")
 
+from clite import __version__  # noqa: E402
 from clite.core.brand import BACKEND_READY_SENTINEL  # noqa: E402
 from clite.server.run import dashboard_url, serve  # noqa: E402
 
@@ -123,7 +124,7 @@ def test_dashboard_url_keeps_the_token_in_the_fragment():
 
 
 def test_health_is_public_and_everything_else_needs_the_token(backend):
-    assert backend.get("/api/health") == (200, {"ok": True, "version": "0.1.0"})
+    assert backend.get("/api/health") == (200, {"ok": True, "version": __version__})
     assert backend.get("/api/status")[0] == 401
     assert backend.get("/api/status", token="wrong")[0] == 401
     status, body = backend.get("/api/status", token=backend.token)

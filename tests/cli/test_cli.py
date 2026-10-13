@@ -13,6 +13,7 @@ import threading
 
 import pytest
 
+from clite import __version__
 from clite.cli.display import Display, load_skin
 from clite.cli.main import main
 from clite.cli.repl import Repl
@@ -134,7 +135,7 @@ def test_repl_session(clite_home):
         ["hello", "", "/status", "/nonsense", "/quit", "never reached"],
         [text_response("Hi! How can I help?")],
     )
-    assert "C-lite 0.1.0" in out and "mock-1 via mock" in out
+    assert f"C-lite {__version__}" in out and "mock-1 via mock" in out
     assert "Hi! How can I help?" in out
     assert "Unknown command: /nonsense" in out and "Goodbye." in out
     assert "Resume this session with: clite chat --resume" in out
@@ -609,7 +610,7 @@ def test_gateway_commands(cli, clite_home):
 
 
 def test_status_version_doctor_logs_memory(cli, clite_home):
-    assert "C-lite 0.1.0" in cli("version")
+    assert f"C-lite {__version__}" in cli("version")
     status = cli("status")
     assert "mock-1 via mock" in status and "Cron:      0 active job(s)" in status
     doctor = cli("doctor")
