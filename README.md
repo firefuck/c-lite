@@ -1,10 +1,10 @@
-# C-lite (v1.0.0 - Original Roadmap Complete)
+# C-lite
 
 C-lite adalah agent AI pribadi dengan satu inti percakapan yang dilayani banyak antarmuka:
 CLI, TUI, dashboard web, aplikasi desktop, dan gateway pesan. Arsitekturnya diturunkan dari
 [Hermes Agent](https://github.com/NousResearch/hermes-agent) milik Nous Research.
 
-**Status: v1.0.0 (Roadmap 100% Complete).** Seluruh 67 task roadmap selesai dan terverifikasi.
+**Status: v1.0.0.** Seluruh task roadmap awal selesai dan dijaga tes, tetapi sebagian belum pernah
 dijalankan terhadap hal yang sebenarnya (API provider asli, Telegram asli, Electron, Windows).
 Daftar pastinya ada di [docs/STATUS.md](docs/STATUS.md). Ukurannya kira-kira dua persen dari
 Hermes; yang ada di sini adalah fondasi dan peta kerja untuk menumbuhkan sisanya.
@@ -110,6 +110,7 @@ Sebagian besar aturan itu dijaga tes, sehingga pelanggaran menggagalkan suite.
 | `src/clite/bundled/` | Profil provider, plugin, dan skill bawaan |
 | `apps/shared/` | Klien protokol TypeScript |
 | `ui-tui/` | TUI |
+| `web/` | Dashboard web (React) |
 | `apps/desktop/` | Cangkang Electron |
 | `tests/` | Tes Python, termasuk penjaga arsitektur dan penjaga dokumen |
 | `scripts/` | Pemeriksaan, pembangkit file turunan, dan penggantian nama proyek |
@@ -128,6 +129,11 @@ Buang `--dry-run` untuk menerapkannya, lalu ikuti langkah lanjutan yang dicetak 
 (membuat ulang kontrak TypeScript, halaman referensi, dan bundle TUI, lalu mengurutkan ulang
 import) sebelum menjalankan `scripts/run_tests.sh`. URL repositori di README tidak ikut
 diganti.
+
+## Berkontribusi
+
+Mulai dari [CONTRIBUTING.md](CONTRIBUTING.md). Celah keamanan dilaporkan secara privat mengikuti
+[SECURITY.md](SECURITY.md), dan semua yang terlibat mengikuti [kode etik](CODE_OF_CONDUCT.md).
 
 ## Lisensi
 
