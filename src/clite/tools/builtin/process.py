@@ -15,7 +15,8 @@ from clite.core.redact import redact
 from clite.core.threads import start_thread
 from clite.tools.context import ToolContext
 from clite.tools.environments import get_environment
-from clite.tools.environments.local import kill_process_tree, read_output_chunks
+from clite.tools.environments.capture import read_output_chunks
+from clite.tools.environments.local import kill_process_tree
 from clite.tools.registry import registry, tool_error, tool_result
 
 _BUFFER_CHARS = 200_000

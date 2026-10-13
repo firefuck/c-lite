@@ -337,8 +337,9 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | --- | --- | --- |
 | `__init__.py` | Environment registry: one execution environment per task, created on first use. | `register_environment_backend()`, `environment_backends()`, `get_environment()`, `cleanup_environment()`, `cleanup_all_environments()` |
 | `base.py` | Execution environments: where the ``terminal`` tool actually runs a command. | `ExecResult`, `FileRead`, `DirEntry`, `FileInfo`, `BaseEnvironment` |
+| `capture.py` | Waiting for a started command: stream and cap its output, enforce timeout and interrupt. | `read_output_chunks()`, `kill_client()`, `capture()` |
 | `docker.py` | Docker execution: one container per ``task_id``, the working directory bind-mounted in. | `DockerEnvironment`, `docker_factory()` |
-| `local.py` | Local execution: a subprocess on the host, in its own process group. | `build_child_env()`, `find_shell()`, `kill_process_tree()`, `read_output_chunks()`, `LocalEnvironment` |
+| `local.py` | Local execution: a subprocess on the host, in its own process group. | `build_child_env()`, `find_shell()`, `kill_process_tree()`, `LocalEnvironment` |
 | `ssh.py` | SSH execution: one connection per ``task_id`` to a host named in config. | `SSHEnvironment`, `ssh_factory()` |
 
 ## `clite/tools/mcp/`
@@ -349,4 +350,4 @@ yang didefinisikannya. Gunakan halaman ini untuk menemukan tempat sebuah perubah
 | `client.py` | MCP client: tools, resources and prompts served by external processes or HTTP endpoints. | `safe_name()`, `prompt_slug()`, `McpPrompt`, `McpServer`, `render_prompt_messages()`, `connect_mcp_servers()`, `shutdown_mcp_servers()`, `mcp_servers_snapshot()`, `mcp_prompt_commands()`, `read_mcp_prompt()`, … (+3) |
 | `http.py` | Streamable HTTP transport for the MCP client. | `McpError`, `resolve_header_value()`, `build_headers()`, `HttpTransport` |
 
-Jumlah: 213 modul.
+Jumlah: 214 modul.
