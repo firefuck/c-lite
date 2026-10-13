@@ -30,8 +30,8 @@ Tes: `pytest tests/rpc -q`, dan `node --test test/*.test.ts` di `apps/shared`.
 3. `python scripts/gen_rpc_contracts.py` dan `python scripts/gen_docs.py`.
 4. Tes di `tests/rpc/test_rpc.py` (fixture klien di file itu mengirim permintaan lewat
    `MemoryTransport`).
-5. Bila dashboard memakainya: `src/clite/server/static/app.js`. Bila TUI memakainya:
-   `ui-tui/src/`, lalu bangun ulang bundle.
+5. Bila dashboard memakainya: `web/src/`. Bila TUI memakainya: `ui-tui/src/`. Lalu bangun
+   ulang bundle yang bersangkutan (`npm run build` di direktori itu).
 
 ### Menambah event
 

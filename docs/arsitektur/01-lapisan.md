@@ -123,7 +123,7 @@ terhubung ke backend **hanya** lewat protokol JSON-RPC ([05-protokol-rpc.md](05-
 | `apps/shared/` (klien protokol, reducer transkrip) | Kontrak hasil generate | Mengimpor dari `ui-tui` atau `apps/desktop` |
 | `ui-tui/` (TUI) | `apps/shared` | Membaca file di home secara langsung |
 | `apps/desktop/` (cangkang Electron) | `clite serve` sebagai proses anak | Punya UI sendiri: jendelanya memuat dashboard backend |
-| `src/clite/server/static/` (dashboard) | `rpc.js` di direktori yang sama | Langkah build |
+| `web/` (dashboard; bundle-nya di `src/clite/server/static/`) | `apps/shared` | Membaca file di home secara langsung |
 
 Front-end tidak pernah membaca `config.yaml`, `state.db`, atau `.env`. Bila sebuah front-end
 membutuhkan data, tambahkan method RPC.

@@ -1,6 +1,6 @@
 # apps: aturan kerja
 
-- `apps/shared/`: klien protokol TypeScript, dipakai TUI dan desktop. Spesifikasi:
+- `apps/shared/`: klien protokol TypeScript, dipakai TUI dan dashboard (`web/`). Spesifikasi:
   `docs/spesifikasi/tui.md`.
 - `apps/desktop/`: cangkang Electron. Spesifikasi: `docs/spesifikasi/desktop.md`, dan baca
   `apps/desktop/README.md` untuk status verifikasinya.
@@ -15,15 +15,15 @@ Tes (dari masing-masing direktori): `node --test test/*.test.ts`
    ada import `node:*` atau DOM di `json-rpc-channel.ts`, `gateway-client.ts`, dan
    `transcript.ts`; yang spesifik lingkungan hanya di `transports.ts`.
 3. **Aplikasi desktop tidak punya UI sendiri.** Jendelanya memuat dashboard milik backend
-   (`src/clite/server/static/`). Fitur UI ditambahkan di dashboard.
+   (`src/clite/server/static/`, dibangun dari `web/`). Fitur UI ditambahkan di dashboard.
 4. **Renderer tidak mendapat akses Node.** `contextIsolation: true`, `nodeIntegration: false`,
    `sandbox: true` tidak diubah. `preload.ts` membuka fakta, bukan kemampuan.
 5. **Token sesi lewat environment, tidak pernah lewat argumen.**
 6. **Bagian yang belum pernah dijalankan diberi tanda.** `main.ts` dan `preload.ts` memuat
    tulisan "NOT VERIFIED" di kepalanya. Hapus tanda itu hanya setelah benar-benar
    menjalankannya dan mencatat hasilnya di `apps/desktop/README.md`.
-7. **Setelah mengubah `apps/shared/src/`, bangun ulang bundle TUI** (`npm run build` di
-   `ui-tui/`).
+7. **Setelah mengubah `apps/shared/src/`, bangun ulang kedua bundle** (`npm run build` di
+   `ui-tui/` dan di `web/`).
 
 ## Jebakan
 

@@ -67,8 +67,9 @@ clite = [
   "bundled/**/*.txt",
   "bundled/**/*.sh",
   "server/static/*.html",
-  "server/static/*.css",
-  "server/static/*.js",
+  "server/static/*.json",
+  "server/static/assets/*.css",
+  "server/static/assets/*.js",
   "tui_dist/*.mjs",
   "tui_dist/*.json",
 ]

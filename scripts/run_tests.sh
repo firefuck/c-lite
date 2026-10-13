@@ -50,7 +50,7 @@ run_node() {
     echo "== Node.js not found: skipping the TypeScript tests"
     return 0
   fi
-  for package in apps/shared ui-tui apps/desktop; do
+  for package in apps/shared ui-tui web apps/desktop; do
     echo "== $package: tests"
     (cd "$package" && CLITE_PYTHON="$python" node --test test/*.test.ts) || failed=1
     (

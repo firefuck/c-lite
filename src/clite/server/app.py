@@ -8,7 +8,7 @@ Surface area, deliberately small:
 ``GET  /api/sessions/{id}/messages``   a stored transcript
 ``GET  /api/plugin-pages``             dashboard pages plugins ship, with their own-origin URL
 ``WS   /api/ws``                       JSON-RPC, the same protocol the TUI speaks over stdio
-``GET  /``                             the bundled dashboard (static files)
+``GET  /``                             the bundled dashboard (``/assets/`` holds its code)
 
 Everything a client can *do* goes through the WebSocket. The REST routes exist for simple
 read-only integrations and health checks.
@@ -57,8 +57,8 @@ from clite.state.db import get_session_db
 
 logger = logging.getLogger("clite.server")
 
+# The dashboard as built from web/ (`npm run build` there): index.html and assets/.
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-DIST_DIR = Path(__file__).resolve().parent / "static_dist"
 WS_UNAUTHORIZED = 4401
 WS_MESSAGE_TOO_BIG = 1009  # RFC 6455 "message too big"
 WS_TOKEN_REVOKED = 4403
@@ -367,7 +367,6 @@ def create_app(
     if not token:
         raise ValueError("the server needs a session token")
     gate = _Gate(token, bind_host=bind_host, throttle=throttle)
-    assets = DIST_DIR / "assets" if (DIST_DIR / "assets").exists() else STATIC_DIR
     routes: list[Any] = [
         Route("/api/health", _health),
         *_optional_routes(gate, client_factory),
@@ -379,8 +378,7 @@ def create_app(
             "/api/ws", _websocket_endpoint(gate, platform=platform, client_factory=client_factory)
         ),
         Route("/", _index),
-        Mount("/static", StaticFiles(directory=STATIC_DIR), name="static"),
-        Mount("/assets", StaticFiles(directory=assets), name="assets"),
+        Mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets"),
     ]
     return Starlette(routes=routes)
 
