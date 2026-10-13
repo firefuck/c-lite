@@ -54,7 +54,9 @@ run_node() {
   fi
   for package in apps/shared ui-tui web apps/desktop; do
     echo "== $package: tests"
-    (cd "$package" && CLITE_PYTHON="$python" node --test test/*.test.ts) || failed=1
+    # node:test waits forever by default; a test stuck on an event that never comes would hold
+    # the run (and every push) instead of failing. Two minutes is far above the slowest test.
+    (cd "$package" && CLITE_PYTHON="$python" node --test --test-timeout=120000 test/*.test.ts) || failed=1
     (
       cd "$package"
       tsc="$(node_resolve typescript/bin/tsc)"
