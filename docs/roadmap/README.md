@@ -1,24 +1,17 @@
 # Roadmap
 
 Daftar pekerjaan dari keadaan sekarang sampai agent yang setara fiturnya dengan Hermes, dipecah
-menjadi task yang bisa dikerjakan satu per satu oleh AI. Keadaan sekarang dicatat di
+menjadi task yang bisa dikerjakan satu per satu. Keadaan sekarang dicatat di
 [STATUS.md](../STATUS.md).
 
 ## Cara memakai
 
 1. Pilih task dengan status ⬜ yang semua ketergantungannya sudah ✅. Bila tidak ada alasan
    lain, ikuti urutan nomor.
-2. Berikan task itu ke AI dengan prompt di
-   [prompts/02-kerjakan-task.md](../prompts/02-kerjakan-task.md). Di Claude Code:
-   `/kerjakan-task F1-T1`.
-3. Setelah selesai, AI memperbarui status di tabel indeks di bawah dan di spesifikasi modul.
-   Periksa hasilnya dengan [prompts/03-tinjau.md](../prompts/03-tinjau.md) (`/tinjau F1-T1`),
-   di konteks yang bersih.
-
-Satu task per sesi adalah default yang aman: riwayat sesi tetap relevan dan hasilnya mudah
-ditinjau. Model yang sanggup memegang sesi panjang boleh mengerjakan task L dalam satu sesi,
-dan beberapa task S yang berkaitan boleh digabung. Cara menyiapkan alatnya ada di
-[prompts/README.md](../prompts/README.md).
+2. Kerjakan task itu mengikuti [CONTRIBUTING.md](../../CONTRIBUTING.md) dan `AGENTS.md` area
+   yang disentuh, sampai semua kriteria selesainya terpenuhi.
+3. Perbarui status di tabel indeks di bawah, di spesifikasi modul, dan di
+   [STATUS.md](../STATUS.md) dalam commit yang sama.
 
 ## Fase
 
@@ -46,14 +39,14 @@ ketergantungan tiap task dipenuhi.
 | **Selesai bila** | Kriteria yang bisa diperiksa. Setiap butir menjadi tes, kecuali yang jelas menyebut pemeriksaan manual |
 | **Ukuran** | Lihat tabel di bawah |
 | **Bergantung pada** | Task yang harus ✅ lebih dulu |
-| **Butuh dari Anda** | Hal yang tidak bisa disediakan AI sendiri: kunci API, akun, mesin Windows, layar |
+| **Butuh dari Anda** | Hal yang tidak bisa disediakan dari dalam repositori: kunci API, akun, mesin Windows, layar |
 
-| Ukuran | Kira-kira | Arti untuk AI |
+| Ukuran | Kira-kira | Cara mengerjakan |
 |---|---|---|
 | S | Sampai 300 baris berubah | Satu sesi, satu commit |
 | M | 300 sampai 1.000 baris | Satu sesi; rencanakan dulu, commit bertahap |
 | L | 1.000 sampai 3.000 baris | Satu sesi panjang atau beberapa sesi. Pecah menjadi sub-langkah di awal, commit per sub-langkah, dan catat kemajuannya di task ini |
-| XL | Lebih dari itu | Jangan dimulai sebagai satu task. Pecah dulu menjadi task baru di file fase dengan [prompts/10-pecah-task.md](../prompts/10-pecah-task.md) |
+| XL | Lebih dari itu | Jangan dimulai sebagai satu task. Pecah dulu menjadi beberapa task baru di file fase |
 
 ## Selesai itu apa
 
@@ -79,8 +72,7 @@ Status: ⬜ belum, 🟡 sedang dikerjakan atau selesai sebagian, ✅ selesai.
 
 Perbaikan audit F08/F09 pada 6 Oktober 2026 melengkapi propagasi scope profil pada RPC/HTTP
 dan redaksi rahasia scope. Sembilan regresi gagal pada snapshot sebelum perbaikan. Ini
-menutup temuan audit, bukan menyelesaikan task integrasi dunia nyata di fase 1; titik lanjut
-dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
+menutup temuan audit, bukan menyelesaikan task integrasi dunia nyata di fase 1.
 
 ### Fase 1: fondasi terverifikasi
 

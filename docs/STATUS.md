@@ -99,12 +99,6 @@ butir di bawah yang merujuk F1-T2 dan F1-T3 tetap dianggap belum diverifikasi.
 | Dashboard React di jendela Electron | Tes asap desktop butuh layar dan biner Electron; dashboard React baru diuji di Chromium | F5-T11 |
 | Plugin lewat entry point pip | Jalur muatnya ada; belum diuji dengan paket yang benar-benar terpasang | F6-T5 |
 | Situs dokumentasi pengguna | Dibangun dan diuji lokal; penerbitan GitHub Pages belum pernah berjalan | F6-T9 |
-| Model atau harness selain Claude Code | Belum pernah ada yang mengerjakan repositori ini. Panduannya ([PANDUAN-MODEL-LAIN.md](PANDUAN-MODEL-LAIN.md)) disusun dari isi repositori, belum dari sesi nyata | Coba dengan satu task S |
-
-Prompt kerja di `docs/prompts/` bisa ditempel ke harness apa pun. Scaffolding khusus Claude
-Code (`.claude/` dan berkas `CLAUDE.md`) dihapus dari repositori ini pada 13 Oktober 2026;
-yang tersisa adalah plugin bawaan `claude-compat`, yang memuat `CLAUDE.md` milik proyek
-pengguna.
 
 Hal lain yang perlu diketahui:
 
@@ -139,7 +133,7 @@ mendahulukan nilai terpanjang agar awalan bersama tidak menyisakan potongan raha
 Sembilan regresi gagal pada snapshot sebelum perbaikan. Tes katalog yang tanpa sengaja
 mengakses endpoint publik diganti dengan server lokal, dan tes startup TUI dibuat mandiri
 terhadap keadaan pemasangan paket. Provider asli dan UI Electron tetap belum
-terverifikasi. Perkembangan berikutnya dicatat di [checkpoint](CHECKPOINT-KERJA.md).
+terverifikasi.
 
 Tinjauan tambahan pada 5 Oktober 2026 menemukan empat celah prioritas tinggi pada rotasi
 kredensial endpoint kustom, delegasi tool, sesi tanpa izin tool, dan penulisan skill lewat

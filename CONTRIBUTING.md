@@ -1,9 +1,8 @@
 # Berkontribusi ke C-lite
 
-Terima kasih sudah mau ikut membangun C-lite. Halaman ini adalah pintu masuk untuk manusia;
-aturan kerja lengkapnya, yang juga dipakai agent AI yang mengerjakan repositori ini, ada di
-[AGENTS.md](AGENTS.md) dan di `AGENTS.md` tiap area. Bila keduanya tampak berbeda, `AGENTS.md`
-yang berlaku.
+Terima kasih sudah mau ikut membangun C-lite. Halaman ini adalah pintu masuk; aturan kerja
+lengkapnya ada di [AGENTS.md](AGENTS.md) dan di `AGENTS.md` tiap area. Bila keduanya tampak
+berbeda, `AGENTS.md` yang berlaku.
 
 ## Menyiapkan lingkungan
 

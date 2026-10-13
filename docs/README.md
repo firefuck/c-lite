@@ -1,6 +1,6 @@
 # Peta dokumen
 
-Semua dokumen di folder ini ditulis untuk orang atau AI yang **mengubah** kode. Dokumentasi
+Semua dokumen di folder ini ditulis untuk yang **mengubah** kode. Dokumentasi
 untuk orang yang **memakai** C-lite ada di folder `website/`, terbit dalam dua bahasa di
 <https://dragovics.github.io/clite/>.
 
@@ -8,8 +8,7 @@ untuk orang yang **memakai** C-lite ada di folder `website/`, terbit dalam dua b
 
 | Tujuan Anda | Baca berurutan |
 |---|---|
-| Mengerjakan proyek ini dengan AI | [prompts/README.md](prompts/README.md), lalu [roadmap/README.md](roadmap/README.md) |
-| Mengerjakannya dengan model atau harness selain Claude Code | [PANDUAN-MODEL-LAIN.md](PANDUAN-MODEL-LAIN.md) |
+| Mulai berkontribusi | [CONTRIBUTING.md](../CONTRIBUTING.md), lalu [roadmap/README.md](roadmap/README.md) |
 | Memahami bentuk proyek | [arsitektur/README.md](arsitektur/README.md), [arsitektur/01-lapisan.md](arsitektur/01-lapisan.md), [arsitektur/03-invarian.md](arsitektur/03-invarian.md) |
 | Mengubah satu modul | Spesifikasinya di [spesifikasi/](spesifikasi/README.md), lalu `AGENTS.md` di direktori modul itu |
 | Tahu apa yang sudah terbukti jalan | [STATUS.md](STATUS.md) |
@@ -23,10 +22,8 @@ untuk orang yang **memakai** C-lite ada di folder `website/`, terbit dalam dua b
 | [spesifikasi/](spesifikasi/README.md) | Satu dokumen per modul: tanggung jawab, kontrak, status fitur, celah | Ditulis tangan; berubah bersama kode modulnya |
 | [referensi/](referensi/katalog.md) | Katalog (tool, perintah, method RPC, kunci config) dan peta modul | **Dihasilkan** oleh `scripts/gen_docs.py`; jangan disunting |
 | [roadmap/](roadmap/README.md) | 62 task dalam enam fase, dengan kriteria selesai | Ditulis tangan; status diperbarui tiap task selesai |
-| [prompts/](prompts/README.md) | Prompt siap pakai untuk mengerjakan proyek dengan AI | Ditulis tangan |
 | [hermes/](hermes/README.md) | Bedah Hermes Agent dan peta padanan file | Ditulis tangan; mengacu ke satu commit Hermes |
 | [STATUS.md](STATUS.md) | Apa yang dijaga tes, apa yang belum diverifikasi | Diperbarui tiap ada yang terverifikasi |
-| [PANDUAN-MODEL-LAIN.md](PANDUAN-MODEL-LAIN.md) | Apa yang pindah dan apa yang diganti bila model atau harness bukan Claude Code | Ditulis tangan; dilengkapi dari sesi nyata |
 
 Di luar folder ini: `AGENTS.md` di root repositori (aturan kerja untuk seluruh proyek) dan
 `AGENTS.md` di tiap direktori area (aturan dan resep area itu).

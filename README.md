@@ -88,20 +88,6 @@ Pemasangan dari registry dan tes sudah lulus di CI Linux pada Python 3.11–3.13
 Untuk dependensi pengembangan Node, jalankan `npm ci` di root. Batas verifikasi lainnya
 tercatat di [docs/STATUS.md](docs/STATUS.md).
 
-## Mengerjakan proyek ini dengan AI
-
-Repositori ini disiapkan untuk dikerjakan sepenuhnya oleh AI, dengan Claude Fable 5.1 sebagai
-sasaran utama.
-
-1. Baca [docs/prompts/README.md](docs/prompts/README.md): cara menyiapkan Claude Code dan
-   daftar prompt siap pakai.
-2. Jalankan `/orientasi` sekali untuk memeriksa lingkungan.
-3. Pilih task di [docs/roadmap/README.md](docs/roadmap/README.md), mulai dari fase 1, lalu
-   `/kerjakan-task <nomor>` dan `/tinjau <nomor>`.
-
-Aturan kerja untuk AI ada di [AGENTS.md](AGENTS.md) dan di `AGENTS.md` tiap direktori.
-Sebagian besar aturan itu dijaga tes, sehingga pelanggaran menggagalkan suite.
-
 ## Peta repositori
 
 | Path | Isi |
