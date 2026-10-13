@@ -21,6 +21,7 @@ from clite.skills.hub import (
     plan_update,
     remove_tap,
     search_skills,
+    skill_files,
 )
 from clite.skills.manager import SkillError
 from clite.skills.scanner import extract_commands, looks_binary, scan_bundle
@@ -388,6 +389,19 @@ def test_cli_tap_add_list_and_remove(hub_repo, cli):
     assert "acme/skills" in cli("skills", "tap", "list")
     assert "Removed tap acme/skills." in cli("skills", "tap", "remove", "acme/skills")
     assert "No tap named" in cli("skills", "tap", "remove", "acme/skills", expect=1)
+
+
+def test_a_skill_is_its_files_without_hidden_files_or_byte_caches(tmp_path):
+    skill = tmp_path / "notes"
+    (skill / "scripts" / "__pycache__").mkdir(parents=True)
+    (skill / "SKILL.md").write_text("---\nname: notes\ndescription: Take notes.\n---\nBody\n")
+    (skill / "scripts" / "tool.py").write_text("print('hi')\n")
+    before = bundle_digest(skill_files(skill))
+    # Running a skill's scripts or tests leaves these behind; they are not part of the skill.
+    (skill / "scripts" / "__pycache__" / "tool.cpython-313.pyc").write_bytes(b"\x00cache")
+    (skill / ".DS_Store").write_bytes(b"finder")
+    assert sorted(skill_files(skill)) == ["SKILL.md", "scripts/tool.py"]
+    assert bundle_digest(skill_files(skill)) == before
 
 
 # ── the index that ships ─────────────────────────────────────────────────────────────────

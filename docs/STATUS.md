@@ -36,6 +36,10 @@ Yang tercakup tes Python itu, selain perilaku tiap modul:
   variabel lingkungan hanya di file yang terdaftar, tidak ada `print` di luar CLI.
 - **File turunan.** Kontrak TypeScript, halaman referensi, bundle TUI, dan bundle dashboard
   sama dengan sumbernya.
+- **Tes milik skill bawaan.** Suite di `src/clite/bundled/skills/*/*/tests/` dijalankan
+  `tests/skills/test_bundled_skill_suites.py` bila pustaka skill itu (python-docx, openpyxl,
+  python-pptx, pypdf, reportlab) terpasang, dan dilewati dengan namanya bila tidak. Pustaka itu
+  bukan dependensi `[dev]`, jadi di lingkungan pengembangan biasa keempat suite dilewati.
 - **Penggantian nama.** `scripts/rename_project.py` dijalankan pada salinan repositori di
   setiap putaran suite: tidak ada ejaan nama lama yang tertinggal, program hasil ganti nama
   berjalan, dan bisa diganti nama lagi.
