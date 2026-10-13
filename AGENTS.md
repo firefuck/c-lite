@@ -12,6 +12,7 @@ sebelum mengubah apa pun di dalamnya.
 
     pip install -e ".[dev]"                             # sekali
     npm install                                         # sekali; untuk type check dan build TypeScript
+    git config core.hooksPath scripts/hooks             # sekali; semua pemeriksaan jalan sebelum push
     scripts/run_tests.sh                                # semuanya: ruff, mypy, pytest, tes TypeScript
     scripts/run_tests.sh python tests/agent -k compress # sebagian
     python -m clite chat -q "halo" --provider mock      # satu giliran tanpa kunci API

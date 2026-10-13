@@ -988,8 +988,17 @@ pengguna.
 pip install -e ".[dev]"
 npm install                                                  # opsional: type check dan build TypeScript
 scripts/run_tests.sh                                         # lint, mypy, tes Python, tes TypeScript
+git config core.hooksPath scripts/hooks                      # sekali per clone: run_tests.sh sebelum push
 python scripts/check_hermes_refs.py --hermes ../hermes-ref   # butuh clone Hermes
 ```
+
+Workflow CI di GitHub (`.github/workflows/ci.yml`) terpicu pada setiap push ke `firefuck/c-lite`
+tetapi tidak pernah mendapat runner, karena akun terkunci masalah penagihan (terakhir dicek 13
+Oktober 2026). Sebagai gantinya, hook `scripts/hooks/pre-push` menjalankan
+`scripts/run_tests.sh` dan menolak push bila ada yang gagal (`tests/test_pre_push_hook.py`).
+Yang tidak tercakup hook ini dibanding CI: job Windows, tes asap Electron di bawah `xvfb`, dan
+pemasangan wheel di virtualenv bersih (`python scripts/check_wheel_install.py`, jalankan
+manual sebelum rilis).
 
 ## Catatan verifikasi
 
