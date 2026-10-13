@@ -7,6 +7,10 @@ GitHub-nya (`python scripts/release.py notes`).
 
 ## [Unreleased]
 
+### Ditambah
+- Metadata paket: penulis, tautan ke repositori, isu, dokumentasi, dan catatan perubahan,
+  serta klasifikasi PyPI.
+
 ### Diubah
 - Perapian kode tanpa perubahan perilaku: fungsi panjang dipecah dan kompleksitas tiap fungsi
   dibatasi 15, format kode dan komentar `noqa` beralasan diperiksa di CI, dan mypy berjalan

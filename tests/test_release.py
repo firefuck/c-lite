@@ -8,6 +8,7 @@ on this repository, and check the script's refusals on small throwaway repositor
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -101,6 +102,16 @@ def test_the_distribution_is_published_as_c_lite_while_the_command_stays_clite()
     assert project["name"] != APP_NAME  # the short name on PyPI belongs to another project
     assert project["scripts"][APP_NAME] == f"{APP_NAME}.cli.main:main"
     assert project["license"] == "MIT"
+
+
+def test_the_project_links_point_at_the_repository_the_readme_clones():
+    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    clone = re.search(r"git clone (https://github\.com/[\w.-]+/[\w.-]+)", readme)
+    assert clone is not None
+    urls = project["urls"]
+    assert {"Homepage", "Documentation", "Issues", "Changelog"} <= set(urls)
+    assert all(url.startswith(clone.group(1)) for name, url in urls.items() if name != "Documentation")
 
 
 def test_a_tag_that_does_not_match_the_version_is_reported(tmp_path):
