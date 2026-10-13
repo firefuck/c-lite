@@ -9,9 +9,7 @@
 import { Box, Text, useApp, useInput, useStdout } from "ink";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 
-import type { CatalogResult, CommandEntry, EventEnvelope, ModelEntry, ModelListResult, PromptSubmitResult, SessionInfo, SessionListResult, SlashExecResult, StoredSession } from "../../../apps/shared/src/contracts.generated.ts";
-import type { GatewayClient } from "../../../apps/shared/src/gateway-client.ts";
-import { addUserMessage, emptyTranscript, reduce, type TranscriptItem, type TranscriptState } from "../../../apps/shared/src/transcript.ts";
+import { addUserMessage, emptyTranscript, reduce, type CatalogResult, type CommandEntry, type EventEnvelope, type GatewayClient, type ModelEntry, type ModelListResult, type PromptSubmitResult, type SessionInfo, type SessionListResult, type SlashExecResult, type StoredSession, type TranscriptItem, type TranscriptState } from "@clite/shared";
 import { formatItem } from "../render.ts";
 import { CompletionMenu } from "./CompletionMenu.tsx";
 import { ApprovalDialog, ClarifyDialog } from "./Dialogs.tsx";

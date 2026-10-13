@@ -230,7 +230,7 @@ def main(argv: list[str] | None = None) -> int:
             "  1. pip install -e '.[dev]'                 the package directory changed\n"
             "  2. python scripts/gen_rpc_contracts.py     regenerate the TypeScript contracts\n"
             "  3. python scripts/gen_docs.py              regenerate the reference pages\n"
-            "  4. (cd ui-tui && npm run build)            rebuild the terminal UI shipped in the package\n"
+            "  4. (cd apps/tui && npm run build)          rebuild the terminal UI shipped in the package\n"
             "  5. ruff check --fix src tests scripts      re-sort imports: the new name sorts differently\n"
             "  6. scripts/run_tests.sh\n"
             f"  7. Existing installs: move ~/.{old} to ~/.{args.name} and rename {old.upper()}_* variables."

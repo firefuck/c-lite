@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { SessionInfo } from "../../apps/shared/src/contracts.generated.ts";
+import type { SessionInfo } from "@clite/shared";
 import {
   formatBanner, formatItem, formatStatus, formatToolLine, MarkdownStream, MarkdownStyle, paint, parseApproval,
   parseChoice, renderDiff, renderMarkdown, shouldUseColor,

@@ -21,6 +21,9 @@ GitHub-nya (`python scripts/release.py notes`).
   dalam mode `strict`. Empat modul terbesar dipecah menurut tanggung jawab: runner gateway,
   gerbang persetujuan perintah, handler RPC (kini paket `clite.rpc.methods`), dan penyimpanan
   sesi.
+- Tata letak monorepo: aplikasi di `apps/` (`apps/tui`, `apps/web`, `apps/desktop`) dan klien
+  protokol bersama di `packages/shared`, yang kini diimpor kedua aplikasi lewat nama paketnya
+  (`@clite/shared`).
 - Backend eksekusi `local`, `docker`, dan `ssh` memakai satu loop yang sama untuk menunggu
   perintah (batas output, timeout, interupsi).
 - Gateway menawarkan pemilih `/model` dan tombol persetujuan menurut kemampuan adapter, bukan

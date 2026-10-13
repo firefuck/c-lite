@@ -32,7 +32,7 @@ melihat seluruh pemeriksaan lulus, di mesinnya dan di GitHub Actions.
 
 **Di luar lingkup.** Windows (F1-T5) dan rilis GitHub (F1-T7).
 
-**File.** `pyproject.toml`, `package.json`, `ui-tui/package.json`, `apps/shared/package.json`,
+**File.** `pyproject.toml`, `package.json`, `apps/tui/package.json`, `packages/shared/package.json`,
 `apps/desktop/package.json`, `.github/workflows/ci.yml`, `scripts/run_tests.sh`,
 `docs/STATUS.md`, `package-lock.json`, `scripts/check_wheel_install.py`.
 

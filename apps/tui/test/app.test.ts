@@ -14,8 +14,7 @@ import { parseApprovalChoice, parseApprovalText, parseClarifyAnswer } from "../s
 import { getSlashCandidates, handleTabCompletion } from "../src/app/completion.ts";
 import { formatModelItem, formatSessionItem, resumeSession, switchModel } from "../src/app/pickers.ts";
 import { markdownRoleCodes, markdownStyle } from "../src/render.ts";
-import type { CommandEntry, ModelEntry, StoredSession } from "../../apps/shared/src/contracts.generated.ts";
-import { reduce, emptyTranscript, addUserMessage } from "../../apps/shared/src/transcript.ts";
+import { addUserMessage, emptyTranscript, reduce, type CommandEntry, type ModelEntry, type StoredSession } from "@clite/shared";
 
 test("the Ink TUI creates a valid session.create payload", () => {
   const params = createTuiSessionParams({ cwd: "/tmp/work", model: "mock-1", provider: "mock", yolo: false });

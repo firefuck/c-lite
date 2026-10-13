@@ -3,7 +3,7 @@
 // Drawn strictly from the live `commands.catalog` (JSON-RPC); no hardcoded command lists.
 // Testable with `node --test` without a terminal or React environment.
 
-import type { CommandEntry } from "../../../apps/shared/src/contracts.generated.ts";
+import type { CommandEntry } from "@clite/shared";
 
 /**
  * Filter and sort slash command candidates matching the given input prefix.

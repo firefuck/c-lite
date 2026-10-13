@@ -1,7 +1,7 @@
 """The dashboard as shipped: the bundle inside the Python package.
 
 ``clite dashboard`` serves ``src/clite/server/static/``, which is built from TypeScript in
-``web/`` and ``apps/shared/``. These tests check that the committed bundle matches its sources
+``apps/web/`` and ``packages/shared/``. These tests check that the committed bundle matches its sources
 and that it is self-contained.
 """
 
@@ -17,14 +17,14 @@ import pytest
 from clite.server.app import STATIC_DIR
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-# Keep in sync with SOURCE_DIRS, SOURCE_FILES and EXTENSIONS in web/build.mjs.
-BUNDLE_SOURCE_DIRS = ("apps/shared/src", "web/src")
-BUNDLE_SOURCE_FILES = ("web/index.html",)
+# Keep in sync with SOURCE_DIRS, SOURCE_FILES and EXTENSIONS in apps/web/build.mjs.
+BUNDLE_SOURCE_DIRS = ("packages/shared/src", "apps/web/src")
+BUNDLE_SOURCE_FILES = ("apps/web/index.html",)
 BUNDLE_EXTENSIONS = (".ts", ".tsx", ".css")
 
 
 def source_hash() -> str:
-    """The same hash web/build.mjs records: sorted relative paths and file contents."""
+    """The same hash apps/web/build.mjs records: sorted relative paths and file contents."""
     paths = [
         path
         for directory in BUNDLE_SOURCE_DIRS
@@ -44,12 +44,12 @@ def test_the_bundle_ships_inside_the_package():
 
 
 def test_the_committed_bundle_was_built_from_the_current_sources():
-    if not (REPO_ROOT / "web" / "src").is_dir():
+    if not (REPO_ROOT / "apps" / "web" / "src").is_dir():
         pytest.skip("not a source checkout")
     recorded = json.loads((STATIC_DIR / "build-info.json").read_text())["source_hash"]
     assert recorded == source_hash(), (
-        "web/src, web/index.html or apps/shared/src changed after the dashboard was built. "
-        "Run `npm run build` in web/ and commit src/clite/server/static/."
+        "apps/web/src, apps/web/index.html or packages/shared/src changed after the dashboard was built. "
+        "Run `npm run build` in apps/web/ and commit src/clite/server/static/."
     )
 
 
@@ -65,7 +65,7 @@ def test_the_page_loads_only_its_own_bundle():
 def test_the_bundle_never_sets_html_from_data():
     """Text from the model or a tool is text: the dashboard never hands React raw HTML."""
     sources = "\n".join(
-        path.read_text(encoding="utf-8") for path in (REPO_ROOT / "web" / "src").rglob("*.tsx")
+        path.read_text(encoding="utf-8") for path in (REPO_ROOT / "apps" / "web" / "src").rglob("*.tsx")
     )
     if not sources:
         pytest.skip("not a source checkout")

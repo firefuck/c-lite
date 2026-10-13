@@ -1,8 +1,7 @@
 // Formatting, as pure functions: transcript items and status lines to strings.
 // No I/O here, so every line the user sees can be asserted in a test.
 
-import type { SessionInfo } from "../../apps/shared/src/contracts.generated.ts";
-import type { TranscriptItem } from "../../apps/shared/src/transcript.ts";
+import type { SessionInfo, TranscriptItem } from "@clite/shared";
 
 const CODES = { dim: "2", red: "31", green: "32", yellow: "33", cyan: "36", bold: "1" } as const;
 export type Style = keyof typeof CODES;

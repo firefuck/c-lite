@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| Kode | `ui-tui/` (TUI), `apps/shared/` (klien protokol) |
+| Kode | `apps/tui/` (TUI), `packages/shared/` (klien protokol) |
 | Bundle yang dikirim | `src/clite/tui_dist/clite-tui.mjs` (dibangun dari dua direktori di atas) |
-| Tes | `ui-tui/test/` (18), `apps/shared/test/` (21), `tests/cli/test_tui_bundle.py` |
+| Tes | `apps/tui/test/` (18), `packages/shared/test/` (21), `tests/cli/test_tui_bundle.py` |
 | Bahasa | TypeScript, dijalankan langsung oleh Node 22 (type stripping) |
 | Bedah Hermes | [09-tui-dan-rpc](../hermes/09-tui-dan-rpc.md) |
 
@@ -19,7 +19,7 @@ mengetik selagi agent bekerja.
 
 ## Bagian-bagian
 
-**`apps/shared/src/`** (dipakai TUI dan aplikasi desktop)
+**`packages/shared/src/`** (dipakai TUI dan aplikasi desktop)
 
 | File | Isi |
 |---|---|
@@ -29,7 +29,7 @@ mengetik selagi agent bekerja.
 | `gateway-client.ts` | `GatewayClient`: klien bertipe di atas kontrak |
 | `transcript.ts` | Transkrip sebagai fungsi murni dari event (reducer tanpa I/O) |
 
-**`ui-tui/src/`**
+**`apps/tui/src/`**
 
 | File | Isi |
 |---|---|
@@ -64,7 +64,7 @@ mengetik selagi agent bekerja.
 - Instalasi yang belum dikonfigurasi menjelaskan apa yang harus dilakukan (`clite setup`).
 
 **Bundle**
-- `npm run build` di `ui-tui/` membuat `dist/clite-tui.mjs` dan menyalinnya ke
+- `npm run build` di `apps/tui/` membuat `dist/clite-tui.mjs` dan menyalinnya ke
   `src/clite/tui_dist/`, sehingga `pip install` mengirim `clite tui` yang berfungsi tanpa
   langkah build Node di mesin pengguna.
 - `build-info.json` mencatat hash source. Tes Python menghitung ulang hash itu: bundle yang
@@ -78,12 +78,12 @@ mengetik selagi agent bekerja.
 | TUI berbasis baris | ✅ | Diuji ujung ke ujung terhadap backend sungguhan dengan provider `mock` |
 | Bundle di dalam wheel | ✅ | |
 | `npm ci` dan skrip `npm` di root | ✅ | Job Node di CI menjalankan `npm ci`, tes, dan `npm run build` |
-| TUI layar penuh (Ink/React): panel, dashboard status, diff | ✅ | Dashboard satu baris menampilkan aktivitas idle/berpikir/tool, model/provider, konteks terukur `terpakai/total` dan persen, token masuk/keluar giliran terakhir, judul/id sesi bila ada, serta cwd. Ia memakai `session.info` dan event yang sudah ada; server menerbitkan `session.info` segar sebelum `turn.complete` agar konteks terukur ikut berubah. Pada lebar sempit, aktivitas/model/konteks diprioritaskan. Dijaga `ui-tui/test/app.test.ts`, `tests/rpc/test_rpc.py`, dan `tests/cli/test_tui_bundle.py`: F3-T3/F3-T10 |
-| Pelengkapan slash command di TUI | ✅ | Kotak tulis Ink melengkapi perintah slash dari `commands.catalog`; Tab melengkapi satu kandidat atau membuka daftar; Esc menutup. Dijaga `ui-tui/test/app.test.ts`: F3-T12 |
-| Pemilih sesi dan model di TUI | ✅ | Overlay Ink memilih sesi dari `session.list` (memicu `session.create` resume) dan model dari `model.list` (memicu `model.set`). Dijaga `ui-tui/test/app.test.ts`: F3-T13 |
-| Tema TUI dari skin | ✅ | Skin dipetakan ke kode ANSI via `markdownRoleCodes` (padanan `markdown_role_codes` Python); transkrip membungkus saat terminal mengecil dan status bar tetap satu baris. Dijaga `ui-tui/test/app.test.ts`: F3-T14 |
+| TUI layar penuh (Ink/React): panel, dashboard status, diff | ✅ | Dashboard satu baris menampilkan aktivitas idle/berpikir/tool, model/provider, konteks terukur `terpakai/total` dan persen, token masuk/keluar giliran terakhir, judul/id sesi bila ada, serta cwd. Ia memakai `session.info` dan event yang sudah ada; server menerbitkan `session.info` segar sebelum `turn.complete` agar konteks terukur ikut berubah. Pada lebar sempit, aktivitas/model/konteks diprioritaskan. Dijaga `apps/tui/test/app.test.ts`, `tests/rpc/test_rpc.py`, dan `tests/cli/test_tui_bundle.py`: F3-T3/F3-T10 |
+| Pelengkapan slash command di TUI | ✅ | Kotak tulis Ink melengkapi perintah slash dari `commands.catalog`; Tab melengkapi satu kandidat atau membuka daftar; Esc menutup. Dijaga `apps/tui/test/app.test.ts`: F3-T12 |
+| Pemilih sesi dan model di TUI | ✅ | Overlay Ink memilih sesi dari `session.list` (memicu `session.create` resume) dan model dari `model.list` (memicu `model.set`). Dijaga `apps/tui/test/app.test.ts`: F3-T13 |
+| Tema TUI dari skin | ✅ | Skin dipetakan ke kode ANSI via `markdownRoleCodes` (padanan `markdown_role_codes` Python); transkrip membungkus saat terminal mengecil dan status bar tetap satu baris. Dijaga `apps/tui/test/app.test.ts`: F3-T14 |
 | Bundle TUI satu file | ✅ | Bundle `clite-tui.mjs` memuat Ink dan React secara mandiri tanpa dependensi runtime eksternal di `node_modules`, ukuran < 3MB, dan waktu mulai cepat. Dijaga `tests/cli/test_tui_bundle.py`: F3-T15 |
-| Render Markdown | ✅ | F3-T2: `ui-tui/src/render.ts` memakai aturan yang sama dengan `cli/markdown.py` — perender bertahap pada `message.delta`, blok kode tidak dibaca sebagai Markdown, tabel dipotong sesuai lebar; `tool.complete` membawa `diff` (string; kosong bila tool tidak mengubah berkas) yang dirender berwarna dengan batas panjang. Warna dari `MarkdownStyle` (tanpa kode warna sendiri); tanpa warna keluaran polos. Dijaga `ui-tui/test/render.test.ts` |
+| Render Markdown | ✅ | F3-T2: `apps/tui/src/render.ts` memakai aturan yang sama dengan `cli/markdown.py` — perender bertahap pada `message.delta`, blok kode tidak dibaca sebagai Markdown, tabel dipotong sesuai lebar; `tool.complete` membawa `diff` (string; kosong bila tool tidak mengubah berkas) yang dirender berwarna dengan batas panjang. Warna dari `MarkdownStyle` (tanpa kode warna sendiri); tanpa warna keluaran polos. Dijaga `apps/tui/test/render.test.ts` |
 | Flag `--toolsets`, `--max-turns` | ⬜ | Karena itu `display.interface: tui` jatuh ke REPL klasik bila flag itu dipakai |
 
 ## Yang sengaja berbeda dari Hermes

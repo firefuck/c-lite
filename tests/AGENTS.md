@@ -64,5 +64,5 @@ Tes yang dependensi opsionalnya tidak ada dilewati dengan `pytest.importorskip`,
 - Tool yang didaftarkan tes memakai `origin="test"` supaya dibersihkan otomatis.
 - `ScriptedClient` yang kehabisan respons melempar `AssertionError`: loop memanggil model
   lebih sering daripada yang diharapkan tes.
-- Tes TypeScript (`ui-tui`, `apps/desktop`) menjalankan backend Python sungguhan dan butuh
+- Tes TypeScript (`apps/tui`, `apps/desktop`) menjalankan backend Python sungguhan dan butuh
   dependensi Python terpasang.

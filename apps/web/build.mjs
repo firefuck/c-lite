@@ -13,12 +13,12 @@ import { fileURLToPath } from "node:url";
 import { build, version as viteVersion } from "vite";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(here, "..");
+const repoRoot = resolve(here, "../..");
 const packagedDir = resolve(repoRoot, "src/clite/server/static");
 
 // Everything that ends up in the bundle. Keep in sync with tests/server/test_dashboard_bundle.py.
-const SOURCE_DIRS = ["apps/shared/src", "web/src"];
-const SOURCE_FILES = ["web/index.html"];
+const SOURCE_DIRS = ["packages/shared/src", "apps/web/src"];
+const SOURCE_FILES = ["apps/web/index.html"];
 const EXTENSIONS = [".ts", ".tsx", ".css"];
 
 function sourceFiles(dir) {

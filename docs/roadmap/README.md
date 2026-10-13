@@ -61,7 +61,7 @@ Berlaku untuk **setiap** task, di samping kriteria miliknya sendiri:
    ke ✅ atau 🟡.
 5. File hasil generate diperbarui: `python scripts/gen_docs.py` bila ada tool, perintah, method
    RPC, kunci config, atau simbol publik yang berubah; `python scripts/gen_rpc_contracts.py`
-   bila kontrak RPC berubah; `node build.mjs` di `ui-tui/` bila TypeScript berubah.
+   bila kontrak RPC berubah; `node build.mjs` di `apps/tui/` bila TypeScript berubah.
 6. Yang ditulis tetapi tidak bisa dijalankan terhadap hal yang sebenarnya dicatat di
    [STATUS.md](../STATUS.md) sebagai belum diverifikasi, bukan diberi ✅.
 7. Baris task di indeks di bawah diperbarui.
@@ -152,7 +152,7 @@ menutup temuan audit, bukan menyelesaikan task integrasi dunia nyata di fase 1.
 | F5-T5 | Fitur desktop: multi-sesi, lampiran, notifikasi, putar ulang event | L | F5-T1, F5-T2 | ✅ |
 | F5-T6 | Akses jarak jauh yang aman | M | F5-T2 | ✅ |
 | F5-T7 | Kerangka build web (Vite, React, TypeScript) | M | F5-T2 | ✅ |
-| F5-T8 | Lapisan data dashboard dengan apps/shared | M | F5-T7 | ✅ |
+| F5-T8 | Lapisan data dashboard dengan packages/shared | M | F5-T7 | ✅ |
 | F5-T9 | Porting obrolan dashboard ke komponen React | M | F5-T8 | ✅ |
 | F5-T10 | Porting panel manajemen dashboard | L | F5-T8 | ✅ |
 | F5-T11 | Penggantian final dashboard lama dan uji end-to-end | S | F5-T9, F5-T10 | ✅ |

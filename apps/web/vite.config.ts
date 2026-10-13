@@ -12,7 +12,7 @@ const here = fileURLToPath(new URL(".", import.meta.url));
 export default defineConfig({
   plugins: [react()],
   build: {
-    outDir: resolve(here, "../src/clite/server/static"),
+    outDir: resolve(here, "../../src/clite/server/static"),
     emptyOutDir: true,
     assetsDir: "assets",
     rollupOptions: {

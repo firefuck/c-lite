@@ -52,7 +52,7 @@ run_node() {
     echo "== Node.js not found: skipping the TypeScript tests"
     return 0
   fi
-  for package in apps/shared ui-tui web apps/desktop; do
+  for package in packages/shared apps/tui apps/web apps/desktop; do
     echo "== $package: tests"
     # node:test waits forever by default; a test stuck on an event that never comes would hold
     # the run (and every push) instead of failing. Two minutes is far above the slowest test.

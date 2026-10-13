@@ -1,8 +1,8 @@
 # web: aturan kerja
 
 Dashboard (React + TypeScript, dibangun Vite) di atas protokol JSON-RPC. Spesifikasi:
-`docs/spesifikasi/server.md` (bagian Dashboard). Klien protokolnya ada di `apps/shared/`
-(lihat `apps/AGENTS.md`). Hasil build-nya disajikan backend dari `src/clite/server/static/`
+`docs/spesifikasi/server.md` (bagian Dashboard). Klien protokolnya ada di `packages/shared/`
+(lihat `packages/shared/AGENTS.md`). Hasil build-nya disajikan backend dari `src/clite/server/static/`
 dan dimuat juga oleh jendela aplikasi desktop.
 
 Tes dan pemeriksaan (dari direktori ini):
@@ -15,7 +15,7 @@ Tes browser ada di `tests/server/test_dashboard_browser.py` (butuh `playwright` 
 
 ## Aturan yang tidak boleh dilanggar
 
-1. **Setelah mengubah `web/src/`, `web/index.html`, atau `apps/shared/src/`, jalankan
+1. **Setelah mengubah `apps/web/src/`, `apps/web/index.html`, atau `packages/shared/src/`, jalankan
    `npm run build` dan commit `src/clite/server/static/`.** Tes Python
    `test_the_committed_bundle_was_built_from_the_current_sources` gagal bila terlupa.
 2. **State tidak tahu React maupun DOM.** Semua yang mengubah state ada di
@@ -44,7 +44,7 @@ Tes browser ada di `tests/server/test_dashboard_browser.py` (butuh `playwright` 
 
 ### Menampilkan event baru
 
-1. Bila event itu bagian dari transkrip, tangani di `apps/shared/src/transcript.ts` (dipakai
+1. Bila event itu bagian dari transkrip, tangani di `packages/shared/src/transcript.ts` (dipakai
    juga oleh TUI) dan gambar jenis item barunya di `src/components/Transcript.tsx`.
 2. Bila ia mengubah state lain, tangani di `Dashboard.handleEvent` dan tambahkan tes di
    `test/dashboard.test.ts`.

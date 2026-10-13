@@ -4,7 +4,7 @@
 // Arrow keys navigate up/down, Enter selects, Esc dismisses.
 
 import { Box, Text } from "ink";
-import type { CommandEntry } from "../../../apps/shared/src/contracts.generated.ts";
+import type { CommandEntry } from "@clite/shared";
 
 export interface CompletionMenuProps {
   candidates: CommandEntry[];

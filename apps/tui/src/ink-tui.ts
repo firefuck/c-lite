@@ -5,7 +5,7 @@
 // still go through `PlainTui`; `entry.ts` makes that choice.
 
 import type { Backend } from "./backend.ts";
-import type { SessionCreateParams, SessionInfo } from "../../apps/shared/src/contracts.generated.ts";
+import type { SessionCreateParams, SessionInfo } from "@clite/shared";
 import { mountApp } from "./app/mount.tsx";
 
 export interface InkTuiOptions {

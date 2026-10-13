@@ -7,9 +7,7 @@
 import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 
-import { GatewayClient } from "../../apps/shared/src/gateway-client.ts";
-import { LineTransport } from "../../apps/shared/src/transports.ts";
-import type { ReadyPayload } from "../../apps/shared/src/contracts.generated.ts";
+import { GatewayClient, LineTransport, type ReadyPayload } from "@clite/shared";
 
 export interface BackendOptions {
   /** Python executable. Default: $CLITE_PYTHON, then python3, then python. */

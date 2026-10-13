@@ -46,8 +46,8 @@ Hal-hal ini diambil dari Hermes dan dijaga dengan tes.
 | Home dinamis dan profil terpisah penuh | `hermes_constants.py`, `hermes_cli/profiles.py` | `src/clite/core/constants.py`, `src/clite/core/profiles.py` |
 | Rahasia di `.env`, pengaturan di `config.yaml` | `hermes_cli/config.py` | `src/clite/core/env.py`, `src/clite/core/config.py` |
 | Sesi di SQLite dengan FTS5 | `hermes_state.py` | `src/clite/state/db.py` |
-| TUI sebagai proses terpisah yang berbicara JSON-RPC lewat stdio | `tui_gateway/`, `ui-tui/` | `src/clite/rpc/`, `ui-tui/` |
-| Kontrak RPC menghasilkan tipe TypeScript | `tui_gateway/contracts/`, `apps/shared/` | `src/clite/rpc/contracts/`, `apps/shared/` |
+| TUI sebagai proses terpisah yang berbicara JSON-RPC lewat stdio | `tui_gateway/`, `ui-tui/` | `src/clite/rpc/`, `apps/tui/` |
+| Kontrak RPC menghasilkan tipe TypeScript | `tui_gateway/contracts/`, `apps/shared/` | `src/clite/rpc/contracts/`, `packages/shared/` |
 | Job cron adalah prompt yang berjalan di sesi baru | `cron/jobs.py`, `cron/scheduler.py` | `src/clite/cron/` |
 | Memori bawaan berupa dua file kecil yang dikurasi agent | `agent/memory_manager.py` | `src/clite/agent/memory/` |
 

@@ -84,7 +84,7 @@ tempat yang tahu cara memanggil backend.
 Aplikasi desktop Hermes adalah aplikasi React besar (788 ribu baris TypeScript di
 `apps/desktop/`) dengan renderer sendiri. Di sini cangkangnya sengaja tipis: satu dashboard
 melayani browser dan desktop, sehingga hanya ada satu UI untuk dipelihara. Bila kelak
-dibutuhkan renderer khusus desktop, `apps/shared` (klien dan reducer transkrip) sudah
+dibutuhkan renderer khusus desktop, `packages/shared` (klien dan reducer transkrip) sudah
 disiapkan untuk itu.
 
 ## Celah yang diketahui

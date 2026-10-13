@@ -120,10 +120,13 @@ terhubung ke backend **hanya** lewat protokol JSON-RPC ([05-protokol-rpc.md](05-
 
 | Bagian | Bergantung pada | Tidak boleh |
 |---|---|---|
-| `apps/shared/` (klien protokol, reducer transkrip) | Kontrak hasil generate | Mengimpor dari `ui-tui` atau `apps/desktop` |
-| `ui-tui/` (TUI) | `apps/shared` | Membaca file di home secara langsung |
+| `packages/shared/` (klien protokol, reducer transkrip) | Kontrak hasil generate | Mengimpor dari aplikasi mana pun di `apps/` |
+| `apps/tui/` (TUI) | `@clite/shared` | Menjangkau file di dalam `packages/shared/src/`; membaca file di home secara langsung |
+| `apps/web/` (dashboard; bundle-nya di `src/clite/server/static/`) | `@clite/shared` | Menjangkau file di dalam `packages/shared/src/`; membaca file di home secara langsung |
 | `apps/desktop/` (cangkang Electron) | `clite serve` sebagai proses anak | Punya UI sendiri: jendelanya memuat dashboard backend |
-| `web/` (dashboard; bundle-nya di `src/clite/server/static/`) | `apps/shared` | Membaca file di home secara langsung |
+
+Arah import antara aplikasi dan paket bersama dijaga
+`test_apps_use_the_shared_client_by_its_package_name_and_it_uses_no_app`.
 
 Front-end tidak pernah membaca `config.yaml`, `state.db`, atau `.env`. Bila sebuah front-end
 membutuhkan data, tambahkan method RPC.

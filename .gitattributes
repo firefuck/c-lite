@@ -10,7 +10,7 @@
 *.woff2 binary
 
 # Generated from source; collapsed in pull request diffs. See the derived-files table in AGENTS.md.
-apps/shared/src/contracts.generated.ts linguist-generated=true
+packages/shared/src/contracts.generated.ts linguist-generated=true
 src/clite/tui_dist/** linguist-generated=true
 src/clite/server/static/** linguist-generated=true
 src/clite/bundled/skills-index.json linguist-generated=true

@@ -670,7 +670,7 @@ sebagai catatan pada hasil tool berikutnya lewat `AIAgent.queue_note`/`take_note
 dikirim. Interupsi induk menjalar ke subagent latar, dan `close()` menunggu thread latar
 sebelum database sesi ditutup. Peran pengatur: dengan `max_spawn_depth > 1`, anak tingkat
 tengah mendapat toolset `delegation` dan boleh mendelegasikan lagi, cucu tidak. Dijaga
-`tests/agent/test_memory_and_delegation.py` (11 tes baru), `apps/shared/test/transcript.test.ts`,
+`tests/agent/test_memory_and_delegation.py` (11 tes baru), `packages/shared/test/transcript.test.ts`,
 dan `subagent.update` di `docs/referensi/katalog.md`. Bukti regresi merah/hijau ada di
 `docs/STATUS.md`. Clone rujukan Hermes tidak tersedia, sehingga file rujukan belum dibaca.
 

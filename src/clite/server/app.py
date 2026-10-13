@@ -57,7 +57,7 @@ from clite.state.db import get_session_db
 
 logger = logging.getLogger("clite.server")
 
-# The dashboard as built from web/ (`npm run build` there): index.html and assets/.
+# The dashboard as built from apps/web/ (`npm run build` there): index.html and assets/.
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 WS_UNAUTHORIZED = 4401
 WS_MESSAGE_TOO_BIG = 1009  # RFC 6455 "message too big"

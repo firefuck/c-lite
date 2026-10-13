@@ -6,7 +6,7 @@
 import { Box, Text, useInput } from "ink";
 import { useState } from "react";
 
-import type { ModelEntry, StoredSession } from "../../../apps/shared/src/contracts.generated.ts";
+import type { ModelEntry, StoredSession } from "@clite/shared";
 import { formatModelItem, formatSessionItem } from "./pickers.ts";
 
 export interface SessionPickerProps {

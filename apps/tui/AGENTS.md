@@ -1,7 +1,7 @@
-# ui-tui: aturan kerja
+# apps/tui: aturan kerja
 
 Antarmuka terminal (TypeScript) di atas protokol JSON-RPC. Spesifikasi:
-`docs/spesifikasi/tui.md`. Klien protokolnya ada di `apps/shared/` (lihat `apps/AGENTS.md`).
+`docs/spesifikasi/tui.md`. Klien protokolnya ada di `packages/shared/` (lihat `packages/shared/AGENTS.md`).
 
 Tes dan pemeriksaan (dari direktori ini):
 
@@ -11,7 +11,7 @@ Tes dan pemeriksaan (dari direktori ini):
 
 ## Aturan yang tidak boleh dilanggar
 
-1. **Setelah mengubah `ui-tui/src/` atau `apps/shared/src/`, jalankan `npm run build` dan
+1. **Setelah mengubah `apps/tui/src/` atau `packages/shared/src/`, jalankan `npm run build` dan
    commit `src/clite/tui_dist/`.** Tes Python `test_the_committed_bundle_was_built_from_the_current_sources`
    gagal bila terlupa.
 2. **TUI tidak punya logika percakapan.** Ia mengirim permintaan dan merender event. Aturan
@@ -34,8 +34,8 @@ Tes dan pemeriksaan (dari direktori ini):
 
 1. Event dan payload-nya sudah dideklarasikan di kontrak Python dan
    `contracts.generated.ts` sudah dihasilkan ulang (lihat `src/clite/rpc/AGENTS.md`).
-2. Bila event itu bagian dari transkrip, tangani di `apps/shared/src/transcript.ts` dan
-   tambahkan tes di `apps/shared/test/transcript.test.ts`.
+2. Bila event itu bagian dari transkrip, tangani di `packages/shared/src/transcript.ts` dan
+   tambahkan tes di `packages/shared/test/transcript.test.ts`.
 3. Tambahkan `case` di `PlainTui.handleEvent` (`src/plain.ts`) dan pemformatnya di
    `render.ts`.
 4. Tes ujung ke ujung di `test/e2e.test.ts` memakai provider `mock`: arahan `!<tool> {json}`,

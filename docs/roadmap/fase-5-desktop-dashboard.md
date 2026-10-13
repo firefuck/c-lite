@@ -79,7 +79,7 @@ tes browser.
    hook tetap hanya lewat `clite hooks approve` di mesin itu.
 
 **File.** `src/clite/rpc/contracts/schema.py`, `src/clite/rpc/methods/`,
-`web/src/panels/`, `src/clite/server/static/index.html`, `tests/rpc/test_rpc.py`,
+`apps/web/src/panels/`, `src/clite/server/static/index.html`, `tests/rpc/test_rpc.py`,
 `tests/server/test_dashboard_browser.py`.
 
 **Rujukan Hermes.** `web/src/pages/` (terutama `ConfigPage.tsx`, `CronPage.tsx`,
@@ -119,7 +119,7 @@ agar antarmuka siap untuk fitur lanjutan berskala besar dan pemeliharaan jangka 
 
 **Lingkup.**
 Task payung ini menaungi pecahan F5-T7 sampai F5-T11. Semua pecahan dikerjakan bertahap
-mulai dari fondasi build `web/`, penyambungan data `apps/shared`, porting obrolan, porting panel,
+mulai dari fondasi build `apps/web/`, penyambungan data `packages/shared`, porting obrolan, porting panel,
 hingga penggantian akhir server statis.
 
 **File.** `package.json`, `docs/spesifikasi/desktop.md`.
@@ -135,16 +135,16 @@ hingga penggantian akhir server statis.
 
 ### F5-T7 Kerangka build web (Vite, React, TypeScript)
 
-**Tujuan.** Direktori `web/` terpasang sebagai workspace npm mandiri berbasis Vite, React,
+**Tujuan.** Direktori `apps/web/` terpasang sebagai workspace npm mandiri berbasis Vite, React,
 dan TypeScript, menghasilkan bundle statis yang siap disajikan oleh backend Python.
 
 **Lingkup.**
-- Buat workspace `web/` baru dengan Vite, React, dan TypeScript.
-- Hubungkan `web/` ke workspace root `package.json`.
+- Buat workspace `apps/web/` baru dengan Vite, React, dan TypeScript.
+- Hubungkan `apps/web/` ke workspace root `package.json`.
 - Output build disiapkan untuk integrasi server C-lite.
 - Lint dan typecheck bersih di suite npm.
 
-**File.** `web/ (baru)`, `package.json`.
+**File.** `apps/web/ (baru)`, `package.json`.
 
 **Selesai bila.**
 - [x] `npm run build` dan `npm run typecheck` di workspace web berhasil tanpa galat.
@@ -155,21 +155,21 @@ dan TypeScript, menghasilkan bundle statis yang siap disajikan oleh backend Pyth
 
 ---
 
-### F5-T8 Lapisan data dashboard dengan apps/shared
+### F5-T8 Lapisan data dashboard dengan packages/shared
 
-**Tujuan.** Komponen React di `web/` menggunakan `apps/shared` untuk mengelola state obrolan
+**Tujuan.** Komponen React di `apps/web/` menggunakan `packages/shared` untuk mengelola state obrolan
 dan panggilan RPC secara reaktif dan tipe-aman.
 
 **Lingkup.**
-- Sambungkan klien RPC dan gateway client dari `apps/shared` ke context/hooks React.
+- Sambungkan klien RPC dan gateway client dari `packages/shared` ke context/hooks React.
 - Dukungan autentikasi token fragmen URL dan rekoneksi WebSocket otomatis.
 
-**File.** `web/ (baru)`, `apps/shared/src/gateway-client.ts`.
+**File.** `apps/web/ (baru)`, `packages/shared/src/gateway-client.ts`.
 
 **Selesai bila.**
 - [x] Hook React berhasil tersambung ke backend RPC dan menerima state transkrip
-  (`web/src/state/useDashboard.ts` di atas `web/src/state/dashboard.ts`; dijaga
-  `web/test/dashboard.test.ts`, termasuk token dari fragmen URL dan sambung ulang).
+  (`apps/web/src/state/useDashboard.ts` di atas `apps/web/src/state/dashboard.ts`; dijaga
+  `apps/web/test/dashboard.test.ts`, termasuk token dari fragmen URL dan sambung ulang).
 
 **Ukuran.** M
 
@@ -187,7 +187,7 @@ rendering pesan, input interaktif, dan progres tool.
 - Mendukung pesan optimistik dan rendering hasil giliran. Seperti dashboard lama, teks hanya
   memisahkan blok kode berpagar; Markdown lain tetap teks supaya tidak ada HTML dari model.
 
-**File.** `web/ (baru)`.
+**File.** `apps/web/ (baru)`.
 
 **Selesai bila.**
 - [x] Alur kirim pesan dan streaming token berfungsi mulus pada antarmuka web baru.
@@ -204,10 +204,10 @@ rendering pesan, input interaktif, dan progres tool.
 audit, skills, plugins, models) berpindah ke komponen React modular.
 
 **Lingkup.**
-- Implementasikan panel pengelolaan sebagai komponen terpisah di `web/`.
+- Implementasikan panel pengelolaan sebagai komponen terpisah di `apps/web/`.
 - Tiap panel memuat data RPC dan menyediakan formulir atau aksi yang setara dengan dashboard lama.
 
-**File.** `web/ (baru)`.
+**File.** `apps/web/ (baru)`.
 
 **Selesai bila.**
 - [x] Seluruh panel pengelolaan dapat dibuka dan berinteraksi dengan backend RPC.
@@ -224,11 +224,11 @@ audit, skills, plugins, models) berpindah ke komponen React modular.
 browser Playwright lulus, dan paket Python tetap mandiri.
 
 **Lingkup.**
-- Arahkan server Python di `src/clite/server/app.py` menyajikan hasil build `web/`.
+- Arahkan server Python di `src/clite/server/app.py` menyajikan hasil build `apps/web/`.
 - Hapus file monolitik lama di `src/clite/server/static/` setelah bundle baru dipasang.
 - Verifikasi tes browser dashboard tetap lulus.
 
-**File.** `src/clite/server/app.py`, `web/build.mjs`, `tests/server/test_dashboard_browser.py`,
+**File.** `src/clite/server/app.py`, `apps/web/build.mjs`, `tests/server/test_dashboard_browser.py`,
 `tests/server/test_dashboard_bundle.py`.
 
 **Selesai bila.**
@@ -299,7 +299,7 @@ saat koneksi putus sebentar.
 
 **File.** `src/clite/rpc/server.py`, `src/clite/rpc/session.py`,
 `src/clite/rpc/contracts/schema.py`, `src/clite/server/app.py`,
-`web/src/state/dashboard.ts`, `apps/shared/src/gateway-client.ts`, `apps/desktop/src/main.ts`,
+`apps/web/src/state/dashboard.ts`, `packages/shared/src/gateway-client.ts`, `apps/desktop/src/main.ts`,
 `apps/desktop/src/preload.ts`, `tests/rpc/test_rpc.py`, `tests/server/test_server.py`.
 
 **Rujukan Hermes.** `tui_gateway/event_replay.py`, `tui_gateway/prompt_attachments.py`,

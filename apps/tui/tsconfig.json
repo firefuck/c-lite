@@ -1,6 +1,6 @@
 {
-  "extends": "../tsconfig.base.json",
-  "include": ["src", "test", "../apps/shared/src"],
+  "extends": "../../tsconfig.base.json",
+  "include": ["src", "test"],
   "compilerOptions": {
     "jsx": "react-jsx",
     "erasableSyntaxOnly": false,

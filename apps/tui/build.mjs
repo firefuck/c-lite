@@ -13,13 +13,13 @@ import { fileURLToPath } from "node:url";
 import { build, version as esbuildVersion } from "esbuild";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(here, "..");
+const repoRoot = resolve(here, "../..");
 const outfile = resolve(here, "dist/clite-tui.mjs");
 const packagedDir = resolve(repoRoot, "src/clite/tui_dist");
 
 // Every directory whose TypeScript ends up in the bundle. Keep in sync with
 // tests/cli/test_tui_bundle.py (BUNDLE_SOURCE_DIRS).
-const SOURCE_DIRS = ["apps/shared/src", "ui-tui/src"];
+const SOURCE_DIRS = ["packages/shared/src", "apps/tui/src"];
 
 function sourceFiles(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

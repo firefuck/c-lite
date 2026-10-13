@@ -94,14 +94,14 @@ tercatat di [docs/STATUS.md](docs/STATUS.md).
 |---|---|
 | `src/clite/` | Paket Python: `core`, `state`, `providers`, `plugins`, `skills`, `tools`, `agent`, `cron`, `runtime`, `rpc`, `gateway`, `server`, `cli` |
 | `src/clite/bundled/` | Profil provider, plugin, dan skill bawaan |
-| `apps/shared/` | Klien protokol TypeScript |
-| `ui-tui/` | TUI |
-| `web/` | Dashboard web (React) |
-| `apps/desktop/` | Cangkang Electron |
+| `apps/tui/` | TUI (Ink dan React), dibundel ke `src/clite/tui_dist/` |
+| `apps/web/` | Dashboard web (React dan Vite), dibangun ke `src/clite/server/static/` |
+| `apps/desktop/` | Cangkang Electron yang memuat dashboard |
+| `packages/shared/` | Klien protokol TypeScript (`@clite/shared`) yang dipakai TUI dan dashboard |
 | `tests/` | Tes Python, termasuk penjaga arsitektur dan penjaga dokumen |
 | `scripts/` | Pemeriksaan, pembangkit file turunan, dan penggantian nama proyek |
 | `website/` | Situs dokumentasi pengguna (Indonesia dan Inggris), dibangun oleh `scripts/build_site.py` |
-| `docs/` | Arsitektur, spesifikasi, roadmap, prompt, dan bedah Hermes. Mulai dari [docs/README.md](docs/README.md) |
+| `docs/` | Arsitektur, spesifikasi, roadmap, dan bedah Hermes. Mulai dari [docs/README.md](docs/README.md) |
 
 ## Mengganti nama proyek
 

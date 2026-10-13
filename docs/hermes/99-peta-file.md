@@ -190,13 +190,13 @@ Sebelum membawa sesuatu, baca
 | `tui_gateway/event_replay.py` | belum ada | F5-T5 |
 | `tui_gateway/prompt_attachments.py` | belum ada | F2-T6 |
 | `scripts/gen_gateway_contracts.py` | `scripts/gen_rpc_contracts.py` | Generator tipe TypeScript |
-| `apps/shared/src/gateway-contract.generated.ts` | `apps/shared/src/contracts.generated.ts` | Hasil generate |
-| `apps/shared/src/json-rpc-channel.ts` | `apps/shared/src/json-rpc-channel.ts` | |
-| `apps/shared/src/json-rpc-gateway.ts` | `apps/shared/src/gateway-client.ts` | Klien bertipe |
-| `ui-tui/src/entry.tsx`, `ui-tui/src/gatewayClient.ts` | `ui-tui/src/entry.ts`, `ui-tui/src/backend.ts` | |
-| `ui-tui/src/app.tsx`, `ui-tui/src/components/` | `ui-tui/src/plain.ts`, `ui-tui/src/render.ts` | Hermes memakai Ink. TUI layar penuh: F3-T3 |
+| `apps/shared/src/gateway-contract.generated.ts` | `packages/shared/src/contracts.generated.ts` | Hasil generate |
+| `apps/shared/src/json-rpc-channel.ts` | `packages/shared/src/json-rpc-channel.ts` | |
+| `apps/shared/src/json-rpc-gateway.ts` | `packages/shared/src/gateway-client.ts` | Klien bertipe |
+| `ui-tui/src/entry.tsx`, `ui-tui/src/gatewayClient.ts` | `apps/tui/src/entry.ts`, `apps/tui/src/backend.ts` | |
+| `ui-tui/src/app.tsx`, `ui-tui/src/components/` | `apps/tui/src/app/`, `apps/tui/src/plain.ts`, `apps/tui/src/render.ts` | Keduanya memakai Ink; di sini antarmuka baris (`plain.ts`) tetap ada untuk `--plain` dan masukan pipa |
 | `hermes_cli/web_server.py` | `src/clite/server/app.py`, `src/clite/server/run.py` | Di sini satu server untuk desktop dan dashboard |
-| `web/src/` | `src/clite/server/static/` | Hermes: React. Di sini JavaScript polos. Halaman tambahan: F5-T2 |
+| `web/src/` | `apps/web/src/` | Keduanya React; di sini dibangun Vite ke `src/clite/server/static/` dan disajikan backend |
 | `apps/desktop/electron/` | `apps/desktop/src/` | Proses utama Electron. Belum diverifikasi: F5-T1 |
 | `apps/desktop/src/` | tidak dibawa | Renderer React Hermes. Di sini jendela memuat dashboard |
 | `acp_adapter/` | `src/clite/acp/` | Baru penanda tempat: F6-T4 |

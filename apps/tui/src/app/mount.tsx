@@ -4,8 +4,7 @@
 import { render } from "ink";
 import { stdin, stdout } from "node:process";
 
-import type { SessionInfo } from "../../../apps/shared/src/contracts.generated.ts";
-import type { GatewayClient } from "../../../apps/shared/src/gateway-client.ts";
+import type { GatewayClient, SessionInfo } from "@clite/shared";
 import { App } from "./App.tsx";
 
 /** Mount the Ink app; returns the handle whose `waitUntilExit` resolves on unmount. */

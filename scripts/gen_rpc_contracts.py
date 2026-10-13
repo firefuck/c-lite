@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate the TypeScript protocol types from the Pydantic contracts.
 
-    python scripts/gen_rpc_contracts.py            # rewrite apps/shared/src/contracts.generated.ts
+    python scripts/gen_rpc_contracts.py            # rewrite packages/shared/src/contracts.generated.ts
     python scripts/gen_rpc_contracts.py --check    # exit 1 if the file is out of date (CI)
 
 The Python contracts in ``src/clite/rpc/contracts/schema.py`` are the single source of truth.
@@ -23,7 +23,7 @@ from pydantic import BaseModel  # noqa: E402
 from clite.rpc.contracts import schema  # noqa: E402, F401 - importing registers everything
 from clite.rpc.contracts.base import EVENTS, METHODS, PROTOCOL_VERSION, SERVER_REQUESTS  # noqa: E402
 
-OUTPUT = ROOT / "apps" / "shared" / "src" / "contracts.generated.ts"
+OUTPUT = ROOT / "packages" / "shared" / "src" / "contracts.generated.ts"
 _PRIMITIVES = {
     "string": "string",
     "integer": "number",

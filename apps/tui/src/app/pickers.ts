@@ -8,7 +8,7 @@ import type {
   ModelEntry,
   ModelSetResult,
   StoredSession,
-} from "../../../apps/shared/src/contracts.generated.ts";
+} from "@clite/shared";
 
 export interface GatewayClientLike {
   request(method: string, params: Record<string, unknown>): Promise<unknown>;

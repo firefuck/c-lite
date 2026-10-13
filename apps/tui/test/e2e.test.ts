@@ -16,7 +16,7 @@ import { spawnBackend } from "../src/backend.ts";
 import type { Backend, BackendOptions } from "../src/backend.ts";
 import { PlainTui } from "../src/plain.ts";
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 let sandbox = "";
 let home = "";
 let workdir = "";

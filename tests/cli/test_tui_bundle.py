@@ -1,7 +1,7 @@
 """The terminal UI as shipped: the bundle inside the Python package.
 
 `clite tui` runs ``src/clite/tui_dist/clite-tui.mjs``, which is built from TypeScript in
-``ui-tui/`` and ``apps/shared/``. These tests check that the committed bundle matches its
+``apps/tui/`` and ``packages/shared/``. These tests check that the committed bundle matches its
 sources and that it runs.
 """
 
@@ -27,15 +27,15 @@ from clite.cli.subcommands import tui
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PACKAGED = REPO_ROOT / "src" / "clite" / "tui_dist"
-# Keep in sync with SOURCE_DIRS in ui-tui/build.mjs.
-BUNDLE_SOURCE_DIRS = ("apps/shared/src", "ui-tui/src")
+# Keep in sync with SOURCE_DIRS in apps/tui/build.mjs.
+BUNDLE_SOURCE_DIRS = ("packages/shared/src", "apps/tui/src")
 MOCK = "model:\n  provider: mock\n  default: mock-1\n"
 
 needs_node = pytest.mark.skipif(shutil.which("node") is None, reason="Node.js is not installed")
 
 
 def source_hash() -> str:
-    """The same hash ui-tui/build.mjs records: sorted relative paths and file contents."""
+    """The same hash apps/tui/build.mjs records: sorted relative paths and file contents."""
     files = sorted(
         (path.relative_to(REPO_ROOT).as_posix(), path)
         for directory in BUNDLE_SOURCE_DIRS
@@ -55,12 +55,12 @@ def test_the_bundle_ships_inside_the_package():
 
 
 def test_the_committed_bundle_was_built_from_the_current_sources():
-    if not (REPO_ROOT / "ui-tui" / "src").is_dir():
+    if not (REPO_ROOT / "apps" / "tui" / "src").is_dir():
         pytest.skip("not a source checkout")
     recorded = json.loads((PACKAGED / "build-info.json").read_text())["source_hash"]
     assert recorded == source_hash(), (
-        "ui-tui/src or apps/shared/src changed after the TUI bundle was built. "
-        "Run `npm run build` in ui-tui/ and commit src/clite/tui_dist/."
+        "apps/tui/src or packages/shared/src changed after the TUI bundle was built. "
+        "Run `npm run build` in apps/tui/ and commit src/clite/tui_dist/."
     )
 
 

@@ -17,9 +17,7 @@ import { createInterface } from "node:readline";
 import type { Interface } from "node:readline";
 import type { Readable, Writable } from "node:stream";
 
-import type { EventEnvelope, SessionCreateParams, SessionInfo } from "../../apps/shared/src/contracts.generated.ts";
-import type { GatewayClient } from "../../apps/shared/src/gateway-client.ts";
-import { RpcError } from "../../apps/shared/src/json-rpc-channel.ts";
+import { RpcError, type EventEnvelope, type GatewayClient, type SessionCreateParams, type SessionInfo } from "@clite/shared";
 import { formatBanner, formatToolLine, markdownStyle, MarkdownStream, paint, parseApproval, parseChoice, renderDiff, renderMarkdown } from "./render.ts";
 
 export interface PlainTuiOptions {

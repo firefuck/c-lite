@@ -12,10 +12,10 @@ build/
 
 # Node
 node_modules
-ui-tui/dist/
+apps/tui/dist/
 apps/desktop/dist/
 apps/desktop/release/
-apps/shared/dist/
+packages/shared/dist/
 *.tsbuildinfo
 
 # Local state: never commit a home directory or secrets

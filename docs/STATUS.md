@@ -17,9 +17,9 @@ Electron tidak terpasang di lingkungan itu.
 | `ruff format --check src tests scripts` | Bersih (dijalankan juga di `scripts/run_tests.sh lint` dan workflow CI) |
 | `mypy` (233 file sumber) | Bersih dalam mode `strict` (anotasi lengkap, generik berparameter, tanpa `Any` yang bocor lewat nilai kembali) sejak 13 Oktober 2026 |
 | Tes Python (`pytest tests`) | 1696 lulus, 43 terlewati (jaringan, Windows, Docker, SSH, paket opsional). Tanpa identitas git (`user.name`, `user.email`), `tests/test_release.py::test_tagging_needs_a_clean_tree_and_creates_the_tag_for_the_version` gagal karena lingkungan |
-| Tes TypeScript `apps/shared` | 22 lulus; `tsc --noEmit` bersih (13 Oktober 2026) |
-| Tes TypeScript `ui-tui` | 60 lulus; `tsc --noEmit` bersih (13 Oktober 2026) |
-| Tes TypeScript `web` (dashboard) | 10 lulus terhadap server tiruan; `tsc --noEmit` bersih (13 Oktober 2026) |
+| Tes TypeScript `packages/shared` | 22 lulus; `tsc --noEmit` bersih (13 Oktober 2026) |
+| Tes TypeScript `apps/tui` | 60 lulus; `tsc --noEmit` bersih (13 Oktober 2026) |
+| Tes TypeScript `apps/web` (dashboard) | 10 lulus terhadap server tiruan; `tsc --noEmit` bersih (13 Oktober 2026) |
 | Tes TypeScript `apps/desktop` | 15 lulus, tes asap Electron dilewati (tanpa layar dan tanpa biner Electron) pada 13 Oktober 2026; terakhir dijalankan penuh sebelum dashboard React |
 | Tes browser dashboard (`tests/server/test_dashboard_browser.py`) | 24 lulus di Chromium sungguhan terhadap dashboard React, tes yang sama dengan dashboard lama tanpa diubah (butuh `playwright` dan Chromium; tanpa itu dilewati) |
 | Installer Linux (`release/C-lite-0.1.0.AppImage`, versi 0.1.0) | Dibangun dengan `electron-builder` dan dijalankan: jendela memuat dashboard dari backend yang dijalankannya sendiri, dan menutup jendela menghentikan backend. macOS dan Windows belum pernah dibangun |
@@ -279,7 +279,7 @@ Bukti regresi pada salinan bercabang dari `5ae95cd` dengan tes baru saja: 14 tes
 `Extra inputs are not permitted` untuk `attachments`, `/image` tak dikenal, indeks FTS memuat
 base64); sesudah implementasi, 46 tes baru lulus. Suite Python penuh: 995 lulus, 26 terlewati
 (satu tes server yang sudah gagal sebelum tugas ini karena versi pustaka `websockets`, tidak
-dipilih). Ruff bersih, mypy 164 file bersih. Tes Node `apps/shared` 21 lulus dan `ui-tui` 18
+dipilih). Ruff bersih, mypy 164 file bersih. Tes Node `packages/shared` 21 lulus dan `apps/tui` 18
 lulus; bundle TUI dibangun ulang dengan `node build.mjs` karena kontrak TypeScript berubah.
 Clone rujukan Hermes tidak tersedia, sehingga file rujukan belum dibaca. Langkah 2
 (`vision_analyze`) dan 3 (`image_generate`) belum dikerjakan; F2-T6 tetap 🟡.
@@ -620,7 +620,7 @@ jalan. **Kemajuan**: `_Progress` menyampaikan `on_subagent` dengan `tool`, `args
 argumen yang diredaksi lewat `core.redact`), `iteration` (dari `on_step`), dan `model`. Event
 RPC `subagent.update` diperluas dengan bidang opsional `args`, `iteration`, `model`, `spawn_id`
 (`rpc/contracts/schema.py`, `rpc/session.py`), dan surface menampilkannya (`cli/repl.py`,
-`ui-tui/src/plain.ts`, `apps/shared/src/transcript.ts`). **Delegasi latar**:
+`apps/tui/src/plain.ts`, `packages/shared/src/transcript.ts`). **Delegasi latar**:
 `delegate_task(background=true)` memanggil `_run_background`, yang menjalankan tiap tugas di
 thread sendiri dan langsung kembali dengan id. Laporan yang selesai masuk ke antrean catatan
 induk (`AIAgent.queue_note`/`take_notes`); catatan itu ditempelkan pada hasil tool berikutnya
@@ -633,7 +633,7 @@ thread latar (`wait_for_background`) sebelum menutup database sesi. **Peran peng
 
 Bukti regresi merah/hijau pada worktree bersih dari `e53fda8`. **Merah:** dengan tes baru saja
 dan implementasi belum ada, 10 dari 11 tes baru menggagalkan (`tests/agent/test_memory_and_
-delegation.py`), dan tes baru `apps/shared/test/transcript.test.ts` gagal (1 dari 11). Untuk
+delegation.py`), dan tes baru `packages/shared/test/transcript.test.ts` gagal (1 dari 11). Untuk
 membuktikan tiap guard secara terpisah, implementasi disalin ke worktree terisolasi lalu satu
 perilaku dikembalikan ke bentuk yang salah:
 
@@ -651,8 +651,8 @@ perilaku dikembalikan ke bentuk yang salah:
 **Hijau:** 38 tes `tests/agent/test_memory_and_delegation.py` lulus (11 baru). Suite Python
 penuh: 1122 lulus, 29 terlewati, satu tes `tests/server` gagal yang sudah gagal sebelum tugas
 ini (`websockets`). Ruff bersih, mypy 174 file bersih. `scripts/gen_rpc_contracts.py` dan
-`scripts/gen_docs.py` dijalankan; bundle TUI dibangun ulang; `apps/shared` 22 tes lulus dan
-`tsc --noEmit` bersih; `ui-tui` 18 tes lulus (11 e2e, 7 render). Clone rujukan `../hermes-ref`
+`scripts/gen_docs.py` dijalankan; bundle TUI dibangun ulang; `packages/shared` 22 tes lulus dan
+`tsc --noEmit` bersih; `apps/tui` 18 tes lulus (11 e2e, 7 render). Clone rujukan `../hermes-ref`
 tetap tidak tersedia, sehingga file rujukan belum dibaca.
 
 ### F2-T14 OAuth dan `clite auth` (8 Oktober 2026)
@@ -752,7 +752,7 @@ tampilan dari kulit: `runtime/presentation.py::markdown_role_codes` memetakan pe
 (`heading`, `code`, `diff_add`, …) ke kode warna yang dipilih kulit, dan bila warna mati
 (`NO_COLOR`, terminal bodoh, atau keluaran dialihkan ke berkas) peta itu kosong sehingga yang
 keluar teks polos yang tetap terbaca. Karena itu perender bisa diuji dengan membandingkan
-string. Aturan yang sama ditulis ulang di `ui-tui/src/render.ts` (`renderMarkdown`,
+string. Aturan yang sama ditulis ulang di `apps/tui/src/render.ts` (`renderMarkdown`,
 `MarkdownStream`, `renderDiff`, `markdownStyle`) supaya CLI dan TUI tampil seragam.
 
 Sifat yang dijaga tes: potongan streaming berukuran acak menghasilkan keluaran yang **sama
@@ -764,11 +764,11 @@ sedang diketik; surface hanya mencetak bagian yang belum tercetak, jadi tidak ad
 tercetak dua kali.
 
 Bukti regresi di salinan terpisah: dengan `cli/markdown.py` disingkirkan, 29 tes
-`tests/cli/test_markdown.py` merah; dengan penambahan Markdown di `ui-tui/src/render.ts`
-dikembalikan ke `HEAD`, 18 tes `ui-tui/test/render.test.ts` merah. Sesudah kode dipulihkan
+`tests/cli/test_markdown.py` merah; dengan penambahan Markdown di `apps/tui/src/render.ts`
+dikembalikan ke `HEAD`, 18 tes `apps/tui/test/render.test.ts` merah. Sesudah kode dipulihkan
 keduanya hijau. Suite Python penuh 1244 lulus/29 terlewati (satu tes `tests/server` gagal
-sebelum tugas ini, `websockets`), Ruff bersih, mypy 176 file bersih, 22 tes `apps/shared` lulus, 18 tes `ui-tui` lulus,
-11 tes e2e TUI lulus, `tsc --noEmit` bersih di `apps/shared` dan `ui-tui`, bundle TUI dibangun
+sebelum tugas ini, `websockets`), Ruff bersih, mypy 176 file bersih, 22 tes `packages/shared` lulus, 18 tes `apps/tui` lulus,
+11 tes e2e TUI lulus, `tsc --noEmit` bersih di `packages/shared` dan `apps/tui`, bundle TUI dibangun
 ulang. Clone rujukan `../hermes-ref` tidak tersedia; rujukan dibaca dari
 `/home/luwak/.hermes/hermes-agent`.
 F3-T2 selesai.
@@ -845,16 +845,16 @@ F3-T7 selesai.
 `clite tui` kini memilih antara UI layar penuh Ink dan UI baris: `chooseUi({stdinIsTTY,
 stdoutIsTTY, plain})` mengembalikan `"ink"` hanya bila kedua stream adalah TTY dan `--plain`
 tidak diberikan; selain itu (pipa, non-TTY) `"plain"`. Fungsi pemilih diuji tanpa terminal
-sungguhan (`ui-tui/test/app.test.ts`). Komponen akar Ink (`App.tsx`) merender transkrip dari
-reducer `apps/shared/src/transcript.ts` yang sama dengan `plain.ts` — keduanya tidak bisa
+sungguhan (`apps/tui/test/app.test.ts`). Komponen akar Ink (`App.tsx`) merender transkrip dari
+reducer `packages/shared/src/transcript.ts` yang sama dengan `plain.ts` — keduanya tidak bisa
 berbeda pendapat — plus sebuah kotak tulis satu baris yang mengirim `prompt.submit`. Bila
 Ink gagal dimuat saat runtime, `entry.ts` jatuh ke `PlainTui` dengan catatan di stderr.
 
-`ink` dan `react` masuk sebagai `devDependencies` di `ui-tui/package.json` dan dibundel
+`ink` dan `react` masuk sebagai `devDependencies` di `apps/tui/package.json` dan dibundel
 esbuild ke dalam satu `clite-tui.mjs` (1.4 MB), sehingga `pip install` tetap menghasilkan
 `clite tui` yang jalan tanpa `npm install`. `react-devtools-core` (hook devtools opsional
 ink) di-alias ke stub no-op; `signal-exit` (CJS) ditangani dengan shim `createRequire` di
-banner esbuild. `ui-tui/AGENTS.md` mencatat pengecualian dependensi ini. File `.tsx`
+banner esbuild. `apps/tui/AGENTS.md` mencatat pengecualian dependensi ini. File `.tsx`
 dibundel (JSX bukan TS yang bisa dihapus); logika yang bisa diuji (pemilih, reducer) tetap
 di `.ts` yang diuji `node --test`.
 
@@ -879,14 +879,14 @@ sambil mempertahankan aktivitas, model, dan konteks sebelum elipsis terakhir.
 provider memperbarui penghitung konteks; ini menghindari polling `session.usage` maupun kontrak
 khusus TUI. Tes formatter memeriksa semua bidang langsung dan susut sempit, sementara tes RPC
 memastikan event tambahan membawa konteks terukur. Verifikasi lokal: `node --test test/app.test.ts`,
-`node --test test/render.test.ts`, `npx tsc --noEmit -p .`, dan `npm run build` di `ui-tui/`;
+`node --test test/render.test.ts`, `npx tsc --noEmit -p .`, dan `npm run build` di `apps/tui/`;
 `pytest tests/rpc/test_rpc.py::test_a_turn_is_a_stream_of_events_ending_with_turn_complete -q`;
 `pytest tests/cli/test_tui_bundle.py -q`; serta `pytest tests/test_docs.py -q`.
 
 Keputusan desain yang mengikat semua anak: **Ink + React** (disetujui pemilik proyek), ditanam
 esbuild ke dalam satu file `.mjs` sehingga `pip install` tetap menghasilkan `clite tui` yang
 jalan tanpa `npm install` — ini pengecualian tertulis terhadap aturan "tanpa dependensi runtime
-baru" di `ui-tui/AGENTS.md`, yang akan diperbarui di F3-T9. Antarmuka baris (`plain.ts`) tetap
+baru" di `apps/tui/AGENTS.md`, yang akan diperbarui di F3-T9. Antarmuka baris (`plain.ts`) tetap
 ada sebagai `--plain` dan untuk masukan pipa, dan tes ujung ke ujung yang ada harus lulus di
 kedua mode. Yang dipakai ulang tanpa diubah: `backend.ts`, `gateway-client.ts`, dan reducer
 `transcript.ts`. Setiap rujukan Hermes yang disebut di pecahan sudah diperiksa keberadaannya
@@ -1043,7 +1043,7 @@ tetap 🟡, sama seperti F6-T7.
 | 5 Oktober 2026 | Workflow CI terpicu di GitHub pada setiap push; semua job ditolak sebelum berjalan karena akun terkunci masalah penagihan | GitHub Actions |
 | 6 Oktober 2026 | F1-T6 lokal: penulis config `ruamel.yaml` mempertahankan format; suite penuh 811 lulus, 26 skip; CI belum jalan | Linux, Python 3.11 |
 | 6 Oktober 2026 | `install_skill("anthropics/skills/skills/pdf")` memasang skill dari GitHub sungguhan tanpa token (`pytest tests/skills -m network`) | Linux, Python 3.13 |
-| 8 Oktober 2026 | F2-T6 langkah 1: 14 regresi merah pada salinan `5ae95cd` dengan tes baru saja, 46 tes baru lulus sesudah implementasi; suite Python penuh 995 lulus/26 terlewati, Ruff dan mypy 164 file bersih; 21 tes Node `apps/shared` dan 18 tes `ui-tui` lulus, bundle TUI dibangun ulang | Linux, Python 3.11.16, Node 26.7.0 |
+| 8 Oktober 2026 | F2-T6 langkah 1: 14 regresi merah pada salinan `5ae95cd` dengan tes baru saja, 46 tes baru lulus sesudah implementasi; suite Python penuh 995 lulus/26 terlewati, Ruff dan mypy 164 file bersih; 21 tes Node `packages/shared` dan 18 tes `apps/tui` lulus, bundle TUI dibangun ulang | Linux, Python 3.11.16, Node 26.7.0 |
 | 8 Oktober 2026 | F2-T6 langkah 2 dan 3: regresi merah pada worktree bersih dari `1a6cdab` (2 `ImportError` + 2 kegagalan arsitektur), 20 tes baru + arsitektur lulus sesudah implementasi; suite Python penuh 1016 lulus/26 terlewati (1 gagal sudah-ada di `tests/server`), Ruff bersih, mypy 167 file bersih | Linux, Python 3.11.16 |
 | 8 Oktober 2026 | F2-T7: 10 gagal + 1 error pada salinan `1a6cdab` dengan tes baru saja, 14 lulus / 3 terlewati (tanpa Docker) sesudah implementasi; suite tool file + terminal lama 56 lulus lewat antarmuka baru; suite Python penuh 1010 lulus/29 terlewati (satu tes server gagal sebelum tugas ini), Ruff dan mypy bersih. Verifikasi nyata berikutnya: Docker 3/3 dan SSH localhost 3/3 lulus; suite F2-T7 20 lulus | VM-36, Linux, Python 3.12.3, Docker 29.1.3 |
 | 8 Oktober 2026 | F2-T8: 14 gagal pada salinan bercabang dengan tes baru saja tanpa penyambungan, 19 tes baru lulus sesudah implementasi; dua guard diuji terpisah (hapus penjaga `read_denied_reason`, lumpuhkan pemangkasan sesi) dan keduanya menggagalkan tesnya; suite `tests/tools`+`tests/runtime`+`tests/core` 393 lulus/13 terlewati, `tests/test_architecture.py` dan `tests/test_docs.py` lulus sesudah `python scripts/gen_docs.py` | Linux, Python 3.11.16 |
@@ -1051,11 +1051,11 @@ tetap 🟡, sama seperti F6-T7.
 | 8 Oktober 2026 | F2-T10: 13 tes baru merah pada worktree bersih `4156234` dengan tes baru saja, 21 tes `tests/tools/test_mcp.py` lulus sesudah implementasi; empat guard diuji terpisah pada salinan terisolasi (A1, jeda membesar, header `.env`, tool resources) dan masing-masing menggagalkan tesnya; MCP HTTP diuji terhadap server Streamable HTTP dari SDK resmi (termasuk middleware bearer token), terlewati bila SDK tidak terpasang; suite Python penuh 1092 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini), Ruff bersih, mypy 173 file bersih. Sampling dan OAuth belum ada | Linux, Python 3.11.16 (SDK `mcp` 2.0.0) |
 | 8 Oktober 2026 | F2-T11: merah pada worktree bersih `f119b29` dengan tes baru saja (koleksi gagal: `cannot import name 'SUMMARY_SECTIONS'`); enam guard diuji terpisah pada salinan terisolasi (bagian tetap, peringkasan bertahap, pemangkasan gambar, jangkar token, persistensi penghitung nudge, skrip pengukuran) dan masing-masing menggagalkan tesnya; 10 tes baru lulus sesudah implementasi, seluruh `tests/agent/test_compression.py` 33 lulus; suite Python penuh 1109 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 173 file bersih. `scripts/eval_compression.py --provider mock` melaporkan 5/5 fakta bertahan | Linux, Python 3.11.16 |
 | 8 Oktober 2026 | F2-T12: merah pada worktree bersih `a976469` dengan tes baru saja (koleksi `tests/agent/test_review.py` gagal: `cannot import name 'review' from 'clite.agent'`); enam guard diuji terpisah pada worktree terisolasi (riwayat sesi utama, gagal ditelan, timeout ditelan, gate interval kurator, gerbang enabled/depth/cron/busy, anggaran reviewer) dan masing-masing menggagalkan tesnya; 23 tes baru lulus sesudah implementasi; suite Python penuh 1132 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 174 file bersih. Clone rujukan tetap `../hermes-ref` tidak tersedia | Linux, Python 3.11.16 |
-| 8 Oktober 2026 | F2-T13: merah pada worktree bersih `e53fda8` dengan tes baru saja (10 dari 11 tes baru `tests/agent/test_memory_and_delegation.py` gagal, tes baru `apps/shared/test/transcript.test.ts` gagal); empat guard diuji terpisah pada worktree terisolasi (catatan tidak menulis ulang pesan terkirim, model per tugas, peran pengatur, penjalaran interupsi) dan masing-masing menggagalkan tesnya; 11 tes baru + 27 lama lulus sesudah implementasi; suite Python penuh 1122 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 174 file bersih, `apps/shared` 22 tes lulus, bundle TUI dibangun ulang. Clone rujukan `../hermes-ref` tidak tersedia | Linux, Python 3.11.16, Node 26.7.0 |
+| 8 Oktober 2026 | F2-T13: merah pada worktree bersih `e53fda8` dengan tes baru saja (10 dari 11 tes baru `tests/agent/test_memory_and_delegation.py` gagal, tes baru `packages/shared/test/transcript.test.ts` gagal); empat guard diuji terpisah pada worktree terisolasi (catatan tidak menulis ulang pesan terkirim, model per tugas, peran pengatur, penjalaran interupsi) dan masing-masing menggagalkan tesnya; 11 tes baru + 27 lama lulus sesudah implementasi; suite Python penuh 1122 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 174 file bersih, `packages/shared` 22 tes lulus, bundle TUI dibangun ulang. Clone rujukan `../hermes-ref` tidak tersedia | Linux, Python 3.11.16, Node 26.7.0 |
 | 8 Oktober 2026 | F2-T15: merah pada worktree bersih `b5a547c` dengan `PYTHONPATH` ke `src` worktree (instalasi editable menunjuk checkout utama) dan 58 tes baru saja: 28 tes `tests/tools/test_approval.py` gagal; lima guard diuji terpisah pada worktree terisolasi (posisi perintah 13 gagal, muatan kode 17, ekspansi variabel 5, larangan mutlak baru 6, batas penguraian 3) dan masing-masing menggagalkan tesnya; 148 tes lulus sesudah implementasi, seluruh `tests/tools` 402 lulus/13 terlewati; suite Python penuh 1178 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 174 file bersih. Clone rujukan `../hermes-ref` tidak tersedia | Linux, Python 3.11.16 |
 | 8 Oktober 2026 | F3-T7: 5 tes baru merah sebelum implementasi (`completion` belum ada), hijau sesudah; skrip bash dibangun dari parser nyata (memuat setiap sub-perintah terdaftar, termasuk dari `misc`) dan lolos `bash -n`; `--values profiles|models|sessions` bekerja dan jalur `--values` memuat tanpa plugin (~20 ms, `clite.plugins.manager` tidak terimpor). Skrip zsh/fish belum dijalankan di shell aslinya (tidak terpasang) | Linux, Python 3.11.16 |
 | 8 Oktober 2026 | F3-T1: penutupan verifikasi — dua galat `mypy` yang tersisa di berkas F3-T1 dibereskan (`cli/input.py` anotasi `self.session`, `cli/repl.py` `hasattr`→`getattr`), mypy kembali bersih pada 176 file; `tests/cli`+`tests/runtime` 110 lulus termasuk jalur `StdlibReader` tanpa `prompt_toolkit`; Ruff bersih. Baris papan F3-T1 menjadi ✅ | Linux, Python 3.11.16 |
-| 8 Oktober 2026 | F3-T2: merah di salinan terpisah — 29 tes `tests/cli/test_markdown.py` gagal tanpa `cli/markdown.py`, dan 18 tes `ui-tui/test/render.test.ts` gagal tanpa penambahan Markdown di `render.ts`; keduanya hijau sesudah kode dipulihkan. Invariant "potongan ukuran acak = teks utuh" dijalankan pada tiap titik potong untuk delapan dokumen contoh. Suite Python penuh 1244 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 176 file bersih, `apps/shared` 22 lulus, `ui-tui` render 18 + e2e 11 lulus, `tsc --noEmit` bersih di `ui-tui` dan `apps/desktop`, `apps/shared` kecuali satu galat `subagent.update` yang sudah ada di `HEAD`, bundle TUI dibangun ulang. Clone rujukan `../hermes-ref` tidak tersedia | Linux, Python 3.11.16, Node 26.7.0 |
+| 8 Oktober 2026 | F3-T2: merah di salinan terpisah — 29 tes `tests/cli/test_markdown.py` gagal tanpa `cli/markdown.py`, dan 18 tes `apps/tui/test/render.test.ts` gagal tanpa penambahan Markdown di `render.ts`; keduanya hijau sesudah kode dipulihkan. Invariant "potongan ukuran acak = teks utuh" dijalankan pada tiap titik potong untuk delapan dokumen contoh. Suite Python penuh 1244 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 176 file bersih, `packages/shared` 22 lulus, `apps/tui` render 18 + e2e 11 lulus, `tsc --noEmit` bersih di `apps/tui` dan `apps/desktop`, `packages/shared` kecuali satu galat `subagent.update` yang sudah ada di `HEAD`, bundle TUI dibangun ulang. Clone rujukan `../hermes-ref` tidak tersedia | Linux, Python 3.11.16, Node 26.7.0 |
 
 | 8 Oktober 2026 | F3-T4: 16 tes baru merah pada worktree bersih `d2d70c8` dengan berkas tes baru saja (`Unknown command: /branch`, `/queue`, `/background`, `/export`, `/context`, `/tasks`, `/hooks`, `/pin`, `/archive`, `/verbose`, `/skin`, `/logs`, `/copy`); hijau sesudah implementasi — 44 tes `tests/runtime/test_session_and_slash.py` lulus, `tests/runtime`+`tests/cli`+`tests/state` 164 lulus. `/branch` menyalin pesan aktif tanpa `provider_data` dan mencatat `parent_session_id` (dijaga `test_branch_copies_the_conversation_without_provider_data_and_links_the_parent`). Tabel bawaan 32 → 44 perintah. Suite Python penuh 1268 lulus/29 terlewati (satu tes `tests/server` gagal sebelum tugas ini, `websockets`), Ruff bersih, mypy 178 file bersih, `python scripts/gen_docs.py` memperbarui `docs/referensi/katalog.md`, `tests/test_docs.py` dan `tests/test_architecture.py` lulus. Clone rujukan `../hermes-ref` tidak tersedia; rujukan dibaca dari `/home/luwak/.hermes/hermes-agent` | Linux, Python 3.11.16 |
 | 8 Oktober 2026 | F3-T9..F3-T15 & F3-T3: Seluruh paket TUI Ink (kerangka Ink, bilah status, dialog, pelengkapan, pemilih model/sesi, tema dari skin & resize, bundle mandiri single-file) tuntas; 23 tes `app.test.ts`, 18 tes `render.test.ts`, 11 tes `test_tui_bundle.py` lulus; bundle terkompilasi mandiri tanpa external runtime npm imports, ukuran <3MB (~1.4MB), `tsc` bersih | Linux, Python 3.11.16, Node 26.7.0 |
@@ -1105,4 +1105,4 @@ dari "belum diverifikasi".
 |
 | 9 Oktober 2026 | F6-T2 (porting skill bawaan) — **selesai**: 25 skill diporting dari Hermes `1298c8e74baa73e1a2b90124228d017261ac6bc4` (7 software-development, 14 productivity, 4 research) ke `src/clite/bundled/skills/`, frontmatter diadaptasi (`metadata.clite` + `attributed_from`), `~/.hermes`→`~/.clite`, tool yang tidak ada di C-lite dihapus atau dialihkan (`web_extract`→`web_fetch`, `browser_*` dihapus, helper tak ada seperti rss-feeds/blogwatcher/obsidian/xurl dialihkan ke `web_search`/`web_fetch`). Pola curl+token pada baris perintah di `airtable` dan `github` ditolak pemindai (`exfil_curl`); keduanya dibekali skrip stdlib (`atr.py`, `ghapi.py`) yang membaca token di dalam proses. Empat tes penjaga baru di `tests/skills/test_skills.py`: validasi format + pemindaian ancaman seluruh bundled, larangan menyebut tool/path yang tidak ada, dan batas ukuran indeks; guard dibuktikan merah dengan menyuntikkan `browser_navigate` pada salinan, hijau setelah dipulihkan. `scripts/build_skills_index.py` dijalankan ulang; `NOTICE.md` mendaftar seluruh skill yang dibawa. Porting tidak menambah satu pun kegagalan; perburuan CI menyusul membereskan kegagalan runner yang sudah ada sebelumnya di akarnya: impor `scripts.*` pada `pytest` polos, identitas git untuk `release.tag`, argv Docker `--workdir` pada path yang belum ada di image (container kini dialamati lewat nama hasil generate, bukan parse output `run`), dan payload TypeScript yang tertinggal kolom biaya; `clite profile list` di desktop dihardening (env anak proses menumpuk di atas environment asli, stderr dilaporkan), smoke desktop mencoba ulang saat konteks halaman dimuat ulang, dan job Windows menjadi `continue-on-error` (porting Windows belum tuntas: 39 kegagalan turun ke 9 setelah penulisan berkas byte-exact di `atomic_write_text`, pemisahan path bawaan platform di `_similar_names`, dan penandaan platform pada tes chmod/SIGTERM/fcntl/alpine; sisanya: pencocokan patch atas CRLF, hash indeks dan dokumen yang dihasilkan, dua tes terminal Windows). Suite penuh lokal: Ruff bersih, mypy 211 file bersih, 1570 tes Python lulus/0 gagal/47 terlewati, 90 tes TypeScript lulus; CI hijau — python 3.11–3.13, node, dan wheel `success`, run `success` | Linux, Python 3.14.7 |
 | 10 Oktober 2026 | F6-T9: situs dokumentasi pengguna. 1617 tes Python lulus/50 terlewati/1 gagal (identitas git, lingkungan, sudah ada sebelum tugas ini), Ruff bersih, mypy 213 file bersih, `python scripts/gen_docs.py --check` bersih (keluaran `docs/referensi/` tidak berubah oleh tugas ini). Tiga belas tes baru `tests/test_website.py`, semuanya tanpa jaringan. Merah/hijau: (a) menyunting satu halaman rujukan situs membuat `gen_docs.py --target site --check` keluar 1 dengan `out of date: website/content/id/reference/tools.md`, hijau sesudah dihasilkan ulang; (b) mengganti `clite doctor` menjadi `clite docter` di pagar `bash` mulai cepat menggagalkan `test_the_commands_in_the_quick_start_run_as_written` dengan `the quick start shows `clite docter`, and it fails`; (c) tes menemukan satu cacat sungguhan di `scripts/build_site.py` — `website/static/` disalin ke akar hasil bangun tetapi setiap halaman menautkan `static/style.css`, jadi stylesheet-nya 404 di seluruh situs; sesudah diperbaiki, `test_every_relative_link_in_the_built_pages_resolves` dan `test_the_site_builds_and_writes_every_page` hijau. Situs dibangun sungguhan: 24 halaman (12 slug × 2 bahasa), `index.html`, dan `style.css`. Belum: penerbitan GitHub Pages; `.github/workflows/docs.yml` belum pernah berjalan di GitHub, jadi kriteria "situs terbit" belum terbukti dan F6-T9 tetap 🟡 | Linux, Python 3.14.7 |
-| 13 Oktober 2026 | Dashboard React (F5-T3: F5-T7 sampai F5-T11) menggantikan dashboard JS polos. Sumbernya `web/`, dibangun ke `src/clite/server/static/` dan dikirim di wheel. Ke-24 tes browser dashboard lama lulus tanpa diubah di Chromium sungguhan (tiga kali berturut-turut), 10 tes `web/test/dashboard.test.ts` lulus, dan `tests/server/test_dashboard_bundle.py` menjaga kesegaran bundle. Merah/hijau: merusak routing event di `web/src/state/dashboard.ts` menggagalkan tes routing; bingkai halaman plugin semula kosong karena diambil sebelum `plugins.list` memuat plugin, ditemukan tes browser dan diperbaiki. Ditemukan sekaligus: `package-lock.json` mengunci 103 paket ke mirror pihak ketiga lewat HTTP (diganti ke registry npm lewat HTTPS, semua hash integritas cocok); tes e2e TUI dan tes pemaketan desktop masih mengharapkan versi 0.1.0 sesudah rilis 1.0.0, dan kegagalan tes e2e meninggalkan backend hidup sehingga suite tampak menggantung. Belum: dashboard React di jendela Electron (tes asap desktop butuh layar dan Electron) | Linux, Python 3.13.16, Node 22.22.0, Chromium 1194 |
+| 13 Oktober 2026 | Dashboard React (F5-T3: F5-T7 sampai F5-T11) menggantikan dashboard JS polos. Sumbernya `apps/web/`, dibangun ke `src/clite/server/static/` dan dikirim di wheel. Ke-24 tes browser dashboard lama lulus tanpa diubah di Chromium sungguhan (tiga kali berturut-turut), 10 tes `apps/web/test/dashboard.test.ts` lulus, dan `tests/server/test_dashboard_bundle.py` menjaga kesegaran bundle. Merah/hijau: merusak routing event di `apps/web/src/state/dashboard.ts` menggagalkan tes routing; bingkai halaman plugin semula kosong karena diambil sebelum `plugins.list` memuat plugin, ditemukan tes browser dan diperbaiki. Ditemukan sekaligus: `package-lock.json` mengunci 103 paket ke mirror pihak ketiga lewat HTTP (diganti ke registry npm lewat HTTPS, semua hash integritas cocok); tes e2e TUI dan tes pemaketan desktop masih mengharapkan versi 0.1.0 sesudah rilis 1.0.0, dan kegagalan tes e2e meninggalkan backend hidup sehingga suite tampak menggantung. Belum: dashboard React di jendela Electron (tes asap desktop butuh layar dan Electron) | Linux, Python 3.13.16, Node 22.22.0, Chromium 1194 |
