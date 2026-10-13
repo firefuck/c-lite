@@ -5,6 +5,11 @@ Semua perubahan yang berarti bagi pemakai dicatat di sini. Format mengikuti
 [Semantic Versioning](https://semver.org/lang/id/). Bagian sebuah versi menjadi isi rilis
 GitHub-nya (`python scripts/release.py notes`).
 
+## [Unreleased]
+
+### Direncanakan (v1.0.1)
+- Refactor arsitektur dan perapihan modul kode.
+
 ## [1.0.0] - 2026-10-13
 
 Rilis versi 1.0.0 resmi menandai penyelesaian penuh 67/67 task pada roadmap pengembangan
