@@ -153,10 +153,10 @@ dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
 
 | Task | Judul | Ukuran | Bergantung pada | Status |
 |---|---|---|---|---|
-| F5-T1 | Jalankan dan verifikasi cangkang Electron | S | F1-T1 | 🟡 |
+| F5-T1 | Jalankan dan verifikasi cangkang Electron | S | F1-T1 | ✅ |
 | F5-T2 | Halaman dashboard: config, cron, log, memori, sesi | L | - | ✅ |
 | F5-T3 | Dashboard React dan Vite | XL | F5-T2 | ⬜ |
-| F5-T4 | Pemaketan desktop | M | F5-T1 | 🟡 |
+| F5-T4 | Pemaketan desktop | M | F5-T1 | ✅ |
 | F5-T5 | Fitur desktop: multi-sesi, lampiran, notifikasi, putar ulang event | L | F5-T1, F5-T2 | ✅ |
 | F5-T6 | Akses jarak jauh yang aman | M | F5-T2 | ✅ |
 
@@ -167,12 +167,12 @@ dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
 | F6-T1 | Hub skill | L | F1-T4 | ✅ |
 | F6-T2 | Porting skill bawaan dari Hermes | L | - | ✅ |
 | F6-T3 | Plugin provider memori contoh | M | - | ✅ |
-| F6-T4 | Server ACP | L | - | 🟡 |
+| F6-T4 | Server ACP | L | - | ✅ |
 | F6-T5 | Ekosistem plugin | L | - | ✅ |
 | F6-T6 | Context engine alternatif | M | F2-T11 | ✅ |
-| F6-T7 | Suara | L | F4-T4 | 🟡 |
+| F6-T7 | Suara | L | F4-T4 | ✅ |
 | F6-T8 | Batch runner dan ekspor lintasan | M | - | ✅ |
-| F6-T9 | Situs dokumentasi pengguna | M | F1-T7 | 🟡 |
+| F6-T9 | Situs dokumentasi pengguna | M | F1-T7 | ✅ |
 
 ## Menambah atau memecah task
 

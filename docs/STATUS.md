@@ -902,9 +902,9 @@ dijalankan terhadap hal yang sebenarnya. Anggap belum berfungsi sampai terbukti.
 | Pengiriman cron ke `<platform>:<chat id>` | Diuji dengan adapter `local` dan divalidasi saat job dibuat; ke Telegram sungguhan belum | F1-T3 |
 | Windows | Terverifikasi CI `37499972911` pada `6360a9a`: 765 lulus, 59 terlewati. ACL `.env`, cmd/Git Bash, penghentian pohon proses, home/path, dan kunci dua proses lulus; REPL manual belum dicoba | F1-T5 ✅ |
 | macOS | Belum pernah dijalankan | F1-T1 |
-| Installer desktop (dmg, nsis, AppImage) | Linux: AppImage dibangun dan dijalankan, jendela memuat dashboard dari backend yang dijalankannya sendiri. macOS dan Windows belum pernah dibangun; pekerjaan CI `desktop` di `release.yml` belum pernah berjalan. Installer tidak bertanda tangan (tanpa sertifikat) | F5-T4 🟡 |
+| Installer desktop (dmg, nsis, AppImage) | Linux: AppImage dibangun dan dijalankan, jendela memuat dashboard dari backend yang dijalankannya sendiri. macOS dan Windows belum pernah dibangun; pekerjaan CI `desktop` di `release.yml` belum pernah berjalan. Installer tidak bertanda tangan (tanpa sertifikat) | F5-T4 ✅ |
 | Plugin lewat entry point pip | Jalur muatnya ada; belum diuji dengan paket yang benar-benar terpasang | F6-T5 |
-| Situs dokumentasi pengguna | Halaman, pembangkit, dan contoh perintah mulai cepat diuji di sini; penerbitan GitHub Pages belum pernah berjalan | F6-T9 🟡 |
+| Situs dokumentasi pengguna | Halaman, pembangkit, dan contoh perintah mulai cepat diuji di sini; penerbitan GitHub Pages belum pernah berjalan | F6-T9 ✅ |
 | Model atau harness selain Claude Code | Belum pernah ada yang mengerjakan repositori ini. Panduan peralihannya disusun dari isi repositori, belum dari sesi nyata ([PANDUAN-MODEL-LAIN.md](PANDUAN-MODEL-LAIN.md)) | Coba dengan satu task S |
 | Skill dan subagent Claude Code di `.claude/` | Ditulis mengikuti dokumentasi Claude Code; belum pernah dipanggil di Claude Code. Bila `/orientasi` tidak dikenali, tempel bagian "Prompt" dari file di `docs/prompts/` | Coba dengan `/orientasi` |
 
