@@ -306,19 +306,8 @@ def login_pkce(
     on_auth_url: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
     """Perform OAuth 2.0 PKCE login via a local HTTP callback server."""
-    from clite.providers.registry import get_provider
-
-    prof = profile or get_provider(provider)
-    if prof is None:
-        raise ProviderError(f"Unknown provider {provider!r}")
-
-    verifier_bytes = secrets.token_bytes(32)
-    code_verifier = base64.urlsafe_b64encode(verifier_bytes).rstrip(b"=").decode("ascii")
-    code_challenge = (
-        base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode("ascii")).digest())
-        .rstrip(b"=")
-        .decode("ascii")
-    )
+    prof = _profile_for(provider, profile)
+    code_verifier, code_challenge = _pkce_pair()
     state = secrets.token_urlsafe(16)
 
     _CallbackHandler.code = None
@@ -333,15 +322,10 @@ def login_pkce(
     auth_url = prof.build_oauth_authorize_url(
         redirect_uri=redirect_uri, code_challenge=code_challenge, state=state
     )
-
     if on_auth_url:
         on_auth_url(auth_url)
-
     if open_browser:
-        try:
-            webbrowser.open(auth_url)
-        except Exception:  # noqa: BLE001 - no browser here; the user opens the URL shown
-            pass
+        _open_browser(auth_url)
 
     server_thread = threading.Thread(target=server.handle_request, daemon=True)
     server_thread.start()
@@ -352,19 +336,19 @@ def login_pkce(
         raise AuthError(f"OAuth authorization error: {_CallbackHandler.error}", provider=provider)
     if not _CallbackHandler.code:
         raise AuthError(f"OAuth authorization timed out for {provider}.", provider=provider, code="timeout")
-
     if _CallbackHandler.state and _CallbackHandler.state != state:
         raise AuthError("OAuth state parameter mismatch.", provider=provider, code="state_mismatch")
 
-    code = _CallbackHandler.code
     token_resp = prof.exchange_oauth_code(
-        code=code, code_verifier=code_verifier, redirect_uri=redirect_uri, http_post=_http_post
+        code=_CallbackHandler.code,
+        code_verifier=code_verifier,
+        redirect_uri=redirect_uri,
+        http_post=_http_post,
     )
-
-    if "error" in token_resp or token_resp.get("status_code", 200) >= 400:
-        err = token_resp.get("error") or "token_exchange_failed"
-        desc = token_resp.get("error_description") or token_resp.get("message") or str(err)
-        raise AuthError(f"OAuth code exchange failed: {desc}", provider=provider, code=str(err))
+    failure = _failure(token_resp, "token_exchange_failed")
+    if failure is not None:
+        err, desc = failure
+        raise AuthError(f"OAuth code exchange failed: {desc}", provider=provider, code=err)
 
     access_token = token_resp.get("access_token") or token_resp.get("key")
     if not access_token:
@@ -373,21 +357,7 @@ def login_pkce(
             provider=provider,
             code="missing_access_token",
         )
-
-    token_data: dict[str, Any] = {
-        "access_token": access_token,
-        "token_type": token_resp.get("token_type", "Bearer"),
-        "scope": token_resp.get("scope", ""),
-        "updated_at": time.time(),
-        "flow": "pkce",
-    }
-    if "refresh_token" in token_resp:
-        token_data["refresh_token"] = token_resp["refresh_token"]
-    if "expires_in" in token_resp:
-        token_data["expires_at"] = time.time() + float(token_resp["expires_in"])
-
-    save_provider_tokens(provider, token_data)
-    return token_data
+    return _store_tokens(provider, token_resp, access_token, flow="pkce")
 
 
 def login_device_code(
@@ -399,12 +369,7 @@ def login_device_code(
     on_device_prompt: Callable[[str, str, str], None] | None = None,
 ) -> dict[str, Any]:
     """Perform OAuth 2.0 Device Authorization Grant login."""
-    from clite.providers.registry import get_provider
-
-    prof = profile or get_provider(provider)
-    if prof is None:
-        raise ProviderError(f"Unknown provider {provider!r}")
-
+    prof = _profile_for(provider, profile)
     if not prof.oauth_device_code_url:
         raise AuthError(
             f"Provider {provider!r} does not have an OAuth device code URL configured.",
@@ -412,10 +377,9 @@ def login_device_code(
         )
 
     req_resp = prof.request_device_code(http_post=_http_post)
-    if "error" in req_resp or req_resp.get("status_code", 200) >= 400:
-        err = req_resp.get("error") or "device_request_failed"
-        desc = req_resp.get("error_description") or req_resp.get("message") or str(err)
-        raise AuthError(f"Failed to request device code from {provider}: {desc}", provider=provider)
+    failure = _failure(req_resp, "device_request_failed")
+    if failure is not None:
+        raise AuthError(f"Failed to request device code from {provider}: {failure[1]}", provider=provider)
 
     device_code = req_resp.get("device_code")
     user_code = req_resp.get("user_code")
@@ -427,7 +391,6 @@ def login_device_code(
     verification_uri_complete = req_resp.get("verification_uri_complete", "")
     interval = float(req_resp.get("interval", 5.0))
     expires_in = float(req_resp.get("expires_in", 300.0))
-
     if not device_code or not user_code or not verification_uri:
         raise AuthError(
             f"Incomplete device code response from {provider}.", provider=provider, code="invalid_response"
@@ -435,35 +398,24 @@ def login_device_code(
 
     if on_device_prompt:
         on_device_prompt(verification_uri, user_code, verification_uri_complete)
-
     if open_browser:
-        target_url = verification_uri_complete or verification_uri
-        try:
-            webbrowser.open(target_url)
-        except Exception:  # noqa: BLE001 - no browser here; the user opens the URL shown
-            pass
+        _open_browser(verification_uri_complete or verification_uri)
 
     deadline = time.time() + min(timeout, expires_in)
-    poll_interval = max(0.5, interval)
+    return _poll_device_token(provider, prof, device_code, deadline=deadline, interval=interval)
 
+
+def _poll_device_token(
+    provider: str, prof: ProviderProfile, device_code: str, *, deadline: float, interval: float
+) -> dict[str, Any]:
+    """Poll until the user approves the device code, the provider refuses it, or time runs out."""
+    poll_interval = max(0.5, interval)
     while time.time() < deadline:
         time.sleep(poll_interval)
         token_resp = prof.poll_device_token(device_code=device_code, http_post=_http_post)
 
         if token_resp.get("status_code", 200) == 200 and "access_token" in token_resp:
-            token_data: dict[str, Any] = {
-                "access_token": token_resp["access_token"],
-                "token_type": token_resp.get("token_type", "Bearer"),
-                "scope": token_resp.get("scope", ""),
-                "updated_at": time.time(),
-                "flow": "device_code",
-            }
-            if "refresh_token" in token_resp:
-                token_data["refresh_token"] = token_resp["refresh_token"]
-            if "expires_in" in token_resp:
-                token_data["expires_at"] = time.time() + float(token_resp["expires_in"])
-            save_provider_tokens(provider, token_data)
-            return token_data
+            return _store_tokens(provider, token_resp, token_resp["access_token"], flow="device_code")
 
         err = token_resp.get("error")
         if err == "authorization_pending":
@@ -473,12 +425,59 @@ def login_device_code(
             continue
         if err in ("expired_token", "access_denied"):
             raise AuthError(f"Device code authorization rejected: {err}", provider=provider, code=err)
-
         if "error" in token_resp:
             desc = token_resp.get("error_description") or err
             raise AuthError(f"Device code token exchange failed: {desc}", provider=provider)
 
     raise AuthError(f"Device code login timed out for {provider}.", provider=provider, code="timeout")
+
+
+def _profile_for(provider: str, profile: ProviderProfile | None) -> ProviderProfile:
+    from clite.providers.registry import get_provider
+
+    prof = profile or get_provider(provider)
+    if prof is None:
+        raise ProviderError(f"Unknown provider {provider!r}")
+    return prof
+
+
+def _pkce_pair() -> tuple[str, str]:
+    """``(code_verifier, code_challenge)`` for the S256 method."""
+    code_verifier = base64.urlsafe_b64encode(secrets.token_bytes(32)).rstrip(b"=").decode("ascii")
+    digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
+    return code_verifier, base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
+
+
+def _open_browser(url: str) -> None:
+    try:
+        webbrowser.open(url)
+    except Exception:  # noqa: BLE001 - no browser here; the user opens the URL shown
+        pass
+
+
+def _failure(response: dict[str, Any], default_code: str) -> tuple[str, str] | None:
+    """``(error code, description)`` when an OAuth endpoint answered with an error."""
+    if "error" not in response and response.get("status_code", 200) < 400:
+        return None
+    err = response.get("error") or default_code
+    return str(err), str(response.get("error_description") or response.get("message") or err)
+
+
+def _store_tokens(provider: str, response: dict[str, Any], access_token: str, *, flow: str) -> dict[str, Any]:
+    """Save what a successful token response granted, and return it."""
+    token_data: dict[str, Any] = {
+        "access_token": access_token,
+        "token_type": response.get("token_type", "Bearer"),
+        "scope": response.get("scope", ""),
+        "updated_at": time.time(),
+        "flow": flow,
+    }
+    if "refresh_token" in response:
+        token_data["refresh_token"] = response["refresh_token"]
+    if "expires_in" in response:
+        token_data["expires_at"] = time.time() + float(response["expires_in"])
+    save_provider_tokens(provider, token_data)
+    return token_data
 
 
 def login(
