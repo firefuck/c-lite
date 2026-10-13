@@ -1,0 +1,25 @@
+{
+  "name": "@clite/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser dashboard for C-lite built with Vite and React.",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p .",
+    "build": "vite build",
+    "test": "node --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@clite/shared": "*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": ">=22",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": ">=5.8 <7",
+    "vite": "^5.4.14"
+  }
+}

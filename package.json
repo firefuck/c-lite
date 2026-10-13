@@ -5,12 +5,13 @@
   "workspaces": [
     "apps/shared",
     "ui-tui",
-    "apps/desktop"
+    "apps/desktop",
+    "web"
   ],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces",
     "test": "npm run test --workspaces",
-    "build": "npm run build --workspace ui-tui && npm run build --workspace apps/desktop"
+    "build": "npm run build --workspace ui-tui && npm run build --workspace apps/desktop && npm run build --workspace web"
   },
   "engines": {
     "node": ">=22"

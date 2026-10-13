@@ -159,7 +159,7 @@ dan hasil suite dicatat di [checkpoint](../CHECKPOINT-KERJA.md).
 | F5-T4 | Pemaketan desktop | M | F5-T1 | ✅ |
 | F5-T5 | Fitur desktop: multi-sesi, lampiran, notifikasi, putar ulang event | L | F5-T1, F5-T2 | ✅ |
 | F5-T6 | Akses jarak jauh yang aman | M | F5-T2 | ✅ |
-| F5-T7 | Kerangka build web (Vite, React, TypeScript) | M | F5-T2 | ⬜ |
+| F5-T7 | Kerangka build web (Vite, React, TypeScript) | M | F5-T2 | ✅ |
 | F5-T8 | Lapisan data dashboard dengan apps/shared | M | F5-T7 | ⬜ |
 | F5-T9 | Porting obrolan dashboard ke komponen React | M | F5-T8 | ⬜ |
 | F5-T10 | Porting panel manajemen dashboard | L | F5-T8 | ⬜ |
