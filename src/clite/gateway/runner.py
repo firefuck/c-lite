@@ -279,45 +279,15 @@ class GatewayRunner:
                 allowed.add(entry.strip())
         return allowed
 
-    def send_to(self, target: str, text: str, *, origin: dict[str, Any] | None = None) -> str:
-        """Send ``text`` to ``target`` from the agent, enforcing the destination allowlist.
+    def _allowed_destination(
+        self, target: str, origin: dict[str, Any] | None
+    ) -> tuple[BasePlatformAdapter, str, str]:
+        """The adapter, platform and chat that ``target`` names, once the agent may send there.
 
-        ``target`` is a platform name (its home channel) or ``platform:chat``. Returns a short
-        description of where the message went. Raises :class:`CliteError` when the platform is
-        not connected or the destination is not allowed, naming what to change.
+        ``target`` is a platform name (its home channel) or ``platform:chat``. Raises
+        :class:`CliteError` when the platform is not connected or the destination is not
+        allowed, naming what to change.
         """
-        text = text.strip()
-        if not text:
-            raise CliteError("the message text is empty; nothing was sent")
-        raw = target.strip()
-        if not raw:
-            raise CliteError("a target is required: a platform name or 'platform:chat id'")
-        if ":" in raw:
-            platform, _, chat_id = raw.partition(":")
-            chat_id = chat_id.strip()
-        else:
-            platform, chat_id = raw, self.home_channels.get(raw) or ""
-        if not platform or not chat_id:
-            raise CliteError(
-                f"target {target!r} has no chat id and no home channel is set; use "
-                f"'platform:chat id' or run /sethome in that chat first"
-            )
-        if platform not in self.adapters:
-            raise CliteError(f"platform {platform!r} is not connected; connect it in gateway.platforms first")
-        destination = f"{platform}:{chat_id}"
-        if destination not in self._allowed_send_targets(origin):
-            raise CliteError(
-                f"destination {destination!r} is not allowed; add it to gateway.send_targets "
-                f"or run /sethome in that chat"
-            )
-        self.reply(SessionSource(platform=platform, chat_id=chat_id), text)
-        logger.info("send_message delivered to %s (%d chars)", destination, len(text))
-        return destination
-
-    def send_file_to(
-        self, target: str, path: str, *, caption: str = "", origin: dict[str, Any] | None = None
-    ) -> str:
-        """Send a local file to ``target``, under the same destination rules as ``send_to``."""
         raw = target.strip()
         if not raw:
             raise CliteError("a target is required: a platform name or 'platform:chat id'")
@@ -340,6 +310,30 @@ class GatewayRunner:
                 f"destination {destination!r} is not allowed; add it to gateway.send_targets "
                 f"or run /sethome in that chat"
             )
+        return adapter, platform, chat_id
+
+    def send_to(self, target: str, text: str, *, origin: dict[str, Any] | None = None) -> str:
+        """Send ``text`` to ``target`` from the agent, enforcing the destination allowlist.
+
+        ``target`` is a platform name (its home channel) or ``platform:chat``. Returns a short
+        description of where the message went. Raises :class:`CliteError` when the platform is
+        not connected or the destination is not allowed, naming what to change.
+        """
+        text = text.strip()
+        if not text:
+            raise CliteError("the message text is empty; nothing was sent")
+        _adapter, platform, chat_id = self._allowed_destination(target, origin)
+        destination = f"{platform}:{chat_id}"
+        self.reply(SessionSource(platform=platform, chat_id=chat_id), text)
+        logger.info("send_message delivered to %s (%d chars)", destination, len(text))
+        return destination
+
+    def send_file_to(
+        self, target: str, path: str, *, caption: str = "", origin: dict[str, Any] | None = None
+    ) -> str:
+        """Send a local file to ``target``, under the same destination rules as ``send_to``."""
+        adapter, platform, chat_id = self._allowed_destination(target, origin)
+        destination = f"{platform}:{chat_id}"
         result = adapter.send_file(chat_id, path, caption=caption)
         if not result.success:
             raise CliteError(f"could not send {path}: {result.error or 'the platform refused it'}")
