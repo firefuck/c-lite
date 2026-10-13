@@ -266,32 +266,43 @@ def catalog_sections(language: str) -> tuple[dict[str, list[str]], int]:
     from the registries and reads the same in both languages. The second return value is the
     protocol version the RPC section was built against, which its heading needs.
     """
-    from clite.cli.main import build_parser
-    from clite.core.config_defaults import DEFAULT_CONFIG
-    from clite.gateway.platforms import base as platforms_base
     from clite.gateway.platforms import (  # noqa: F401 - importing registers the adapters
         discord,
         local,
         slack,
         telegram,
     )
-    from clite.plugins.hooks import FAIL_CLOSED_HOOKS, VALID_HOOKS
-    from clite.plugins.manager import ensure_plugins_loaded, get_plugin_manager
-    from clite.plugins.shell_hooks import SHELL_HOOK_EVENTS
-    from clite.providers.registry import list_providers
-    from clite.rpc.contracts import schema  # noqa: F401 - importing registers everything
-    from clite.rpc.contracts.base import EVENTS, METHODS, PROTOCOL_VERSION, SERVER_REQUESTS
-    from clite.runtime.commands import COMMAND_REGISTRY
-    from clite.skills.catalog import discover_skills
-    from clite.tools.registry import discover_builtin_tools, registry
-    from clite.tools.toolsets import TOOLSETS, resolve_toolset
+    from clite.plugins.manager import ensure_plugins_loaded
+    from clite.rpc.contracts.base import PROTOCOL_VERSION
+    from clite.tools.registry import discover_builtin_tools
 
     w = WORDS[language]
     discover_builtin_tools()
     ensure_plugins_loaded()  # bundled platform plugins extend the registry in a fresh install
-    sections: dict[str, list[str]] = {}
+    builders = {
+        "tools": _tools_section,
+        "toolsets": _toolsets_section,
+        "slash": _slash_section,
+        "cli": _cli_section,
+        "rpc": _rpc_section,
+        "hooks": _hooks_section,
+        "providers": _providers_section,
+        "platforms": _platforms_section,
+        "plugins": _plugins_section,
+        "skills": _skills_section,
+        "config": _config_section,
+    }
+    return {name: build(w) for name, build in builders.items()}, PROTOCOL_VERSION
 
-    sections["tools"] = table(
+
+# One builder per catalog section. Each takes the language's WORDS and returns Markdown lines;
+# imports stay inside them because the registries must load after CLITE_HOME is set.
+
+
+def _tools_section(w: dict[str, str]) -> list[str]:
+    from clite.tools.registry import registry
+
+    return table(
         [w["tool"], w["toolset"], w["parallel"], w["description"]],
         [
             [f"`{entry.name}`", f"`{entry.toolset}`", entry.parallel, first_sentence(entry.description)]
@@ -299,7 +310,11 @@ def catalog_sections(language: str) -> tuple[dict[str, list[str]], int]:
         ],
     )
 
-    sections["toolsets"] = table(
+
+def _toolsets_section(w: dict[str, str]) -> list[str]:
+    from clite.tools.toolsets import TOOLSETS, resolve_toolset
+
+    return table(
         [w["toolset"], w["description"], w["toolset_contents"]],
         [
             [
@@ -311,7 +326,11 @@ def catalog_sections(language: str) -> tuple[dict[str, list[str]], int]:
         ],
     )
 
-    sections["slash"] = table(
+
+def _slash_section(w: dict[str, str]) -> list[str]:
+    from clite.runtime.commands import COMMAND_REGISTRY
+
+    return table(
         [
             w["command"],
             "Alias",
@@ -335,6 +354,10 @@ def catalog_sections(language: str) -> tuple[dict[str, list[str]], int]:
         ],
     )
 
+
+def _cli_section(w: dict[str, str]) -> list[str]:
+    from clite.cli.main import build_parser
+
     parser = build_parser()
     subparsers = next(action for action in parser._actions if isinstance(action, argparse._SubParsersAction))
     helps = {action.dest: action.help or "" for action in subparsers._choices_actions}
@@ -350,30 +373,41 @@ def catalog_sections(language: str) -> tuple[dict[str, list[str]], int]:
                 ", ".join(f"`{child}`" for child in nested.choices) if nested else "",
             ]
         )
-    sections["cli"] = table([w["command"], w["function"], w["subcommands"]], rows)
+    return table([w["command"], w["function"], w["subcommands"]], rows)
 
-    sections["rpc"] = [f"### {w['method']}", ""]
-    sections["rpc"] += table(
+
+def _rpc_section(w: dict[str, str]) -> list[str]:
+    from clite.rpc.contracts import schema  # noqa: F401 - importing registers everything
+    from clite.rpc.contracts.base import EVENTS, METHODS, SERVER_REQUESTS
+
+    lines = [f"### {w['method']}", ""]
+    lines += table(
         [w["method"], "Parameter", w["result"], w["notes"]],
         [
             [f"`{name}`", model_fields(spec.params), model_fields(spec.result), spec.description]
             for name, spec in METHODS.items()
         ],
     )
-    sections["rpc"] += [f"### {w['event']}", ""]
-    sections["rpc"] += table(
+    lines += [f"### {w['event']}", ""]
+    lines += table(
         [w["event"], "Payload"], [[f"`{name}`", model_fields(model)] for name, model in EVENTS.items()]
     )
-    sections["rpc"] += [f"### {w['server_requests']}", ""]
-    sections["rpc"] += table(
+    lines += [f"### {w['server_requests']}", ""]
+    lines += table(
         [w["request"], "Parameter", w["answer"], w["notes"]],
         [
             [f"`{name}`", model_fields(spec.params), model_fields(spec.result), spec.description]
             for name, spec in SERVER_REQUESTS.items()
         ],
     )
+    return lines
 
-    sections["hooks"] = table(
+
+def _hooks_section(w: dict[str, str]) -> list[str]:
+    from clite.plugins.hooks import FAIL_CLOSED_HOOKS, VALID_HOOKS
+    from clite.plugins.shell_hooks import SHELL_HOOK_EVENTS
+
+    return table(
         [w["hook"], w["shell_hook"], w["fails_closed"]],
         [
             [
@@ -385,7 +419,11 @@ def catalog_sections(language: str) -> tuple[dict[str, list[str]], int]:
         ],
     )
 
-    sections["providers"] = table(
+
+def _providers_section(w: dict[str, str]) -> list[str]:
+    from clite.providers.registry import list_providers
+
+    return table(
         [w["provider"], "Alias", "`api_mode`", w["key_variable"], "Base URL", w["default_model"]],
         [
             [
@@ -400,13 +438,19 @@ def catalog_sections(language: str) -> tuple[dict[str, list[str]], int]:
         ],
     )
 
-    sections["platforms"] = table(
-        [w["platform"]], [[f"`{name}`"] for name in sorted(platforms_base.PLATFORMS)]
-    )
+
+def _platforms_section(w: dict[str, str]) -> list[str]:
+    from clite.gateway.platforms import base as platforms_base
+
+    return table([w["platform"]], [[f"`{name}`"] for name in sorted(platforms_base.PLATFORMS)])
+
+
+def _plugins_section(w: dict[str, str]) -> list[str]:
+    from clite.plugins.manager import get_plugin_manager
 
     manager = get_plugin_manager()
     manager.discover()
-    sections["plugins"] = table(
+    return table(
         ["Plugin", w["kind"], w["description"]],
         [
             [f"`{info.name}`", info.manifest.kind, info.manifest.description]
@@ -415,7 +459,11 @@ def catalog_sections(language: str) -> tuple[dict[str, list[str]], int]:
         ],
     )
 
-    sections["skills"] = table(
+
+def _skills_section(w: dict[str, str]) -> list[str]:
+    from clite.skills.catalog import discover_skills
+
+    return table(
         [w["skill"], w["category"], w["description"]],
         [
             [f"`{skill.name}`", skill.category, skill.description]
@@ -423,14 +471,17 @@ def catalog_sections(language: str) -> tuple[dict[str, list[str]], int]:
         ],
     )
 
-    sections["config"] = table(
+
+def _config_section(w: dict[str, str]) -> list[str]:
+    from clite.core.config_defaults import DEFAULT_CONFIG
+
+    return table(
         [w["config_key"], w["default"]],
         [
             [f"`{key}`", f"`{json.dumps(value, ensure_ascii=False)}`"]
             for key, value in leaf_keys(DEFAULT_CONFIG)
         ],
     )
-    return sections, PROTOCOL_VERSION
 
 
 # The intro and the note under each title of the developer-facing catalog. The site pages carry
