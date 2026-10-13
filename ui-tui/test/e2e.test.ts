@@ -185,7 +185,9 @@ test("Ctrl+C stops a running turn and leaves the session usable", async () => {
   await tui.handleInterrupt();
   await waitFor(/Interrupting…[\s\S]*\(interrupted\)/);
   type("still there?");
-  await waitFor(/You said: still there\?/);
+  // The prompt comes back only once the turn is over; the answer is printed before that, and
+  // a Ctrl+C in between would interrupt the finishing turn instead of exiting.
+  await waitFor(/You said: still there\?\n+❯ $/);
   await tui.handleInterrupt(); // nothing is running now: this exits
   assert.equal(await exit, 130);
   await backend.stop();

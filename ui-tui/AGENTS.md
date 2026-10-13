@@ -59,3 +59,6 @@ Tes dan pemeriksaan (dari direktori ini):
   `interactive: true`; tanpa itu stream uji dianggap skrip dan tiap baris menunggu giliran.
 - Respons dan event berbagi satu aliran. Event giliran bisa tiba sebelum respons
   `prompt.submit`; kode yang menunggu giliran membandingkan `turn_id`, bukan urutan.
+- Jawaban giliran tercetak sebelum `turn.complete` tiba, dan baru event itu yang menandai
+  giliran selesai. Tes yang bertindak setelah giliran berakhir (misalnya Ctrl+C untuk keluar)
+  menunggu prompt `❯` yang dicetak sesudahnya, bukan teks jawabannya.
