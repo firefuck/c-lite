@@ -9,11 +9,11 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { PassThrough } from "node:stream";
-import { after, before, test } from "node:test";
+import { after, afterEach, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { spawnBackend } from "../src/backend.ts";
-import type { Backend } from "../src/backend.ts";
+import type { Backend, BackendOptions } from "../src/backend.ts";
 import { PlainTui } from "../src/plain.ts";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -37,6 +37,26 @@ before(() => {
 
 after(() => rmSync(sandbox, { recursive: true, force: true }));
 
+/** Every backend a test starts. A failed assertion skips that test's own `stop()`, and a
+ *  backend left running keeps Node alive: the suite would hang instead of reporting the
+ *  failure. So whatever a test leaves running is stopped after it. */
+const started = new Set<Backend>();
+
+function start(options: BackendOptions): Backend {
+  const backend = spawnBackend(options);
+  started.add(backend);
+  return backend;
+}
+
+afterEach(async () => {
+  for (const backend of started) {
+    const child = backend.process;
+    // A process that never started (or already exited) has nothing to stop.
+    if (child.pid !== undefined && child.exitCode === null && child.signalCode === null) await backend.stop();
+  }
+  started.clear();
+});
+
 /** A TUI wired to in-memory streams, with helpers to type and to wait for output. It is
  *  marked interactive: the test plays a person, who may type while a turn is running. */
 async function startTui(): Promise<{
@@ -49,7 +69,7 @@ async function startTui(): Promise<{
   /** The version the backend announced; the banner names it. */
   version: string;
 }> {
-  const backend = spawnBackend({ env: backendEnv(), cwd: workdir });
+  const backend = start({ env: backendEnv(), cwd: workdir });
   const ready = await backend.ready;
   const input = new PassThrough();
   const sink = new PassThrough();
@@ -74,7 +94,7 @@ async function startTui(): Promise<{
 }
 
 test("the protocol works over a real child process", async () => {
-  const backend = spawnBackend({ env: backendEnv(), cwd: workdir });
+  const backend = start({ env: backendEnv(), cwd: workdir });
   try {
     const ready = await backend.ready;
     assert.equal(ready.protocol_version, 1);
@@ -173,7 +193,7 @@ test("Ctrl+C stops a running turn and leaves the session usable", async () => {
 
 /** Run the TUI over a whole script given up front, the way a pipe delivers it. */
 async function runScript(script: string): Promise<{ code: number; text: string }> {
-  const backend = spawnBackend({ env: backendEnv(), cwd: workdir });
+  const backend = start({ env: backendEnv(), cwd: workdir });
   await backend.ready;
   const input = new PassThrough();
   const sink = new PassThrough();
@@ -210,12 +230,11 @@ test("a script answers the agent's questions with its next line", async () => {
   assert.match(text, /✓ terminal rm -rf \.\/scripted[\s\S]*You said: after the approval/);
 });
 
-test("a backend that cannot start is reported, not hung on", { timeout: 15000 }, async (t) => {
-  const missing = spawnBackend({ python: "/no/such/python" });
+test("a backend that cannot start is reported, not hung on", { timeout: 15000 }, async () => {
+  const missing = start({ python: "/no/such/python" });
   await assert.rejects(missing.ready, /could not start the backend/);
 
-  const broken = spawnBackend({ env: backendEnv(), args: ["--profile", "missing-startup-profile"], cwd: sandbox });
-  t.after(() => broken.stop());
+  const broken = start({ env: backendEnv(), args: ["--profile", "missing-startup-profile"], cwd: sandbox });
   // A missing profile fails even when the package is installed in Python's site-packages.
   await assert.rejects(broken.ready, /exited with code 1 before it was ready[\s\S]*profile 'missing-startup-profile' does not exist/);
 });
@@ -223,7 +242,7 @@ test("a backend that cannot start is reported, not hung on", { timeout: 15000 },
 test("an unconfigured install explains what to do", async () => {
   const emptyHome = join(sandbox, "empty-home");
   mkdirSync(emptyHome, { recursive: true });
-  const backend = spawnBackend({ env: { ...backendEnv(), CLITE_HOME: emptyHome }, cwd: workdir });
+  const backend = start({ env: { ...backendEnv(), CLITE_HOME: emptyHome }, cwd: workdir });
   await backend.ready;
   const sink = new PassThrough();
   let text = "";
