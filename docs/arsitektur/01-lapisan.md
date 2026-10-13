@@ -110,7 +110,7 @@ fungsi.
 
 1. Buat paketnya di `src/clite/<area>/`.
 2. Tambahkan peringkatnya ke `LAYER_RANK`. Tanpa itu `test_every_package_has_a_layer` gagal.
-3. Tulis `AGENTS.md` dan `CLAUDE.md` area itu (salin dari area tetangga).
+3. Tulis `AGENTS.md` area itu (salin dari area tetangga).
 4. Tambahkan barisnya ke tabel di dokumen ini dan spesifikasinya di `docs/spesifikasi/`.
 
 ## Bagian yang bukan Python
