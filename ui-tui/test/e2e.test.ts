@@ -46,6 +46,8 @@ async function startTui(): Promise<{
   tui: PlainTui;
   backend: Backend;
   exit: Promise<number>;
+  /** The version the backend announced; the banner names it. */
+  version: string;
 }> {
   const backend = spawnBackend({ env: backendEnv(), cwd: workdir });
   const ready = await backend.ready;
@@ -68,7 +70,7 @@ async function startTui(): Promise<{
     throw new Error(`timed out waiting for ${pattern}; output so far:\n${text}\nbackend stderr:\n${backend.stderrTail()}`);
   };
   await waitFor(/Type a message/);
-  return { type: (line) => input.write(`${line}\n`), waitFor, output: () => text, tui, backend, exit };
+  return { type: (line) => input.write(`${line}\n`), waitFor, output: () => text, tui, backend, exit, version: ready.version };
 }
 
 test("the protocol works over a real child process", async () => {
@@ -97,7 +99,7 @@ test("the protocol works over a real child process", async () => {
 });
 
 test("a chat session: banner, answer, slash command, quit", async () => {
-  const { type, waitFor, exit, backend } = await startTui();
+  const { type, waitFor, exit, backend, version } = await startTui();
   type("hello there");
   await waitFor(/You said: hello there\n/);
   type("/status");
@@ -107,7 +109,7 @@ test("a chat session: banner, answer, slash command, quit", async () => {
   type("/quit");
   assert.equal(await exit, 0);
   const output = await waitFor(/Resume this session with: clite chat --resume \d{8}_\d{6}_[0-9a-f]{8}/);
-  assert.match(output, /^C-lite 0\.1\.0\nmock-1 via mock/);
+  assert.ok(output.startsWith(`C-lite ${version}\nmock-1 via mock`), output);
   await backend.stop();
 });
 
