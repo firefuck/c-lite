@@ -7,6 +7,7 @@ on this repository, and check the script's refusals on small throwaway repositor
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -15,6 +16,7 @@ import sys
 import tomllib
 import zipfile
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -35,7 +37,9 @@ finally:
 
 
 def _mini_repository(root: Path, version: str = "1.2.3") -> Path:
-    """The files the release script reads, from this repository, with another version."""
+    """The files the release script reads, from this repository, with another version.
+
+    It has no Node workspaces; ``_with_node_workspaces`` adds two."""
     package = root / "src" / APP_NAME
     (package / "core").mkdir(parents=True)
     shutil.copy2(REPO_ROOT / "src" / APP_NAME / "core" / "brand.py", package / "core" / "brand.py")
@@ -45,6 +49,20 @@ def _mini_repository(root: Path, version: str = "1.2.3") -> Path:
         f"# Changes\n\n## [{version}] - 2026-01-01\n\n- Something.\n\n## [0.0.1]\n\n- Old.\n",
         encoding="utf-8",
     )
+    return root
+
+
+def _with_node_workspaces(root: Path, version: str) -> Path:
+    workspaces = ["apps/app", "packages/lib"]
+    (root / "package.json").write_text(json.dumps({"name": "w", "workspaces": workspaces}, indent=2) + "\n")
+    lock: dict[str, Any] = {"name": "w", "lockfileVersion": 3, "packages": {"": {"workspaces": workspaces}}}
+    for name in workspaces:
+        (root / name).mkdir(parents=True)
+        manifest = {"name": f"@w/{name.rsplit('/', 1)[1]}", "version": version, "private": True}
+        (root / name / "package.json").write_text(json.dumps(manifest, indent=2) + "\n")
+        lock["packages"][name] = {"name": manifest["name"], "version": version}
+        lock["packages"][f"node_modules/{manifest['name']}"] = {"resolved": name, "link": True}
+    (root / "package-lock.json").write_text(json.dumps(lock, indent=2) + "\n")
     return root
 
 
@@ -63,16 +81,14 @@ def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
 
 def test_every_node_workspace_carries_the_package_version():
     """The desktop installer is named after its package.json; the others ship inside the wheel.
-    `scripts/release.py bump` writes only the Python version, so a bump must update these too."""
-    import json
-
+    `scripts/release.py bump` writes the version into all of them."""
     workspaces = json.loads((REPO_ROOT / "package.json").read_text(encoding="utf-8"))["workspaces"]
     versions = {
         name: json.loads((REPO_ROOT / name / "package.json").read_text(encoding="utf-8"))["version"]
         for name in workspaces
     }
     assert versions == dict.fromkeys(workspaces, __version__), (
-        f"set the version in each workspace's package.json to {__version__}, then run npm install"
+        f"run `python scripts/release.py bump {__version__}` to set every workspace's version"
     )
 
 
@@ -144,6 +160,27 @@ def test_bump_rewrites_the_one_version_and_nothing_else(tmp_path):
     assert (root / "pyproject.toml").read_bytes() == before
     with pytest.raises(release.ReleaseError):
         release.bump(root, "sideways")
+
+
+def test_bump_carries_the_version_into_every_node_workspace_and_the_lockfile(tmp_path):
+    root = _with_node_workspaces(_mini_repository(tmp_path), "1.2.3")
+    assert release.check(root) == []
+    assert release.bump(root, "patch") == "1.2.4"
+    for name in ("apps/app", "packages/lib"):
+        assert json.loads((root / name / "package.json").read_text())["version"] == "1.2.4"
+    lock = json.loads((root / "package-lock.json").read_text())
+    assert [lock["packages"][name]["version"] for name in ("apps/app", "packages/lib")] == ["1.2.4", "1.2.4"]
+    assert lock["packages"]["node_modules/@w/app"] == {"resolved": "apps/app", "link": True}
+    changelog = root / "CHANGELOG.md"
+    changelog.write_text(changelog.read_text().replace("# Changes\n", "# Changes\n\n## [1.2.4]\n\n- Fix.\n"))
+    assert release.check(root) == []
+
+
+def test_a_node_workspace_left_at_another_version_is_reported(tmp_path):
+    root = _with_node_workspaces(_mini_repository(tmp_path), "1.2.3")
+    manifest = root / "packages" / "lib" / "package.json"
+    manifest.write_text(manifest.read_text().replace('"1.2.3"', '"1.0.0"'))
+    assert release.check(root) == ["packages/lib/package.json has version '1.0.0', expected '1.2.3'"]
 
 
 def test_the_release_notes_are_the_changelog_section_of_the_current_version(tmp_path):
