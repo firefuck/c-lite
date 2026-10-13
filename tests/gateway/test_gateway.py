@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 
 from clite.core.config import load_config
-from clite.gateway.event import CHAT_GROUP, SessionSource
+from clite.gateway.event import CHAT_GROUP, SendResult, SessionSource
 from clite.gateway.pairing import PairingStore
 from clite.gateway.platforms.base import split_message
 from clite.gateway.runner import GatewayRunner
@@ -388,6 +388,64 @@ def test_dangerous_command_is_approved_by_replying(gateway, tmp_path):
     local.inject("/approve", user_id="owner")
     local.wait_for_text("Removed.")
     assert not target.exists()
+
+
+def _with_buttons(adapter: Any) -> dict[str, list[Any]]:
+    """Give the in-process adapter button controls, recording what the runner sends."""
+    seen: dict[str, list[Any]] = {"pickers": [], "approvals": [], "edits": [], "answers": []}
+
+    def send(kind: str):
+        def sender(chat_id: str, text: str, keyboard: Any, *, thread_id: str | None = None) -> SendResult:
+            seen[kind].append({"text": text, "keyboard": keyboard})
+            return SendResult(True, message_id=f"{kind}-{len(seen[kind])}")
+
+        return sender
+
+    adapter.can_send_buttons = lambda: True
+    adapter.send_model_picker = send("pickers")
+    adapter.send_approval_prompt = send("approvals")
+    adapter.edit_approval_prompt = lambda chat_id, message_id, text, keyboard: seen["edits"].append(text)
+    adapter.answer_callback = lambda callback_id, text="": seen["answers"].append(text)
+    return seen
+
+
+def test_model_without_arguments_offers_a_picker_on_any_platform_with_buttons(gateway):
+    runner, local, _ = gateway()
+    seen = _with_buttons(local)
+    local.inject("/model", user_id="owner")
+    assert "Choose a provider" in seen["pickers"][0]["text"]
+    labels = [button["text"] for row in seen["pickers"][0]["keyboard"] for button in row]
+    assert "✓ mock" in labels and "Cancel" in labels
+    assert local.outbox == []  # the buttons replaced the text answer
+
+
+def test_model_without_arguments_answers_in_text_on_a_platform_without_buttons(gateway):
+    runner, local, _ = gateway()
+    local.inject("/model", user_id="owner")
+    assert "mock-1" in local.wait_for_messages(1)[0]
+
+
+@pytest.mark.platforms("posix")
+def test_approval_buttons_are_offered_on_any_platform_with_buttons(gateway, tmp_path):
+    target = tmp_path / "old-build"
+    target.mkdir()
+    runner, local, _ = gateway(
+        [tool_call_response(("terminal", {"command": f"rm -rf {target}"})), text_response("Removed.")]
+    )
+    seen = _with_buttons(local)
+    local.inject("clean the build dir", user_id="owner")
+    deadline = time.monotonic() + 5
+    while not seen["approvals"] and time.monotonic() < deadline:
+        time.sleep(0.01)
+    prompt = seen["approvals"][0]
+    assert f"rm -rf {target}" in prompt["text"] and local.outbox == []
+    once = next(button for row in prompt["keyboard"] for button in row if button["text"] == "Approve once")
+
+    owner = SessionSource("local", chat_id="owner", user_id="owner")
+    runner.handle_approval_callback(owner, "press-1", once["callback_data"], "approvals-1")
+    local.wait_for_text("Removed.")
+    assert not target.exists()
+    assert seen["answers"] == ["Approval recorded."] and seen["edits"] == ["Approval: once."]
 
 
 @pytest.mark.platforms("posix")

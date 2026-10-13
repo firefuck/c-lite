@@ -26,6 +26,7 @@ from typing import Any
 from clite.core.env import SecretSpec, get_secret, register_secret
 from clite.core.redact import redact
 from clite.core.threads import start_thread
+from clite.gateway.controls import APPROVAL_PREFIX, CALLBACK_PREFIXES
 from clite.gateway.event import CHAT_CHANNEL, CHAT_DM, CHAT_GROUP, MessageEvent, SendResult, SessionSource
 from clite.gateway.media import AUDIO, DOCUMENT, IMAGE, VIDEO, Attachment, MediaError
 from clite.gateway.platforms.base import BasePlatformAdapter, register_platform
@@ -165,6 +166,7 @@ register_secret(
 class TelegramAdapter(BasePlatformAdapter):
     name = "telegram"
     max_message_length = 4096
+    max_button_label_bytes = 64  # Bot API limit on inline keyboard button text
 
     def __init__(self, config: dict[str, Any], runner: Any) -> None:
         super().__init__(config, runner)
@@ -250,7 +252,7 @@ class TelegramAdapter(BasePlatformAdapter):
         if not isinstance(callback, dict):
             return False
         data = str(callback.get("data") or "")
-        if not (data.startswith("mp:") or data.startswith("ap:")):
+        if not data.startswith(CALLBACK_PREFIXES):
             self.answer_callback(str(callback.get("id") or ""), "Unsupported action.")
             return True
         message = callback.get("message") or {}
@@ -271,7 +273,7 @@ class TelegramAdapter(BasePlatformAdapter):
         )
         callback_id = str(callback.get("id") or "")
         message_id = str(message.get("message_id") or "")
-        if data.startswith("ap:"):
+        if data.startswith(f"{APPROVAL_PREFIX}:"):
             self.runner.handle_approval_callback(source, callback_id, data, message_id)
         else:
             self.runner.handle_model_picker_callback(source, callback_id, data, message_id)
@@ -458,6 +460,9 @@ class TelegramAdapter(BasePlatformAdapter):
             except Exception as fallback_exc:  # noqa: BLE001
                 return SendResult(False, error=str(fallback_exc))
         return SendResult(True, message_id=str(result.get("message_id", "")))
+
+    def can_send_buttons(self) -> bool:
+        return True
 
     def send_model_picker(
         self, chat_id: str, text: str, keyboard: list[list[dict[str, str]]], *, thread_id: str | None = None

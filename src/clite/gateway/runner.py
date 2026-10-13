@@ -31,6 +31,14 @@ from clite.core.config import get_path, load_config
 from clite.core.errors import CliteError
 from clite.core.threads import start_thread
 from clite.gateway import media
+from clite.gateway.controls import (
+    APPROVAL_PREFIX,
+    MODEL_PICKER_PREFIX,
+    Keyboard,
+    ModelPicker,
+    approval_keyboard,
+    model_picker_view,
+)
 from clite.gateway.event import CHAT_DM, MessageEvent, SessionSource
 from clite.gateway.media import MediaError
 from clite.gateway.media import store as media_store
@@ -228,12 +236,6 @@ _APPROVAL_WORDS = {
     "n": "deny",
 }
 _APPROVAL_TRAILING_PUNCTUATION = ".,;:!?"
-_APPROVAL_BUTTONS = (
-    ("Approve once", "once"),
-    ("Approve for session", "session"),
-    ("Always approve", "always"),
-    ("Deny", "deny"),
-)
 
 
 @dataclass
@@ -244,19 +246,6 @@ class _Pending:
     choices: list[str] = field(default_factory=list)
     answered: threading.Event = field(default_factory=threading.Event)
     answer: str = ""
-
-
-@dataclass
-class _ModelPicker:
-    """A Telegram model picker owned by one authorized gateway session."""
-
-    key: str
-    session_key: str
-    source: SessionSource
-    providers: list[str]
-    provider: str | None = None
-    models: list[str] = field(default_factory=list)
-    page: int = 0
 
 
 @dataclass
@@ -272,7 +261,7 @@ class _PickerTap:
 
 @dataclass
 class _ApprovalPrompt:
-    """A Telegram approval keyboard tied to the one pending question that created it."""
+    """An approval button prompt tied to the one pending question that created it."""
 
     key: str
     session_key: str
@@ -305,7 +294,7 @@ class GatewayRunner:
         self.home_channels = HomeChannels(self.config)
         self.now_fn = time.time
         self.pairing = PairingStore()
-        self._model_pickers: dict[str, _ModelPicker] = {}
+        self._model_pickers: dict[str, ModelPicker] = {}
         self._approval_prompts: dict[str, _ApprovalPrompt] = {}
         self.on_restart: Any = None
         self._lock = threading.RLock()
@@ -546,81 +535,22 @@ class GatewayRunner:
         logger.info("send_file delivered %s to %s", path, destination)
         return destination
 
-    # ── Telegram model picker ────────────────────────────────────────────────────────────
+    # ── model picker buttons ─────────────────────────────────────────────────────────────
 
-    @staticmethod
-    def _model_picker_label(model: str, *, current: bool) -> str:
-        """A Telegram-safe label: Bot API button text is limited to 64 UTF-8 bytes."""
-        prefix = "✓ " if current else ""
-        budget = 64 - len(prefix.encode("utf-8"))
-        encoded = model.encode("utf-8")
-        if len(encoded) > budget:
-            encoded = encoded[: max(0, budget - len("…".encode()))]
-            while encoded and (encoded[-1] & 0xC0) == 0x80:
-                encoded = encoded[:-1]
-            model = encoded.decode("utf-8", errors="ignore") + "…"
-        return prefix + model
+    def _model_picker_view(self, picker: ModelPicker, session: GatewaySession) -> tuple[str, Keyboard]:
+        adapter = self.adapters.get(picker.source.platform)
+        route = session.chat.agent.route
+        return model_picker_view(
+            picker,
+            current_provider=route.provider,
+            current_model=route.model,
+            label_bytes=adapter.max_button_label_bytes if adapter is not None else None,
+        )
 
-    def _model_picker_view(
-        self, picker: _ModelPicker, session: GatewaySession
-    ) -> tuple[str, list[list[dict[str, str]]]]:
-        page_size = 8
-        selecting_provider = picker.provider is None
-        choices = picker.providers if selecting_provider else picker.models
-        total_pages = max(1, (len(choices) + page_size - 1) // page_size)
-        picker.page = min(max(picker.page, 0), total_pages - 1)
-        start = picker.page * page_size
-        rows: list[list[dict[str, str]]] = []
-        if selecting_provider:
-            buttons = [
-                {
-                    "text": self._model_picker_label(
-                        provider, current=provider == session.chat.agent.route.provider
-                    ),
-                    "callback_data": f"mp:{picker.key}:provider:{index}",
-                }
-                for index, provider in enumerate(choices[start : start + page_size], start=start)
-            ]
-        else:
-            buttons = [
-                {
-                    "text": self._model_picker_label(
-                        model,
-                        current=picker.provider == session.chat.agent.route.provider
-                        and model == session.chat.agent.route.model,
-                    ),
-                    "callback_data": f"mp:{picker.key}:select:{index}",
-                }
-                for index, model in enumerate(choices[start : start + page_size], start=start)
-            ]
-        rows.extend([buttons[index : index + 2] for index in range(0, len(buttons), 2)])
-        if total_pages > 1:
-            navigation: list[dict[str, str]] = []
-            if picker.page:
-                navigation.append(
-                    {"text": "◀ Prev", "callback_data": f"mp:{picker.key}:page:{picker.page - 1}"}
-                )
-            navigation.append(
-                {"text": f"{picker.page + 1}/{total_pages}", "callback_data": f"mp:{picker.key}:noop"}
-            )
-            if picker.page < total_pages - 1:
-                navigation.append(
-                    {"text": "Next ▶", "callback_data": f"mp:{picker.key}:page:{picker.page + 1}"}
-                )
-            rows.append(navigation)
-        if not selecting_provider:
-            rows.append([{"text": "◀ Back", "callback_data": f"mp:{picker.key}:back:0"}])
-        rows.append([{"text": "Cancel", "callback_data": f"mp:{picker.key}:cancel"}])
-        if selecting_provider:
-            text = f"Model: {session.chat.agent.route.model}\nChoose a provider ({picker.page + 1}/{total_pages})."
-        else:
-            text = f"Provider: {picker.provider}\nChoose a model ({picker.page + 1}/{total_pages})."
-        return text, rows
-
-    def _send_telegram_model_picker(self, session: GatewaySession) -> bool:
-        """Render the Telegram-only interactive form of an argument-less ``/model`` command."""
+    def _send_model_picker(self, session: GatewaySession) -> bool:
+        """The button form of an argument-less ``/model``, on platforms that can show buttons."""
         adapter = self.adapters.get(session.source.platform)
-        if adapter is None:
+        if adapter is None or not adapter.can_send_buttons():
             return False
         from clite.providers.registry import list_providers
 
@@ -636,13 +566,13 @@ class GatewayRunner:
         import secrets
 
         key = secrets.token_hex(4)
-        picker = _ModelPicker(key=key, session_key=session.key, source=session.source, providers=providers)
+        picker = ModelPicker(key=key, session_key=session.key, source=session.source, providers=providers)
         text, keyboard = self._model_picker_view(picker, session)
         result = adapter.send_model_picker(
             session.source.chat_id, text, keyboard, thread_id=session.source.thread_id
         )
         if not result.success:
-            logger.warning("could not send Telegram model picker: %s", result.error)
+            logger.warning("could not send the model picker: %s", result.error)
             return False
         self._model_pickers[key] = picker
         return True
@@ -650,12 +580,12 @@ class GatewayRunner:
     def handle_model_picker_callback(
         self, source: SessionSource, callback_id: str, data: str, message_id: str
     ) -> None:
-        """Apply a Telegram picker tap after the runner's usual authorization and busy checks."""
+        """Apply a model picker tap after the runner's usual authorization and busy checks."""
         adapter = self.adapters.get(source.platform)
         if adapter is None:
             return
         parts = data.split(":", 3)
-        if len(parts) not in (3, 4) or parts[0] != "mp":
+        if len(parts) not in (3, 4) or parts[0] != MODEL_PICKER_PREFIX:
             adapter.answer_callback(callback_id, "Invalid model selection.")
             return
         _prefix, key, action = parts[:3]
@@ -685,7 +615,7 @@ class GatewayRunner:
             return
         handler(tap, picker, session)
 
-    def _picker_for_tap(self, tap: _PickerTap, key: str) -> tuple[_ModelPicker, GatewaySession] | None:
+    def _picker_for_tap(self, tap: _PickerTap, key: str) -> tuple[ModelPicker, GatewaySession] | None:
         """The picker a tap belongs to, once the tapper may use it and the session is idle."""
         adapter, callback_id = tap.adapter, tap.callback_id
         if not self.is_authorized(tap.source):
@@ -708,17 +638,17 @@ class GatewayRunner:
             return None
         return picker, session
 
-    def _redraw_picker(self, tap: _PickerTap, picker: _ModelPicker, session: GatewaySession) -> None:
+    def _redraw_picker(self, tap: _PickerTap, picker: ModelPicker, session: GatewaySession) -> None:
         text, keyboard = self._model_picker_view(picker, session)
         tap.adapter.edit_model_picker(tap.source.chat_id, tap.message_id, text, keyboard)
         tap.adapter.answer_callback(tap.callback_id)
 
-    def _picker_cancel(self, tap: _PickerTap, picker: _ModelPicker, session: GatewaySession) -> None:
+    def _picker_cancel(self, tap: _PickerTap, picker: ModelPicker, session: GatewaySession) -> None:
         tap.adapter.edit_model_picker(tap.source.chat_id, tap.message_id, "Model selection cancelled.", [])
         self._model_pickers.pop(picker.key, None)
         tap.adapter.answer_callback(tap.callback_id)
 
-    def _picker_page(self, tap: _PickerTap, picker: _ModelPicker, session: GatewaySession) -> None:
+    def _picker_page(self, tap: _PickerTap, picker: ModelPicker, session: GatewaySession) -> None:
         try:
             picker.page = int(tap.value)
         except ValueError:
@@ -726,13 +656,13 @@ class GatewayRunner:
             return
         self._redraw_picker(tap, picker, session)
 
-    def _picker_back(self, tap: _PickerTap, picker: _ModelPicker, session: GatewaySession) -> None:
+    def _picker_back(self, tap: _PickerTap, picker: ModelPicker, session: GatewaySession) -> None:
         picker.provider = None
         picker.models = []
         picker.page = 0
         self._redraw_picker(tap, picker, session)
 
-    def _picker_provider(self, tap: _PickerTap, picker: _ModelPicker, session: GatewaySession) -> None:
+    def _picker_provider(self, tap: _PickerTap, picker: ModelPicker, session: GatewaySession) -> None:
         try:
             provider = picker.providers[int(tap.value)]
         except (ValueError, IndexError):
@@ -755,7 +685,7 @@ class GatewayRunner:
         picker.page = 0
         self._redraw_picker(tap, picker, session)
 
-    def _picker_select(self, tap: _PickerTap, picker: _ModelPicker, session: GatewaySession) -> None:
+    def _picker_select(self, tap: _PickerTap, picker: ModelPicker, session: GatewaySession) -> None:
         if picker.provider is None:
             tap.adapter.answer_callback(tap.callback_id, "Invalid model selection.")
             return
@@ -773,25 +703,19 @@ class GatewayRunner:
         else:
             tap.adapter.answer_callback(tap.callback_id, "Could not switch model.")
 
-    # ── Telegram approval controls ───────────────────────────────────────────────────────
+    # ── approval buttons ─────────────────────────────────────────────────────────────────
 
-    def _send_telegram_approval(
+    def _send_approval_buttons(
         self, session: GatewaySession, pending: _Pending, command: str, description: str
     ) -> bool:
-        """Send a Telegram approval keyboard and bind it to this exact pending question."""
+        """Send approval buttons and bind them to this exact pending question."""
         adapter = self.adapters.get(session.source.platform)
-        if adapter is None or session.source.platform != "telegram":
+        if adapter is None or not adapter.can_send_buttons():
             return False
         import secrets
 
         key = secrets.token_urlsafe(8)
-        keyboard = [
-            [
-                {"text": label, "callback_data": f"ap:{key}:{choice}"}
-                for label, choice in _APPROVAL_BUTTONS[index : index + 2]
-            ]
-            for index in range(0, len(_APPROVAL_BUTTONS), 2)
-        ]
+        keyboard = approval_keyboard(key)
         text = f"This command needs your approval ({description}):\n\n{command}\n\nChoose an approval option."
         result = adapter.send_approval_prompt(
             session.source.chat_id, text, keyboard, thread_id=session.source.thread_id
@@ -810,8 +734,8 @@ class GatewayRunner:
             adapter.edit_approval_prompt(session.source.chat_id, result.message_id, "Approval: expired.", [])
         return True
 
-    def _remove_telegram_approval(self, prompt: _ApprovalPrompt, text: str) -> None:
-        """Disable a consumed or expired keyboard. A failed cosmetic edit never reopens approval."""
+    def _close_approval_prompt(self, prompt: _ApprovalPrompt, text: str) -> None:
+        """Disable consumed or expired buttons. A failed cosmetic edit never reopens approval."""
         with self._lock:
             if self._approval_prompts.get(prompt.key) is not prompt:
                 return
@@ -820,15 +744,15 @@ class GatewayRunner:
         if adapter is not None:
             adapter.edit_approval_prompt(prompt.source.chat_id, prompt.message_id, text, [])
 
-    def _remove_telegram_approval_for_pending(self, pending: _Pending, text: str) -> None:
-        """Remove the keyboard associated with a text answer or a timed-out pending approval."""
+    def _close_approval_prompt_for(self, pending: _Pending, text: str) -> None:
+        """Remove the buttons of an approval answered by text or left to time out."""
         with self._lock:
             prompt = next(
                 (candidate for candidate in self._approval_prompts.values() if candidate.pending is pending),
                 None,
             )
         if prompt is not None:
-            self._remove_telegram_approval(prompt, text)
+            self._close_approval_prompt(prompt, text)
 
     def handle_approval_callback(
         self, source: SessionSource, callback_id: str, data: str, message_id: str
@@ -838,7 +762,7 @@ class GatewayRunner:
         if adapter is None:
             return
         parts = data.split(":", 2)
-        if len(parts) != 3 or parts[0] != "ap" or parts[2] not in _APPROVAL_WORDS.values():
+        if len(parts) != 3 or parts[0] != APPROVAL_PREFIX or parts[2] not in _APPROVAL_WORDS.values():
             adapter.answer_callback(callback_id, "Invalid approval selection.")
             return
         _prefix, key, choice = parts
@@ -862,7 +786,7 @@ class GatewayRunner:
                 return
             prompt.pending.answer = choice
             prompt.pending.answered.set()
-        self._remove_telegram_approval(prompt, f"Approval: {choice}.")
+        self._close_approval_prompt(prompt, f"Approval: {choice}.")
         adapter.answer_callback(callback_id, "Approval recorded.")
 
     # ── authorization ────────────────────────────────────────────────────────────────────
@@ -904,10 +828,10 @@ class GatewayRunner:
             if session is None:
                 return "deny"
             session.pending = pending
-            if not self._send_telegram_approval(session, pending, command, description):
+            if not self._send_approval_buttons(session, pending, command, description):
                 self.reply(source, message)
             pending.answered.wait(timeout)
-            self._remove_telegram_approval_for_pending(pending, f"Approval: {pending.answer or 'denied'}.")
+            self._close_approval_prompt_for(pending, f"Approval: {pending.answer or 'denied'}.")
             session.pending = None
             return pending.answer or "deny"  # silence is a no
 
@@ -1046,12 +970,7 @@ class GatewayRunner:
         if session.pending is not None and self._answer_pending(session, text):
             return
 
-        if (
-            event.source.platform == "telegram"
-            and text == "/model"
-            and not session.busy
-            and self._send_telegram_model_picker(session)
-        ):
+        if text == "/model" and not session.busy and self._send_model_picker(session):
             return
 
         if split_command(text)[0]:

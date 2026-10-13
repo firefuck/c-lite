@@ -21,6 +21,7 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
 | `session.py` | `build_session_key`, `SessionMap` (kunci sesi ke id sesi tersimpan) |
 | `pairing.py` | `PairingStore`: kode pairing untuk pengguna tak dikenal |
 | `runner.py` | `GatewayRunner`: lapisan kebijakan antara platform dan agent |
+| `controls.py` | Tampilan kontrol tombol (pemilih `/model`, tombol persetujuan): tombol, label, data callback; tanpa kebijakan |
 | `service.py` | Unit systemd/LaunchAgent, kunci per-home, dan drain SIGTERM |
 | `platforms/base.py` | `BasePlatformAdapter`, registry `PLATFORMS`, `split_message` |
 | `platforms/local.py` | Adapter dalam-proses untuk tes dan penyematan |
@@ -33,6 +34,11 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
   Ia menerjemahkan pesan platform menjadi `MessageEvent` dan memanggil `handle_message`.
   Ia **tidak** memutuskan siapa yang diizinkan atau apa arti sebuah perintah.
 - Platform yang gagal mulai tidak menghentikan platform lain.
+- Adapter yang bisa menampilkan tombol mengembalikan `True` dari `can_send_buttons()`,
+  mengimplementasikan `send_*`/`edit_*` kontrol serta `answer_callback`, dan meneruskan tekanan
+  tombol yang datanya berawalan `CALLBACK_PREFIXES` ke runner. Batas panjang label tombol
+  platform dinyatakan di `max_button_label_bytes`. Runner tidak pernah bertanya nama platform:
+  tanpa tombol, ia memakai jalur teks.
 
 **Urutan untuk setiap pesan masuk** (`GatewayRunner.dispatch`)
 1. Plugin boleh membuang atau menulis ulang pesan (`pre_gateway_dispatch`).
@@ -91,8 +97,9 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
 
 **Persetujuan dan klarifikasi lewat chat**
 - Perintah berbahaya: agent mengirim perintahnya dan menunggu `/approve`, `/approve session`,
-  `/approve always`, atau `/deny`. Telegram yang diizinkan memakai tombol inline **Approve once**,
-  **Approve for session**, **Always approve**, dan **Deny**; callback diikat ke pending approval,
+  `/approve always`, atau `/deny`. Di platform yang bisa menampilkan tombol (saat ini Telegram)
+  chat yang diizinkan juga mendapat tombol **Approve once**, **Approve for session**,
+  **Always approve**, dan **Deny**; callback diikat ke pending approval,
   chat, sesi, dan pengguna pemilik, lalu diotorisasi ulang. Setiap pilihan mengakui callback dan
   mengganti pesan agar keyboard hilang. Perintah teks tetap fallback; tanda baca penutup pada
   pilihan (misalnya `/approve session,`) diterima. Diam sampai `approvals.timeout` berarti tolak.
@@ -116,7 +123,8 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
   beberapa baris berurutan, dikirim sebagai quote block native Telegram; karakter dan code fence
   yang tidak membentuk entitas di-escape. Bila Bot API menolak parse MarkdownV2, adapter mencoba
   sekali lagi sebagai teks polos agar jawaban tidak hilang.
-- `/model` tanpa argumen di chat Telegram yang diizinkan mengirim keyboard inline berhalaman:
+- `/model` tanpa argumen di chat yang diizinkan pada platform bertombol (Telegram) mengirim
+  keyboard inline berhalaman:
   pilih provider lebih dulu, lalu model provider tersebut. Tampilan model memiliki tombol kembali
   dan kedua tampilan dapat dibatalkan. Tombol memanggil kembali ke runner, yang mengulang
   pemeriksaan otorisasi, menolak sesi sibuk, lalu mengganti provider dan model hanya untuk sesi
@@ -130,7 +138,7 @@ dan mengirim jawaban. Proses yang sama menjalankan penjadwal cron.
 | Fitur | Status | Catatan |
 |---|---|---|
 | Runner, kunci sesi, pairing, kebijakan sibuk | ✅ | |
-| Persetujuan dan klarifikasi lewat chat | ✅ | |
+| Persetujuan dan klarifikasi lewat chat | ✅ | Tombol persetujuan dan pemilih `/model` ditawarkan di platform mana pun yang punya tombol (`test_approval_buttons_are_offered_on_any_platform_with_buttons`, `test_model_without_arguments_offers_a_picker_on_any_platform_with_buttons`); tanpa tombol jalurnya teks (`test_model_without_arguments_answers_in_text_on_a_platform_without_buttons`) |
 | Adapter `local` | ✅ | |
 | Adapter Telegram | 🟡 | Diuji terhadap Bot API tiruan; token tidak sampai ke log (`test_a_network_error_never_puts_the_bot_token_in_the_log`), menu slash native diterbitkan lewat `setMyCommands` tanpa menggagalkan chat bila Bot API menolaknya (`test_telegram_registers_the_supported_slash_commands_in_the_native_menu`, `test_telegram_starts_when_native_command_menu_registration_fails`), jawaban Markdown memakai MarkdownV2 aman termasuk blockquote native serta fallback teks polos bila parser menolak (`test_telegram_sends_model_markdown_as_safe_markdownv2_with_native_blockquotes`, `test_telegram_retries_unparseable_markdown_as_plain_text_without_dropping_the_reply`), jawaban biasa dan streaming merujuk pesan masuk hanya pada bagian pertama (`test_telegram_round_trip`, `test_telegram_streamed_reply_quotes_only_the_first_chunk_and_keeps_its_topic`), dan `/model` memilih provider lalu model, mendukung halaman/kembali/batal, mengganti model sesi pada tap terotorisasi, serta menolak tap orang asing (`test_telegram_model_picker_selects_a_provider_then_switches_the_chat_model`, `test_telegram_model_picker_pages_back_and_cancels_after_provider_selection`, `test_telegram_model_picker_does_not_let_an_unauthorized_user_switch_the_owner_session`). Belum terhadap Telegram sungguhan: F1-T3 |
 | Penjadwal cron di dalam gateway | ✅ | |
