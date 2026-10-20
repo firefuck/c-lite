@@ -37,12 +37,12 @@ dependencies = [
   # goes in an extra. Every dependency carries an upper bound.
   "pydantic>=2.7,<3",
   "PyYAML>=6.0,<7",
-  "ruamel.yaml>=0.18.6,<0.19",
+  "ruamel.yaml>=0.18.6,<0.20",
   "python-dotenv>=1.0,<2",
   # `clite serve` / `clite dashboard`: the JSON-RPC backend for the desktop app and web UI.
   "starlette>=0.40,<2",
   "uvicorn>=0.30,<1",
-  "websockets>=12,<17",
+  "websockets>=12,<18",
   # Windows has no system IANA timezone database.
   "tzdata>=2024.1,<2027; sys_platform == 'win32'",
 ]
@@ -52,7 +52,7 @@ bedrock = ["botocore>=1.35,<2"]
 vertex = ["google-auth>=2.35,<3"]
 # Downscaling of oversized image attachments (F2-T6). Without it an image over the byte
 # ceiling is refused with a message instead of being shrunk.
-images = ["Pillow>=10,<13"]
+images = ["Pillow>=10,<14"]
 # The richer classic REPL (F3-T1): line editing that survives streaming output, multi-line
 # input, bracketed paste and Tab completion. Optional on purpose — without it the CLI falls
 # back to the standard-library REPL, which stays supported and tested.
